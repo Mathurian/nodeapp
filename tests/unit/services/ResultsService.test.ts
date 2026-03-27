@@ -52,7 +52,7 @@ describe('ResultsService', () => {
       id: 'contestant-1',
       name: 'Contestant 1',
       email: 'contestant1@test.com',
-      contestantNumber: '001'
+      contestantNumber: 1
     },
     judge: {
       id: 'judge-1',

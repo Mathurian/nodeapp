@@ -3,7 +3,7 @@
  * Helpers for generating tokens, mocking users, and testing authentication flows
  */
 
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import { UserRole } from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -14,7 +14,7 @@ export const generateToken = (
   userId: string,
   role: UserRole = UserRole.ADMIN,
   sessionVersion: number = 1,
-  expiresIn: string = '24h'
+  expiresIn: SignOptions['expiresIn'] = '24h'
 ): string => {
   const secret = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
   return jwt.sign(

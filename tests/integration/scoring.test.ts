@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -25,12 +26,16 @@ describe('Scoring API Integration Tests', () => {
   let testJudge: any;
   let testContestant: any;
   let testScoreId: string;
+  let tenantId: string;
 
   // ============================================================================
   // SETUP & TEARDOWN
   // ============================================================================
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     // Clean up any existing test data
     await prisma.score.deleteMany({
       where: {
@@ -82,6 +87,7 @@ describe('Scoring API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -94,6 +100,7 @@ describe('Scoring API Integration Tests', () => {
         role: 'JUDGE',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -106,6 +113,7 @@ describe('Scoring API Integration Tests', () => {
         role: 'CONTESTANT',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -117,6 +125,7 @@ describe('Scoring API Integration Tests', () => {
         startDate: new Date('2024-07-01'),
         endDate: new Date('2024-07-03'),
         location: 'Test Location',
+        tenantId,
       }
     });
 
@@ -125,6 +134,7 @@ describe('Scoring API Integration Tests', () => {
         name: `contest-test-${Date.now()}`,
         eventId: testEvent.id,
         description: 'Test contest for scoring',
+        tenantId,
       }
     });
 
@@ -134,6 +144,7 @@ describe('Scoring API Integration Tests', () => {
         contestId: testContest.id,
         description: 'Test category for scoring',
         scoreCap: 100,
+        tenantId,
       }
     });
 
@@ -143,13 +154,14 @@ describe('Scoring API Integration Tests', () => {
         data: {
           name: 'Test Judge',
           email: 'judge@scoringtest.com',
+          tenantId,
         }
       });
     } catch (error: any) {
       // If judge already exists, find it
       if (error.code === 'P2002') {
         testJudge = await prisma.judge.findUnique({
-          where: { email: 'judge@scoringtest.com' }
+          where: { tenantId_email: { tenantId, email: 'judge@scoringtest.com' } }
         });
       } else {
         throw error;
@@ -170,13 +182,14 @@ describe('Scoring API Integration Tests', () => {
           name: 'Test Contestant',
           email: 'contestant@scoringtest.com',
           contestantNumber: 1, // Int, not string
+          tenantId,
         }
       });
     } catch (error: any) {
       // If contestant already exists, find it
       if (error.code === 'P2002') {
         testContestant = await prisma.contestant.findUnique({
-          where: { email: 'contestant@scoringtest.com' }
+          where: { tenantId_email: { tenantId, email: 'contestant@scoringtest.com' } }
         });
       } else {
         throw error;
@@ -202,7 +215,7 @@ describe('Scoring API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -219,7 +232,7 @@ describe('Scoring API Integration Tests', () => {
       judgeToken = judgeLoginResponse.body.data?.token || judgeLoginResponse.body.token;
     } else {
       judgeToken = jwt.sign(
-        { userId: judgeUser.id, role: judgeUser.role },
+        { userId: judgeUser.id, role: judgeUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -378,11 +391,11 @@ describe('Scoring API Integration Tests', () => {
       if (contestantLoginResponse.status === 200 || contestantLoginResponse.status === 201) {
         contestantToken = contestantLoginResponse.body.data?.token || contestantLoginResponse.body.token;
       } else {
-        contestantToken = jwt.sign(
-          { userId: contestantUser.id, role: contestantUser.role },
-          JWT_SECRET,
-          { expiresIn: '1h' }
-        );
+      contestantToken = jwt.sign(
+        { userId: contestantUser.id, role: contestantUser.role, tenantId },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+      );
       }
 
       const scoreData = {

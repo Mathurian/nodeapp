@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -18,8 +19,12 @@ describe('Notifications API Integration Tests', () => {
   let regularUser: any;
   let adminToken: string;
   let userToken: string;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -37,6 +42,7 @@ describe('Notifications API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -48,6 +54,7 @@ describe('Notifications API Integration Tests', () => {
         role: 'CONTESTANT',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -62,7 +69,7 @@ describe('Notifications API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -79,7 +86,7 @@ describe('Notifications API Integration Tests', () => {
       userToken = userLoginResponse.body.data?.token || userLoginResponse.body.token;
     } else {
       userToken = jwt.sign(
-        { userId: regularUser.id, role: regularUser.role },
+        { userId: regularUser.id, role: regularUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );

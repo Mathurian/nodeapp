@@ -17,6 +17,40 @@ let factory: TestDataFactory;
 let testData: any;
 let authContext: any;
 
+const createTenantScopedEvent = async (
+  tenantId: string,
+  name: string,
+  scoringType: ScoringType | null = null
+) => {
+  return prisma.event.create({
+    data: {
+      name,
+      startDate: new Date(),
+      endDate: new Date(),
+      tenantId,
+      scoringType,
+    },
+  });
+};
+
+const createLinkedJudge = async (tenantId: string, name: string) => {
+  const judgeUser = await factory.createUser('JUDGE', tenantId);
+  const judge = await prisma.judge.create({
+    data: {
+      name,
+      email: judgeUser.email,
+      tenantId,
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: judgeUser.id },
+    data: { judgeId: judge.id },
+  });
+
+  return judge;
+};
+
 test.describe('Olympic Scoring Workflow', () => {
   test.beforeAll(async ({ browser }) => {
     prisma = new PrismaClient({
@@ -82,16 +116,7 @@ test.describe('Olympic Scoring Workflow', () => {
       });
 
       // Create event without scoringType (should inherit from tenant)
-      const event = await prisma.event.create({
-        data: {
-          name: 'Test Event',
-          slug: `test-event-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-          scoringType: null, // Explicitly null to inherit
-        },
-      });
+      const event = await createTenantScopedEvent(testData.tenant.id, 'Test Event', null);
 
       // Create contest without scoringType
       const contest = await prisma.contest.create({
@@ -132,15 +157,7 @@ test.describe('Olympic Scoring Workflow', () => {
 
       // Create 3 judges
       const judges = await Promise.all([1, 2, 3].map(async (i) => {
-        const judgeUser = await factory.createUser('JUDGE', testData.tenant.id);
-        const judge = await prisma.judge.create({
-          data: {
-            userId: judgeUser.id,
-            name: `Judge ${i}`,
-            tenantId: testData.tenant.id,
-          },
-        });
-        return judge;
+        return createLinkedJudge(testData.tenant.id, `Judge ${i}`);
       }));
 
       // Create scores from all 3 judges
@@ -194,16 +211,11 @@ test.describe('Olympic Scoring Workflow', () => {
       });
 
       // Create event with OLYMPIC scoring (overrides tenant)
-      const event = await prisma.event.create({
-        data: {
-          name: 'Olympic Event',
-          slug: `olympic-event-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-          scoringType: ScoringType.OLYMPIC,
-        },
-      });
+      const event = await createTenantScopedEvent(
+        testData.tenant.id,
+        'Olympic Event',
+        ScoringType.OLYMPIC
+      );
 
       expect(event.scoringType).toBe(ScoringType.OLYMPIC);
 
@@ -244,16 +256,11 @@ test.describe('Olympic Scoring Workflow', () => {
       });
 
       // Create event with STRAIGHT scoring
-      const event = await prisma.event.create({
-        data: {
-          name: 'Straight Event',
-          slug: `straight-event-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-          scoringType: ScoringType.STRAIGHT,
-        },
-      });
+      const event = await createTenantScopedEvent(
+        testData.tenant.id,
+        'Straight Event',
+        ScoringType.STRAIGHT
+      );
 
       // Create contest with OLYMPIC scoring (overrides both)
       const contest = await prisma.contest.create({
@@ -270,16 +277,7 @@ test.describe('Olympic Scoring Workflow', () => {
 
     test('should use contest-level Olympic scoring in score calculation', async () => {
       // Create event
-      const event = await prisma.event.create({
-        data: {
-          name: 'Test Event',
-          slug: `test-event-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-          scoringType: null,
-        },
-      });
+      const event = await createTenantScopedEvent(testData.tenant.id, 'Test Event', null);
 
       // Create contest with Olympic scoring
       const contest = await prisma.contest.create({
@@ -320,14 +318,7 @@ test.describe('Olympic Scoring Workflow', () => {
       // Create 5 judges with different scores
       const scores = [7.5, 8.5, 8.8, 9.0, 9.2];
       const judges = await Promise.all(scores.map(async (scoreValue, i) => {
-        const judgeUser = await factory.createUser('JUDGE', testData.tenant.id);
-        const judge = await prisma.judge.create({
-          data: {
-            userId: judgeUser.id,
-            name: `Judge ${i + 1}`,
-            tenantId: testData.tenant.id,
-          },
-        });
+        const judge = await createLinkedJudge(testData.tenant.id, `Judge ${i + 1}`);
 
         await prisma.score.create({
           data: {
@@ -374,16 +365,11 @@ test.describe('Olympic Scoring Workflow', () => {
   test.describe('Olympic Scoring Validation', () => {
     test('should require minimum 3 judges for Olympic scoring', async () => {
       // Create event with Olympic scoring
-      const event = await prisma.event.create({
-        data: {
-          name: 'Olympic Event',
-          slug: `olympic-event-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-          scoringType: ScoringType.OLYMPIC,
-        },
-      });
+      const event = await createTenantScopedEvent(
+        testData.tenant.id,
+        'Olympic Event',
+        ScoringType.OLYMPIC
+      );
 
       const contest = await prisma.contest.create({
         data: {
@@ -419,14 +405,7 @@ test.describe('Olympic Scoring Workflow', () => {
 
       // Create only 2 judges (insufficient for Olympic scoring)
       const judges = await Promise.all([1, 2].map(async (i) => {
-        const judgeUser = await factory.createUser('JUDGE', testData.tenant.id);
-        const judge = await prisma.judge.create({
-          data: {
-            userId: judgeUser.id,
-            name: `Judge ${i}`,
-            tenantId: testData.tenant.id,
-          },
-        });
+        const judge = await createLinkedJudge(testData.tenant.id, `Judge ${i}`);
 
         await prisma.score.create({
           data: {
@@ -457,15 +436,7 @@ test.describe('Olympic Scoring Workflow', () => {
 
     test('should successfully calculate with exactly 3 judges', async () => {
       // Create contest with Olympic scoring
-      const event = await prisma.event.create({
-        data: {
-          name: 'Test Event',
-          slug: `test-event-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-        },
-      });
+      const event = await createTenantScopedEvent(testData.tenant.id, 'Test Event');
 
       const contest = await prisma.contest.create({
         data: {
@@ -503,14 +474,7 @@ test.describe('Olympic Scoring Workflow', () => {
       // Create exactly 3 judges
       const scores = [7.5, 8.5, 9.0];
       await Promise.all(scores.map(async (scoreValue, i) => {
-        const judgeUser = await factory.createUser('JUDGE', testData.tenant.id);
-        const judge = await prisma.judge.create({
-          data: {
-            userId: judgeUser.id,
-            name: `Judge ${i + 1}`,
-            tenantId: testData.tenant.id,
-          },
-        });
+        const judge = await createLinkedJudge(testData.tenant.id, `Judge ${i + 1}`);
 
         await prisma.score.create({
           data: {
@@ -554,16 +518,11 @@ test.describe('Olympic Scoring Workflow', () => {
       });
 
       // Create event with OLYMPIC (overrides tenant)
-      const event = await prisma.event.create({
-        data: {
-          name: 'Event Override',
-          slug: `event-override-${Date.now()}`,
-          startDate: new Date(),
-          endDate: new Date(),
-          tenantId: testData.tenant.id,
-          scoringType: ScoringType.OLYMPIC,
-        },
-      });
+      const event = await createTenantScopedEvent(
+        testData.tenant.id,
+        'Event Override',
+        ScoringType.OLYMPIC
+      );
 
       // Create contest with STRAIGHT (overrides event and tenant)
       const contest = await prisma.contest.create({
@@ -583,19 +542,19 @@ test.describe('Olympic Scoring Workflow', () => {
           event: {
             select: {
               scoringType: true,
-              tenant: {
-                select: {
-                  scoringType: true,
-                },
-              },
             },
           },
         },
       });
 
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: testData.tenant.id },
+        select: { scoringType: true },
+      });
+
       expect(fullContest?.scoringType).toBe(ScoringType.STRAIGHT); // Contest level wins
       expect(fullContest?.event.scoringType).toBe(ScoringType.OLYMPIC); // Event level
-      expect(fullContest?.event.tenant.scoringType).toBe(ScoringType.STRAIGHT); // Tenant level
+      expect(tenant?.scoringType).toBe(ScoringType.STRAIGHT); // Tenant level
     });
   });
 

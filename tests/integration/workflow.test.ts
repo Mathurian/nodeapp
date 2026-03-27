@@ -1,9 +1,12 @@
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import app from '../../src/server';
-import { generateToken } from '../../src/utils/auth';
+import jwt from 'jsonwebtoken';
+import { container } from 'tsyringe';
+import { ensureTestTenant } from '../helpers/testUtils';
 
-const prisma = new PrismaClient();
+const prisma = container.resolve<PrismaClient>('PrismaClient');
+const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
 
 describe('Workflow System Integration Tests', () => {
   let adminToken: string;
@@ -11,22 +14,28 @@ describe('Workflow System Integration Tests', () => {
   let workflowTemplateId: string;
   let workflowInstanceId: string;
   let stepIds: string[] = [];
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     const admin = await prisma.user.create({
       data: {
         email: 'workflow-admin@test.com',
-        username: 'workflowadmin',
-        firstName: 'Workflow',
-        lastName: 'Admin',
+        name: 'Workflow Admin',
         password: 'hashedpassword',
         role: 'ADMIN',
-        active: true
-      }
+        isActive: true,
+        sessionVersion: 1,
+        tenantId,
+      },
     });
 
     adminId = admin.id;
-    adminToken = generateToken({ id: admin.id, role: 'ADMIN' });
+    adminToken = jwt.sign({ userId: admin.id, role: 'ADMIN', tenantId }, JWT_SECRET, {
+      expiresIn: '1h',
+    });
   });
 
   afterAll(async () => {
@@ -50,7 +59,7 @@ describe('Workflow System Integration Tests', () => {
           name: 'Contestant Approval Workflow',
           description: 'Multi-step approval process for contestants',
           entityType: 'CONTESTANT',
-          active: true
+          isActive: true
         });
 
       expect(response.status).toBe(201);
@@ -171,13 +180,13 @@ describe('Workflow System Integration Tests', () => {
       const contestant = await prisma.user.create({
         data: {
           email: 'test-contestant@test.com',
-          username: 'testcontestant',
-          firstName: 'Test',
-          lastName: 'Contestant',
+          name: 'Test Contestant',
           password: 'hashedpassword',
           role: 'CONTESTANT',
-          active: true
-        }
+          isActive: true,
+          sessionVersion: 1,
+          tenantId,
+        },
       });
       entityId = contestant.id;
     });
@@ -232,16 +241,18 @@ describe('Workflow System Integration Tests', () => {
       const judge = await prisma.user.create({
         data: {
           email: 'judge@test.com',
-          username: 'testjudge',
-          firstName: 'Test',
-          lastName: 'Judge',
+          name: 'Test Judge',
           password: 'hashedpassword',
           role: 'JUDGE',
-          active: true
-        }
+          isActive: true,
+          sessionVersion: 1,
+          tenantId,
+        },
       });
 
-      const judgeToken = generateToken({ id: judge.id, role: 'JUDGE' });
+      const judgeToken = jwt.sign({ userId: judge.id, role: 'JUDGE', tenantId }, JWT_SECRET, {
+        expiresIn: '1h',
+      });
 
       const response = await request(app)
         .post(`/api/workflows/instances/${workflowInstanceId}/advance`)

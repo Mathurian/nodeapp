@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -22,8 +23,12 @@ describe('Deduction API Integration Tests', () => {
   let testContest: any;
   let testCategory: any;
   let testContestant: any;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     await prisma.deductionRequest.deleteMany({
       where: {
         OR: [
@@ -73,6 +78,7 @@ describe('Deduction API Integration Tests', () => {
         role: 'JUDGE',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -84,6 +90,7 @@ describe('Deduction API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -94,6 +101,7 @@ describe('Deduction API Integration Tests', () => {
         startDate: new Date('2024-07-01'),
         endDate: new Date('2024-07-03'),
         location: 'Test Location',
+        tenantId,
       }
     });
 
@@ -102,6 +110,7 @@ describe('Deduction API Integration Tests', () => {
         name: `contest-test-${Date.now()}`,
         eventId: testEvent.id,
         description: 'Test contest',
+        tenantId,
       }
     });
 
@@ -110,12 +119,13 @@ describe('Deduction API Integration Tests', () => {
         name: `category-test-${Date.now()}`,
         contestId: testContest.id,
         description: 'Test category',
+        tenantId,
       }
     });
 
     // Check if contestant already exists
     testContestant = await prisma.contestant.findUnique({
-      where: { email: 'contestant@deductiontest.com' }
+      where: { tenantId_email: { tenantId, email: 'contestant@deductiontest.com' } }
     });
 
     if (!testContestant) {
@@ -124,6 +134,7 @@ describe('Deduction API Integration Tests', () => {
           name: 'Test Contestant',
           email: 'contestant@deductiontest.com',
           contestantNumber: 1,
+          tenantId,
         }
       });
     }
@@ -139,7 +150,7 @@ describe('Deduction API Integration Tests', () => {
       judgeToken = judgeLoginResponse.body.data?.token || judgeLoginResponse.body.token;
     } else {
       judgeToken = jwt.sign(
-        { userId: judgeUser.id, role: judgeUser.role },
+        { userId: judgeUser.id, role: judgeUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -156,7 +167,7 @@ describe('Deduction API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );

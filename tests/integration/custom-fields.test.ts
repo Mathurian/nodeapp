@@ -1,9 +1,12 @@
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import app from '../../src/server';
-import { generateToken } from '../../src/utils/auth';
+import jwt from 'jsonwebtoken';
+import { container } from 'tsyringe';
+import { ensureTestTenant } from '../helpers/testUtils';
 
-const prisma = new PrismaClient();
+const prisma = container.resolve<PrismaClient>('PrismaClient');
+const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
 
 describe('Custom Fields Integration Tests', () => {
   let adminToken: string;
@@ -11,34 +14,40 @@ describe('Custom Fields Integration Tests', () => {
   let textFieldId: string;
   let selectFieldId: string;
   let entityId: string;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     const admin = await prisma.user.create({
       data: {
         email: 'cf-admin@test.com',
-        username: 'cfadmin',
-        firstName: 'CF',
-        lastName: 'Admin',
+        name: 'CF Admin',
         password: 'hashedpassword',
         role: 'ADMIN',
-        active: true
-      }
+        isActive: true,
+        sessionVersion: 1,
+        tenantId,
+      },
     });
 
     adminId = admin.id;
-    adminToken = generateToken({ id: admin.id, role: 'ADMIN' });
+    adminToken = jwt.sign({ userId: admin.id, role: 'ADMIN', tenantId }, JWT_SECRET, {
+      expiresIn: '1h',
+    });
 
     // Create a test user entity
     const testUser = await prisma.user.create({
       data: {
         email: 'test-entity@test.com',
-        username: 'testentity',
-        firstName: 'Test',
-        lastName: 'Entity',
+        name: 'Test Entity',
         password: 'hashedpassword',
         role: 'CONTESTANT',
-        active: true
-      }
+        isActive: true,
+        sessionVersion: 1,
+        tenantId,
+      },
     });
     entityId = testUser.id;
   });

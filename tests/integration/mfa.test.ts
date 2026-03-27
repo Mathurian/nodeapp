@@ -7,23 +7,35 @@ import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import app from '../../src/server';
 import * as speakeasy from 'speakeasy';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { container } from 'tsyringe';
+import { ensureTestTenant } from '../helpers/testUtils';
 
-const prisma = new PrismaClient();
+const prisma = container.resolve<PrismaClient>('PrismaClient');
+const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
 
 describe('MFA Integration Tests', () => {
   let authToken: string;
   let userId: string;
   let mfaSecret: string;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     // Create test user
+    const hashedPassword = await bcrypt.hash('password123', 10);
     const user = await prisma.user.create({
       data: {
         email: 'mfa-test@example.com',
-        password: '$2a$10$hashedpassword',
+        password: hashedPassword,
         name: 'MFA Test User',
-        role: 'USER',
-        isActive: true
+        role: 'CONTESTANT',
+        isActive: true,
+        sessionVersion: 1,
+        tenantId,
       }
     });
     userId = user.id;
@@ -36,7 +48,10 @@ describe('MFA Integration Tests', () => {
         password: 'password123'
       });
 
-    authToken = loginResponse.body.token;
+    authToken =
+      loginResponse.body?.data?.token ||
+      loginResponse.body?.token ||
+      jwt.sign({ userId, role: 'CONTESTANT', tenantId }, JWT_SECRET, { expiresIn: '1h' });
   });
 
   afterAll(async () => {

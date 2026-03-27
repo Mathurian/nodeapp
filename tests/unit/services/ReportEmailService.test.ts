@@ -4,11 +4,12 @@
  */
 
 import 'reflect-metadata';
-import { ReportEmailService } from '../../../src/services/ReportEmailService';
+import { ReportEmailService, type EmailReportDTO } from '../../../src/services/ReportEmailService';
 import { ReportExportService } from '../../../src/services/ReportExportService';
 import { EmailService } from '../../../src/services/EmailService';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { ValidationError } from '../../../src/services/BaseService';
+import { type ReportData } from '../../../src/services/ReportGenerationService';
 
 // Mock QueueService to prevent actual queue operations
 jest.mock('../../../src/services/QueueService', () => ({
@@ -22,14 +23,23 @@ describe('ReportEmailService', () => {
   let service: ReportEmailService;
   let mockExportService: DeepMockProxy<ReportExportService>;
   let mockEmailService: DeepMockProxy<EmailService>;
+  const TEST_TENANT_ID = 'tenant-1';
 
-  const mockReportData = {
-    event: { name: 'Test Event' },
+  const mockReportData: ReportData = {
     metadata: {
       generatedAt: '2024-01-01T00:00:00.000Z',
       reportType: 'Event Summary'
     }
   };
+
+  const buildEmailData = (overrides: Partial<EmailReportDTO> = {}): EmailReportDTO => ({
+    recipients: ['test@example.com'],
+    reportData: mockReportData,
+    format: 'pdf',
+    userId: 'user1',
+    tenantId: TEST_TENANT_ID,
+    ...overrides
+  });
 
   beforeEach(() => {
     mockExportService = mockDeep<ReportExportService>();
@@ -56,12 +66,7 @@ describe('ReportEmailService', () => {
   });
 
   describe('sendReportEmail', () => {
-    const validEmailData = {
-      recipients: ['test@example.com'],
-      reportData: mockReportData,
-      format: 'pdf' as const,
-      userId: 'user1'
-    };
+    const validEmailData = buildEmailData();
 
     it('should send report email with valid data', async () => {
       await service.sendReportEmail(validEmailData);
@@ -188,7 +193,7 @@ describe('ReportEmailService', () => {
     it('should use default report type if not provided', async () => {
       const noMetadataData = {
         ...validEmailData,
-        reportData: { event: { name: 'Test' } }
+        reportData: {}
       };
 
       await service.sendReportEmail(noMetadataData);
@@ -237,25 +242,22 @@ describe('ReportEmailService', () => {
   });
 
   describe('sendBatchReportEmails', () => {
-    const batchEmails = [
-      {
+    const batchEmails: EmailReportDTO[] = [
+      buildEmailData({
         recipients: ['user1@example.com'],
-        reportData: mockReportData,
-        format: 'pdf' as const,
-        userId: 'user1'
-      },
-      {
+        format: 'pdf',
+        userId: 'user1',
+      }),
+      buildEmailData({
         recipients: ['user2@example.com'],
-        reportData: mockReportData,
-        format: 'excel' as const,
-        userId: 'user2'
-      },
-      {
+        format: 'excel',
+        userId: 'user2',
+      }),
+      buildEmailData({
         recipients: ['user3@example.com'],
-        reportData: mockReportData,
-        format: 'csv' as const,
-        userId: 'user3'
-      }
+        format: 'csv',
+        userId: 'user3',
+      }),
     ];
 
     it('should send multiple emails successfully', async () => {
@@ -322,12 +324,7 @@ describe('ReportEmailService', () => {
   });
 
   describe('scheduleReportEmail', () => {
-    const scheduleData = {
-      recipients: ['test@example.com'],
-      reportData: mockReportData,
-      format: 'pdf' as const,
-      userId: 'user1'
-    };
+    const scheduleData = buildEmailData();
 
     const scheduledTime = new Date('2024-12-31T23:59:59.999Z');
 
@@ -356,29 +353,22 @@ describe('ReportEmailService', () => {
 
   describe('email template rendering', () => {
     it('should render email with report metadata', async () => {
-      const emailData = {
-        recipients: ['test@example.com'],
+      const emailData = buildEmailData({
         reportData: {
-          ...mockReportData,
           metadata: {
             generatedAt: '2024-01-15T10:30:00.000Z',
             reportType: 'Custom Report'
           }
-        },
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+        }
+      });
 
       await expect(service.sendReportEmail(emailData)).resolves.not.toThrow();
     });
 
     it('should handle missing metadata gracefully', async () => {
-      const noMetadataEmail = {
-        recipients: ['test@example.com'],
-        reportData: { event: { name: 'Event' } },
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+      const noMetadataEmail = buildEmailData({
+        reportData: {}
+      });
 
       await expect(service.sendReportEmail(noMetadataEmail)).resolves.not.toThrow();
     });
@@ -390,7 +380,8 @@ describe('ReportEmailService', () => {
         recipients: ['invalid'],
         reportData: mockReportData,
         format: 'pdf',
-        userId: 'user1'
+        userId: 'user1',
+        tenantId: TEST_TENANT_ID
       };
 
       await expect(service.sendReportEmail(invalidData)).rejects.toThrow(ValidationError);
@@ -399,12 +390,7 @@ describe('ReportEmailService', () => {
     it('should handle export service failures', async () => {
       mockExportService.exportReport.mockRejectedValue(new Error('Service unavailable'));
 
-      const validData = {
-        recipients: ['test@example.com'],
-        reportData: mockReportData,
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+      const validData = buildEmailData();
 
       await expect(service.sendReportEmail(validData)).rejects.toThrow();
     });
@@ -414,12 +400,7 @@ describe('ReportEmailService', () => {
         throw new Error('Filename generation failed');
       });
 
-      const validData = {
-        recipients: ['test@example.com'],
-        reportData: mockReportData,
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+      const validData = buildEmailData();
 
       await expect(service.sendReportEmail(validData)).rejects.toThrow();
     });
@@ -429,40 +410,30 @@ describe('ReportEmailService', () => {
     it('should handle very long recipient lists', async () => {
       const manyRecipients = Array.from({ length: 100 }, (_, i) => `user${i}@example.com`);
 
-      const emailData = {
-        recipients: manyRecipients,
-        reportData: mockReportData,
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+      const emailData = buildEmailData({
+        recipients: manyRecipients
+      });
 
       await expect(service.sendReportEmail(emailData)).resolves.not.toThrow();
     });
 
     it('should handle special characters in email addresses', async () => {
-      const specialChars = {
-        recipients: ["user+tag@example.com", "user.name@example.co.uk"],
-        reportData: mockReportData,
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+      const specialChars = buildEmailData({
+        recipients: ["user+tag@example.com", "user.name@example.co.uk"]
+      });
 
       await expect(service.sendReportEmail(specialChars)).resolves.not.toThrow();
     });
 
     it('should handle Unicode in report data', async () => {
-      const unicodeData = {
-        recipients: ['test@example.com'],
+      const unicodeData = buildEmailData({
         reportData: {
-          event: { name: 'Evenement Special' },
           metadata: {
             generatedAt: '2024-01-01T00:00:00.000Z',
             reportType: 'Rapport Special'
           }
-        },
-        format: 'pdf' as const,
-        userId: 'user1'
-      };
+        }
+      });
 
       await expect(service.sendReportEmail(unicodeData)).resolves.not.toThrow();
     });

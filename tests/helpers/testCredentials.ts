@@ -7,6 +7,7 @@
  */
 
 import bcrypt from 'bcryptjs';
+import { ensureTestTenant } from './testUtils';
 
 // Standard test password - MUST match seed data password
 export const TEST_PASSWORD = 'password123';
@@ -59,10 +60,14 @@ export async function hashTestPassword(): Promise<string> {
  */
 export async function createTestUserWithStandardPassword(prisma: any, userData: any) {
   const hashedPassword = await hashTestPassword();
+  const tenant = userData.tenantId ? { id: userData.tenantId } : await ensureTestTenant();
   
   return prisma.user.create({
     data: {
       ...userData,
+      tenantId: tenant.id,
+      preferredName: userData.preferredName || userData.name || 'Test User',
+      sessionVersion: userData.sessionVersion ?? 1,
       password: hashedPassword
     }
   });
@@ -106,5 +111,4 @@ export async function loginWithCredentials(request: any, email: string, password
   
   return null;
 }
-
 

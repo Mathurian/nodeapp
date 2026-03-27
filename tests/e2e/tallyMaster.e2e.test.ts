@@ -368,7 +368,7 @@ test.describe('Comprehensive Tally Master E2E Tests', () => {
     if (await reportType.isVisible({ timeout: 5000 })) {
       // Look for tally or score report option
       const options = await reportType.locator('option').allTextContents();
-      const tallyOptionIndex = options.findIndex(opt => /tally|score/i.test(opt));
+      const tallyOptionIndex = options.findIndex((opt: string) => /tally|score/i.test(opt));
 
       if (tallyOptionIndex >= 0) {
         await reportType.selectOption({ index: tallyOptionIndex });

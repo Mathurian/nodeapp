@@ -6,8 +6,13 @@
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import app from '../../src/server';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { container } from 'tsyringe';
+import { ensureTestTenant } from '../helpers/testUtils';
 
-const prisma = new PrismaClient();
+const prisma = container.resolve<PrismaClient>('PrismaClient');
+const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
 
 describe('Search Integration Tests', () => {
   let authToken: string;
@@ -15,16 +20,23 @@ describe('Search Integration Tests', () => {
   let eventId: string;
   let contestId: string;
   let savedSearchId: string;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     // Create test user
+    const hashedPassword = await bcrypt.hash('password123', 10);
     const user = await prisma.user.create({
       data: {
         email: 'search-test@example.com',
-        password: '$2a$10$hashedpassword',
+        password: hashedPassword,
         name: 'Search Test User',
         role: 'ADMIN',
-        isActive: true
+        isActive: true,
+        sessionVersion: 1,
+        tenantId,
       }
     });
     userId = user.id;
@@ -37,7 +49,10 @@ describe('Search Integration Tests', () => {
         password: 'password123'
       });
 
-    authToken = loginResponse.body.token;
+    authToken =
+      loginResponse.body?.data?.token ||
+      loginResponse.body?.token ||
+      jwt.sign({ userId, role: 'ADMIN', tenantId }, JWT_SECRET, { expiresIn: '1h' });
 
     // Create test data for search
     const event = await prisma.event.create({
@@ -47,9 +62,7 @@ describe('Search Integration Tests', () => {
         startDate: new Date('2024-06-01'),
         endDate: new Date('2024-06-03'),
         location: 'Test Location',
-        status: 'UPCOMING',
-        eventYear: 2024,
-        organizationId: null
+        tenantId,
       }
     });
     eventId = event.id;
@@ -59,8 +72,7 @@ describe('Search Integration Tests', () => {
         name: 'Searchable Test Contest',
         description: 'Test contest for search',
         eventId: event.id,
-        contestNumber: 1,
-        status: 'ACTIVE'
+        tenantId,
       }
     });
     contestId = contest.id;
@@ -70,11 +82,11 @@ describe('Search Integration Tests', () => {
     // Cleanup
     if (savedSearchId) {
       await prisma.savedSearch.deleteMany({
-        where: { userId }
+        where: { tenantId, userId }
       });
     }
     await prisma.searchHistory.deleteMany({
-      where: { userId }
+      where: { tenantId, userId }
     });
     await prisma.contest.delete({ where: { id: contestId } });
     await prisma.event.delete({ where: { id: eventId } });

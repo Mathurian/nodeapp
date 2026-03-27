@@ -4,7 +4,12 @@
  */
 
 import 'reflect-metadata';
-import { ReportGenerationService, ContestantScore, ReportData } from '../../../src/services/ReportGenerationService';
+import {
+  ReportGenerationService,
+  type JudgeStatistics,
+  type ReportData,
+  type SystemStatistics,
+} from '../../../src/services/ReportGenerationService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { NotFoundError } from '../../../src/services/BaseService';
@@ -12,58 +17,197 @@ import { NotFoundError } from '../../../src/services/BaseService';
 describe('ReportGenerationService', () => {
   let service: ReportGenerationService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  const TEST_TENANT_ID = 'tenant-1';
+  const BASE_TIME = new Date('2026-02-25T12:00:00.000Z');
 
-  const mockContestant = {
+  type ContestantFixture = {
+    id: string;
+    name: string;
+    contestantNumber: number | null;
+  };
+
+  type JudgeFixture = {
+    id: string;
+    name: string;
+    judgeNumber: number | null;
+  };
+
+  type CriterionFixture = {
+    id: string;
+    name: string;
+    maxScore: number;
+    categoryId: string;
+    tenantId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
+  type ReportScoreFixture = {
+    id: string;
+    contestantId: string;
+    judgeId: string;
+    categoryId: string;
+    criterionId: string;
+    score: number | null;
+    contestant: ContestantFixture;
+    judge: JudgeFixture;
+    criterion: CriterionFixture;
+    category: { id: string; name: string } | null;
+  };
+
+  const buildContestant = (
+    overrides: Partial<ContestantFixture> = {}
+  ): ContestantFixture => ({
     id: 'contestant-1',
     name: 'John Doe',
-    number: 1,
-  };
+    contestantNumber: 1,
+    ...overrides,
+  });
 
-  const mockJudge = {
+  const buildJudge = (overrides: Partial<JudgeFixture> = {}): JudgeFixture => ({
     id: 'judge-1',
     name: 'Judge Smith',
-  };
+    judgeNumber: 1,
+    ...overrides,
+  });
 
-  const mockCriterion = {
+  const buildCriterion = (overrides: Partial<CriterionFixture> = {}): CriterionFixture => ({
     id: 'criterion-1',
     name: 'Performance',
     maxScore: 100,
     categoryId: 'category-1',
-  };
+    tenantId: TEST_TENANT_ID,
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+    ...overrides,
+  });
 
-  const mockCategory = {
+  const buildCategory = (
+    overrides: Partial<{
+      id: string;
+      name: string;
+      scoreCap: number | null;
+      scores: ReportScoreFixture[];
+    }> = {}
+  ) => ({
     id: 'category-1',
     name: 'Dance',
     scoreCap: 300,
+    scores: [],
+    ...overrides,
+  });
+
+  const buildScore = (
+    overrides: Partial<{
+      id: string;
+      contestantId: string;
+      judgeId: string;
+      categoryId: string;
+      criterionId: string;
+      score: number | null;
+      contestant: ReturnType<typeof buildContestant>;
+      judge: ReturnType<typeof buildJudge>;
+      criterion: ReturnType<typeof buildCriterion>;
+      category: ReportScoreFixture['category'];
+    }> = {}
+  ): ReportScoreFixture => {
+    const contestantId = overrides.contestantId ?? 'contestant-1';
+    const judgeId = overrides.judgeId ?? 'judge-1';
+    const categoryId = overrides.categoryId ?? 'category-1';
+    const criterionId = overrides.criterionId ?? 'criterion-1';
+
+    return {
+      id: 'score-1',
+      contestantId,
+      judgeId,
+      categoryId,
+      criterionId,
+      score: 85,
+      contestant: buildContestant({ id: contestantId }),
+      judge: buildJudge({ id: judgeId }),
+      criterion: buildCriterion({ id: criterionId, categoryId }),
+      category: { id: categoryId, name: categoryId === 'category-2' ? 'Vocal' : 'Dance' },
+      ...overrides,
+    };
   };
 
-  const mockScore = {
-    id: 'score-1',
-    contestantId: 'contestant-1',
-    judgeId: 'judge-1',
-    categoryId: 'category-1',
-    criterionId: 'criterion-1',
-    score: 85,
-    contestant: mockContestant,
-    judge: mockJudge,
-    criterion: mockCriterion,
-    category: mockCategory,
-  };
-
-  const mockContest = {
+  const buildContest = (
+    overrides: Partial<{
+      id: string;
+      name: string;
+      description: string;
+      categories: ReturnType<typeof buildCategory>[];
+    }> = {}
+  ) => ({
     id: 'contest-1',
     name: 'Regional Competition',
     description: 'Annual regional dance competition',
-    categories: [mockCategory],
-  };
+    categories: [buildCategory()],
+    ...overrides,
+  });
 
-  const mockEvent = {
+  const buildEvent = (
+    overrides: Partial<{
+      id: string;
+      name: string;
+      description: string;
+      archived: boolean;
+      startDate: Date;
+      endDate: Date | null;
+      contests: ReturnType<typeof buildContest>[];
+    }> = {}
+  ) => ({
     id: 'event-1',
     name: 'Annual Gala',
     description: 'Annual dance gala event',
     archived: false,
-    contests: [mockContest],
+    startDate: BASE_TIME,
+    endDate: null,
+    contests: [buildContest()],
+    ...overrides,
+  });
+
+  const requireEvent = (report: ReportData) => {
+    expect(report.event).toBeDefined();
+    return report.event!;
   };
+
+  const requireContest = (report: ReportData) => {
+    expect(report.contest).toBeDefined();
+    return report.contest!;
+  };
+
+  const requireMetadata = (report: ReportData) => {
+    expect(report.metadata).toBeDefined();
+    return report.metadata!;
+  };
+
+  const requireJudgeStatistics = (report: ReportData): JudgeStatistics => {
+    expect(report.statistics).toBeDefined();
+    const statistics = report.statistics as JudgeStatistics;
+    expect(statistics).toHaveProperty('totalScoresGiven');
+    expect(statistics).toHaveProperty('averageScore');
+    expect(statistics).toHaveProperty('categoriesJudged');
+    expect(statistics).toHaveProperty('categoryBreakdown');
+    return statistics;
+  };
+
+  const requireSystemStatistics = (report: ReportData): SystemStatistics => {
+    expect(report.statistics).toBeDefined();
+    const statistics = report.statistics as SystemStatistics;
+    expect(statistics).toHaveProperty('totalEvents');
+    expect(statistics).toHaveProperty('activeEvents');
+    expect(statistics).toHaveProperty('archivedEvents');
+    return statistics;
+  };
+
+  const mockContestant = buildContestant();
+  const mockJudge = buildJudge();
+  const mockCriterion = buildCriterion();
+  const mockCategory = buildCategory();
+  const mockScore = buildScore();
+  const mockContest = buildContest();
+  const mockEvent = buildEvent();
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
@@ -129,8 +273,20 @@ describe('ReportGenerationService', () => {
 
       mockPrisma.score.findMany.mockResolvedValue([
         { ...mockScore, contestantId: 'contestant-1', score: 85 },
-        { ...mockScore, id: 'score-2', contestantId: 'contestant-2', score: 95, contestant: { id: 'contestant-2', name: 'Jane Doe' } },
-        { ...mockScore, id: 'score-3', contestantId: 'contestant-3', score: 75, contestant: { id: 'contestant-3', name: 'Bob Smith' } },
+        {
+          ...mockScore,
+          id: 'score-2',
+          contestantId: 'contestant-2',
+          score: 95,
+          contestant: buildContestant({ id: 'contestant-2', name: 'Jane Doe', contestantNumber: 2 }),
+        },
+        {
+          ...mockScore,
+          id: 'score-3',
+          contestantId: 'contestant-3',
+          score: 75,
+          contestant: buildContestant({ id: 'contestant-3', name: 'Bob Smith', contestantNumber: 3 }),
+        },
       ] as any);
 
       const winners = await service.calculateContestWinners(contestWithMultiple);
@@ -354,9 +510,10 @@ describe('ReportGenerationService', () => {
       mockPrisma.score.findMany.mockResolvedValue([mockScore] as any);
 
       const report = await service.generateEventReportData('event-1');
+      const event = requireEvent(report);
 
-      expect(report.event.contests[0]).toHaveProperty('winners');
-      expect(Array.isArray(report.event.contests[0].winners)).toBe(true);
+      expect(event.contests[0]).toHaveProperty('winners');
+      expect(Array.isArray(event.contests[0]?.winners)).toBe(true);
     });
 
     it('should handle events with no contests', async () => {
@@ -366,8 +523,9 @@ describe('ReportGenerationService', () => {
       } as any);
 
       const report = await service.generateEventReportData('event-1');
+      const event = requireEvent(report);
 
-      expect(report.event.contests).toEqual([]);
+      expect(event.contests).toEqual([]);
     });
 
     it('should include generation timestamp', async () => {
@@ -379,10 +537,11 @@ describe('ReportGenerationService', () => {
       const beforeTime = new Date().toISOString();
       const report = await service.generateEventReportData('event-1');
       const afterTime = new Date().toISOString();
+      const metadata = requireMetadata(report);
 
-      expect(report.metadata.generatedAt).toBeDefined();
-      expect(new Date(report.metadata.generatedAt).getTime()).toBeGreaterThanOrEqual(new Date(beforeTime).getTime());
-      expect(new Date(report.metadata.generatedAt).getTime()).toBeLessThanOrEqual(new Date(afterTime).getTime());
+      expect(metadata.generatedAt).toBeDefined();
+      expect(new Date(metadata.generatedAt).getTime()).toBeGreaterThanOrEqual(new Date(beforeTime).getTime());
+      expect(new Date(metadata.generatedAt).getTime()).toBeLessThanOrEqual(new Date(afterTime).getTime());
     });
 
     it('should include optional userId in metadata', async () => {
@@ -392,8 +551,9 @@ describe('ReportGenerationService', () => {
       } as any);
 
       const report = await service.generateEventReportData('event-1', 'user-123');
+      const metadata = requireMetadata(report);
 
-      expect(report.metadata.generatedBy).toBe('user-123');
+      expect(metadata.generatedBy).toBe('user-123');
     });
   });
 
@@ -447,8 +607,9 @@ describe('ReportGenerationService', () => {
       mockPrisma.score.findMany.mockResolvedValue([]);
 
       const report = await service.generateContestResultsData('contest-1');
+      const contest = requireContest(report);
 
-      expect(report.contest.event).toMatchObject({
+      expect(contest.event).toMatchObject({
         id: 'event-1',
         name: 'Annual Gala',
       });
@@ -530,8 +691,9 @@ describe('ReportGenerationService', () => {
       } as any);
 
       const report = await service.generateJudgePerformanceData('judge-1');
+      const statistics = requireJudgeStatistics(report);
 
-      expect(report.statistics.averageScore).toBe(80); // (80+90+70)/3
+      expect(statistics.averageScore).toBe(80); // (80+90+70)/3
     });
 
     it('should count unique categories judged', async () => {
@@ -545,8 +707,9 @@ describe('ReportGenerationService', () => {
       } as any);
 
       const report = await service.generateJudgePerformanceData('judge-1');
+      const statistics = requireJudgeStatistics(report);
 
-      expect(report.statistics.categoriesJudged).toBe(2);
+      expect(statistics.categoriesJudged).toBe(2);
     });
 
     it('should handle judge with no scores', async () => {
@@ -556,9 +719,10 @@ describe('ReportGenerationService', () => {
       } as any);
 
       const report = await service.generateJudgePerformanceData('judge-1');
+      const statistics = requireJudgeStatistics(report);
 
-      expect(report.statistics.totalScoresGiven).toBe(0);
-      expect(report.statistics.averageScore).toBe(0);
+      expect(statistics.totalScoresGiven).toBe(0);
+      expect(statistics.averageScore).toBe(0);
     });
 
     it('should include category breakdown', async () => {
@@ -571,9 +735,10 @@ describe('ReportGenerationService', () => {
       } as any);
 
       const report = await service.generateJudgePerformanceData('judge-1');
+      const statistics = requireJudgeStatistics(report);
 
-      expect(report.statistics.categoryBreakdown).toBeDefined();
-      expect(typeof report.statistics.categoryBreakdown).toBe('object');
+      expect(statistics.categoryBreakdown).toBeDefined();
+      expect(typeof statistics.categoryBreakdown).toBe('object');
     });
   });
 
@@ -611,10 +776,11 @@ describe('ReportGenerationService', () => {
         .mockResolvedValueOnce(7); // activeEvents
 
       const report = await service.generateSystemAnalyticsData();
+      const statistics = requireSystemStatistics(report);
 
-      expect(report.statistics.totalEvents).toBe(10);
-      expect(report.statistics.activeEvents).toBe(7);
-      expect(report.statistics.archivedEvents).toBe(3);
+      expect(statistics.totalEvents).toBe(10);
+      expect(statistics.activeEvents).toBe(7);
+      expect(statistics.archivedEvents).toBe(3);
     });
 
     it('should calculate average scores per event', async () => {
@@ -622,8 +788,9 @@ describe('ReportGenerationService', () => {
       mockPrisma.score.count.mockResolvedValue(500);
 
       const report = await service.generateSystemAnalyticsData();
+      const statistics = requireSystemStatistics(report);
 
-      expect(report.statistics.averageScoresPerEvent).toBe(50);
+      expect(statistics.averageScoresPerEvent).toBe(50);
     });
 
     it('should calculate average contests per event', async () => {
@@ -631,8 +798,9 @@ describe('ReportGenerationService', () => {
       mockPrisma.contest.count.mockResolvedValue(30);
 
       const report = await service.generateSystemAnalyticsData();
+      const statistics = requireSystemStatistics(report);
 
-      expect(report.statistics.averageContestsPerEvent).toBe(3);
+      expect(statistics.averageContestsPerEvent).toBe(3);
     });
 
     it('should handle zero events gracefully', async () => {
@@ -641,9 +809,10 @@ describe('ReportGenerationService', () => {
       mockPrisma.score.count.mockResolvedValue(0);
 
       const report = await service.generateSystemAnalyticsData();
+      const statistics = requireSystemStatistics(report);
 
-      expect(report.statistics.averageScoresPerEvent).toBe(0);
-      expect(report.statistics.averageContestsPerEvent).toBe(0);
+      expect(statistics.averageScoresPerEvent).toBe(0);
+      expect(statistics.averageContestsPerEvent).toBe(0);
     });
 
     it('should round averages to 2 decimal places', async () => {
@@ -652,9 +821,10 @@ describe('ReportGenerationService', () => {
       mockPrisma.score.count.mockResolvedValue(100);
 
       const report = await service.generateSystemAnalyticsData();
+      const statistics = requireSystemStatistics(report);
 
-      expect(report.statistics.averageContestsPerEvent).toBe(3.33);
-      expect(report.statistics.averageScoresPerEvent).toBe(33.33);
+      expect(statistics.averageContestsPerEvent).toBe(3.33);
+      expect(statistics.averageScoresPerEvent).toBe(33.33);
     });
   });
 

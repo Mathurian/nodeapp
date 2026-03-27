@@ -7,6 +7,26 @@ describe('DataWipeService', () => {
   let service: DataWipeService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockTransaction: any;
+  const adminTenantId = 'tenant-123';
+  const irreversibleConfirmation = 'I_UNDERSTAND_THIS_IS_IRREVERSIBLE';
+
+  const invokeGlobalWipe = (
+    userRole: string = 'SUPER_ADMIN',
+    confirmation: string = 'WIPE_ALL_DATA',
+    secondaryConfirmation: string = irreversibleConfirmation,
+    dryRun: boolean = false
+  ) => {
+    return service.wipeAllData('user-123', userRole, confirmation, secondaryConfirmation, dryRun);
+  };
+
+  const invokeEventWipe = (
+    userRole: string = 'ADMIN',
+    tenantId: string | undefined = adminTenantId,
+    isSuperAdmin: boolean = false,
+    dryRun: boolean = false
+  ) => {
+    return service.wipeEventData('event-123', 'user-456', userRole, tenantId, isSuperAdmin, dryRun);
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -40,11 +60,22 @@ describe('DataWipeService', () => {
       criterion: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       category: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn() },
       contest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn() },
-      event: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), delete: jest.fn() },
+      event: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), findFirst: jest.fn() },
       contestant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       judge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       user: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
+
+    mockPrisma.event.count.mockResolvedValue(1);
+    mockPrisma.contest.count.mockResolvedValue(2);
+    mockPrisma.category.count.mockResolvedValue(3);
+    mockPrisma.score.count.mockResolvedValue(0);
+    mockPrisma.file.count.mockResolvedValue(0);
+    mockPrisma.assignment.count.mockResolvedValue(0);
+    mockPrisma.deductionRequest.count.mockResolvedValue(0);
+    mockPrisma.judgeComment.count.mockResolvedValue(0);
+    mockPrisma.categoryCertification.count.mockResolvedValue(0);
+    mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-123', tenantId: adminTenantId } as any);
 
     mockPrisma.$transaction.mockImplementation(async (callback) => {
       return callback(mockTransaction);
@@ -68,67 +99,65 @@ describe('DataWipeService', () => {
 
   describe('wipeAllData', () => {
     it('should throw ForbiddenError for non-admin users', async () => {
-      await expect(
-        service.wipeAllData('user-123', 'USER', 'WIPE_ALL_DATA')
-      ).rejects.toThrow(ForbiddenError);
+      await expect(invokeGlobalWipe('USER')).rejects.toThrow(ForbiddenError);
     });
 
-    it('should throw ForbiddenError for organizer users', async () => {
-      await expect(
-        service.wipeAllData('user-123', 'ORGANIZER', 'WIPE_ALL_DATA')
-      ).rejects.toThrow(ForbiddenError);
+    it('should throw ForbiddenError for admin users', async () => {
+      await expect(invokeGlobalWipe('ADMIN')).rejects.toThrow(ForbiddenError);
     });
 
     it('should throw ForbiddenError for judge users', async () => {
-      await expect(
-        service.wipeAllData('user-123', 'JUDGE', 'WIPE_ALL_DATA')
-      ).rejects.toThrow(ForbiddenError);
+      await expect(invokeGlobalWipe('JUDGE')).rejects.toThrow(ForbiddenError);
     });
 
     it('should throw ValidationError for invalid confirmation', async () => {
       await expect(
-        service.wipeAllData('admin-123', 'ADMIN', 'INVALID')
+        invokeGlobalWipe('SUPER_ADMIN', 'INVALID')
       ).rejects.toThrow(ValidationError);
     });
 
     it('should throw ValidationError for empty confirmation', async () => {
-      await expect(
-        service.wipeAllData('admin-123', 'ADMIN', '')
-      ).rejects.toThrow(ValidationError);
+      await expect(invokeGlobalWipe('SUPER_ADMIN', '')).rejects.toThrow(ValidationError);
     });
 
     it('should throw ValidationError for case-sensitive confirmation', async () => {
       await expect(
-        service.wipeAllData('admin-123', 'ADMIN', 'wipe_all_data')
+        invokeGlobalWipe('SUPER_ADMIN', 'wipe_all_data')
       ).rejects.toThrow(ValidationError);
     });
 
-    it('should successfully wipe all data for admin with correct confirmation', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+    it('should require secondary confirmation', async () => {
+      await expect(
+        invokeGlobalWipe('SUPER_ADMIN', 'WIPE_ALL_DATA', 'INVALID_SECONDARY')
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it('should successfully wipe all data for super admin with correct confirmation', async () => {
+      await invokeGlobalWipe();
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
 
     it('should delete files in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.file.deleteMany).toHaveBeenCalled();
     });
 
     it('should delete scores in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.score.deleteMany).toHaveBeenCalled();
     });
 
     it('should delete judge comments in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.judgeComment.deleteMany).toHaveBeenCalled();
     });
 
     it('should delete all certifications in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.certification.deleteMany).toHaveBeenCalled();
       expect(mockTransaction.categoryCertification.deleteMany).toHaveBeenCalled();
@@ -137,38 +166,38 @@ describe('DataWipeService', () => {
     });
 
     it('should delete assignments in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.assignment.deleteMany).toHaveBeenCalled();
       expect(mockTransaction.roleAssignment.deleteMany).toHaveBeenCalled();
     });
 
     it('should delete categories and criteria in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.criterion.deleteMany).toHaveBeenCalled();
       expect(mockTransaction.category.deleteMany).toHaveBeenCalled();
     });
 
     it('should delete contests in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.contest.deleteMany).toHaveBeenCalled();
     });
 
     it('should delete events in transaction', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.event.deleteMany).toHaveBeenCalled();
     });
 
     it('should deactivate non-admin users', async () => {
-      await service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA');
+      await invokeGlobalWipe();
 
       expect(mockTransaction.user.updateMany).toHaveBeenCalledWith({
         where: {
           role: {
-            not: 'ADMIN',
+            notIn: ['SUPER_ADMIN', 'ADMIN'],
           },
         },
         data: {
@@ -182,9 +211,7 @@ describe('DataWipeService', () => {
     it('should handle transaction rollback on error', async () => {
       mockTransaction.score.deleteMany.mockRejectedValue(new Error('Database error'));
 
-      await expect(
-        service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA')
-      ).rejects.toThrow();
+      await expect(invokeGlobalWipe()).rejects.toThrow();
     });
   });
 
@@ -203,178 +230,186 @@ describe('DataWipeService', () => {
     });
 
     it('should throw ForbiddenError for regular users', async () => {
-      await expect(
-        service.wipeEventData('event-123', 'user-456', 'USER')
-      ).rejects.toThrow(ForbiddenError);
+      await expect(invokeEventWipe('USER')).rejects.toThrow(ForbiddenError);
     });
 
     it('should allow admin to wipe event data', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
 
-    it('should allow organizer to wipe event data', async () => {
-      await service.wipeEventData('event-123', 'org-456', 'ORGANIZER');
+    it('should allow super admin to wipe event data without tenant context', async () => {
+      await invokeEventWipe('SUPER_ADMIN', undefined, true);
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
 
     it('should find all contests for the event', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.contest.findMany).toHaveBeenCalledWith({
-        where: { eventId: 'event-123' },
+        where: { eventId: 'event-123', tenantId: adminTenantId },
         select: { id: true },
       });
     });
 
     it('should find all categories for contests', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.category.findMany).toHaveBeenCalledWith({
-        where: { contestId: { in: ['contest-1', 'contest-2'] } },
+        where: { contestId: { in: ['contest-1', 'contest-2'] }, tenantId: adminTenantId },
         select: { id: true },
       });
     });
 
     it('should delete scores for all categories', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.score.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete judge comments for all categories', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.judgeComment.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete certifications for the event', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.certification.deleteMany).toHaveBeenCalledWith({
-        where: { eventId: 'event-123' },
+        where: { tenantId: adminTenantId, eventId: 'event-123' },
       });
     });
 
     it('should delete category certifications', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.categoryCertification.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete contest certifications', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.contestCertification.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           contestId: { in: ['contest-1', 'contest-2'] },
         },
       });
     });
 
     it('should delete assignments for the event', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.assignment.deleteMany).toHaveBeenCalledWith({
-        where: { eventId: 'event-123' },
+        where: { tenantId: adminTenantId, eventId: 'event-123' },
       });
     });
 
     it('should delete role assignments for the event', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.roleAssignment.deleteMany).toHaveBeenCalledWith({
-        where: { eventId: 'event-123' },
+        where: { tenantId: adminTenantId, eventId: 'event-123' },
       });
     });
 
     it('should delete category contestants', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.categoryContestant.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete category judges', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.categoryJudge.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete contest contestants', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.contestContestant.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           contestId: { in: ['contest-1', 'contest-2'] },
         },
       });
     });
 
     it('should delete contest judges', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.contestJudge.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           contestId: { in: ['contest-1', 'contest-2'] },
         },
       });
     });
 
     it('should delete criteria for all categories', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.criterion.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete all categories', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.category.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           contestId: { in: ['contest-1', 'contest-2'] },
         },
       });
     });
 
     it('should delete all contests', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.contest.deleteMany).toHaveBeenCalledWith({
-        where: { eventId: 'event-123' },
+        where: { tenantId: adminTenantId, eventId: 'event-123' },
       });
     });
 
     it('should delete the event itself', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
-      expect(mockTransaction.event.delete).toHaveBeenCalledWith({
-        where: { id: 'event-123' },
+      expect(mockTransaction.event.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'event-123', tenantId: adminTenantId },
       });
     });
 
@@ -382,34 +417,34 @@ describe('DataWipeService', () => {
       mockTransaction.contest.findMany.mockResolvedValue([]);
       mockTransaction.category.findMany.mockResolvedValue([]);
 
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
-      expect(mockTransaction.event.delete).toHaveBeenCalled();
+      expect(mockTransaction.event.deleteMany).toHaveBeenCalled();
     });
 
     it('should handle transaction rollback on error', async () => {
       mockTransaction.score.deleteMany.mockRejectedValue(new Error('Database error'));
 
-      await expect(
-        service.wipeEventData('event-123', 'admin-456', 'ADMIN')
-      ).rejects.toThrow();
+      await expect(invokeEventWipe('ADMIN')).rejects.toThrow();
     });
 
     it('should delete deduction requests for categories', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.deductionRequest.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
     });
 
     it('should delete score removal requests for categories', async () => {
-      await service.wipeEventData('event-123', 'admin-456', 'ADMIN');
+      await invokeEventWipe('ADMIN');
 
       expect(mockTransaction.judgeScoreRemovalRequest.deleteMany).toHaveBeenCalledWith({
         where: {
+          tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
       });
@@ -418,37 +453,29 @@ describe('DataWipeService', () => {
 
   describe('security and validation', () => {
     it('should require exact confirmation string for wipeAllData', async () => {
-      await expect(
-        service.wipeAllData('admin-123', 'ADMIN', 'WIPE ALL DATA')
-      ).rejects.toThrow(ValidationError);
+      await expect(invokeGlobalWipe('SUPER_ADMIN', 'WIPE ALL DATA')).rejects.toThrow(ValidationError);
 
-      await expect(
-        service.wipeAllData('admin-123', 'ADMIN', 'WIPE_ALL_DATA ')
-      ).rejects.toThrow(ValidationError);
+      await expect(invokeGlobalWipe('SUPER_ADMIN', 'WIPE_ALL_DATA ')).rejects.toThrow(ValidationError);
 
-      await expect(
-        service.wipeAllData('admin-123', 'ADMIN', ' WIPE_ALL_DATA')
-      ).rejects.toThrow(ValidationError);
+      await expect(invokeGlobalWipe('SUPER_ADMIN', ' WIPE_ALL_DATA')).rejects.toThrow(ValidationError);
     });
 
     it('should verify user role before wiping all data', async () => {
       const roles = ['USER', 'JUDGE', 'ORGANIZER', 'TALLYMASTER', 'EMCEE'];
 
       for (const role of roles) {
-        await expect(
-          service.wipeAllData('user-123', role, 'WIPE_ALL_DATA')
-        ).rejects.toThrow(ForbiddenError);
+        await expect(invokeGlobalWipe(role)).rejects.toThrow(ForbiddenError);
       }
     });
 
     it('should verify user role before wiping event data', async () => {
-      await expect(
-        service.wipeEventData('event-123', 'user-456', 'JUDGE')
-      ).rejects.toThrow(ForbiddenError);
+      await expect(invokeEventWipe('JUDGE')).rejects.toThrow(ForbiddenError);
 
-      await expect(
-        service.wipeEventData('event-123', 'user-456', 'TALLYMASTER')
-      ).rejects.toThrow(ForbiddenError);
+      await expect(invokeEventWipe('TALLYMASTER')).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should require tenant context for non-super-admin event wipes', async () => {
+      await expect(invokeEventWipe('ADMIN', undefined, false)).rejects.toThrow(ForbiddenError);
     });
   });
 });

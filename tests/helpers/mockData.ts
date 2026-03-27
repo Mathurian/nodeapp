@@ -2,7 +2,14 @@
  * Mock Data Helpers for Testing
  */
 
-import { User, UserRole, Event, Contest, Category } from '@prisma/client';
+import {
+  User,
+  UserRole,
+  Event,
+  Contest,
+  Category,
+  ContestantNumberingMode,
+} from '@prisma/client';
 
 /**
  * Create a mock user for testing
@@ -15,6 +22,7 @@ export const createMockUser = (overrides?: Partial<User>): User => {
     password: 'hashed-password',
     preferredName: 'Test User',
     role: UserRole.ADMIN,
+    boardRole: null,
     isActive: true,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
@@ -40,11 +48,18 @@ export const createMockUser = (overrides?: Partial<User>): User => {
     country: null,
     timezone: 'UTC',
     language: 'en',
-    notifications: null,
+    notificationSettings: null,
     smsPhone: null,
     smsEnabled: false,
     privacy: null,
     navigationPreferences: null,
+    tenantId: 'tenant-123',
+    isSuperAdmin: false,
+    mfaBackupCodes: null,
+    mfaEnabled: false,
+    mfaEnrolledAt: null,
+    mfaMethod: 'totp',
+    mfaSecret: null,
     ...overrides,
   } as User;
 };
@@ -64,12 +79,25 @@ export const createSanitizedMockUser = (overrides?: Partial<Omit<User, 'password
 export const createMockEvent = (overrides?: Partial<Event>): Partial<Event> => {
   return {
     id: 'event-123',
+    tenantId: 'tenant-123',
     name: 'Test Event',
     description: 'Test event description',
     startDate: new Date('2024-06-01'),
     endDate: new Date('2024-06-03'),
     location: 'Test Venue',
-    status: 'DRAFT',
+    archived: false,
+    maxContestants: 100,
+    contestantNumberingMode: ContestantNumberingMode.MANUAL,
+    contestantViewRestricted: false,
+    isLocked: false,
+    contestantViewReleaseDate: null,
+    lockedAt: null,
+    lockVerifiedBy: null,
+    scoringType: null,
+    requireAllTallyCertifiers: null,
+    requireAllAuditorCertifiers: null,
+    deletedAt: null,
+    deletedBy: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     ...overrides,
@@ -82,10 +110,24 @@ export const createMockEvent = (overrides?: Partial<Event>): Partial<Event> => {
 export const createMockContest = (overrides?: Partial<Contest>): Partial<Contest> => {
   return {
     id: 'contest-123',
+    tenantId: 'tenant-123',
     name: 'Test Contest',
     eventId: 'event-123',
     description: 'Test contest description',
-    date: new Date('2024-06-01'),
+    contestantNumberingMode: ContestantNumberingMode.MANUAL,
+    nextContestantNumber: 1,
+    archived: false,
+    contestantViewRestricted: false,
+    contestantViewReleaseDate: null,
+    isLocked: false,
+    lockedAt: null,
+    lockVerifiedBy: null,
+    scoringType: null,
+    winnersPublished: false,
+    publishedAt: null,
+    publishedBy: null,
+    deletedAt: null,
+    deletedBy: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     ...overrides,
@@ -142,7 +184,6 @@ export const validEventData = {
   startDate: new Date('2024-07-01'),
   endDate: new Date('2024-07-03'),
   location: 'Convention Center',
-  status: 'DRAFT',
 };
 
 /**
@@ -151,7 +192,6 @@ export const validEventData = {
 export const validContestData = {
   name: 'Junior Ballet',
   description: 'Ballet competition for junior dancers',
-  date: new Date('2024-07-01'),
 };
 
 /**

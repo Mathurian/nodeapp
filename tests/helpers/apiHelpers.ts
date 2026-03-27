@@ -3,13 +3,35 @@
  * Helpers for testing API endpoints with supertest
  */
 
-import request, { SuperTest, Test, Response } from 'supertest';
+import request, { Test, Response } from 'supertest';
 import { Express } from 'express';
+
+type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
+type ApiClient = ReturnType<typeof request>;
+
+const requestWithMethod = (
+  app: Express,
+  method: HttpMethod,
+  path: string
+): Test => {
+  switch (method) {
+    case 'get':
+      return request(app).get(path);
+    case 'post':
+      return request(app).post(path);
+    case 'put':
+      return request(app).put(path);
+    case 'patch':
+      return request(app).patch(path);
+    case 'delete':
+      return request(app).delete(path);
+  }
+};
 
 /**
  * Create API test client
  */
-export const createApiClient = (app: Express): SuperTest<Test> => {
+export const createApiClient = (app: Express): ApiClient => {
   return request(app);
 };
 
@@ -279,7 +301,7 @@ export const batchRequests = async (
  */
 export const testEndpointWithRoles = async (
   app: Express,
-  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  method: HttpMethod,
   path: string,
   tokens: { role: string; token: string }[],
   body?: any
@@ -322,7 +344,7 @@ export const apiTestScenarios = {
    * Test endpoint requires authentication
    */
   requiresAuth: async (app: Express, method: string, path: string) => {
-    const response = await request(app)[method.toLowerCase()](path);
+    const response = await requestWithMethod(app, method.toLowerCase() as HttpMethod, path);
     assertUnauthorized(response);
   },
 
@@ -335,8 +357,7 @@ export const apiTestScenarios = {
     path: string,
     unauthorizedToken: string
   ) => {
-    const response = await request(app)
-      [method.toLowerCase()](path)
+    const response = await requestWithMethod(app, method.toLowerCase() as HttpMethod, path)
       .set('Authorization', `Bearer ${unauthorizedToken}`);
     assertForbidden(response);
   },

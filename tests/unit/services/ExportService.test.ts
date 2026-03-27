@@ -8,7 +8,6 @@ import { ExportService } from '../../../src/services/ExportService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { NotFoundError } from '../../../src/services/BaseService';
-import { promises as fs } from 'fs';
 import * as path from 'path';
 
 // Mock ExcelJS
@@ -60,14 +59,26 @@ const mockReadFile = jest.fn();
 const mockUnlink = jest.fn();
 const mockReaddir = jest.fn();
 
-const mockWriteStream = {
-  on: jest.fn((event: string, callback: () => void) => {
+type MockWriteStream = {
+  on: jest.Mock<MockWriteStream, [string, () => void]>;
+};
+
+const mockWriteStream: MockWriteStream = {
+  on: jest.fn((event: string, callback: () => void): MockWriteStream => {
     if (event === 'finish') {
       // Trigger finish callback synchronously for testing
       setImmediate(callback);
     }
     return mockWriteStream;
   }),
+};
+
+const mockFs = {
+  mkdir: mockMkdir,
+  writeFile: mockWriteFile,
+  readFile: mockReadFile,
+  unlink: mockUnlink,
+  readdir: mockReaddir,
 };
 
 jest.mock('fs', () => ({

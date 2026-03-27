@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -16,8 +17,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
 describe('Cache API Integration Tests', () => {
   let adminUser: any;
   let adminToken: string;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -35,6 +40,7 @@ describe('Cache API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -49,7 +55,7 @@ describe('Cache API Integration Tests', () => {
       adminToken = loginResponse.body.data?.token || loginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -86,11 +92,12 @@ describe('Cache API Integration Tests', () => {
           role: 'CONTESTANT',
           isActive: true,
           sessionVersion: 1,
+          tenantId,
         }
       });
 
       const userToken = jwt.sign(
-        { userId: regularUser.id, role: regularUser.role },
+        { userId: regularUser.id, role: regularUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );

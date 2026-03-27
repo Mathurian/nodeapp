@@ -27,9 +27,7 @@ interface TestDataTracker {
   notifications: string[];
   auditLogs: string[];
   categoryContestants: { categoryId: string; contestantId: string }[];
-  contestContestants: string[];
   categoryJudges: { categoryId: string; judgeId: string }[];
-  contestJudges: string[];
   criteria: string[];
   emceeScripts: string[];
   tallyMasterAssignments: string[];
@@ -60,9 +58,7 @@ export class TestDataFactory {
       notifications: [],
       auditLogs: [],
       categoryContestants: [],
-      contestContestants: [],
       categoryJudges: [],
-      contestJudges: [],
       criteria: [],
       emceeScripts: [],
       tallyMasterAssignments: [],
@@ -133,7 +129,7 @@ export class TestDataFactory {
   async createUser(
     role: UserRole,
     tenantId?: string,
-    overrides?: Partial<Prisma.UserCreateInput>
+    overrides?: Partial<Prisma.UserUncheckedCreateInput>
   ) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
@@ -190,7 +186,7 @@ export class TestDataFactory {
   /**
    * Create a test event
    */
-  async createEvent(tenantId?: string, overrides?: Partial<Prisma.EventCreateInput>) {
+  async createEvent(tenantId?: string, overrides?: Partial<Prisma.EventUncheckedCreateInput>) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
 
@@ -221,7 +217,7 @@ export class TestDataFactory {
   async createContest(
     eventId: string,
     tenantId?: string,
-    overrides?: Partial<Prisma.ContestCreateInput>
+    overrides?: Partial<Prisma.ContestUncheckedCreateInput>
   ) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
@@ -250,7 +246,7 @@ export class TestDataFactory {
   async createCategory(
     contestId: string,
     tenantId?: string,
-    overrides?: Partial<Prisma.CategoryCreateInput>
+    overrides?: Partial<Prisma.CategoryUncheckedCreateInput>
   ) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
@@ -279,8 +275,11 @@ export class TestDataFactory {
     categoryId: string,
     count: number = 3,
     tenantId?: string,
-    overrides?: Partial<Prisma.CriterionCreateInput>
+    overrides?: Partial<Prisma.CriterionUncheckedCreateInput>
   ) {
+    const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
+    if (!tenant) throw new Error('No tenant available');
+
     const criteria = [];
     for (let i = 1; i <= count; i++) {
       const criterion = await this.prisma.criterion.create({
@@ -288,7 +287,7 @@ export class TestDataFactory {
           categoryId: categoryId,
           name: `Criterion ${i}`,
           maxScore: 10,
-          ...(tenantId && { tenantId }),
+          tenantId: tenant.id,
           ...overrides,
         },
       });
@@ -304,7 +303,7 @@ export class TestDataFactory {
   async createJudge(
     userId: string,
     tenantId?: string,
-    overrides?: Partial<Prisma.JudgeCreateInput>
+    overrides?: Partial<Prisma.JudgeUncheckedCreateInput>
   ) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
@@ -339,7 +338,7 @@ export class TestDataFactory {
     userId: string,
     contestantNumber: number,
     tenantId?: string,
-    overrides?: Partial<Prisma.ContestantCreateInput>
+    overrides?: Partial<Prisma.ContestantUncheckedCreateInput>
   ) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
@@ -465,7 +464,7 @@ export class TestDataFactory {
     criterionId: string,
     score: number,
     tenantId?: string,
-    overrides?: Partial<Prisma.ScoreCreateInput>
+    overrides?: Partial<Prisma.ScoreUncheckedCreateInput>
   ) {
     const tenant = tenantId ? { id: tenantId } : await this.getDefaultTenant();
     if (!tenant) throw new Error('No tenant available');
@@ -654,18 +653,6 @@ export class TestDataFactory {
       if (this.tracker.categories.length > 0) {
         await this.prisma.category.deleteMany({
           where: { id: { in: this.tracker.categories } },
-        });
-      }
-
-      if (this.tracker.contestContestants.length > 0) {
-        await this.prisma.contestContestant.deleteMany({
-          where: { id: { in: this.tracker.contestContestants } },
-        });
-      }
-
-      if (this.tracker.contestJudges.length > 0) {
-        await this.prisma.contestJudge.deleteMany({
-          where: { id: { in: this.tracker.contestJudges } },
         });
       }
 

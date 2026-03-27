@@ -5,7 +5,7 @@
 
 import 'reflect-metadata';
 import { EmailTemplateService } from '../../../src/services/EmailTemplateService';
-import { PrismaClient } from '@prisma/client';
+import { EmailTemplate, PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
 describe('EmailTemplateService', () => {
@@ -14,7 +14,7 @@ describe('EmailTemplateService', () => {
 
   const tenantId = 'test-tenant';
 
-  const mockTemplate = {
+  const buildTemplate = (overrides: Partial<EmailTemplate> = {}): EmailTemplate => ({
     id: 'template-1',
     tenantId,
     name: 'Welcome Email',
@@ -39,10 +39,15 @@ describe('EmailTemplateService', () => {
     borderWidth: '1px',
     borderRadius: '4px',
     padding: '20px',
+    margin: null,
+    templateData: null,
     createdBy: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+    ...overrides,
+  });
+
+  const mockTemplate = buildTemplate();
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();

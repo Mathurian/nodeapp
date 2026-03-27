@@ -46,20 +46,26 @@ jest.mock('../../../src/utils/cache', () => ({
 }));
 
 // Mock response helpers - capture calls for verification
-const mockSendSuccess = jest.fn((res, data) => res.status(200).json({ success: true, data }));
-const mockSendCreated = jest.fn((res, data) => res.status(201).json({ success: true, data }));
-const mockSendNoContent = jest.fn((res) => res.status(204).send());
-const mockSendNotFound = jest.fn((res, message) => res.status(404).json({ success: false, message }));
-const mockSendBadRequest = jest.fn((res, message) => res.status(400).json({ success: false, message }));
-const mockSendError = jest.fn((res, message, statusCode = 500) => res.status(statusCode || 500).json({ success: false, message }));
+const mockSendSuccess = jest.fn((res: any, data: any) => res.status(200).json({ success: true, data }));
+const mockSendCreated = jest.fn((res: any, data: any) => res.status(201).json({ success: true, data }));
+const mockSendNoContent = jest.fn((res: any) => res.status(204).send());
+const mockSendNotFound = jest.fn((res: any, message: any) =>
+  res.status(404).json({ success: false, message })
+);
+const mockSendBadRequest = jest.fn((res: any, message: any) =>
+  res.status(400).json({ success: false, message })
+);
+const mockSendError = jest.fn((res: any, message: any, statusCode = 500) =>
+  res.status(statusCode || 500).json({ success: false, message })
+);
 
 jest.mock('../../../src/utils/responseHelpers', () => ({
-  sendSuccess: (...args: any[]) => mockSendSuccess(...args),
-  sendCreated: (...args: any[]) => mockSendCreated(...args),
-  sendNoContent: (...args: any[]) => mockSendNoContent(...args),
-  sendNotFound: (...args: any[]) => mockSendNotFound(...args),
-  sendBadRequest: (...args: any[]) => mockSendBadRequest(...args),
-  sendError: (...args: any[]) => mockSendError(...args),
+  sendSuccess: (res: any, data: any) => mockSendSuccess(res, data),
+  sendCreated: (res: any, data: any) => mockSendCreated(res, data),
+  sendNoContent: (res: any) => mockSendNoContent(res),
+  sendNotFound: (res: any, message: any) => mockSendNotFound(res, message),
+  sendBadRequest: (res: any, message: any) => mockSendBadRequest(res, message),
+  sendError: (res: any, message: any, statusCode?: number) => mockSendError(res, message, statusCode),
 }));
 
 describe('UsersController', () => {
@@ -67,7 +73,7 @@ describe('UsersController', () => {
   let mockUserService: DeepMockProxy<UserService>;
   let mockAssignmentService: DeepMockProxy<AssignmentService>;
   let mockPrisma: DeepMockProxy<PrismaClient>;
-  let mockReq: Partial<Request>;
+  let mockReq: any;
   let mockRes: Partial<Response>;
   let mockNext: NextFunction;
 
@@ -100,7 +106,7 @@ describe('UsersController', () => {
       body: {},
       params: {},
       query: {},
-      user: { id: 'admin-1', role: 'ADMIN' },
+      user: { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' },
       ip: '127.0.0.1',
       file: undefined,
     };
@@ -167,7 +173,7 @@ describe('UsersController', () => {
 
     it('should return 404 if user not found', async () => {
       mockReq.params = { id: 'nonexistent' };
-      mockUserService.getUserByIdWithRelations.mockResolvedValue(null);
+      mockUserService.getUserByIdWithRelations.mockResolvedValue(null as any);
 
       await controller.getUserById(mockReq as Request, mockRes as Response, mockNext);
 

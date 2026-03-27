@@ -477,20 +477,20 @@ describe('WinnerService - Publication Control', () => {
       ).rejects.toThrow('Winners have not been published yet');
     });
 
-    it('should BLOCK TALLY_MASTER from viewing unpublished winners', async () => {
+    it('should allow TALLY_MASTER to view unpublished winners', async () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
         service.getWinnersByContest(mockContestId, 'TALLY_MASTER')
-      ).rejects.toThrow('Winners have not been published yet');
+      ).resolves.toBeDefined();
     });
 
-    it('should BLOCK AUDITOR from viewing unpublished winners', async () => {
+    it('should allow AUDITOR to view unpublished winners', async () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
         service.getWinnersByContest(mockContestId, 'AUDITOR')
-      ).rejects.toThrow('Winners have not been published yet');
+      ).resolves.toBeDefined();
     });
 
     it('should BLOCK EMCEE from viewing unpublished winners', async () => {

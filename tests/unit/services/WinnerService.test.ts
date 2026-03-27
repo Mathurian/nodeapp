@@ -39,7 +39,7 @@ describe('WinnerService', () => {
       contestant: {
         id: 'contestant-1',
         name: 'Contestant 1',
-        contestantNumber: '001'
+        contestantNumber: 1
       },
       judge: {
         id: 'judge-1',
@@ -59,7 +59,7 @@ describe('WinnerService', () => {
       contestant: {
         id: 'contestant-1',
         name: 'Contestant 1',
-        contestantNumber: '001'
+        contestantNumber: 1
       },
       judge: {
         id: 'judge-1',
@@ -188,7 +188,7 @@ describe('WinnerService', () => {
           contestant: {
             id: 'contestant-2',
             name: 'Contestant 2',
-            contestantNumber: '002'
+            contestantNumber: 2
           },
           judge: {
             id: 'judge-1',

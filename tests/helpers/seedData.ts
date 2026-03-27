@@ -7,10 +7,30 @@
  * Copy this to seedData.ts and customize for your needs.
  */
 
-import { PrismaClient, UserRole } from '@prisma/client';
+import { ContestantNumberingMode, PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+const TEST_TENANT_SLUG = 'seed-test-tenant';
+
+async function ensureTestTenant() {
+  return prisma.tenant.upsert({
+    where: { slug: TEST_TENANT_SLUG },
+    update: {
+      name: 'Seed Test Tenant',
+      isActive: true,
+      planType: 'enterprise',
+      subscriptionStatus: 'active',
+    },
+    create: {
+      name: 'Seed Test Tenant',
+      slug: TEST_TENANT_SLUG,
+      isActive: true,
+      planType: 'enterprise',
+      subscriptionStatus: 'active',
+    },
+  });
+}
 
 // ============================================================================
 // SEED DATA - Main Function
@@ -21,13 +41,14 @@ export async function seedTestDatabase() {
 
   // Clean up first
   await cleanupTestDatabase();
+  const tenant = await ensureTestTenant();
 
   // Create users
-  const users = await seedUsers();
+  const users = await seedUsers(tenant.id);
   console.log(`✅ Created ${users.length} test users`);
 
   // Create events
-  const events = await seedEvents();
+  const events = await seedEvents(tenant.id);
   console.log(`✅ Created ${events.length} test events`);
 
   // Create contests
@@ -55,22 +76,36 @@ export async function seedTestDatabase() {
 export async function cleanupTestDatabase() {
   console.log('🧹 Cleaning up test database...');
 
+  const tenant = await prisma.tenant.findUnique({
+    where: { slug: TEST_TENANT_SLUG },
+    select: { id: true },
+  });
+
   // Delete in correct order (respect foreign keys)
   await prisma.$transaction([
     // Scores depend on categories
     prisma.score.deleteMany({
       where: {
         OR: [
+          ...(tenant ? [{ tenantId: tenant.id }] : []),
           { createdAt: { gte: new Date(Date.now() - 3600000) } },
           { category: { name: { contains: 'Test' } } }
         ]
       }
     }),
 
+    prisma.categoryContestant.deleteMany({
+      where: tenant ? { tenantId: tenant.id } : {},
+    }),
+    prisma.categoryJudge.deleteMany({
+      where: tenant ? { tenantId: tenant.id } : {},
+    }),
+
     // Categories depend on contests
     prisma.category.deleteMany({
       where: {
         OR: [
+          ...(tenant ? [{ tenantId: tenant.id }] : []),
           { name: { contains: 'Test' } },
           { createdAt: { gte: new Date(Date.now() - 3600000) } }
         ]
@@ -81,6 +116,7 @@ export async function cleanupTestDatabase() {
     prisma.contest.deleteMany({
       where: {
         OR: [
+          ...(tenant ? [{ tenantId: tenant.id }] : []),
           { name: { contains: 'Test' } },
           { createdAt: { gte: new Date(Date.now() - 3600000) } }
         ]
@@ -91,6 +127,7 @@ export async function cleanupTestDatabase() {
     prisma.event.deleteMany({
       where: {
         OR: [
+          ...(tenant ? [{ tenantId: tenant.id }] : []),
           { name: { contains: 'Test' } },
           { createdAt: { gte: new Date(Date.now() - 3600000) } }
         ]
@@ -99,9 +136,13 @@ export async function cleanupTestDatabase() {
 
     // Users are independent
     prisma.user.deleteMany({
-      where: { email: { contains: '@test.com' } }
+      where: tenant ? { tenantId: tenant.id } : { email: { contains: '@test.com' } }
     }),
   ]);
+
+  if (tenant) {
+    await prisma.tenant.delete({ where: { id: tenant.id } });
+  }
 
   console.log('✅ Cleanup complete!');
 }
@@ -110,7 +151,7 @@ export async function cleanupTestDatabase() {
 // SEED USERS
 // ============================================================================
 
-export async function seedUsers() {
+export async function seedUsers(tenantId: string) {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
   const usersData = [
@@ -153,7 +194,14 @@ export async function seedUsers() {
 
   const users = [];
   for (const userData of usersData) {
-    const user = await prisma.user.create({ data: userData });
+    const user = await prisma.user.create({
+      data: {
+        ...userData,
+        preferredName: userData.name,
+        sessionVersion: 1,
+        tenantId,
+      },
+    });
     users.push(user);
   }
 
@@ -164,21 +212,27 @@ export async function seedUsers() {
 // SEED EVENTS
 // ============================================================================
 
-export async function seedEvents() {
+export async function seedEvents(tenantId: string) {
   const eventsData = [
     {
       name: 'Test Event 2025',
       description: 'Main test event for integration tests',
       location: 'Test Venue',
-      startDate: new Date('2025-06-01'),
-      endDate: new Date('2025-06-07'),
+      startDate: new Date('2025-06-01T09:00:00'),
+      endDate: new Date('2025-06-01T17:00:00'),
+      archived: false,
+      contestantNumberingMode: ContestantNumberingMode.MANUAL,
+      tenantId,
     },
     {
       name: 'Test Event 2025 - Regional',
       description: 'Regional test event',
       location: 'Test Regional Center',
-      startDate: new Date('2025-07-15'),
-      endDate: new Date('2025-07-21'),
+      startDate: new Date('2025-07-15T10:00:00'),
+      endDate: new Date('2025-07-15T16:00:00'),
+      archived: false,
+      contestantNumberingMode: ContestantNumberingMode.MANUAL,
+      tenantId,
     }
   ];
 
@@ -196,16 +250,30 @@ export async function seedEvents() {
 // ============================================================================
 
 export async function seedContests(eventId: string) {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { tenantId: true },
+  });
+  if (!event) {
+    throw new Error(`Event ${eventId} not found`);
+  }
+
   const contestsData = [
     {
       name: 'Test Vocal Performance',
       description: 'Vocal performance contest',
       eventId,
+      tenantId: event.tenantId,
+      contestantNumberingMode: ContestantNumberingMode.MANUAL,
+      nextContestantNumber: 1,
     },
     {
       name: 'Test Instrumental Performance',
       description: 'Instrumental performance contest',
       eventId,
+      tenantId: event.tenantId,
+      contestantNumberingMode: ContestantNumberingMode.MANUAL,
+      nextContestantNumber: 1,
     }
   ];
 
@@ -223,21 +291,41 @@ export async function seedContests(eventId: string) {
 // ============================================================================
 
 export async function seedCategories(contestId: string) {
+  const contest = await prisma.contest.findUnique({
+    where: { id: contestId },
+    select: { tenantId: true },
+  });
+  if (!contest) {
+    throw new Error(`Contest ${contestId} not found`);
+  }
+
   const categoriesData = [
     {
       name: 'Test Solo Vocal - Age 8-10',
       description: 'Solo vocal performance for ages 8-10',
       contestId,
+      contestantMin: 8,
+      contestantMax: 10,
+      scoreCap: 100,
+      tenantId: contest.tenantId,
     },
     {
       name: 'Test Solo Vocal - Age 11-13',
       description: 'Solo vocal performance for ages 11-13',
       contestId,
+      contestantMin: 11,
+      contestantMax: 13,
+      scoreCap: 100,
+      tenantId: contest.tenantId,
     },
     {
       name: 'Test Group Vocal',
       description: 'Group vocal performance',
       contestId,
+      contestantMin: 8,
+      contestantMax: 18,
+      scoreCap: 100,
+      tenantId: contest.tenantId,
     }
   ];
 
@@ -271,14 +359,18 @@ export async function getTestUserByRole(role: UserRole) {
  */
 export async function createTemporaryTestUser(overrides = {}) {
   const hashedPassword = await bcrypt.hash('password123', 10);
+  const tenant = await ensureTestTenant();
 
   return await prisma.user.create({
     data: {
       email: `temp-${Date.now()}@test.com`,
       name: 'Temporary Test User',
+      preferredName: 'Temporary Test User',
       password: hashedPassword,
       role: 'CONTESTANT',
       isActive: true,
+      sessionVersion: 1,
+      tenantId: tenant.id,
       ...overrides
     }
   });

@@ -8,6 +8,26 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
 export const prisma = new PrismaClient();
+const TEST_TENANT_SLUG = 'test-utils-tenant';
+
+export const ensureTestTenant = async () => {
+  return prisma.tenant.upsert({
+    where: { slug: TEST_TENANT_SLUG },
+    update: {
+      name: 'Test Utils Tenant',
+      isActive: true,
+      planType: 'enterprise',
+      subscriptionStatus: 'active',
+    },
+    create: {
+      name: 'Test Utils Tenant',
+      slug: TEST_TENANT_SLUG,
+      isActive: true,
+      planType: 'enterprise',
+      subscriptionStatus: 'active',
+    },
+  });
+};
 
 /**
  * Generate a valid JWT token for testing
@@ -39,15 +59,18 @@ export const createTestUser = async (
 ) => {
   const timestamp = Date.now();
   const hashedPassword = await bcrypt.hash(overrides.password || 'TestPass123!', 10);
+  const tenant = await ensureTestTenant();
 
   return prisma.user.create({
     data: {
       email: overrides.email || `test-${timestamp}@example.com`,
       name: overrides.name || `test-user-${timestamp}`,
+      preferredName: overrides.name || `test-user-${timestamp}`,
       password: hashedPassword,
       role: overrides.role || UserRole.CONTESTANT,
       isActive: overrides.isActive !== undefined ? overrides.isActive : true,
       sessionVersion: 1,
+      tenantId: tenant.id,
     },
   });
 };
@@ -59,6 +82,9 @@ export const createTestEvent = async (overrides: any = {}) => {
   const timestamp = Date.now();
   const startDate = overrides.startDate || new Date();
   const endDate = overrides.endDate || new Date(Date.now() + 86400000); // 1 day later
+  const tenant = overrides.tenantId
+    ? { id: overrides.tenantId }
+    : await ensureTestTenant();
   
   return prisma.event.create({
     data: {
@@ -70,6 +96,7 @@ export const createTestEvent = async (overrides: any = {}) => {
       archived: overrides.archived !== undefined ? overrides.archived : false,
       maxContestants: overrides.maxContestants || null,
       contestantNumberingMode: overrides.contestantNumberingMode || 'MANUAL',
+      tenantId: tenant.id,
       ...overrides,
     },
   });
@@ -80,12 +107,20 @@ export const createTestEvent = async (overrides: any = {}) => {
  */
 export const createTestContest = async (eventId: string, overrides: any = {}) => {
   const timestamp = Date.now();
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { tenantId: true },
+  });
+  if (!event) {
+    throw new Error(`Event ${eventId} not found`);
+  }
   return prisma.contest.create({
     data: {
       name: overrides.name || `Test Contest ${timestamp}`,
       eventId,
       description: overrides.description || 'Test contest description',
       date: overrides.date || new Date(),
+      tenantId: overrides.tenantId || event.tenantId,
       ...overrides,
     },
   });
@@ -96,10 +131,18 @@ export const createTestContest = async (eventId: string, overrides: any = {}) =>
  */
 export const createTestCategory = async (contestId: string, overrides: any = {}) => {
   const timestamp = Date.now();
+  const contest = await prisma.contest.findUnique({
+    where: { id: contestId },
+    select: { tenantId: true },
+  });
+  if (!contest) {
+    throw new Error(`Contest ${contestId} not found`);
+  }
   return prisma.category.create({
     data: {
       name: overrides.name || `Test Category ${timestamp}`,
       contestId,
+      tenantId: overrides.tenantId || contest.tenantId,
       ...overrides,
     },
   });

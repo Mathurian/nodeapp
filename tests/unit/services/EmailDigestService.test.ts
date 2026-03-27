@@ -1,265 +1,335 @@
 /**
  * EmailDigestService Unit Tests
- * Comprehensive tests for email digest functionality
+ * Aligned with tenant-aware digest dispatch and current EmailService contract.
  */
 
 import 'reflect-metadata';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { EmailDigestService } from '../../../src/services/EmailDigestService';
 import { NotificationRepository } from '../../../src/repositories/NotificationRepository';
 import { NotificationPreferenceRepository } from '../../../src/repositories/NotificationPreferenceRepository';
 import { EmailService } from '../../../src/services/EmailService';
-import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import prisma from '../../../src/config/database';
 
-// Mock prisma
 jest.mock('../../../src/config/database', () => ({
   __esModule: true,
   default: {
     user: {
-      findUnique: jest.fn()
+      findFirst: jest.fn(),
     },
     notificationDigest: {
-      upsert: jest.fn(),
-      findMany: jest.fn()
-    }
-  }
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+jest.mock('../../../src/utils/prismaRlsContext', () => ({
+  withTenantDbRlsContext: jest.fn(async (db: unknown, _context: unknown, operation: (tx: unknown) => unknown) =>
+    operation(db)
+  ),
 }));
 
 describe('EmailDigestService', () => {
   let service: EmailDigestService;
   let mockNotificationRepo: DeepMockProxy<NotificationRepository>;
-  let mockPreferenceRepo: DeepMockProxy<NotificationPreferenceRepository>;
   let mockEmailService: DeepMockProxy<EmailService>;
+  let getUsersForDigestSpy: jest.SpyInstance;
 
-  const mockNotifications = [
-    {
-      id: 'notif-1',
-      userId: 'user-1',
-      type: 'INFO',
-      title: 'Test Notification 1',
-      message: 'Test message 1',
-      link: '/test/1',
-      read: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: 'notif-2',
-      userId: 'user-1',
-      type: 'SUCCESS',
-      title: 'Test Notification 2',
-      message: 'Test message 2',
-      link: '/test/2',
-      read: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  ];
+  const mockedPrisma = prisma as unknown as {
+    user: { findFirst: jest.Mock };
+    notificationDigest: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+      findMany: jest.Mock;
+    };
+  };
 
-  const mockUser = {
+  const now = new Date('2026-02-25T12:00:00.000Z');
+
+  const buildNotification = (
+    overrides: Partial<{
+      id: string;
+      userId: string;
+      tenantId: string;
+      type: string;
+      title: string;
+      message: string;
+      link?: string;
+      read: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+      deletedAt: Date | null;
+    }> = {}
+  ) => ({
+    id: 'notif-1',
+    userId: 'user-1',
+    tenantId: 'tenant-1',
+    type: 'INFO',
+    title: 'Test Notification 1',
+    message: 'Test message 1',
+    link: '/test/1',
+    read: false,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    ...overrides,
+  });
+
+  const buildUser = (
+    overrides: Partial<{ id: string; email: string | null; name: string | null }> = {}
+  ) => ({
     id: 'user-1',
     email: 'test@example.com',
-    name: 'Test User'
+    name: 'Test User',
+    ...overrides,
+  });
+
+  const buildDigestPreference = (
+    overrides: Partial<{ userId: string; tenantId: string; emailDigestFrequency: string; emailEnabled: boolean }> = {}
+  ) => ({
+    userId: 'user-1',
+    tenantId: 'tenant-1',
+    emailEnabled: true,
+    emailDigestFrequency: 'daily',
+    ...overrides,
+  });
+
+  const buildEmailSendResult = (
+    overrides: Partial<{ success: boolean; to: string; subject: string; messageId?: string }> = {}
+  ) => ({
+    success: true,
+    to: 'test@example.com',
+    subject: 'Your daily notification digest',
+    messageId: 'message-1',
+    ...overrides,
+  });
+
+  const getSendEmailCall = () => {
+    const call = mockEmailService.sendEmail.mock.calls[0];
+    expect(call).toBeDefined();
+    const [to, subject, text, options] = call!;
+    return {
+      to,
+      subject,
+      text: text as string,
+      options: options as { html?: string; tenantId?: string; userId?: string },
+    };
   };
 
   beforeEach(() => {
     mockNotificationRepo = mockDeep<NotificationRepository>();
-    mockPreferenceRepo = mockDeep<NotificationPreferenceRepository>();
     mockEmailService = mockDeep<EmailService>();
 
-    service = new EmailDigestService(
-      mockNotificationRepo,
-      mockPreferenceRepo,
-      mockEmailService
+    service = new EmailDigestService(mockNotificationRepo, mockEmailService);
+    getUsersForDigestSpy = jest.spyOn(
+      NotificationPreferenceRepository.prototype,
+      'getUsersForDigest'
     );
+
+    mockedPrisma.user.findFirst.mockReset();
+    mockedPrisma.notificationDigest.findFirst.mockReset();
+    mockedPrisma.notificationDigest.create.mockReset();
+    mockedPrisma.notificationDigest.update.mockReset();
+    mockedPrisma.notificationDigest.findMany.mockReset();
+
+    mockedPrisma.user.findFirst.mockResolvedValue(buildUser());
+    mockedPrisma.notificationDigest.findFirst.mockResolvedValue(null);
+    mockedPrisma.notificationDigest.create.mockResolvedValue({});
+    mockedPrisma.notificationDigest.update.mockResolvedValue({});
+    mockedPrisma.notificationDigest.findMany.mockResolvedValue([]);
+    mockEmailService.sendEmail.mockResolvedValue(buildEmailSendResult() as any);
 
     jest.clearAllMocks();
   });
 
   afterEach(() => {
     mockReset(mockNotificationRepo);
-    mockReset(mockPreferenceRepo);
     mockReset(mockEmailService);
+    getUsersForDigestSpy.mockRestore();
   });
 
   describe('sendDailyDigests', () => {
     it('should send daily digests to users', async () => {
-      const preferences = [
-        { userId: 'user-1', frequency: 'daily', emailDigest: true },
-        { userId: 'user-2', frequency: 'daily', emailDigest: true }
-      ];
-
-      mockPreferenceRepo.getUsersForDigest.mockResolvedValue(preferences as any);
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+      getUsersForDigestSpy.mockResolvedValue([
+        buildDigestPreference({ userId: 'user-1', tenantId: 'tenant-1', emailDigestFrequency: 'daily' }),
+        buildDigestPreference({ userId: 'user-2', tenantId: 'tenant-2', emailDigestFrequency: 'daily' }),
+      ] as any);
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
 
       const result = await service.sendDailyDigests();
 
-      expect(mockPreferenceRepo.getUsersForDigest).toHaveBeenCalledWith('daily');
+      expect(getUsersForDigestSpy).toHaveBeenCalledWith('daily');
+      expect(mockNotificationRepo.findByUser).toHaveBeenNthCalledWith(1, {
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        read: false,
+        limit: 100,
+      });
+      expect(mockNotificationRepo.findByUser).toHaveBeenNthCalledWith(2, {
+        userId: 'user-2',
+        tenantId: 'tenant-2',
+        read: false,
+        limit: 100,
+      });
       expect(result).toBe(2);
     });
 
-    it('should handle errors gracefully', async () => {
-      const preferences = [
-        { userId: 'user-1', frequency: 'daily', emailDigest: true }
-      ];
-
-      mockPreferenceRepo.getUsersForDigest.mockResolvedValue(preferences as any);
+    it('should handle per-user errors gracefully', async () => {
+      getUsersForDigestSpy.mockResolvedValue([
+        buildDigestPreference({ userId: 'user-1', tenantId: 'tenant-1' }),
+      ] as any);
       mockNotificationRepo.findByUser.mockRejectedValue(new Error('Database error'));
-
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const result = await service.sendDailyDigests();
 
       expect(result).toBe(0);
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
     });
   });
 
   describe('sendWeeklyDigests', () => {
     it('should send weekly digests to users', async () => {
-      const preferences = [
-        { userId: 'user-1', frequency: 'weekly', emailDigest: true }
-      ];
-
-      mockPreferenceRepo.getUsersForDigest.mockResolvedValue(preferences as any);
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+      getUsersForDigestSpy.mockResolvedValue([
+        buildDigestPreference({ userId: 'user-1', tenantId: 'tenant-1', emailDigestFrequency: 'weekly' }),
+      ] as any);
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
 
       const result = await service.sendWeeklyDigests();
 
-      expect(mockPreferenceRepo.getUsersForDigest).toHaveBeenCalledWith('weekly');
+      expect(getUsersForDigestSpy).toHaveBeenCalledWith('weekly');
       expect(result).toBe(1);
     });
   });
 
   describe('sendDigestToUser', () => {
-    it('should send digest email to user with notifications', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+    it('should send digest email to a user with recent notifications', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification(),
+        buildNotification({
+          id: 'notif-2',
+          type: 'SUCCESS',
+          title: 'Test Notification 2',
+          message: 'Test message 2',
+          link: '/test/2',
+        }),
+      ] as any);
 
-      const result = await service.sendDigestToUser('user-1', 'daily');
+      const result = await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
+      const emailCall = getSendEmailCall();
 
       expect(mockNotificationRepo.findByUser).toHaveBeenCalledWith({
         userId: 'user-1',
+        tenantId: 'tenant-1',
         read: false,
-        since: expect.any(Date),
-        limit: 100
+        limit: 100,
       });
-
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
-        select: { email: true, name: true }
+      expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith({
+        where: { id: 'user-1', tenantId: 'tenant-1' },
+        select: { email: true, name: true },
       });
-
-      expect(mockEmailService.sendEmail).toHaveBeenCalledWith({
-        to: 'test@example.com',
-        subject: 'Your daily notification digest',
-        html: expect.stringContaining('Test User')
-      });
-
+      expect(emailCall.to).toBe('test@example.com');
+      expect(emailCall.subject).toBe('Your daily notification digest');
+      expect(emailCall.text).toContain('Hi Test User');
+      expect(emailCall.options).toEqual(
+        expect.objectContaining({
+          html: expect.stringContaining('Test User'),
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+        })
+      );
       expect(result).toBe(true);
     });
 
-    it('should not send email if no notifications', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue([]);
+    it('should not send email if there are no notifications in range', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification({
+          createdAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000),
+        }),
+      ] as any);
 
-      const result = await service.sendDigestToUser('user-1', 'daily');
-
-      expect(result).toBe(false);
-      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
-    });
-
-    it('should not send email if user not found', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-
-      const result = await service.sendDigestToUser('user-1', 'daily');
+      const result = await service.sendDigestToUser('user-1', 'weekly', 'tenant-1');
 
       expect(result).toBe(false);
       expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
     });
 
-    it('should not send email if user has no email', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        id: 'user-1',
-        email: null,
-        name: 'Test User'
-      });
+    it('should not send email if user is not found', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
+      mockedPrisma.user.findFirst.mockResolvedValue(null);
 
-      const result = await service.sendDigestToUser('user-1', 'daily');
+      const result = await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
+
+      expect(result).toBe(false);
+      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('should not send email if user has no email address', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
+      mockedPrisma.user.findFirst.mockResolvedValue(buildUser({ email: null }));
+
+      const result = await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
       expect(result).toBe(false);
       expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
     });
 
     it('should generate correct HTML for different notification types', async () => {
-      const mixedNotifications = [
-        { ...mockNotifications[0], type: 'INFO' },
-        { ...mockNotifications[1], type: 'SUCCESS' }
-      ];
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification({ type: 'INFO' }),
+        buildNotification({
+          id: 'notif-2',
+          type: 'SUCCESS',
+          title: 'Success Notification',
+        }),
+      ] as any);
 
-      mockNotificationRepo.findByUser.mockResolvedValue(mixedNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      await service.sendDigestToUser('user-1', 'daily');
-
-      const emailCall = mockEmailService.sendEmail.mock.calls[0][0];
-      expect(emailCall.html).toContain('INFO');
-      expect(emailCall.html).toContain('SUCCESS');
-      expect(emailCall.html).toContain('Test Notification 1');
-      expect(emailCall.html).toContain('Test Notification 2');
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('INFO');
+      expect(emailCall.options.html).toContain('SUCCESS');
+      expect(emailCall.options.html).toContain('Test Notification 1');
+      expect(emailCall.options.html).toContain('Success Notification');
     });
   });
 
   describe('getDueDigests', () => {
     it('should return digests that are due', async () => {
-      const dueDigests = [
+      mockedPrisma.notificationDigest.findMany.mockResolvedValue([
         {
           userId: 'user-1',
           frequency: 'daily',
-          lastSentAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
-          nextSendAt: new Date(Date.now() - 1 * 60 * 60 * 1000)
+          tenantId: 'tenant-1',
+          nextSendAt: new Date(now.getTime() - 60 * 60 * 1000),
         },
         {
           userId: 'user-2',
           frequency: 'weekly',
-          lastSentAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
-          nextSendAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-        }
-      ];
-
-      (prisma.notificationDigest.findMany as jest.Mock).mockResolvedValue(dueDigests);
+          tenantId: 'tenant-2',
+          nextSendAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+        },
+      ]);
 
       const result = await service.getDueDigests();
 
       expect(result).toEqual([
-        { userId: 'user-1', frequency: 'daily' },
-        { userId: 'user-2', frequency: 'weekly' }
+        { userId: 'user-1', frequency: 'daily', tenantId: 'tenant-1' },
+        { userId: 'user-2', frequency: 'weekly', tenantId: 'tenant-2' },
       ]);
-
-      expect(prisma.notificationDigest.findMany).toHaveBeenCalledWith({
+      expect(mockedPrisma.notificationDigest.findMany).toHaveBeenCalledWith({
         where: {
           nextSendAt: {
-            lte: expect.any(Date)
-          }
-        }
+            lte: expect.any(Date),
+          },
+        },
       });
     });
 
-    it('should return empty array if no digests due', async () => {
-      (prisma.notificationDigest.findMany as jest.Mock).mockResolvedValue([]);
+    it('should return an empty array if no digests are due', async () => {
+      mockedPrisma.notificationDigest.findMany.mockResolvedValue([]);
 
       const result = await service.getDueDigests();
 
@@ -268,141 +338,152 @@ describe('EmailDigestService', () => {
   });
 
   describe('time range calculations', () => {
-    it('should calculate correct time range for hourly digest', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue([]);
+    it('should filter hourly digests to only recent notifications', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification({ title: 'Recent Hourly', createdAt: new Date(Date.now() - 30 * 60 * 1000) }),
+        buildNotification({
+          id: 'notif-old',
+          title: 'Old Hourly',
+          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        }),
+      ] as any);
 
-      await service.sendDigestToUser('user-1', 'hourly');
+      await service.sendDigestToUser('user-1', 'hourly', 'tenant-1');
 
-      const callArgs = mockNotificationRepo.findByUser.mock.calls[0][0];
-      const since = callArgs.since as Date;
-      const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-
-      expect(since.getTime()).toBeGreaterThanOrEqual(hourAgo.getTime() - 1000);
-      expect(since.getTime()).toBeLessThanOrEqual(hourAgo.getTime() + 1000);
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('Recent Hourly');
+      expect(emailCall.options.html).not.toContain('Old Hourly');
     });
 
-    it('should calculate correct time range for daily digest', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue([]);
+    it('should filter daily digests to only recent notifications', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification({ title: 'Recent Daily', createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000) }),
+        buildNotification({
+          id: 'notif-old',
+          title: 'Old Daily',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        }),
+      ] as any);
 
-      await service.sendDigestToUser('user-1', 'daily');
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      const callArgs = mockNotificationRepo.findByUser.mock.calls[0][0];
-      const since = callArgs.since as Date;
-      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-      expect(since.getTime()).toBeGreaterThanOrEqual(dayAgo.getTime() - 1000);
-      expect(since.getTime()).toBeLessThanOrEqual(dayAgo.getTime() + 1000);
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('Recent Daily');
+      expect(emailCall.options.html).not.toContain('Old Daily');
     });
 
-    it('should calculate correct time range for weekly digest', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue([]);
+    it('should filter weekly digests to only recent notifications', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification({ title: 'Recent Weekly', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }),
+        buildNotification({
+          id: 'notif-old',
+          title: 'Old Weekly',
+          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        }),
+      ] as any);
 
-      await service.sendDigestToUser('user-1', 'weekly');
+      await service.sendDigestToUser('user-1', 'weekly', 'tenant-1');
 
-      const callArgs = mockNotificationRepo.findByUser.mock.calls[0][0];
-      const since = callArgs.since as Date;
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-      expect(since.getTime()).toBeGreaterThanOrEqual(weekAgo.getTime() - 1000);
-      expect(since.getTime()).toBeLessThanOrEqual(weekAgo.getTime() + 1000);
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('Recent Weekly');
+      expect(emailCall.options.html).not.toContain('Old Weekly');
     });
   });
 
   describe('notification grouping', () => {
     it('should group notifications by type', async () => {
-      const mixedNotifications = [
-        { ...mockNotifications[0], type: 'INFO' },
-        { ...mockNotifications[1], type: 'INFO' },
-        { id: 'notif-3', type: 'SUCCESS', title: 'Success', message: 'msg', createdAt: new Date() }
-      ];
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification({ type: 'INFO', title: 'Info One' }),
+        buildNotification({ id: 'notif-2', type: 'INFO', title: 'Info Two' }),
+        buildNotification({ id: 'notif-3', type: 'SUCCESS', title: 'Success' }),
+      ] as any);
 
-      mockNotificationRepo.findByUser.mockResolvedValue(mixedNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      await service.sendDigestToUser('user-1', 'daily');
+      const emailCall = getSendEmailCall();
+      const html = emailCall.options.html ?? '';
 
-      const emailCall = mockEmailService.sendEmail.mock.calls[0][0];
-      const html = emailCall.html;
-
-      // Should have separate sections for INFO and SUCCESS
       expect(html).toContain('badge-info');
       expect(html).toContain('badge-success');
-      expect(html).toContain('2 notification'); // INFO group
-      expect(html).toContain('1 notification'); // SUCCESS group
+      expect(html).toContain('2 notifications');
+      expect(html).toContain('1 notification');
     });
   });
 
   describe('HTML generation', () => {
-    it('should generate valid HTML with user name', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+    it('should generate valid HTML with the user name', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification(),
+        buildNotification({ id: 'notif-2', title: 'Another Notification' }),
+      ] as any);
 
-      await service.sendDigestToUser('user-1', 'daily');
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      const emailCall = mockEmailService.sendEmail.mock.calls[0][0];
-      expect(emailCall.html).toContain('Test User');
-      expect(emailCall.html).toContain('<!DOCTYPE html>');
-      expect(emailCall.html).toContain('</html>');
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('Test User');
+      expect(emailCall.options.html).toContain('<!DOCTYPE html>');
+      expect(emailCall.options.html).toContain('</html>');
     });
 
-    it('should include notification count in header', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+    it('should include notification count in the header', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([
+        buildNotification(),
+        buildNotification({ id: 'notif-2', title: 'Another Notification' }),
+      ] as any);
 
-      await service.sendDigestToUser('user-1', 'daily');
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      const emailCall = mockEmailService.sendEmail.mock.calls[0][0];
-      expect(emailCall.html).toContain('2 new notifications');
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('2 new notifications');
     });
 
-    it('should include link to view all notifications', async () => {
-      process.env.FRONTEND_URL = 'https://example.com';
+    it('should include links to notifications and preferences', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
 
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      await service.sendDigestToUser('user-1', 'daily');
-
-      const emailCall = mockEmailService.sendEmail.mock.calls[0][0];
-      expect(emailCall.html).toContain('https://example.com/notifications');
-      expect(emailCall.html).toContain('View All Notifications');
+      const emailCall = getSendEmailCall();
+      expect(emailCall.options.html).toContain('/notifications');
+      expect(emailCall.options.html).toContain('View All Notifications');
+      expect(emailCall.options.html).toContain('/settings/notifications');
     });
   });
 
   describe('digest record updates', () => {
-    it('should update digest record after sending', async () => {
-      mockNotificationRepo.findByUser.mockResolvedValue(mockNotifications as any);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
-      (prisma.notificationDigest.upsert as jest.Mock).mockResolvedValue({});
+    it('should create a digest record after first send', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
+      mockedPrisma.notificationDigest.findFirst.mockResolvedValue(null);
 
-      await service.sendDigestToUser('user-1', 'daily');
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
 
-      expect(prisma.notificationDigest.upsert).toHaveBeenCalledWith({
-        where: {
-          userId_frequency: {
-            userId: 'user-1',
-            frequency: 'daily'
-          }
-        },
-        create: {
+      expect(mockedPrisma.notificationDigest.create).toHaveBeenCalledWith({
+        data: {
+          tenantId: 'tenant-1',
           userId: 'user-1',
           frequency: 'daily',
           lastSentAt: expect.any(Date),
-          nextSendAt: expect.any(Date)
+          nextSendAt: expect.any(Date),
         },
-        update: {
+      });
+    });
+
+    it('should update an existing digest record after send', async () => {
+      mockNotificationRepo.findByUser.mockResolvedValue([buildNotification()] as any);
+      mockedPrisma.notificationDigest.findFirst.mockResolvedValue({
+        id: 'digest-1',
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        frequency: 'daily',
+      });
+
+      await service.sendDigestToUser('user-1', 'daily', 'tenant-1');
+
+      expect(mockedPrisma.notificationDigest.update).toHaveBeenCalledWith({
+        where: { id: 'digest-1' },
+        data: {
           lastSentAt: expect.any(Date),
-          nextSendAt: expect.any(Date)
-        }
+          nextSendAt: expect.any(Date),
+        },
       });
     });
   });

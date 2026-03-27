@@ -486,7 +486,7 @@ test.describe('Comprehensive Admin E2E Tests', () => {
     await page.waitForTimeout(2000);
 
     // Wait for stats to load
-    await page.waitForResponse((response) =>
+    await page.waitForResponse((response: any) =>
       response.url().includes('/api/v1/admin/stats') && response.status() === 200,
       { timeout: 10000 }
     ).catch(() => {});

@@ -45,7 +45,7 @@ describe('TrackerService', () => {
         {
           id: 'cat-1',
           name: 'Vocal Performance',
-          contestants: [
+          categoryContestants: [
             { contestantId: 'contestant-1' },
             { contestantId: 'contestant-2' },
             { contestantId: 'contestant-3' }
@@ -57,7 +57,7 @@ describe('TrackerService', () => {
             { id: 'score-4', judgeId: 'judge-2' },
             { id: 'score-5', judgeId: 'judge-2' }
           ],
-          judges: [
+          categoryJudges: [
             { judgeId: 'judge-1' },
             { judgeId: 'judge-2' }
           ]
@@ -138,19 +138,19 @@ describe('TrackerService', () => {
             {
               id: 'cat-1',
               name: 'Category 1',
-              contestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }],
+              categoryContestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }],
               scores: [
                 { id: 's1', judgeId: 'j1' },
                 { id: 's2', judgeId: 'j1' }
               ],
-              judges: [{ judgeId: 'j1' }]
+              categoryJudges: [{ judgeId: 'j1' }]
             },
             {
               id: 'cat-2',
               name: 'Category 2',
-              contestants: [{ contestantId: 'c3' }],
+              categoryContestants: [{ contestantId: 'c3' }],
               scores: [{ id: 's3', judgeId: 'j2' }],
-              judges: [{ judgeId: 'j2' }]
+              categoryJudges: [{ judgeId: 'j2' }]
             }
           ]
         };
@@ -176,19 +176,19 @@ describe('TrackerService', () => {
             {
               id: 'cat-1',
               name: 'Cat 1',
-              contestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }],
+              categoryContestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }],
               scores: [{ id: 's1', judgeId: 'j1' }],
-              judges: [{ judgeId: 'j1' }]
+              categoryJudges: [{ judgeId: 'j1' }]
             },
             {
               id: 'cat-2',
               name: 'Cat 2',
-              contestants: [{ contestantId: 'c3' }, { contestantId: 'c4' }],
+              categoryContestants: [{ contestantId: 'c3' }, { contestantId: 'c4' }],
               scores: [
                 { id: 's2', judgeId: 'j2' },
                 { id: 's3', judgeId: 'j2' }
               ],
-              judges: [{ judgeId: 'j2' }]
+              categoryJudges: [{ judgeId: 'j2' }]
             }
           ]
         };
@@ -221,16 +221,16 @@ describe('TrackerService', () => {
         expect(result.overallCompletion).toBe(0);
       });
 
-      it('should handle category with no contestants', async () => {
+      it('should handle category with no categoryContestants', async () => {
         const noContestantsContest = {
           ...mockContest,
           categories: [
             {
               id: 'cat-1',
               name: 'Empty Category',
-              contestants: [],
+              categoryContestants: [],
               scores: [],
-              judges: [{ judgeId: 'judge-1' }]
+              categoryJudges: [{ judgeId: 'judge-1' }]
             }
           ]
         };
@@ -255,9 +255,9 @@ describe('TrackerService', () => {
             {
               id: 'cat-1',
               name: 'Unscored Category',
-              contestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }],
+              categoryContestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }],
               scores: [],
-              judges: [{ judgeId: 'judge-1' }]
+              categoryJudges: [{ judgeId: 'judge-1' }]
             }
           ]
         };
@@ -288,20 +288,20 @@ describe('TrackerService', () => {
         expect(unknownJudge?.judgeName).toBe('Unknown');
       });
 
-      it('should deduplicate judges correctly', async () => {
+      it('should deduplicate categoryJudges correctly', async () => {
         const duplicateJudgesContest = {
           ...mockContest,
           categories: [
             {
               id: 'cat-1',
               name: 'Category',
-              contestants: [{ contestantId: 'c1' }],
+              categoryContestants: [{ contestantId: 'c1' }],
               scores: [
                 { id: 's1', judgeId: 'judge-1' },
                 { id: 's2', judgeId: 'judge-1' },
                 { id: 's3', judgeId: 'judge-1' }
               ],
-              judges: [{ judgeId: 'judge-1' }]
+              categoryJudges: [{ judgeId: 'judge-1' }]
             }
           ]
         };
@@ -357,9 +357,9 @@ describe('TrackerService', () => {
           categories: Array.from({ length: 100 }, (_, i) => ({
             id: `cat-${i}`,
             name: `Category ${i}`,
-            contestants: [{ contestantId: `c-${i}` }],
+            categoryContestants: [{ contestantId: `c-${i}` }],
             scores: [{ id: `s-${i}`, judgeId: `j-${i}` }],
-            judges: [{ judgeId: `j-${i}` }]
+            categoryJudges: [{ judgeId: `j-${i}` }]
           }))
         };
 
@@ -382,9 +382,9 @@ describe('TrackerService', () => {
             {
               id: 'cat-1',
               name: 'Category',
-              contestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }, { contestantId: 'c3' }],
+              categoryContestants: [{ contestantId: 'c1' }, { contestantId: 'c2' }, { contestantId: 'c3' }],
               scores: [{ id: 's1', judgeId: 'j1' }],
-              judges: [{ judgeId: 'j1' }]
+              categoryJudges: [{ judgeId: 'j1' }]
             }
           ]
         };
@@ -501,7 +501,7 @@ describe('TrackerService', () => {
         });
       });
 
-      it('should handle category with no contestants', async () => {
+      it('should handle category with no categoryContestants', async () => {
         const noContestantsCategory = {
           ...mockCategory,
           categoryContestants: [],
@@ -522,7 +522,7 @@ describe('TrackerService', () => {
         });
       });
 
-      it('should handle category with no judges', async () => {
+      it('should handle category with no categoryJudges', async () => {
         const noJudgesCategory = {
           ...mockCategory,
           categoryJudges: [],
@@ -665,7 +665,7 @@ describe('TrackerService', () => {
     });
 
     describe('edge cases', () => {
-      it('should handle very large number of contestants and judges', async () => {
+      it('should handle very large number of categoryContestants and categoryJudges', async () => {
         const largeCategory = {
           ...mockCategory,
           categoryContestants: Array.from({ length: 100 }, (_, i) => ({

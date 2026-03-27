@@ -7,6 +7,7 @@ import { promises as fs } from 'fs';
 describe('UploadService', () => {
   let service: UploadService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  const tenantId = 'tenant-test';
 
   // Spies for fs.promises methods
   let mkdirSpy: jest.SpyInstance;
@@ -87,7 +88,7 @@ describe('UploadService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.processUploadedFile(mockFile, userId);
+      const result = await service.processUploadedFile(mockFile, userId, { tenantId });
 
       expect(result).toMatchObject({
         id: 'file-123',
@@ -126,7 +127,7 @@ describe('UploadService', () => {
         updatedAt: new Date(),
       });
 
-      await service.processUploadedFile(mockFile, userId);
+      await service.processUploadedFile(mockFile, userId, { tenantId });
 
       // Verify checksum was calculated and passed to database
       expect(mockPrisma.file.create).toHaveBeenCalledWith(
@@ -164,6 +165,7 @@ describe('UploadService', () => {
 
       await service.processUploadedFile(mockFile, userId, {
         category: FileCategory.DOCUMENT,
+        tenantId,
       });
 
       expect(mockPrisma.file.create).toHaveBeenCalledWith(
@@ -197,7 +199,7 @@ describe('UploadService', () => {
         updatedAt: new Date(),
       });
 
-      await service.processUploadedFile(mockFile, userId, { eventId });
+      await service.processUploadedFile(mockFile, userId, { eventId, tenantId });
 
       expect(mockPrisma.file.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -228,7 +230,7 @@ describe('UploadService', () => {
         updatedAt: new Date(),
       });
 
-      await service.processUploadedFile(mockFile, userId, { contestId });
+      await service.processUploadedFile(mockFile, userId, { contestId, tenantId });
 
       expect(mockPrisma.file.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -258,7 +260,7 @@ describe('UploadService', () => {
         updatedAt: new Date(),
       });
 
-      const result = await service.processUploadedFile(mockFile, userId);
+      const result = await service.processUploadedFile(mockFile, userId, { tenantId });
 
       expect(mockPrisma.file.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -273,8 +275,8 @@ describe('UploadService', () => {
       readFileSpy.mockRejectedValue(new Error('Read error'));
 
       await expect(
-        service.processUploadedFile(mockFile, 'user-123')
-      ).rejects.toThrow();
+        service.processUploadedFile(mockFile, 'user-123', { tenantId })
+      ).rejects.toThrow('Read error');
     });
 
     it('should handle database errors', async () => {
@@ -282,6 +284,10 @@ describe('UploadService', () => {
 
       await expect(
         service.processUploadedFile(mockFile, 'user-123')
+      ).rejects.toThrow('Tenant context is required for file upload');
+
+      await expect(
+        service.processUploadedFile(mockFile, 'user-123', { tenantId })
       ).rejects.toThrow('Database error');
     });
   });

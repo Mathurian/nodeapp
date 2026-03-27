@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -20,8 +21,12 @@ describe('Emcee API Integration Tests', () => {
   let adminToken: string;
   let testEvent: any;
   let testContest: any;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -39,6 +44,7 @@ describe('Emcee API Integration Tests', () => {
         role: 'EMCEE',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -50,6 +56,7 @@ describe('Emcee API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -60,6 +67,7 @@ describe('Emcee API Integration Tests', () => {
         startDate: new Date('2024-07-01'),
         endDate: new Date('2024-07-03'),
         location: 'Test Location',
+        tenantId,
       }
     });
 
@@ -68,6 +76,7 @@ describe('Emcee API Integration Tests', () => {
         name: `contest-test-${Date.now()}`,
         eventId: testEvent.id,
         description: 'Test contest',
+        tenantId,
       }
     });
 
@@ -82,7 +91,7 @@ describe('Emcee API Integration Tests', () => {
       emceeToken = emceeLoginResponse.body.data?.token || emceeLoginResponse.body.token;
     } else {
       emceeToken = jwt.sign(
-        { userId: emceeUser.id, role: emceeUser.role },
+        { userId: emceeUser.id, role: emceeUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -99,7 +108,7 @@ describe('Emcee API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );

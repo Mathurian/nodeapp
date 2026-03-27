@@ -6,9 +6,12 @@
 import request from 'supertest';
 import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
+const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
 
 describe('Reports API Integration Tests', () => {
   let testUserId: string;
@@ -16,9 +19,13 @@ describe('Reports API Integration Tests', () => {
   let testTemplateId: string;
   let testReportInstanceId: string;
   let authToken: string;
+  let tenantId: string;
 
   beforeAll(async () => {
     try {
+      const tenant = await ensureTestTenant();
+      tenantId = tenant.id;
+
       // Create a test user
       const testUser = await prisma.user.create({
         data: {
@@ -27,6 +34,8 @@ describe('Reports API Integration Tests', () => {
           password: '$2b$10$1234567890123456789012345678901234567890123456', // Pre-hashed password
           role: 'ADMIN',
           isActive: true,
+          sessionVersion: 1,
+          tenantId,
         },
       });
       testUserId = testUser.id;
@@ -38,6 +47,7 @@ describe('Reports API Integration Tests', () => {
           startDate: new Date('2024-12-01'),
           endDate: new Date('2024-12-02'),
           location: 'Test Venue',
+          tenantId,
         },
       });
       testEventId = testEvent.id;
@@ -49,12 +59,16 @@ describe('Reports API Integration Tests', () => {
           type: 'EVENT_SUMMARY',
           template: '{"title": "Event Summary"}',
           parameters: '{"includeScores": true}',
+          tenantId,
         },
       });
       testTemplateId = testTemplate.id;
 
-      // Mock auth token (in real scenario, this would come from login endpoint)
-      authToken = 'mock-token'; // Note: Tests need auth middleware to be mocked or disabled
+      authToken = jwt.sign(
+        { userId: testUser.id, role: testUser.role, tenantId },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+      );
     } catch (error) {
       console.error('BeforeAll setup error:', error);
       throw error;
@@ -216,6 +230,7 @@ describe('Reports API Integration Tests', () => {
             data: JSON.stringify({ test: 'data' }),
             generatedById: testUserId,
             templateId: testTemplateId,
+            tenantId,
           },
         });
         testReportInstanceId = reportInstance.id;
@@ -313,6 +328,7 @@ describe('Reports API Integration Tests', () => {
           data: '{}',
           generatedById: testUserId,
           templateId: testTemplateId,
+          tenantId,
         },
       });
 

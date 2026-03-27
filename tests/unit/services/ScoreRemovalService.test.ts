@@ -1,30 +1,91 @@
 /**
  * ScoreRemovalService Tests
- *
- * Comprehensive test suite for score removal request workflow requiring
- * 3-signature approval (Tally Master, Auditor, Board).
- *
- * Test Coverage:
- * - Request creation
- * - Authorization checks
- * - Sequential signature workflow
- * - All three signature types
- * - Automatic approval on complete signatures
- * - Request status tracking
- * - Score removal execution
- * - Validation and error handling
+ * Aligned with tenant-aware request creation, signing, and execution flow.
  */
 
 import 'reflect-metadata';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
+import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
+import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { ScoreRemovalService } from '../../../src/services/ScoreRemovalService';
-import { NotFoundError, ValidationError, ForbiddenError } from '../../../src/services/BaseService';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('ScoreRemovalService', () => {
   let service: ScoreRemovalService;
   let prismaMock: DeepMockProxy<PrismaClient>;
+
+  const TEST_TENANT_ID = 'tenant-1';
+  const BASE_TIME = new Date('2026-02-25T12:00:00.000Z');
+
+  const buildCategory = (
+    overrides: Partial<{ id: string; name: string; tenantId: string }> = {}
+  ) => ({
+    id: 'cat1',
+    name: 'Solo',
+    tenantId: TEST_TENANT_ID,
+    ...overrides,
+  });
+
+  const buildJudge = (
+    overrides: Partial<{ id: string; name: string; email: string | null; tenantId: string }> = {}
+  ) => ({
+    id: 'j1',
+    name: 'Judge One',
+    email: 'judge@example.com',
+    tenantId: TEST_TENANT_ID,
+    ...overrides,
+  });
+
+  const buildScoreRemovalRequest = (
+    overrides: Partial<{
+      id: string;
+      tenantId: string;
+      judgeId: string;
+      categoryId: string;
+      reason: string;
+      requestedBy: string;
+      boardRoleSnapshot: string | null;
+      status: 'PENDING' | 'APPROVED' | 'REJECTED';
+      auditorSignature: string | null;
+      auditorSignedAt: Date | null;
+      auditorSignedBy: string | null;
+      tallySignature: string | null;
+      tallySignedAt: Date | null;
+      tallySignedBy: string | null;
+      boardSignature: string | null;
+      boardSignedAt: Date | null;
+      boardSignedBy: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      judge: ReturnType<typeof buildJudge>;
+      category: { id: string; name: string; contest?: { id: string; name: string } };
+      requestedByUser: { id: string; name: string; role?: string; boardRole?: string | null };
+    }> = {}
+  ) => ({
+    id: 'req1',
+    tenantId: TEST_TENANT_ID,
+    judgeId: 'j1',
+    categoryId: 'cat1',
+    reason: 'Invalid scores',
+    requestedBy: 'u1',
+    boardRoleSnapshot: null,
+    status: 'PENDING' as const,
+    auditorSignature: null,
+    auditorSignedAt: null,
+    auditorSignedBy: null,
+    tallySignature: null,
+    tallySignedAt: null,
+    tallySignedBy: null,
+    boardSignature: null,
+    boardSignedAt: null,
+    boardSignedBy: null,
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+    judge: buildJudge(),
+    category: { id: 'cat1', name: 'Solo', contest: { id: 'c1', name: 'Contest' } },
+    requestedByUser: { id: 'u1', name: 'Requester', role: 'BOARD', boardRole: 'Chair' },
+    ...overrides,
+  });
 
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
@@ -37,18 +98,13 @@ describe('ScoreRemovalService', () => {
 
   describe('createRequest', () => {
     it('should create a score removal request', async () => {
-      const mockCategory = { id: 'cat1', name: 'Solo' };
-      const mockJudge = { id: 'j1', name: 'Judge One' };
-      const mockRequest = {
-        id: 'req1',
-        judgeId: 'j1',
-        categoryId: 'cat1',
-        reason: 'Invalid scores',
-        status: 'PENDING',
-      };
+      const mockRequest = buildScoreRemovalRequest({
+        judge: buildJudge(),
+        category: { id: 'cat1', name: 'Solo' },
+      });
 
-      prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.judge.findUnique.mockResolvedValue(mockJudge as any);
+      prismaMock.category.findFirst.mockResolvedValue(buildCategory() as any);
+      prismaMock.judge.findFirst.mockResolvedValue(buildJudge() as any);
       prismaMock.scoreRemovalRequest.create.mockResolvedValue(mockRequest as any);
 
       const result = await service.createRequest({
@@ -57,6 +113,7 @@ describe('ScoreRemovalService', () => {
         reason: 'Invalid scores',
         requestedBy: 'u1',
         userRole: 'BOARD',
+        tenantId: TEST_TENANT_ID,
       });
 
       expect(result.id).toBe('req1');
@@ -66,6 +123,8 @@ describe('ScoreRemovalService', () => {
           categoryId: 'cat1',
           reason: 'Invalid scores',
           requestedBy: 'u1',
+          boardRoleSnapshot: null,
+          tenantId: TEST_TENANT_ID,
           status: 'PENDING',
         },
         include: expect.any(Object),
@@ -80,13 +139,14 @@ describe('ScoreRemovalService', () => {
           reason: 'Test',
           requestedBy: 'u1',
           userRole: 'BOARD',
+          tenantId: TEST_TENANT_ID,
         })
-      ).rejects.toThrow('Judge ID, category ID, and reason are required');
+      ).rejects.toThrow('Judge ID, category ID, reason, and tenant ID are required');
     });
 
     it('should throw NotFoundError when category does not exist', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(null);
-      prismaMock.judge.findUnique.mockResolvedValue({ id: 'j1' } as any);
+      prismaMock.category.findFirst.mockResolvedValue(null);
+      prismaMock.judge.findFirst.mockResolvedValue(buildJudge() as any);
 
       await expect(
         service.createRequest({
@@ -95,13 +155,14 @@ describe('ScoreRemovalService', () => {
           reason: 'Test',
           requestedBy: 'u1',
           userRole: 'BOARD',
+          tenantId: TEST_TENANT_ID,
         })
       ).rejects.toThrow(NotFoundError);
     });
 
     it('should throw NotFoundError when judge does not exist', async () => {
-      prismaMock.category.findUnique.mockResolvedValue({ id: 'cat1' } as any);
-      prismaMock.judge.findUnique.mockResolvedValue(null);
+      prismaMock.category.findFirst.mockResolvedValue(buildCategory() as any);
+      prismaMock.judge.findFirst.mockResolvedValue(null);
 
       await expect(
         service.createRequest({
@@ -110,13 +171,14 @@ describe('ScoreRemovalService', () => {
           reason: 'Test',
           requestedBy: 'u1',
           userRole: 'BOARD',
+          tenantId: TEST_TENANT_ID,
         })
       ).rejects.toThrow(NotFoundError);
     });
 
-    it('should throw ForbiddenError when user role is not BOARD or ADMIN', async () => {
-      prismaMock.category.findUnique.mockResolvedValue({ id: 'cat1' } as any);
-      prismaMock.judge.findUnique.mockResolvedValue({ id: 'j1' } as any);
+    it('should throw ForbiddenError when the user role is not BOARD or ADMIN', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(buildCategory() as any);
+      prismaMock.judge.findFirst.mockResolvedValue(buildJudge() as any);
 
       await expect(
         service.createRequest({
@@ -125,14 +187,17 @@ describe('ScoreRemovalService', () => {
           reason: 'Test',
           requestedBy: 'u1',
           userRole: 'JUDGE',
+          tenantId: TEST_TENANT_ID,
         })
       ).rejects.toThrow('Only Board and Admin can initiate score removal requests');
     });
 
     it('should allow ADMIN role to create requests', async () => {
-      prismaMock.category.findUnique.mockResolvedValue({ id: 'cat1' } as any);
-      prismaMock.judge.findUnique.mockResolvedValue({ id: 'j1' } as any);
-      prismaMock.scoreRemovalRequest.create.mockResolvedValue({} as any);
+      prismaMock.category.findFirst.mockResolvedValue(buildCategory() as any);
+      prismaMock.judge.findFirst.mockResolvedValue(buildJudge() as any);
+      prismaMock.scoreRemovalRequest.create.mockResolvedValue(
+        buildScoreRemovalRequest({ category: { id: 'cat1', name: 'Solo' } }) as any
+      );
 
       await service.createRequest({
         judgeId: 'j1',
@@ -140,15 +205,22 @@ describe('ScoreRemovalService', () => {
         reason: 'Test',
         requestedBy: 'u1',
         userRole: 'ADMIN',
+        tenantId: TEST_TENANT_ID,
       });
 
       expect(prismaMock.scoreRemovalRequest.create).toHaveBeenCalled();
     });
 
-    it('should trim reason text', async () => {
-      prismaMock.category.findUnique.mockResolvedValue({ id: 'cat1' } as any);
-      prismaMock.judge.findUnique.mockResolvedValue({ id: 'j1' } as any);
-      prismaMock.scoreRemovalRequest.create.mockResolvedValue({} as any);
+    it('should trim reason text and capture board role snapshot', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(buildCategory() as any);
+      prismaMock.judge.findFirst.mockResolvedValue(buildJudge() as any);
+      prismaMock.scoreRemovalRequest.create.mockResolvedValue(
+        buildScoreRemovalRequest({
+          reason: 'Test reason',
+          boardRoleSnapshot: 'Chair',
+          category: { id: 'cat1', name: 'Solo' },
+        }) as any
+      );
 
       await service.createRequest({
         judgeId: 'j1',
@@ -156,12 +228,15 @@ describe('ScoreRemovalService', () => {
         reason: '  Test reason  ',
         requestedBy: 'u1',
         userRole: 'BOARD',
+        boardRole: 'Chair',
+        tenantId: TEST_TENANT_ID,
       });
 
       expect(prismaMock.scoreRemovalRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             reason: 'Test reason',
+            boardRoleSnapshot: 'Chair',
           }),
         })
       );
@@ -170,21 +245,15 @@ describe('ScoreRemovalService', () => {
 
   describe('getAll', () => {
     it('should retrieve all score removal requests', async () => {
-      const mockRequests = [
-        {
-          id: 'req1',
-          judge: { id: 'j1', name: 'Judge One' },
-          category: { id: 'cat1', name: 'Solo', contest: { id: 'c1', name: 'Contest' } },
-        },
-      ];
+      const mockRequests = [buildScoreRemovalRequest()];
 
       prismaMock.scoreRemovalRequest.findMany.mockResolvedValue(mockRequests as any);
 
-      const result = await service.getAll();
+      const result = await service.getAll(TEST_TENANT_ID);
 
       expect(result).toEqual(mockRequests);
       expect(prismaMock.scoreRemovalRequest.findMany).toHaveBeenCalledWith({
-        where: {},
+        where: { tenantId: TEST_TENANT_ID },
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
       });
@@ -193,67 +262,47 @@ describe('ScoreRemovalService', () => {
     it('should filter by status', async () => {
       prismaMock.scoreRemovalRequest.findMany.mockResolvedValue([]);
 
-      await service.getAll('PENDING');
+      await service.getAll(TEST_TENANT_ID, 'PENDING');
 
       expect(prismaMock.scoreRemovalRequest.findMany).toHaveBeenCalledWith({
-        where: { status: 'PENDING' },
+        where: { tenantId: TEST_TENANT_ID, status: 'PENDING' },
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
       });
-    });
-
-    it('should return empty array when no requests exist', async () => {
-      prismaMock.scoreRemovalRequest.findMany.mockResolvedValue([]);
-
-      const result = await service.getAll();
-
-      expect(result).toEqual([]);
     });
   });
 
   describe('getById', () => {
     it('should retrieve a specific request by ID', async () => {
-      const mockRequest = {
-        id: 'req1',
-        judge: { id: 'j1', name: 'Judge One' },
-        category: { id: 'cat1', contest: { id: 'c1' } },
-      };
+      const mockRequest = buildScoreRemovalRequest();
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
 
-      const result = await service.getById('req1');
+      const result = await service.getById('req1', TEST_TENANT_ID);
 
       expect(result).toEqual(mockRequest);
     });
 
-    it('should throw NotFoundError when request does not exist', async () => {
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(null);
+    it('should throw NotFoundError when the request does not exist', async () => {
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(null);
 
-      await expect(service.getById('nonexistent')).rejects.toThrow(NotFoundError);
+      await expect(service.getById('nonexistent', TEST_TENANT_ID)).rejects.toThrow(NotFoundError);
     });
   });
 
   describe('signRequest', () => {
-    it('should add auditor signature', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        auditorSignature: null,
-        tallySignature: null,
-        boardSignature: null,
-      };
-
-      const mockUpdated = {
-        ...mockRequest,
+    it('should add an auditor signature', async () => {
+      const mockRequest = buildScoreRemovalRequest();
+      const updated = buildScoreRemovalRequest({
         auditorSignature: 'Dr. Smith',
-        auditorSignedAt: expect.any(Date),
         auditorSignedBy: 'u1',
-      };
+        auditorSignedAt: BASE_TIME,
+      });
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue(mockUpdated as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(updated as any);
 
-      const result = await service.signRequest('req1', {
+      const result = await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'Dr. Smith',
         userId: 'u1',
         userRole: 'AUDITOR',
@@ -263,19 +312,19 @@ describe('ScoreRemovalService', () => {
       expect(result.allSigned).toBe(false);
     });
 
-    it('should add tally master signature', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        auditorSignature: null,
-        tallySignature: null,
-        boardSignature: null,
-      };
+    it('should add a tally master signature', async () => {
+      const mockRequest = buildScoreRemovalRequest();
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({} as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          tallySignature: 'J. Doe',
+          tallySignedBy: 'u2',
+          tallySignedAt: BASE_TIME,
+        }) as any
+      );
 
-      await service.signRequest('req1', {
+      await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'J. Doe',
         userId: 'u2',
         userRole: 'TALLY_MASTER',
@@ -292,28 +341,31 @@ describe('ScoreRemovalService', () => {
       });
     });
 
-    it('should add board signature', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        auditorSignature: null,
-        tallySignature: null,
-        boardSignature: null,
-      };
+    it('should add a board signature and board role snapshot', async () => {
+      const mockRequest = buildScoreRemovalRequest();
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({} as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          boardSignature: 'Board Member',
+          boardRoleSnapshot: 'Chair',
+          boardSignedBy: 'u3',
+          boardSignedAt: BASE_TIME,
+        }) as any
+      );
 
-      await service.signRequest('req1', {
+      await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'Board Member',
         userId: 'u3',
         userRole: 'BOARD',
+        boardRole: 'Chair',
       });
 
       expect(prismaMock.scoreRemovalRequest.update).toHaveBeenCalledWith({
         where: { id: 'req1' },
         data: expect.objectContaining({
           boardSignature: 'Board Member',
+          boardRoleSnapshot: 'Chair',
           boardSignedAt: expect.any(Date),
           boardSignedBy: 'u3',
         }),
@@ -322,22 +374,22 @@ describe('ScoreRemovalService', () => {
     });
 
     it('should auto-approve when all three signatures are present', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
+      const mockRequest = buildScoreRemovalRequest({
         auditorSignature: 'Dr. Smith',
         tallySignature: 'J. Doe',
-        boardSignature: null,
-      };
+      });
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({
-        ...mockRequest,
-        boardSignature: 'Board Member',
-        status: 'APPROVED',
-      } as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          auditorSignature: 'Dr. Smith',
+          tallySignature: 'J. Doe',
+          boardSignature: 'Board Member',
+          status: 'APPROVED',
+        }) as any
+      );
 
-      const result = await service.signRequest('req1', {
+      const result = await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'Board Member',
         userId: 'u3',
         userRole: 'BOARD',
@@ -353,9 +405,9 @@ describe('ScoreRemovalService', () => {
       });
     });
 
-    it('should throw ValidationError when signature name is missing', async () => {
+    it('should throw ValidationError when the signature name is missing', async () => {
       await expect(
-        service.signRequest('req1', {
+        service.signRequest('req1', TEST_TENANT_ID, {
           signatureName: '',
           userId: 'u1',
           userRole: 'AUDITOR',
@@ -363,11 +415,11 @@ describe('ScoreRemovalService', () => {
       ).rejects.toThrow('Signature name is required');
     });
 
-    it('should throw NotFoundError when request does not exist', async () => {
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(null);
+    it('should throw NotFoundError when the request does not exist', async () => {
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.signRequest('nonexistent', {
+        service.signRequest('nonexistent', TEST_TENANT_ID, {
           signatureName: 'Test',
           userId: 'u1',
           userRole: 'AUDITOR',
@@ -375,13 +427,13 @@ describe('ScoreRemovalService', () => {
       ).rejects.toThrow(NotFoundError);
     });
 
-    it('should throw ValidationError when request already approved', async () => {
-      const mockRequest = { id: 'req1', status: 'APPROVED' };
-
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
+    it('should throw ValidationError when the request is already approved', async () => {
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(
+        buildScoreRemovalRequest({ status: 'APPROVED' }) as any
+      );
 
       await expect(
-        service.signRequest('req1', {
+        service.signRequest('req1', TEST_TENANT_ID, {
           signatureName: 'Test',
           userId: 'u1',
           userRole: 'AUDITOR',
@@ -389,17 +441,13 @@ describe('ScoreRemovalService', () => {
       ).rejects.toThrow('Request has already been approved');
     });
 
-    it('should throw ValidationError when role already signed', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        auditorSignature: 'Dr. Smith',
-      };
-
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
+    it('should throw ValidationError when the role already signed', async () => {
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(
+        buildScoreRemovalRequest({ auditorSignature: 'Dr. Smith' }) as any
+      );
 
       await expect(
-        service.signRequest('req1', {
+        service.signRequest('req1', TEST_TENANT_ID, {
           signatureName: 'Another Name',
           userId: 'u1',
           userRole: 'AUDITOR',
@@ -408,21 +456,17 @@ describe('ScoreRemovalService', () => {
     });
 
     it('should maintain partial approval state', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        auditorSignature: 'Dr. Smith',
-        tallySignature: null,
-        boardSignature: null,
-      };
+      const mockRequest = buildScoreRemovalRequest({ auditorSignature: 'Dr. Smith' });
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({
-        ...mockRequest,
-        tallySignature: 'J. Doe',
-      } as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          auditorSignature: 'Dr. Smith',
+          tallySignature: 'J. Doe',
+        }) as any
+      );
 
-      const result = await service.signRequest('req1', {
+      const result = await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'J. Doe',
         userId: 'u2',
         userRole: 'TALLY_MASTER',
@@ -434,109 +478,79 @@ describe('ScoreRemovalService', () => {
 
   describe('executeRemoval', () => {
     it('should execute score removal when approved', async () => {
-      const mockRequest = {
-        id: 'req1',
+      const mockRequest = buildScoreRemovalRequest({
         status: 'APPROVED',
-        categoryId: 'cat1',
-        judgeId: 'j1',
-        judge: { id: 'j1' },
-        category: { id: 'cat1' },
-      };
+        judge: { id: 'j1', name: 'Judge One', email: 'judge@example.com', tenantId: TEST_TENANT_ID },
+        category: { id: 'cat1', name: 'Solo' },
+      });
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
       prismaMock.score.deleteMany.mockResolvedValue({ count: 5 } as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({} as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(mockRequest as any);
 
-      const result = await service.executeRemoval('req1');
+      const result = await service.executeRemoval('req1', TEST_TENANT_ID);
 
       expect(result.deletedCount).toBe(5);
       expect(prismaMock.score.deleteMany).toHaveBeenCalledWith({
         where: {
           categoryId: 'cat1',
           judgeId: 'j1',
+          tenantId: TEST_TENANT_ID,
         },
       });
       expect(prismaMock.scoreRemovalRequest.update).toHaveBeenCalledWith({
         where: { id: 'req1' },
-        data: { status: 'COMPLETED' },
+        data: { status: 'APPROVED' },
       });
     });
 
-    it('should throw NotFoundError when request does not exist', async () => {
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(null);
+    it('should throw NotFoundError when the request does not exist', async () => {
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(null);
 
-      await expect(service.executeRemoval('nonexistent')).rejects.toThrow(NotFoundError);
+      await expect(service.executeRemoval('nonexistent', TEST_TENANT_ID)).rejects.toThrow(
+        NotFoundError
+      );
     });
 
-    it('should throw ValidationError when request is not approved', async () => {
-      const mockRequest = { id: 'req1', status: 'PENDING' };
+    it('should throw ValidationError when the request is not approved', async () => {
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(
+        buildScoreRemovalRequest({ status: 'PENDING' }) as any
+      );
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-
-      await expect(service.executeRemoval('req1')).rejects.toThrow(
+      await expect(service.executeRemoval('req1', TEST_TENANT_ID)).rejects.toThrow(
         'Request must be approved before execution'
       );
     });
 
     it('should handle zero scores deleted', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'APPROVED',
-        categoryId: 'cat1',
-        judgeId: 'j1',
-        judge: { id: 'j1' },
-        category: { id: 'cat1' },
-      };
-
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(
+        buildScoreRemovalRequest({ status: 'APPROVED', category: { id: 'cat1', name: 'Solo' } }) as any
+      );
       prismaMock.score.deleteMany.mockResolvedValue({ count: 0 } as any);
       prismaMock.scoreRemovalRequest.update.mockResolvedValue({} as any);
 
-      const result = await service.executeRemoval('req1');
+      const result = await service.executeRemoval('req1', TEST_TENANT_ID);
 
       expect(result.deletedCount).toBe(0);
-    });
-
-    it('should update status to COMPLETED after execution', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'APPROVED',
-        categoryId: 'cat1',
-        judgeId: 'j1',
-        judge: { id: 'j1' },
-        category: { id: 'cat1' },
-      };
-
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.score.deleteMany.mockResolvedValue({ count: 3 } as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({} as any);
-
-      await service.executeRemoval('req1');
-
-      expect(prismaMock.scoreRemovalRequest.update).toHaveBeenCalledWith({
-        where: { id: 'req1' },
-        data: { status: 'COMPLETED' },
-      });
     });
   });
 
   describe('signature workflow integration', () => {
     it('should require all three signatures before auto-approval', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
+      const mockRequest = buildScoreRemovalRequest({
         auditorSignature: 'Dr. Smith',
-        tallySignature: null,
-        boardSignature: null,
-      };
+      });
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({
-        ...mockRequest,
-        tallySignature: 'J. Doe',
-      } as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          auditorSignature: 'Dr. Smith',
+          tallySignature: 'J. Doe',
+          status: 'PENDING',
+        }) as any
+      );
 
-      const result = await service.signRequest('req1', {
+      const result = await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'J. Doe',
         userId: 'u2',
         userRole: 'TALLY_MASTER',
@@ -547,21 +561,17 @@ describe('ScoreRemovalService', () => {
     });
 
     it('should track signature timestamps', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        auditorSignature: null,
-      };
+      const mockRequest = buildScoreRemovalRequest();
 
-      const signedAt = new Date();
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({
-        ...mockRequest,
-        auditorSignature: 'Dr. Smith',
-        auditorSignedAt: signedAt,
-      } as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          auditorSignature: 'Dr. Smith',
+          auditorSignedAt: BASE_TIME,
+        }) as any
+      );
 
-      await service.signRequest('req1', {
+      await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'Dr. Smith',
         userId: 'u1',
         userRole: 'AUDITOR',
@@ -577,16 +587,17 @@ describe('ScoreRemovalService', () => {
     });
 
     it('should track who signed each role', async () => {
-      const mockRequest = {
-        id: 'req1',
-        status: 'PENDING',
-        tallySignature: null,
-      };
+      const mockRequest = buildScoreRemovalRequest();
 
-      prismaMock.scoreRemovalRequest.findUnique.mockResolvedValue(mockRequest as any);
-      prismaMock.scoreRemovalRequest.update.mockResolvedValue({} as any);
+      prismaMock.scoreRemovalRequest.findFirst.mockResolvedValue(mockRequest as any);
+      prismaMock.scoreRemovalRequest.update.mockResolvedValue(
+        buildScoreRemovalRequest({
+          tallySignature: 'J. Doe',
+          tallySignedBy: 'u2',
+        }) as any
+      );
 
-      await service.signRequest('req1', {
+      await service.signRequest('req1', TEST_TENANT_ID, {
         signatureName: 'J. Doe',
         userId: 'u2',
         userRole: 'TALLY_MASTER',

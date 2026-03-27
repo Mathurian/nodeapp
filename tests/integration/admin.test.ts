@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -20,6 +21,8 @@ describe('Admin API Integration Tests', () => {
   let userToken: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -37,6 +40,7 @@ describe('Admin API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId: tenant.id,
       }
     });
 
@@ -48,6 +52,7 @@ describe('Admin API Integration Tests', () => {
         role: 'CONTESTANT',
         isActive: true,
         sessionVersion: 1,
+        tenantId: tenant.id,
       }
     });
 
@@ -62,7 +67,7 @@ describe('Admin API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId: tenant.id },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -264,4 +269,3 @@ describe('Admin API Integration Tests', () => {
     });
   });
 });
-

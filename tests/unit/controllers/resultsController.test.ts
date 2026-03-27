@@ -18,7 +18,7 @@ jest.mock('../../../src/utils/logger');
 describe('ResultsController', () => {
   let controller: ResultsController;
   let mockResultsService: jest.Mocked<ResultsService>;
-  let mockReq: Partial<Request>;
+  let mockReq: any;
   let mockRes: Partial<Response>;
   let mockNext: jest.MockedFunction<NextFunction>;
 

@@ -25,6 +25,7 @@ import { NotFoundError } from '../../../src/services/BaseService';
 describe('TallyMasterService', () => {
   let service: TallyMasterService;
   let prismaMock: DeepMockProxy<PrismaClient>;
+  const tenantId = 'tenant-test';
 
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
@@ -37,29 +38,35 @@ describe('TallyMasterService', () => {
 
   describe('getStats', () => {
     it('should return tally master dashboard statistics', async () => {
-      prismaMock.category.count
-        .mockResolvedValueOnce(50)
+      prismaMock.category.count.mockResolvedValueOnce(50);
+      prismaMock.certification.count
         .mockResolvedValueOnce(15)
         .mockResolvedValueOnce(35);
 
-      const result = await service.getStats();
+      const result = await service.getStats(tenantId);
 
       expect(result).toEqual({
         totalCategories: 50,
         pendingTotals: 15,
+        pendingCertifications: 15,
         certifiedTotals: 35,
       });
-      expect(prismaMock.category.count).toHaveBeenCalledTimes(3);
+      expect(prismaMock.category.count).toHaveBeenCalledWith({
+        where: { tenantId, deletedAt: null },
+      });
+      expect(prismaMock.certification.count).toHaveBeenCalledTimes(2);
     });
 
     it('should handle zero counts', async () => {
       prismaMock.category.count.mockResolvedValue(0);
+      prismaMock.certification.count.mockResolvedValue(0);
 
-      const result = await service.getStats();
+      const result = await service.getStats(tenantId);
 
       expect(result).toEqual({
         totalCategories: 0,
         pendingTotals: 0,
+        pendingCertifications: 0,
         certifiedTotals: 0,
       });
     });

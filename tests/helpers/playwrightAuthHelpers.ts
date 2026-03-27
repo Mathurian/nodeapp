@@ -113,6 +113,21 @@ export async function closeOpenModals(page: Page): Promise<void> {
 }
 
 /**
+ * Wait for modal overlays to close before continuing.
+ */
+export async function waitForModalClose(page: Page, timeout: number = 5000): Promise<void> {
+  await closeOpenModals(page);
+
+  const modalSelector = '[class*="modal"], [class*="overlay"], [class*="fixed"][class*="inset-0"]';
+  await page.waitForSelector(modalSelector, {
+    state: 'hidden',
+    timeout,
+  }).catch(async () => {
+    await page.waitForTimeout(500);
+  });
+}
+
+/**
  * Logout from the application
  * @param page - Playwright page object
  */

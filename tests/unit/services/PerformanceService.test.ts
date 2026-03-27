@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { PerformanceService } from '../../../src/services/PerformanceService';
+import { MetricsService } from '../../../src/services/MetricsService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import * as fs from 'fs/promises';
@@ -19,19 +20,22 @@ jest.mock('../../../src/config/env', () => ({
 describe('PerformanceService', () => {
   let service: PerformanceService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  let mockMetricsService: DeepMockProxy<MetricsService>;
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     originalEnv = process.env;
     process.env = { ...originalEnv };
     mockPrisma = mockDeep<PrismaClient>();
-    service = new PerformanceService(mockPrisma as any);
+    mockMetricsService = mockDeep<MetricsService>();
+    service = new PerformanceService(mockPrisma as any, mockMetricsService as any);
     jest.clearAllMocks();
   });
 
   afterEach(() => {
     process.env = originalEnv;
     mockReset(mockPrisma);
+    mockReset(mockMetricsService);
   });
 
   describe('constructor', () => {

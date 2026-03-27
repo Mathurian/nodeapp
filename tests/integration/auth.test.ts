@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import app from '../../src/server';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -24,6 +25,8 @@ describe('Auth API Integration Tests', () => {
   // ============================================================================
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+
     // Clean up any existing test data
     await prisma.user.deleteMany({
       where: { 
@@ -45,6 +48,7 @@ describe('Auth API Integration Tests', () => {
         role: 'CONTESTANT',
         isActive: true,
         sessionVersion: 1,
+        tenantId: tenant.id,
       }
     });
 
@@ -56,6 +60,7 @@ describe('Auth API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId: tenant.id,
       }
     });
   });

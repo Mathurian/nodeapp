@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -18,8 +19,12 @@ describe('Bio API Integration Tests', () => {
   let adminToken: string;
   let testJudge: any;
   let testContestant: any;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -37,12 +42,13 @@ describe('Bio API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
     // Check if judge already exists
     testJudge = await prisma.judge.findUnique({
-      where: { email: 'judge@biotest.com' }
+      where: { tenantId_email: { tenantId, email: 'judge@biotest.com' } }
     });
 
     if (!testJudge) {
@@ -51,13 +57,14 @@ describe('Bio API Integration Tests', () => {
           name: 'Test Judge',
           email: 'judge@biotest.com',
           bio: 'Test judge bio',
+          tenantId,
         }
       });
     }
 
     // Check if contestant already exists
     testContestant = await prisma.contestant.findUnique({
-      where: { email: 'contestant@biotest.com' }
+      where: { tenantId_email: { tenantId, email: 'contestant@biotest.com' } }
     });
 
     if (!testContestant) {
@@ -67,6 +74,7 @@ describe('Bio API Integration Tests', () => {
           email: 'contestant@biotest.com',
           contestantNumber: 1,
           bio: 'Test contestant bio',
+          tenantId,
         }
       });
     }
@@ -82,7 +90,7 @@ describe('Bio API Integration Tests', () => {
       adminToken = loginResponse.body.data?.token || loginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -149,11 +157,12 @@ describe('Bio API Integration Tests', () => {
           role: 'CONTESTANT',
           isActive: true,
           sessionVersion: 1,
+          tenantId,
         }
       });
 
       const userToken = jwt.sign(
-        { userId: regularUser.id, role: regularUser.role },
+        { userId: regularUser.id, role: regularUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );

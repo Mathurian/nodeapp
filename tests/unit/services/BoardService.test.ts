@@ -14,15 +14,23 @@ import 'reflect-metadata';
  * - Final board approval workflow
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { BoardService } from '../../../src/services/BoardService';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn(),
+  refreshRoleStages: jest.fn(),
+  upsertCategoryRoleCertification: jest.fn(),
+}));
+
+const { BoardService } =
+  require('../../../src/services/BoardService') as typeof import('../../../src/services/BoardService');
 
 describe('BoardService', () => {
-  let service: BoardService;
+  let service: InstanceType<typeof BoardService>;
   let prismaMock: DeepMockProxy<PrismaClient>;
+  const tenantId = 'tenant-1';
 
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
@@ -31,21 +39,18 @@ describe('BoardService', () => {
 
   afterEach(() => {
     mockReset(prismaMock);
+    jest.clearAllMocks();
   });
 
   describe('getStats', () => {
     it('should return board dashboard statistics', async () => {
-      const mockCategories = [
-        { categoryCertifications: [{ role: 'FINAL' }] },
-        { categoryCertifications: [] },
-        { categoryCertifications: [{ role: 'TALLY_MASTER' }] },
-      ];
-
       prismaMock.contest.count.mockResolvedValue(10);
       prismaMock.category.count.mockResolvedValue(3);
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
+      prismaMock.certification.count
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(2);
 
-      const result = await service.getStats();
+      const result = await service.getStats(tenantId);
 
       expect(result).toEqual({
         contests: 10,
@@ -58,9 +63,9 @@ describe('BoardService', () => {
     it('should handle zero counts', async () => {
       prismaMock.contest.count.mockResolvedValue(0);
       prismaMock.category.count.mockResolvedValue(0);
-      prismaMock.category.findMany.mockResolvedValue([]);
+      prismaMock.certification.count.mockResolvedValue(0);
 
-      const result = await service.getStats();
+      const result = await service.getStats(tenantId);
 
       expect(result).toEqual({
         contests: 0,
@@ -73,37 +78,62 @@ describe('BoardService', () => {
 
   describe('getCertifications', () => {
     it('should return categories with final certifications', async () => {
-      const mockCategories = [
+      const mockCertifications = [
         {
           id: 'cat1',
-          name: 'Solo',
-          contest: { id: 'c1', event: { id: 'e1' } },
-          scores: [],
-          categoryCertifications: [{ role: 'FINAL' }],
+          tenantId,
+          categoryId: 'category-1',
+          contestId: 'contest-1',
+          status: 'PENDING',
+          comments: null,
+          certifiedBy: 'auditor-1',
+          userId: 'auditor-1',
+          certifiedAt: new Date('2026-01-01T00:00:00Z'),
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+          auditorCertified: true,
+          boardApproved: false,
         },
         {
           id: 'cat2',
-          categoryCertifications: [{ role: 'TALLY_MASTER' }],
+          tenantId,
+          categoryId: 'category-2',
+          contestId: 'contest-2',
+          status: 'PENDING',
+          comments: null,
+          certifiedBy: 'auditor-2',
+          userId: 'auditor-2',
+          certifiedAt: new Date('2026-01-02T00:00:00Z'),
+          createdAt: new Date('2026-01-02T00:00:00Z'),
+          updatedAt: new Date('2026-01-02T00:00:00Z'),
+          auditorCertified: true,
+          boardApproved: false,
         },
       ];
 
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
+      prismaMock.certification.findMany.mockResolvedValue(mockCertifications as any);
+      prismaMock.categoryCertification.findMany.mockResolvedValue([]);
+      prismaMock.user.findMany.mockResolvedValue([]);
+      prismaMock.category.findMany.mockResolvedValue([
+        { id: 'category-1', name: 'Solo' },
+        { id: 'category-2', name: 'Duo' },
+      ] as any);
+      prismaMock.contest.findMany.mockResolvedValue([
+        { id: 'contest-1', name: 'Contest One', event: { id: 'event-1', name: 'Event One' } },
+        { id: 'contest-2', name: 'Contest Two', event: { id: 'event-2', name: 'Event Two' } },
+      ] as any);
 
-      const result = await service.getCertifications();
+      const result = await service.getCertifications(tenantId);
 
-      expect(result).toHaveLength(1);
+      expect(result).toHaveLength(2);
       expect(result[0].id).toBe('cat1');
+      expect(result[0].categoryName).toBe('Solo');
     });
 
     it('should exclude categories without final certification', async () => {
-      const mockCategories = [
-        { categoryCertifications: [{ role: 'TALLY_MASTER' }] },
-        { categoryCertifications: [] },
-      ];
+      prismaMock.certification.findMany.mockResolvedValue([]);
 
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-
-      const result = await service.getCertifications();
+      const result = await service.getCertifications(tenantId);
 
       expect(result).toEqual([]);
     });
@@ -111,122 +141,270 @@ describe('BoardService', () => {
 
   describe('approveCertification', () => {
     it('should approve category certification', async () => {
-      const mockCategory = {
+      const categoryRecord = {
         id: 'cat1',
         name: 'Solo',
-        contest: { id: 'c1', event: { id: 'e1' } },
+        contestId: 'contest-1',
+        contest: {
+          eventId: 'event-1',
+          name: 'Contest One',
+          event: { name: 'Event One' },
+        },
+      };
+      const syncedCertification = {
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+        contestId: 'contest-1',
+        eventId: 'event-1',
+        status: 'IN_PROGRESS',
+        comments: null,
+        boardApproved: false,
+        auditorCertified: true,
+        tallyCertified: true,
+        judgeCertified: false,
+      };
+      const boardApprovedCertification = {
+        ...syncedCertification,
+        status: 'CERTIFIED',
+        boardApproved: true,
+        comments: 'Approved',
       };
 
-      prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.category.update.mockResolvedValue({
-        ...mockCategory,
-        boardApproved: true,
+      prismaMock.certification.findFirst.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
       } as any);
+      prismaMock.user.findFirst.mockResolvedValue({
+        role: 'BOARD',
+        boardRole: 'CHAIR',
+      } as any);
+      prismaMock.category.findFirst.mockResolvedValue(categoryRecord as any);
+      prismaMock.certification.upsert.mockResolvedValue(syncedCertification as any);
+      prismaMock.categoryJudge.findMany.mockResolvedValue([]);
+      prismaMock.assignment.groupBy.mockResolvedValue([]);
+      prismaMock.judgeCertification.findMany.mockResolvedValue([]);
+      prismaMock.certification.update
+        .mockResolvedValueOnce(syncedCertification as any)
+        .mockResolvedValueOnce(syncedCertification as any)
+        .mockResolvedValueOnce({ ...syncedCertification, comments: 'Approved' } as any)
+        .mockResolvedValueOnce(boardApprovedCertification as any);
+      prismaMock.categoryCertification.findFirst.mockResolvedValue(null);
+      prismaMock.categoryCertification.create.mockResolvedValue({} as any);
+      prismaMock.categoryCertification.findMany.mockResolvedValue([]);
+      prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([]);
+      prismaMock.auditorAssignment.findMany.mockResolvedValue([]);
+      prismaMock.event.findFirst.mockResolvedValue(null);
+      prismaMock.systemSetting.findFirst.mockResolvedValue(null);
+      prismaMock.user.findMany.mockResolvedValue([]);
 
-      const result = await service.approveCertification('cat1');
+      const result = await service.approveCertification('cert-1', 'board-1', tenantId, {
+        typedSignature: 'Board Member',
+        comments: 'Approved',
+      });
 
-      expect(result.message).toBe('Certification approved');
-      // Service updates with empty data object (certification handled via CategoryCertification records)
-      expect(prismaMock.category.update).toHaveBeenCalledWith({
-        where: { id: 'cat1' },
-        data: {},
+      expect(result).toEqual({
+        message: 'Certification approved',
+        certificationId: 'cert-1',
+        categoryId: 'cat1',
+      });
+      expect(prismaMock.certification.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'cert-1',
+          tenantId,
+        },
+      });
+      expect(prismaMock.categoryCertification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId,
+          categoryId: 'cat1',
+          role: 'BOARD',
+          userId: 'board-1',
+          boardRoleSnapshot: 'CHAIR',
+          signatureName: 'Board Member',
+          comments: 'Approved',
+        }),
       });
     });
 
-    it('should throw NotFoundError when category does not exist', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(null);
+    it('should throw NotFoundError when certification does not exist', async () => {
+      prismaMock.certification.findFirst.mockResolvedValue(null);
 
-      await expect(service.approveCertification('nonexistent')).rejects.toThrow(NotFoundError);
+      await expect(service.approveCertification('nonexistent', 'board-1', tenantId)).rejects.toThrow(
+        NotFoundError
+      );
     });
 
-    it('should return category in response', async () => {
-      const mockCategory = {
+    it('should reject approval when auditor certification is incomplete', async () => {
+      prismaMock.certification.findFirst.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+      } as any);
+      prismaMock.user.findFirst.mockResolvedValue({ role: 'BOARD', boardRole: null } as any);
+      prismaMock.category.findFirst.mockResolvedValue({
         id: 'cat1',
-        name: 'Solo',
-        contest: { id: 'c1', event: { id: 'e1' } },
-      };
+        contestId: 'contest-1',
+        contest: { eventId: 'event-1' },
+      } as any);
+      prismaMock.certification.upsert.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+        contestId: 'contest-1',
+        eventId: 'event-1',
+        auditorCertified: false,
+        boardApproved: false,
+        tallyCertified: false,
+        judgeCertified: false,
+        status: 'PENDING',
+      } as any);
+      prismaMock.categoryJudge.findMany.mockResolvedValue([]);
+      prismaMock.assignment.groupBy.mockResolvedValue([]);
+      prismaMock.judgeCertification.findMany.mockResolvedValue([]);
+      prismaMock.categoryCertification.findMany.mockResolvedValue([]);
+      prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([]);
+      prismaMock.auditorAssignment.findMany.mockResolvedValue([]);
+      prismaMock.event.findFirst.mockResolvedValue(null);
+      prismaMock.systemSetting.findFirst.mockResolvedValue(null);
+      prismaMock.certification.update.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+        contestId: 'contest-1',
+        eventId: 'event-1',
+        auditorCertified: false,
+        boardApproved: false,
+        tallyCertified: false,
+        judgeCertified: false,
+        status: 'PENDING',
+      } as any);
 
-      prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.category.update.mockResolvedValue(mockCategory as any);
+      await expect(service.approveCertification('cert-1', 'board-1', tenantId)).rejects.toThrow(
+        'Auditor certification must be completed first'
+      );
+    });
 
-      const result = await service.approveCertification('cat1');
+    it('should reject approval when board stage is already complete', async () => {
+      prismaMock.certification.findFirst.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+      } as any);
+      prismaMock.user.findFirst.mockResolvedValue({ role: 'BOARD', boardRole: null } as any);
+      prismaMock.category.findFirst.mockResolvedValue({
+        id: 'cat1',
+        contestId: 'contest-1',
+        contest: { eventId: 'event-1' },
+      } as any);
+      prismaMock.certification.upsert.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+        contestId: 'contest-1',
+        eventId: 'event-1',
+        auditorCertified: true,
+        boardApproved: true,
+        tallyCertified: true,
+        judgeCertified: true,
+        status: 'CERTIFIED',
+      } as any);
+      prismaMock.categoryJudge.findMany.mockResolvedValue([]);
+      prismaMock.assignment.groupBy.mockResolvedValue([]);
+      prismaMock.judgeCertification.findMany.mockResolvedValue([]);
+      prismaMock.categoryCertification.findMany.mockResolvedValue([]);
+      prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([]);
+      prismaMock.auditorAssignment.findMany.mockResolvedValue([]);
+      prismaMock.event.findFirst.mockResolvedValue(null);
+      prismaMock.systemSetting.findFirst.mockResolvedValue(null);
+      prismaMock.certification.update.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+        contestId: 'contest-1',
+        eventId: 'event-1',
+        auditorCertified: true,
+        boardApproved: true,
+        tallyCertified: true,
+        judgeCertified: true,
+        status: 'CERTIFIED',
+      } as any);
 
-      expect(result.category).toEqual(mockCategory);
+      await expect(service.approveCertification('cert-1', 'board-1', tenantId)).rejects.toThrow(
+        'Board approval already completed for this category'
+      );
     });
   });
 
   describe('rejectCertification', () => {
     it('should reject category certification with reason', async () => {
-      const mockCategory = {
-        id: 'cat1',
-        name: 'Solo',
-        contest: { id: 'c1', event: { id: 'e1' } },
-      };
-
-      prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.category.update.mockResolvedValue({
-        ...mockCategory,
-        boardApproved: false,
-        rejectionReason: 'Incomplete scores',
+      prismaMock.certification.findFirst.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
       } as any);
 
-      const result = await service.rejectCertification('cat1', 'Incomplete scores');
+      const result = await service.rejectCertification('cert-1', tenantId, 'Incomplete scores');
 
       expect(result.message).toBe('Certification rejected');
-      // Service updates with empty data object (rejection tracked via certifications instead)
-      expect(prismaMock.category.update).toHaveBeenCalledWith({
-        where: { id: 'cat1' },
-        data: {},
+      expect(prismaMock.certification.update).toHaveBeenCalledWith({
+        where: { id: 'cert-1' },
+        data: {
+          status: 'REJECTED',
+          rejectionReason: 'Incomplete scores',
+        },
       });
     });
 
     it('should handle rejection without reason', async () => {
-      const mockCategory = { id: 'cat1', contest: { id: 'c1', event: { id: 'e1' } } };
+      prismaMock.certification.findFirst.mockResolvedValue({
+        id: 'cert-1',
+        tenantId,
+        categoryId: 'cat1',
+      } as any);
+      prismaMock.certification.update.mockResolvedValue({} as any);
 
-      prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.category.update.mockResolvedValue(mockCategory as any);
+      await service.rejectCertification('cert-1', tenantId);
 
-      await service.rejectCertification('cat1');
-
-      // Service updates with empty data object (rejection tracked via certifications instead)
-      expect(prismaMock.category.update).toHaveBeenCalledWith({
-        where: { id: 'cat1' },
-        data: {},
+      expect(prismaMock.certification.update).toHaveBeenCalledWith({
+        where: { id: 'cert-1' },
+        data: {
+          status: 'REJECTED',
+          rejectionReason: 'Rejected by Board',
+        },
       });
     });
 
-    it('should throw NotFoundError when category does not exist', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(null);
+    it('should throw NotFoundError when certification does not exist', async () => {
+      prismaMock.certification.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.rejectCertification('nonexistent', 'reason')
-      ).rejects.toThrow(NotFoundError);
+      await expect(service.rejectCertification('nonexistent', tenantId, 'reason')).rejects.toThrow(
+        NotFoundError
+      );
     });
   });
 
   describe('getCertificationStatus', () => {
     it('should return certification status summary', async () => {
-      // Service counts certified as categories with any certifications (length > 0)
-      // and pending as categories with no certifications (length === 0)
-      const mockCategories = [
-        { categoryCertifications: [{ role: 'FINAL' }] },
-        { categoryCertifications: [{ role: 'TALLY_MASTER' }] },
-        { categoryCertifications: [] },
-      ];
+      prismaMock.certification.count
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(1);
 
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-
-      const result = await service.getCertificationStatus();
+      const result = await service.getCertificationStatus(tenantId);
 
       expect(result.total).toBe(3);
-      expect(result.certified).toBe(2);
+      expect(result.certified).toBe(1);
       expect(result.pending).toBe(1);
+      expect(result.approved).toBe(1);
     });
 
     it('should handle empty categories', async () => {
-      prismaMock.category.findMany.mockResolvedValue([]);
+      prismaMock.certification.count.mockResolvedValue(0);
 
-      const result = await service.getCertificationStatus();
+      const result = await service.getCertificationStatus(tenantId);
 
       expect(result).toEqual({
         total: 0,

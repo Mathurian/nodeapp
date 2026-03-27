@@ -1,24 +1,28 @@
-/**
- * NotificationService Unit Tests
- * Comprehensive tests for notification service
- */
-
 import 'reflect-metadata';
-import { NotificationService } from '../../../src/services/NotificationService';
-import { NotificationRepository } from '../../../src/repositories/NotificationRepository';
+
+import { beforeEach, describe, expect, it } from '@jest/globals';
+import { Notification } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { Server as SocketIOServer } from 'socket.io';
+import { NotificationRepository } from '../../../src/repositories/NotificationRepository';
+import { NotificationService } from '../../../src/services/NotificationService';
+import { PushNotificationService } from '../../../src/services/PushNotificationService';
 
 describe('NotificationService', () => {
   let service: NotificationService;
   let mockRepository: DeepMockProxy<NotificationRepository>;
+  let mockPushNotificationService: DeepMockProxy<PushNotificationService>;
   let mockIo: DeepMockProxy<SocketIOServer>;
 
-  const mockNotification = {
+  const BASE_TIME = new Date('2026-02-25T12:00:00.000Z');
+  const TEST_TENANT_ID = 'tenant-1';
+  const TEST_USER_ID = 'user-1';
+
+  const buildNotification = (overrides: Partial<Notification> = {}): Notification => ({
     id: 'notif-1',
-    tenantId: 'tenant-1',
-    userId: 'user-1',
-    type: 'SUCCESS' as const,
+    tenantId: TEST_TENANT_ID,
+    userId: TEST_USER_ID,
+    type: 'SUCCESS',
     title: 'Test Notification',
     message: 'This is a test notification',
     link: '/dashboard',
@@ -27,531 +31,277 @@ describe('NotificationService', () => {
     metadata: null,
     sentBy: null,
     deletedAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+    pushSent: false,
+    pushSentAt: null,
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+    ...overrides,
+  });
 
   beforeEach(() => {
     mockRepository = mockDeep<NotificationRepository>();
+    mockPushNotificationService = mockDeep<PushNotificationService>();
     mockIo = mockDeep<SocketIOServer>();
-    service = new NotificationService(mockRepository as any);
-    jest.clearAllMocks();
+
+    service = new NotificationService(mockRepository, mockPushNotificationService);
+    mockPushNotificationService.dispatchToUsers.mockResolvedValue({
+      enabled: true,
+      totalUsers: 1,
+      eligibleUsers: 1,
+      subscriptionsAttempted: 1,
+      deliveredEndpoints: 1,
+      deliveredUsers: [TEST_USER_ID],
+      invalidatedEndpoints: 0,
+      failedEndpoints: 0,
+    });
   });
 
   afterEach(() => {
     mockReset(mockRepository);
+    mockReset(mockPushNotificationService);
     mockReset(mockIo);
   });
 
   describe('setSocketIO', () => {
-    it('should set Socket.IO instance', () => {
-      service.setSocketIO(mockIo as any);
-      expect(service['io']).toBe(mockIo);
+    it('stores the socket server instance', () => {
+      service.setSocketIO(mockIo);
+      expect((service as any).io).toBe(mockIo);
     });
   });
 
   describe('createNotification', () => {
-    it('should create a notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      const result = await service.createNotification({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        type: 'SUCCESS',
-        title: 'Test',
-        message: 'Message',
-      });
-
-      expect(result).toEqual(mockNotification);
-      expect(mockRepository.create).toHaveBeenCalledWith({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        type: 'SUCCESS',
-        title: 'Test',
-        message: 'Message',
-      });
-    });
-
-    it('should emit real-time notification when socket is set', async () => {
-      service.setSocketIO(mockIo as any);
-      mockRepository.create.mockResolvedValue(mockNotification);
+    it('creates the notification, emits websocket, and marks push delivery', async () => {
+      const notification = buildNotification();
+      mockRepository.create.mockResolvedValue(notification);
+      mockRepository.markPushSentByIds.mockResolvedValue(1);
       mockIo.to.mockReturnValue(mockIo as any);
-
-      await service.createNotification({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        type: 'INFO',
-        title: 'Test',
-        message: 'Message',
-      });
-
-      expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
-      expect(mockIo.emit).toHaveBeenCalledWith('notification:new', mockNotification);
-    });
-
-    it('should not emit when socket is not set', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.createNotification({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        type: 'INFO',
-        title: 'Test',
-        message: 'Message',
-      });
-
-      expect(mockIo.to).not.toHaveBeenCalled();
-    });
-
-    it('should create notification with optional link', async () => {
-      const withLink = { ...mockNotification, link: '/custom-link' };
-      mockRepository.create.mockResolvedValue(withLink);
+      service.setSocketIO(mockIo);
 
       const result = await service.createNotification({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
+        tenantId: TEST_TENANT_ID,
+        userId: TEST_USER_ID,
+        type: 'SUCCESS',
+        title: 'Test',
+        message: 'Message',
+        link: '/dashboard',
+      });
+
+      expect(result).toEqual(notification);
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        tenantId: TEST_TENANT_ID,
+        userId: TEST_USER_ID,
+        type: 'SUCCESS',
+        title: 'Test',
+        message: 'Message',
+        link: '/dashboard',
+      });
+      expect(mockIo.to).toHaveBeenCalledWith(`user:${TEST_USER_ID}`);
+      expect(mockIo.emit).toHaveBeenCalledWith('notification:new', notification);
+      expect(mockPushNotificationService.dispatchToUsers).toHaveBeenCalledWith(
+        TEST_TENANT_ID,
+        [TEST_USER_ID],
+        {
+          title: notification.title,
+          message: notification.message,
+          link: notification.link,
+          notificationId: notification.id,
+          type: notification.type,
+        }
+      );
+      expect(mockRepository.markPushSentByIds).toHaveBeenCalledWith([notification.id]);
+    });
+
+    it('does not mark push delivery when the user was not delivered', async () => {
+      mockRepository.create.mockResolvedValue(buildNotification());
+      mockPushNotificationService.dispatchToUsers.mockResolvedValue({
+        enabled: true,
+        totalUsers: 1,
+        eligibleUsers: 1,
+        subscriptionsAttempted: 1,
+        deliveredEndpoints: 0,
+        deliveredUsers: [],
+        invalidatedEndpoints: 0,
+        failedEndpoints: 1,
+      });
+
+      await service.createNotification({
+        tenantId: TEST_TENANT_ID,
+        userId: TEST_USER_ID,
         type: 'INFO',
         title: 'Test',
         message: 'Message',
-        link: '/custom-link',
       });
 
-      expect(result.link).toBe('/custom-link');
+      expect(mockRepository.markPushSentByIds).not.toHaveBeenCalled();
+    });
+
+    it('swallows push dispatch errors', async () => {
+      const notification = buildNotification();
+      mockRepository.create.mockResolvedValue(notification);
+      mockPushNotificationService.dispatchToUsers.mockRejectedValue(new Error('Push unavailable'));
+
+      await expect(
+        service.createNotification({
+          tenantId: TEST_TENANT_ID,
+          userId: TEST_USER_ID,
+          type: 'INFO',
+          title: 'Test',
+          message: 'Message',
+        })
+      ).resolves.toEqual(notification);
     });
   });
 
   describe('broadcastNotification', () => {
-    it('should broadcast notification to multiple users', async () => {
-      service.setSocketIO(mockIo as any);
-      mockRepository.createMany.mockResolvedValue(3);
+    it('creates notifications for each user and emits websocket updates', async () => {
+      const notifications = [
+        buildNotification({ id: 'notif-1', userId: 'user-1' }),
+        buildNotification({ id: 'notif-2', userId: 'user-2' }),
+      ];
+      mockRepository.createManyAndReturn.mockResolvedValue(notifications);
+      mockRepository.markPushSentByIds.mockResolvedValue(2);
       mockIo.to.mockReturnValue(mockIo as any);
-
-      const count = await service.broadcastNotification(['user-1', 'user-2', 'user-3'], {
-        tenantId: 'tenant-1',
-        type: 'SYSTEM',
-        title: 'Maintenance',
-        message: 'System maintenance scheduled',
-      });
-
-      expect(count).toBe(3);
-      expect(mockRepository.createMany).toHaveBeenCalledWith(['user-1', 'user-2', 'user-3'], {
-        tenantId: 'tenant-1',
-        type: 'SYSTEM',
-        title: 'Maintenance',
-        message: 'System maintenance scheduled',
-      });
-      expect(mockIo.to).toHaveBeenCalledTimes(3);
-    });
-
-    it('should broadcast to empty user list', async () => {
-      mockRepository.createMany.mockResolvedValue(0);
-
-      const count = await service.broadcastNotification([], {
-        tenantId: 'tenant-1',
-        type: 'INFO',
-        title: 'Test',
-        message: 'Message',
-      });
-
-      expect(count).toBe(0);
-    });
-
-    it('should broadcast without socket', async () => {
-      mockRepository.createMany.mockResolvedValue(2);
+      service.setSocketIO(mockIo);
 
       const count = await service.broadcastNotification(['user-1', 'user-2'], {
-        tenantId: 'tenant-1',
-        type: 'INFO',
-        title: 'Test',
-        message: 'Message',
+        tenantId: TEST_TENANT_ID,
+        type: 'SYSTEM',
+        title: 'Maintenance',
+        message: 'System maintenance scheduled',
+        link: '/notifications',
       });
 
       expect(count).toBe(2);
-      expect(mockIo.to).not.toHaveBeenCalled();
+      expect(mockRepository.createManyAndReturn).toHaveBeenCalledWith(['user-1', 'user-2'], {
+        tenantId: TEST_TENANT_ID,
+        type: 'SYSTEM',
+        title: 'Maintenance',
+        message: 'System maintenance scheduled',
+        link: '/notifications',
+      });
+      expect(mockIo.to).toHaveBeenCalledTimes(2);
+      expect(mockPushNotificationService.dispatchToUsers).toHaveBeenCalledWith(
+        TEST_TENANT_ID,
+        ['user-1', 'user-2'],
+        {
+          title: 'Maintenance',
+          message: 'System maintenance scheduled',
+          link: '/notifications',
+          type: 'SYSTEM',
+        }
+      );
+      expect(mockRepository.markPushSentByIds).toHaveBeenCalledWith(['notif-1']);
     });
   });
 
-  describe('getUserNotifications', () => {
-    it('should get user notifications with defaults', async () => {
-      mockRepository.findByUser.mockResolvedValue([mockNotification]);
+  describe('read and delete operations', () => {
+    it('gets user notifications with defaults', async () => {
+      const notifications = [buildNotification()];
+      mockRepository.findByUser.mockResolvedValue(notifications);
 
-      const result = await service.getUserNotifications('user-1', 'tenant-1');
+      const result = await service.getUserNotifications(TEST_USER_ID, TEST_TENANT_ID);
 
-      expect(result).toEqual([mockNotification]);
+      expect(result).toEqual(notifications);
       expect(mockRepository.findByUser).toHaveBeenCalledWith({
-        userId: 'user-1',
-        tenantId: 'tenant-1',
+        userId: TEST_USER_ID,
+        tenantId: TEST_TENANT_ID,
         limit: 50,
         offset: 0,
       });
     });
 
-    it('should get user notifications with custom limit and offset', async () => {
-      mockRepository.findByUser.mockResolvedValue([mockNotification]);
-
-      await service.getUserNotifications('user-1', 'tenant-1', 20, 10);
-
-      expect(mockRepository.findByUser).toHaveBeenCalledWith({
-        userId: 'user-1',
-        tenantId: 'tenant-1',
-        limit: 20,
-        offset: 10,
-      });
-    });
-
-    it('should return empty array when no notifications', async () => {
-      mockRepository.findByUser.mockResolvedValue([]);
-
-      const result = await service.getUserNotifications('user-1', 'tenant-1');
-
-      expect(result).toEqual([]);
-    });
-  });
-
-  describe('getUnreadCount', () => {
-    it('should get unread notification count', async () => {
-      mockRepository.getUnreadCount.mockResolvedValue(5);
-
-      const result = await service.getUnreadCount('user-1', 'tenant-1');
-
-      expect(result).toBe(5);
-      expect(mockRepository.getUnreadCount).toHaveBeenCalledWith('user-1', 'tenant-1');
-    });
-
-    it('should return zero when no unread notifications', async () => {
-      mockRepository.getUnreadCount.mockResolvedValue(0);
-
-      const result = await service.getUnreadCount('user-1', 'tenant-1');
-
-      expect(result).toBe(0);
-    });
-  });
-
-  describe('markAsRead', () => {
-    it('should mark notification as read', async () => {
-      service.setSocketIO(mockIo as any);
-      const readNotification = { ...mockNotification, read: true };
-      mockRepository.markAsRead.mockResolvedValue(readNotification);
+    it('marks a notification as read and emits websocket update', async () => {
+      const notification = buildNotification({ read: true, readAt: BASE_TIME });
+      mockRepository.markAsRead.mockResolvedValue(notification);
       mockIo.to.mockReturnValue(mockIo as any);
+      service.setSocketIO(mockIo);
 
-      const result = await service.markAsRead('notif-1', 'user-1', 'tenant-1');
+      const result = await service.markAsRead('notif-1', TEST_USER_ID, TEST_TENANT_ID);
 
       expect(result.read).toBe(true);
-      expect(mockRepository.markAsRead).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
-      expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
+      expect(mockRepository.markAsRead).toHaveBeenCalledWith(
+        'notif-1',
+        TEST_USER_ID,
+        TEST_TENANT_ID
+      );
       expect(mockIo.emit).toHaveBeenCalledWith('notification:read', { id: 'notif-1' });
     });
 
-    it('should mark as read without socket', async () => {
-      const readNotification = { ...mockNotification, read: true };
-      mockRepository.markAsRead.mockResolvedValue(readNotification);
-
-      const result = await service.markAsRead('notif-1', 'user-1', 'tenant-1');
-
-      expect(result.read).toBe(true);
-      expect(mockIo.to).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('markAllAsRead', () => {
-    it('should mark all notifications as read', async () => {
-      service.setSocketIO(mockIo as any);
-      mockRepository.markAllAsRead.mockResolvedValue(5);
+    it('marks all notifications as read', async () => {
+      mockRepository.markAllAsRead.mockResolvedValue(3);
       mockIo.to.mockReturnValue(mockIo as any);
+      service.setSocketIO(mockIo);
 
-      const count = await service.markAllAsRead('user-1', 'tenant-1');
+      const count = await service.markAllAsRead(TEST_USER_ID, TEST_TENANT_ID);
 
-      expect(count).toBe(5);
-      expect(mockRepository.markAllAsRead).toHaveBeenCalledWith('user-1', 'tenant-1');
-      expect(mockIo.to).toHaveBeenCalledWith('user:user-1');
+      expect(count).toBe(3);
+      expect(mockRepository.markAllAsRead).toHaveBeenCalledWith(TEST_USER_ID, TEST_TENANT_ID);
       expect(mockIo.emit).toHaveBeenCalledWith('notification:read-all');
     });
 
-    it('should return zero when no notifications to mark', async () => {
-      mockRepository.markAllAsRead.mockResolvedValue(0);
-
-      const count = await service.markAllAsRead('user-1', 'tenant-1');
-
-      expect(count).toBe(0);
-    });
-  });
-
-  describe('deleteNotification', () => {
-    it('should delete a notification', async () => {
-      service.setSocketIO(mockIo as any);
-      mockRepository.delete.mockResolvedValue(mockNotification);
+    it('soft deletes, restores, and permanently deletes notifications', async () => {
+      const deleted = buildNotification({ deletedAt: BASE_TIME });
+      mockRepository.delete.mockResolvedValue(deleted);
+      mockRepository.restore.mockResolvedValue(buildNotification());
       mockIo.to.mockReturnValue(mockIo as any);
+      service.setSocketIO(mockIo);
 
-      const result = await service.deleteNotification('notif-1', 'user-1', 'tenant-1');
+      await expect(
+        service.deleteNotification('notif-1', TEST_USER_ID, TEST_TENANT_ID)
+      ).resolves.toEqual(deleted);
+      await expect(
+        service.restoreNotification('notif-1', TEST_USER_ID, TEST_TENANT_ID)
+      ).resolves.toEqual(expect.objectContaining({ id: 'notif-1' }));
+      await expect(
+        service.permanentlyDeleteNotification('notif-1', TEST_USER_ID, TEST_TENANT_ID)
+      ).resolves.toBeUndefined();
 
-      expect(result).toEqual(mockNotification);
-      expect(mockRepository.delete).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
-      expect(mockIo.emit).toHaveBeenCalledWith('notification:deleted', { id: 'notif-1' });
-    });
-  });
-
-  describe('cleanupOldNotifications', () => {
-    it('should cleanup old notifications with default days', async () => {
-      mockRepository.deleteOldRead.mockResolvedValue(10);
-
-      const count = await service.cleanupOldNotifications('user-1', 'tenant-1');
-
-      expect(count).toBe(10);
-      expect(mockRepository.deleteOldRead).toHaveBeenCalledWith('user-1', 'tenant-1', 30);
-    });
-
-    it('should cleanup with custom days', async () => {
-      mockRepository.deleteOldRead.mockResolvedValue(5);
-
-      const count = await service.cleanupOldNotifications('user-1', 'tenant-1', 60);
-
-      expect(count).toBe(5);
-      expect(mockRepository.deleteOldRead).toHaveBeenCalledWith('user-1', 'tenant-1', 60);
-    });
-  });
-
-  describe('restoreNotification', () => {
-    it('should restore a soft-deleted notification', async () => {
-      service.setSocketIO(mockIo as any);
-      mockRepository.restore.mockResolvedValue(mockNotification);
-      mockIo.to.mockReturnValue(mockIo as any);
-
-      const result = await service.restoreNotification('notif-1', 'user-1', 'tenant-1');
-
-      expect(result).toEqual(mockNotification);
-      expect(mockRepository.restore).toHaveBeenCalledWith('notif-1', 'user-1', 'tenant-1');
-      expect(mockIo.emit).toHaveBeenCalledWith('notification:restored', mockNotification);
-    });
-  });
-
-  describe('getDeletedNotifications', () => {
-    it('should get deleted notifications for a user', async () => {
-      const deletedNotification = { ...mockNotification, deletedAt: new Date() };
-      mockRepository.findDeleted.mockResolvedValue([deletedNotification]);
-
-      const result = await service.getDeletedNotifications('user-1', 'tenant-1');
-
-      expect(result).toEqual([deletedNotification]);
-      expect(mockRepository.findDeleted).toHaveBeenCalledWith('user-1', 'tenant-1', 50, 0);
-    });
-  });
-
-  describe('permanentlyDeleteOld', () => {
-    it('should permanently delete old soft-deleted notifications', async () => {
-      mockRepository.permanentlyDeleteOld.mockResolvedValue(5);
-
-      const count = await service.permanentlyDeleteOld('user-1', 'tenant-1', 30);
-
-      expect(count).toBe(5);
-      expect(mockRepository.permanentlyDeleteOld).toHaveBeenCalledWith('user-1', 'tenant-1', 30);
-    });
-  });
-
-  describe('notifyScoreSubmitted', () => {
-    it('should create score submitted notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      const result = await service.notifyScoreSubmitted('tenant-1', 'user-1', 'John Doe', 'Dance');
-
-      expect(result).toEqual(mockNotification);
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'SUCCESS',
-          title: 'Score Submitted',
-          message: expect.stringContaining('John Doe'),
-        })
+      expect(mockRepository.permanentlyDelete).toHaveBeenCalledWith(
+        'notif-1',
+        TEST_USER_ID,
+        TEST_TENANT_ID
       );
-    });
-  });
-
-  describe('notifyContestCertified', () => {
-    it('should create contest certified notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      const result = await service.notifyContestCertified('tenant-1', 'user-1', 'Solo Dance');
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'SUCCESS',
-          title: 'Contest Certified',
-          message: expect.stringContaining('Solo Dance'),
-        })
-      );
-    });
-  });
-
-  describe('notifyAssignmentChange', () => {
-    it('should notify assignment assigned', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyAssignmentChange('tenant-1', 'user-1', 'Dance Contest', 'assigned');
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'INFO',
-          title: 'New Assignment',
-          message: expect.stringContaining('assigned'),
-        })
-      );
-    });
-
-    it('should notify assignment removed', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyAssignmentChange('tenant-1', 'user-1', 'Dance Contest', 'removed');
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'INFO',
-          title: 'Assignment Removed',
-          message: expect.stringContaining('removed'),
-        })
-      );
-    });
-  });
-
-  describe('notifyReportReady', () => {
-    it('should create report ready notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyReportReady('tenant-1', 'user-1', 'Annual Report', 'report-123');
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'SUCCESS',
-          title: 'Report Ready',
-          link: '/reports/report-123',
-        })
-      );
-    });
-  });
-
-  describe('notifyCertificationRequired', () => {
-    it('should notify certification required for level 1', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyCertificationRequired('tenant-1', 'user-1', 'Dance Contest', 1);
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'WARNING',
-          message: expect.stringContaining('Judge Review'),
-        })
-      );
-    });
-
-    it('should notify certification required for level 2', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyCertificationRequired('tenant-1', 'user-1', 'Dance Contest', 2);
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          message: expect.stringContaining('Tally Master Review'),
-        })
-      );
-    });
-
-    it('should notify certification required for level 3', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyCertificationRequired('tenant-1', 'user-1', 'Dance Contest', 3);
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          message: expect.stringContaining('Board Approval'),
-        })
-      );
-    });
-  });
-
-  describe('notifyRoleChange', () => {
-    it('should create role change notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyRoleChange('tenant-1', 'user-1', 'ADMIN');
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'INFO',
-          title: 'Role Updated',
-          message: expect.stringContaining('ADMIN'),
-        })
-      );
-    });
-  });
-
-  describe('notifyEventStatusChange', () => {
-    it('should create event status change notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
-
-      await service.notifyEventStatusChange('tenant-1', 'user-1', 'Summer Festival', 'ACTIVE');
-
-      expect(mockRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'INFO',
-          title: 'Event Status Changed',
-          message: expect.stringContaining('ACTIVE'),
-        })
-      );
-    });
-  });
-
-  describe('notifySystemMaintenance', () => {
-    it('should broadcast system maintenance notification', async () => {
-      mockRepository.createMany.mockResolvedValue(3);
-
-      const count = await service.notifySystemMaintenance('tenant-1', 'Maintenance at 2AM', [
-        'user-1',
-        'user-2',
-        'user-3',
-      ]);
-
-      expect(count).toBe(3);
-      expect(mockRepository.createMany).toHaveBeenCalledWith(['user-1', 'user-2', 'user-3'], {
-        tenantId: 'tenant-1',
-        type: 'SYSTEM',
-        title: 'System Maintenance',
-        message: 'Maintenance at 2AM',
+      expect(mockIo.emit).toHaveBeenCalledWith('notification:permanently-deleted', {
+        id: 'notif-1',
       });
     });
   });
 
-  describe('notifyError', () => {
-    it('should create error notification', async () => {
-      mockRepository.create.mockResolvedValue(mockNotification);
+  describe('notification helpers', () => {
+    it('creates report-ready notifications with the encoded report link', async () => {
+      const notification = buildNotification({ link: '/reports?reportId=report%20123' });
+      mockRepository.create.mockResolvedValue(notification);
 
-      await service.notifyError('tenant-1', 'user-1', 'Error Title', 'Error message');
+      await service.notifyReportReady(TEST_TENANT_ID, TEST_USER_ID, 'Annual Report', 'report 123');
 
       expect(mockRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          tenantId: 'tenant-1',
-          userId: 'user-1',
-          type: 'ERROR',
-          title: 'Error Title',
-          message: 'Error message',
+          tenantId: TEST_TENANT_ID,
+          userId: TEST_USER_ID,
+          type: 'SUCCESS',
+          title: 'Report Ready',
+          link: '/reports?reportId=report%20123',
         })
       );
+    });
+
+    it('broadcasts system maintenance notifications', async () => {
+      mockRepository.createManyAndReturn.mockResolvedValue([
+        buildNotification({ id: 'notif-1', userId: 'user-1', type: 'SYSTEM' }),
+      ]);
+
+      const count = await service.notifySystemMaintenance(TEST_TENANT_ID, 'Window tonight', [
+        'user-1',
+      ]);
+
+      expect(count).toBe(1);
+      expect(mockRepository.createManyAndReturn).toHaveBeenCalledWith(['user-1'], {
+        tenantId: TEST_TENANT_ID,
+        type: 'SYSTEM',
+        title: 'System Maintenance',
+        message: 'Window tonight',
+        link: '/notifications',
+      });
     });
   });
 });

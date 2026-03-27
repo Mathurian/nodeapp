@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -18,12 +19,16 @@ describe('Users API Integration Tests', () => {
   let testUser: any;
   let adminToken: string;
   let testUserId: string;
+  let tenantId: string;
 
   // ============================================================================
   // SETUP & TEARDOWN
   // ============================================================================
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     // Clean up any existing test data
     await prisma.user.deleteMany({
       where: {
@@ -44,6 +49,7 @@ describe('Users API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -60,7 +66,7 @@ describe('Users API Integration Tests', () => {
     } else {
       // Fallback: generate token manually
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -377,6 +383,7 @@ describe('Users API Integration Tests', () => {
             role: 'CONTESTANT',
             isActive: true,
             sessionVersion: 1,
+            tenantId,
           },
         });
         testUserId = user.id;
@@ -446,6 +453,7 @@ describe('Users API Integration Tests', () => {
             role: 'CONTESTANT',
             isActive: true,
             sessionVersion: 1,
+            tenantId,
           },
         });
         testUserId = user.id;
@@ -535,6 +543,7 @@ describe('Users API Integration Tests', () => {
           role: 'CONTESTANT',
           isActive: true,
           sessionVersion: 1,
+          tenantId,
         },
       });
 
@@ -618,6 +627,7 @@ describe('Users API Integration Tests', () => {
             role: 'CONTESTANT',
             isActive: true,
             sessionVersion: 1,
+            tenantId,
           },
         });
         testUserId = user.id;

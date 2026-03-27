@@ -9,6 +9,7 @@ import { container } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 // Use the same PrismaClient instance that the app uses
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -23,8 +24,12 @@ describe('Results API Integration Tests', () => {
   let testContest: any;
   let testCategory: any;
   let testContestant: any;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     // Clean up any existing test data
     await prisma.score.deleteMany({
       where: {
@@ -76,6 +81,7 @@ describe('Results API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -88,6 +94,7 @@ describe('Results API Integration Tests', () => {
         role: 'CONTESTANT',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -99,6 +106,7 @@ describe('Results API Integration Tests', () => {
         startDate: new Date('2024-07-01'),
         endDate: new Date('2024-07-03'),
         location: 'Test Location',
+        tenantId,
       }
     });
 
@@ -107,6 +115,7 @@ describe('Results API Integration Tests', () => {
         name: `contest-test-${Date.now()}`,
         eventId: testEvent.id,
         description: 'Test contest for results',
+        tenantId,
       }
     });
 
@@ -115,12 +124,13 @@ describe('Results API Integration Tests', () => {
         name: `category-test-${Date.now()}`,
         contestId: testContest.id,
         description: 'Test category for results',
+        tenantId,
       }
     });
 
     // Check if contestant already exists
     testContestant = await prisma.contestant.findUnique({
-      where: { email: 'contestant@resultstest.com' }
+      where: { tenantId_email: { tenantId, email: 'contestant@resultstest.com' } }
     });
 
     if (!testContestant) {
@@ -129,6 +139,7 @@ describe('Results API Integration Tests', () => {
           name: 'Test Contestant',
           email: 'contestant@resultstest.com',
           contestantNumber: 1,
+          tenantId,
         }
       });
     }
@@ -140,7 +151,7 @@ describe('Results API Integration Tests', () => {
 
     // Login to get tokens - verify user exists first
     const verifyAdmin = await prisma.user.findUnique({
-      where: { email: 'admin@resultstest.com' }
+      where: { tenantId_email: { tenantId, email: 'admin@resultstest.com' } }
     });
     
     if (!verifyAdmin) {
@@ -176,7 +187,7 @@ describe('Results API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -184,7 +195,7 @@ describe('Results API Integration Tests', () => {
 
     // Verify contestant user exists
     const verifyContestant = await prisma.user.findUnique({
-      where: { email: 'contestant@resultstest.com' }
+      where: { tenantId_email: { tenantId, email: 'contestant@resultstest.com' } }
     });
     
     if (!verifyContestant) {
@@ -212,7 +223,7 @@ describe('Results API Integration Tests', () => {
       contestantToken = contestantLoginResponse.body.data?.token || contestantLoginResponse.body.token;
     } else {
       contestantToken = jwt.sign(
-        { userId: contestantUser.id, role: contestantUser.role },
+        { userId: contestantUser.id, role: contestantUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -372,4 +383,3 @@ describe('Results API Integration Tests', () => {
     });
   });
 });
-

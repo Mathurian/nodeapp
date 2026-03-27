@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -19,12 +20,16 @@ describe('Categories API Integration Tests', () => {
   let testEvent: any;
   let testContest: any;
   let testCategoryId: string;
+  let tenantId: string;
 
   // ============================================================================
   // SETUP & TEARDOWN
   // ============================================================================
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     // Clean up any existing test data
     await prisma.category.deleteMany({
       where: {
@@ -68,6 +73,7 @@ describe('Categories API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -79,6 +85,7 @@ describe('Categories API Integration Tests', () => {
         startDate: new Date('2024-07-01'),
         endDate: new Date('2024-07-03'),
         location: 'Test Location',
+        tenantId,
       }
     });
 
@@ -87,6 +94,7 @@ describe('Categories API Integration Tests', () => {
         name: `contest-test-${Date.now()}`,
         eventId: testEvent.id,
         description: 'Test contest for categories',
+        tenantId,
       }
     });
 
@@ -103,7 +111,7 @@ describe('Categories API Integration Tests', () => {
     } else {
       // Fallback: generate token manually
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -276,6 +284,7 @@ describe('Categories API Integration Tests', () => {
             name: `category-test-${Date.now()}`,
             contestId: testContest.id,
             description: 'Test category',
+            tenantId,
           },
         });
         testCategoryId = category.id;
@@ -317,6 +326,7 @@ describe('Categories API Integration Tests', () => {
             name: `category-test-${Date.now()}`,
             contestId: testContest.id,
             description: 'Test category',
+            tenantId,
           },
         });
         testCategoryId = category.id;
@@ -367,6 +377,7 @@ describe('Categories API Integration Tests', () => {
             name: `category-test-${Date.now()}`,
             contestId: testContest.id,
             description: 'Test category',
+            tenantId,
           },
         });
         testCategoryId = category.id;
@@ -433,6 +444,7 @@ describe('Categories API Integration Tests', () => {
           name: `category-test-delete-${Date.now()}`,
           contestId: testContest.id,
           description: 'Test category to delete',
+          tenantId,
         },
       });
 

@@ -3,10 +3,80 @@
  * Comprehensive helpers for database setup, teardown, and seed data management
  */
 
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, ContestantNumberingMode, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 export const prismaTestClient = new PrismaClient();
+
+const TEST_TENANT_SLUG = 'test-helpers-default';
+const TEST_TENANT_NAME = 'Test Helpers Tenant';
+
+const getOrCreateTestTenant = async () => {
+  return prismaTestClient.tenant.upsert({
+    where: { slug: TEST_TENANT_SLUG },
+    update: {
+      name: TEST_TENANT_NAME,
+      isActive: true,
+      planType: 'enterprise',
+      subscriptionStatus: 'active',
+    },
+    create: {
+      name: TEST_TENANT_NAME,
+      slug: TEST_TENANT_SLUG,
+      isActive: true,
+      planType: 'enterprise',
+      subscriptionStatus: 'active',
+    },
+  });
+};
+
+const buildUserUniqueWhere = (tenantId: string, email: string): Prisma.UserWhereUniqueInput => ({
+  tenantId_email: {
+    tenantId,
+    email,
+  },
+});
+
+const buildContestantUniqueWhere = (
+  tenantId: string,
+  email: string
+): Prisma.ContestantWhereUniqueInput => ({
+  tenantId_email: {
+    tenantId,
+    email,
+  },
+});
+
+const createTenantScopedUser = async (
+  tenantId: string,
+  email: string,
+  name: string,
+  preferredName: string,
+  role: UserRole,
+  password: string
+) => {
+  return prismaTestClient.user.upsert({
+    where: buildUserUniqueWhere(tenantId, email),
+    update: {
+      name,
+      preferredName,
+      password,
+      role,
+      isActive: true,
+      sessionVersion: 1,
+    },
+    create: {
+      email,
+      name,
+      preferredName,
+      password,
+      role,
+      isActive: true,
+      sessionVersion: 1,
+      tenantId,
+    },
+  });
+};
 
 /**
  * Database setup - Clean slate before tests
@@ -44,19 +114,33 @@ export const cleanAllTestData = async (): Promise<void> => {
   try {
     // Delete in correct order to respect foreign key constraints
     await prismaTestClient.auditLog.deleteMany();
+    await prismaTestClient.activityLog.deleteMany();
     await prismaTestClient.score.deleteMany();
     await prismaTestClient.assignment.deleteMany();
     await prismaTestClient.certification.deleteMany();
+    await prismaTestClient.categoryContestant.deleteMany();
+    await prismaTestClient.categoryJudge.deleteMany();
+    await prismaTestClient.contestContestant.deleteMany();
+    await prismaTestClient.contestJudge.deleteMany();
     await prismaTestClient.category.deleteMany();
     await prismaTestClient.contest.deleteMany();
     await prismaTestClient.event.deleteMany();
     await prismaTestClient.emceeScript.deleteMany();
-    await prismaTestClient.printReport.deleteMany();
-    await prismaTestClient.setting.deleteMany();
+    await prismaTestClient.reportInstance.deleteMany();
+    await prismaTestClient.systemSetting.deleteMany();
     await prismaTestClient.categoryTemplate.deleteMany();
     await prismaTestClient.contestant.deleteMany();
     await prismaTestClient.judge.deleteMany();
     await prismaTestClient.user.deleteMany();
+    await prismaTestClient.tenant.deleteMany({
+      where: {
+        OR: [
+          { slug: TEST_TENANT_SLUG },
+          { slug: { startsWith: 'test-' } },
+          { slug: { startsWith: 'e2e-' } },
+        ],
+      },
+    });
   } catch (error) {
     console.error('Failed to clean test data:', error);
     throw error;
@@ -68,53 +152,40 @@ export const cleanAllTestData = async (): Promise<void> => {
  */
 export const seedMinimalData = async () => {
   const hashedPassword = await bcrypt.hash('TestPass123!', 10);
+  const tenant = await getOrCreateTestTenant();
 
   // Create admin user
-  const adminUser = await prismaTestClient.user.upsert({
-    where: { email: 'admin@test.com' },
-    update: {},
-    create: {
-      email: 'admin@test.com',
-      name: 'testadmin',
-      preferredName: 'Test Admin',
-      password: hashedPassword,
-      role: UserRole.ADMIN,
-      isActive: true,
-      sessionVersion: 1,
-    },
-  });
+  const adminUser = await createTenantScopedUser(
+    tenant.id,
+    'admin@test.com',
+    'testadmin',
+    'Test Admin',
+    UserRole.ADMIN,
+    hashedPassword
+  );
 
   // Create judge user
-  const judgeUser = await prismaTestClient.user.upsert({
-    where: { email: 'judge@test.com' },
-    update: {},
-    create: {
-      email: 'judge@test.com',
-      name: 'testjudge',
-      preferredName: 'Test Judge',
-      password: hashedPassword,
-      role: UserRole.JUDGE,
-      isActive: true,
-      sessionVersion: 1,
-    },
-  });
+  const judgeUser = await createTenantScopedUser(
+    tenant.id,
+    'judge@test.com',
+    'testjudge',
+    'Test Judge',
+    UserRole.JUDGE,
+    hashedPassword
+  );
 
   // Create contestant user
-  const contestantUser = await prismaTestClient.user.upsert({
-    where: { email: 'contestant@test.com' },
-    update: {},
-    create: {
-      email: 'contestant@test.com',
-      name: 'testcontestant',
-      preferredName: 'Test Contestant',
-      password: hashedPassword,
-      role: UserRole.CONTESTANT,
-      isActive: true,
-      sessionVersion: 1,
-    },
-  });
+  const contestantUser = await createTenantScopedUser(
+    tenant.id,
+    'contestant@test.com',
+    'testcontestant',
+    'Test Contestant',
+    UserRole.CONTESTANT,
+    hashedPassword
+  );
 
   return {
+    tenant,
     adminUser,
     judgeUser,
     contestantUser,
@@ -125,7 +196,7 @@ export const seedMinimalData = async () => {
  * Seed comprehensive test data
  */
 export const seedComprehensiveData = async () => {
-  const users = await seedMinimalData();
+  const { tenant, ...users } = await seedMinimalData();
 
   // Create test event
   const event = await prismaTestClient.event.create({
@@ -137,7 +208,8 @@ export const seedComprehensiveData = async () => {
       location: 'Test Venue',
       archived: false,
       maxContestants: 100,
-      contestantNumberingMode: 'MANUAL',
+      contestantNumberingMode: ContestantNumberingMode.MANUAL,
+      tenantId: tenant.id,
     },
   });
 
@@ -147,7 +219,9 @@ export const seedComprehensiveData = async () => {
       name: 'Test Contest',
       eventId: event.id,
       description: 'Test contest',
-      date: new Date('2024-06-01'),
+      tenantId: tenant.id,
+      contestantNumberingMode: ContestantNumberingMode.MANUAL,
+      nextContestantNumber: 1,
     },
   });
 
@@ -156,9 +230,9 @@ export const seedComprehensiveData = async () => {
     data: {
       name: 'Test Category 1',
       contestId: contest.id,
-      maxScore: 100,
-      minScore: 0,
-      scoreType: 'NUMERIC',
+      scoreCap: 100,
+      contestantMin: 0,
+      tenantId: tenant.id,
     },
   });
 
@@ -166,9 +240,9 @@ export const seedComprehensiveData = async () => {
     data: {
       name: 'Test Category 2',
       contestId: contest.id,
-      maxScore: 100,
-      minScore: 0,
-      scoreType: 'NUMERIC',
+      scoreCap: 100,
+      contestantMin: 0,
+      tenantId: tenant.id,
     },
   });
 
@@ -177,8 +251,12 @@ export const seedComprehensiveData = async () => {
     data: {
       email: 'judge@test.com',
       name: 'Test Judge',
-      userId: users.judgeUser.id,
+      tenantId: tenant.id,
     },
+  });
+  await prismaTestClient.user.update({
+    where: { id: users.judgeUser.id },
+    data: { judgeId: judge.id },
   });
 
   // Create contestant
@@ -186,8 +264,20 @@ export const seedComprehensiveData = async () => {
     data: {
       email: 'contestant@test.com',
       name: 'Test Contestant',
-      userId: users.contestantUser.id,
-      number: 1,
+      contestantNumber: 1,
+      tenantId: tenant.id,
+    },
+  });
+  await prismaTestClient.user.update({
+    where: { id: users.contestantUser.id },
+    data: { contestantId: contestant.id },
+  });
+
+  await prismaTestClient.categoryContestant.create({
+    data: {
+      categoryId: category1.id,
+      contestantId: contestant.id,
+      tenantId: tenant.id,
     },
   });
 
@@ -196,10 +286,16 @@ export const seedComprehensiveData = async () => {
     data: {
       judgeId: judge.id,
       categoryId: category1.id,
+      contestId: contest.id,
+      eventId: event.id,
+      assignedBy: users.adminUser.id,
+      status: 'ACTIVE',
+      tenantId: tenant.id,
     },
   });
 
   return {
+    tenant,
     ...users,
     event,
     contest,
@@ -214,7 +310,7 @@ export const seedComprehensiveData = async () => {
  * Transaction wrapper for isolated test execution
  */
 export const runInTransaction = async <T>(
-  callback: (tx: any) => Promise<T>
+  callback: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<T> => {
   return await prismaTestClient.$transaction(async (tx) => {
     return await callback(tx);

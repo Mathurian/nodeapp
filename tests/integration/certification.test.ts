@@ -8,6 +8,7 @@ import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ensureTestTenant } from '../helpers/testUtils';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
@@ -18,8 +19,12 @@ describe('Certification API Integration Tests', () => {
   let judgeUser: any;
   let adminToken: string;
   let judgeToken: string;
+  let tenantId: string;
 
   beforeAll(async () => {
+    const tenant = await ensureTestTenant();
+    tenantId = tenant.id;
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -37,6 +42,7 @@ describe('Certification API Integration Tests', () => {
         role: 'ADMIN',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -48,6 +54,7 @@ describe('Certification API Integration Tests', () => {
         role: 'JUDGE',
         isActive: true,
         sessionVersion: 1,
+        tenantId,
       }
     });
 
@@ -62,7 +69,7 @@ describe('Certification API Integration Tests', () => {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role },
+        { userId: adminUser.id, role: adminUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -79,7 +86,7 @@ describe('Certification API Integration Tests', () => {
       judgeToken = judgeLoginResponse.body.data?.token || judgeLoginResponse.body.token;
     } else {
       judgeToken = jwt.sign(
-        { userId: judgeUser.id, role: judgeUser.role },
+        { userId: judgeUser.id, role: judgeUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -172,11 +179,12 @@ describe('Certification API Integration Tests', () => {
           role: 'TALLY_MASTER',
           isActive: true,
           sessionVersion: 1,
+          tenantId,
         }
       });
 
       const tallyToken = jwt.sign(
-        { userId: tallyMasterUser.id, role: tallyMasterUser.role },
+        { userId: tallyMasterUser.id, role: tallyMasterUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -202,11 +210,12 @@ describe('Certification API Integration Tests', () => {
           role: 'BOARD',
           isActive: true,
           sessionVersion: 1,
+          tenantId,
         }
       });
 
       const boardToken = jwt.sign(
-        { userId: boardUser.id, role: boardUser.role },
+        { userId: boardUser.id, role: boardUser.role, tenantId },
         JWT_SECRET,
         { expiresIn: '1h' }
       );
