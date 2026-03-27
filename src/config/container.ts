@@ -83,6 +83,9 @@ import { PushNotificationService } from '../services/PushNotificationService';
 import { RateLimitService } from '../services/RateLimitService';
 import { EnhancedRateLimitService } from '../services/EnhancedRateLimitService';
 import { MetricsService } from '../services/MetricsService';
+import { TelemetryDedupeStore } from '../services/TelemetryDedupeStore';
+import { OfflineSyncTelemetryService } from '../services/OfflineSyncTelemetryService';
+import { IdempotencyLifecycleService } from '../services/idempotency/IdempotencyLifecycleService';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { RestrictionService } from '../services/RestrictionService';
 import { DataWipeService } from '../services/DataWipeService';
@@ -310,6 +313,9 @@ export function setupContainer(): void {
   container.register(EnhancedRateLimitService, EnhancedRateLimitService);
   // Register MetricsService as singleton to ensure only one Registry instance
   container.registerSingleton(MetricsService, MetricsService);
+  container.registerSingleton(TelemetryDedupeStore, TelemetryDedupeStore);
+  container.register(OfflineSyncTelemetryService, OfflineSyncTelemetryService);
+  container.registerSingleton(IdempotencyLifecycleService, IdempotencyLifecycleService);
   container.register(ScoreFileService, ScoreFileService);
   container.register(RestrictionService, RestrictionService);
   container.register(DataWipeService, DataWipeService);

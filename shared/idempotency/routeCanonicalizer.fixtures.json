@@ -1,0 +1,14 @@
+[
+  {
+    "name": "strip-api-prefix-and-trailing-slash",
+    "input": {
+      "basePath": "/api/v1/scoring",
+      "routePath": "/category/:categoryId/contestant/:contestantId",
+      "requestUrl": "/api/v1/scoring/category/c1/contestant/u1/"
+    },
+    "output": {
+      "path": "/scoring/category/c1/contestant/u1",
+      "canonicalPath": "/scoring/category/:categoryId/contestant/:contestantId"
+    }
+  }
+]

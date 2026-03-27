@@ -8,6 +8,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { promises as fs } from 'fs';
 import { createLogger } from '../utils/logger';
+import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
+import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
 
 const logger = createLogger('ScoreFileService');
 
@@ -99,7 +101,8 @@ export class ScoreFileService extends BaseService {
    */
   async uploadScoreFile(
     data: UploadScoreFileDTO,
-    uploadedById: string
+    uploadedById: string,
+    timeoutMs: number = QUERY_TIMEOUTS.complex,
   ): Promise<ScoreFile> {
     // Verify category exists in tenant
     const category = await this.prisma.category.findFirst({
@@ -131,22 +134,27 @@ export class ScoreFileService extends BaseService {
     }
 
     // Create score file record
-    const scoreFile = await this.prisma.scoreFile.create({
-      data: {
-        categoryId: data.categoryId,
-        judgeId: data.judgeId,
-        contestantId: data.contestantId || null,
-        tenantId: data.tenantId,
-        fileName: data.fileName,
-        fileType: data.fileType,
-        filePath: data.filePath,
-        fileSize: data.fileSize,
-        uploadedById,
-        status: 'pending',
-        notes: data.notes || null,
-        updatedAt: new Date()
-      }
-    });
+    const scoreFile = await withMutationTimeoutTx(
+      async (tx) =>
+        await tx.scoreFile.create({
+          data: {
+            categoryId: data.categoryId,
+            judgeId: data.judgeId,
+            contestantId: data.contestantId || null,
+            tenantId: data.tenantId,
+            fileName: data.fileName,
+            fileType: data.fileType,
+            filePath: data.filePath,
+            fileSize: data.fileSize,
+            uploadedById,
+            status: 'pending',
+            notes: data.notes || null,
+            updatedAt: new Date()
+          }
+        }),
+      timeoutMs,
+      this.prisma,
+    );
 
     return scoreFile;
   }
@@ -202,7 +210,8 @@ export class ScoreFileService extends BaseService {
     tenantId: string,
     data: UpdateScoreFileDTO,
     _userId: string,
-    userRole: string
+    userRole: string,
+    timeoutMs: number = QUERY_TIMEOUTS.complex,
   ): Promise<ScoreFile> {
     const scoreFile = await this.prisma.scoreFile.findFirst({
       where: { id, tenantId }
@@ -219,14 +228,19 @@ export class ScoreFileService extends BaseService {
       throw this.forbiddenError('You do not have permission to update score file status');
     }
 
-    const updated = await this.prisma.scoreFile.update({
-      where: { id },
-      data: {
-        status: data.status || scoreFile.status,
-        notes: data.notes !== undefined ? data.notes : scoreFile.notes,
-        updatedAt: new Date()
-      }
-    });
+    const updated = await withMutationTimeoutTx(
+      async (tx) =>
+        await tx.scoreFile.update({
+          where: { id },
+          data: {
+            status: data.status || scoreFile.status,
+            notes: data.notes !== undefined ? data.notes : scoreFile.notes,
+            updatedAt: new Date()
+          }
+        }),
+      timeoutMs,
+      this.prisma,
+    );
 
     return updated;
   }
@@ -238,7 +252,8 @@ export class ScoreFileService extends BaseService {
     id: string,
     tenantId: string,
     userId: string,
-    userRole: string
+    userRole: string,
+    timeoutMs: number = QUERY_TIMEOUTS.complex,
   ): Promise<void> {
     const scoreFile = await this.prisma.scoreFile.findFirst({
       where: { id, tenantId }
@@ -268,9 +283,15 @@ export class ScoreFileService extends BaseService {
     }
 
     // Delete from database
-    await this.prisma.scoreFile.delete({
-      where: { id }
-    });
+    await withMutationTimeoutTx(
+      async (tx) => {
+        await tx.scoreFile.delete({
+          where: { id }
+        });
+      },
+      timeoutMs,
+      this.prisma,
+    );
   }
 
   /**

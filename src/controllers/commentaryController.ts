@@ -3,6 +3,10 @@ import { container } from '../config/container';
 import { CommentaryService } from '../services/CommentaryService';
 import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
+import {
+  getOfflineWriteTimeoutMs,
+  matchOfflineWriteOwnershipRoute,
+} from '../config/offlineWriteOwnership.config';
 
 export class CommentaryController {
   private commentaryService: CommentaryService;
@@ -19,6 +23,9 @@ export class CommentaryController {
       }
 
       const { scoreId, criterionId, contestantId, comment, isPrivate } = req.body;
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
       const scoreComment = await this.commentaryService.create({
         scoreId,
         criterionId,
@@ -26,7 +33,7 @@ export class CommentaryController {
         judgeId: req.user.id,
         comment,
         isPrivate
-      });
+      }, timeoutMs);
       return sendSuccess(res, scoreComment, 'Comment created', 201);
     } catch (error) {
       return next(error);
@@ -72,7 +79,16 @@ export class CommentaryController {
 
       const id = getRequiredParam(req, 'id');
       const { comment, isPrivate } = req.body;
-      const updatedComment = await this.commentaryService.update(id, { comment, isPrivate }, req.user.id, req.user.role);
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
+      const updatedComment = await this.commentaryService.update(
+        id,
+        { comment, isPrivate },
+        req.user.id,
+        req.user.role,
+        timeoutMs,
+      );
       return sendSuccess(res, updatedComment, 'Comment updated');
     } catch (error) {
       return next(error);
@@ -87,7 +103,10 @@ export class CommentaryController {
       }
 
       const id = getRequiredParam(req, 'id');
-      await this.commentaryService.delete(id, req.user.id, req.user.role);
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
+      await this.commentaryService.delete(id, req.user.id, req.user.role, timeoutMs);
       return sendSuccess(res, null, 'Comment deleted');
     } catch (error) {
       return next(error);

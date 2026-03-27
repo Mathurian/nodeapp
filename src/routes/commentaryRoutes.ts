@@ -57,7 +57,7 @@ router.post("/scores", requireRole(["ADMIN", "JUDGE"]), idempotencyMiddleware, l
 router.post('/', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('CREATE_COMMENT', 'COMMENTARY'), createComment)
 router.get('/score/:scoreId', getCommentsForScore)
 router.put('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('UPDATE_COMMENT', 'COMMENTARY'), updateComment)
-router.delete('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), logActivity('DELETE_COMMENT', 'COMMENTARY'), deleteComment)
+router.delete('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('DELETE_COMMENT', 'COMMENTARY'), deleteComment)
 router.get('/contestant/:contestantId', getCommentsByContestant)
 
 export default router;

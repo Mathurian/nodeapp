@@ -76,17 +76,18 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const classification = classifyNetworkError(error)
+    error.networkClassification = classification
 
     // Handle 401 - redirect to login
     if (error.response?.status === 401) {
       const requestUrl = String(originalRequest?.url || '')
       const isProfileProbe = requestUrl.includes('/auth/profile')
+      const isRetryableAuthExpiry = classification.code === 'IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE'
       // On public pages and auth profile probing, unauthenticated 401 is expected
-      if (!isPublicPath(window.location.pathname) && !isProfileProbe) {
+      if (!isRetryableAuthExpiry && !isPublicPath(window.location.pathname) && !isProfileProbe) {
         window.location.href = buildTenantAwareLoginPath(window.location.pathname)
       }
-      const classification = classifyNetworkError(error)
-      error.networkClassification = classification
       return Promise.reject(error)
     }
 
@@ -117,9 +118,6 @@ api.interceptors.response.use(
         return Promise.reject(retryError)
       }
     }
-
-    const classification = classifyNetworkError(error)
-    error.networkClassification = classification
     return Promise.reject(error)
   }
 )

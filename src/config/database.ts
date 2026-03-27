@@ -11,6 +11,7 @@ import { setupQueryMonitoring } from '../middleware/queryMonitoring';
 import { getRequestContext } from '../middleware/correlationId';
 // S4-3: Import soft delete middleware
 import { registerSoftDeleteMiddleware } from '../middleware/prisma/softDelete';
+import { createQueryTimeoutMiddleware } from './queryTimeouts';
 
 const logger = createLogger('database');
 
@@ -46,6 +47,8 @@ const prismaClientSingleton = () => {
 
   // S4-3: Register soft delete middleware
   registerSoftDeleteMiddleware(client);
+
+  client.$use(createQueryTimeoutMiddleware());
 
   // Setup query performance monitoring
   setupQueryMonitoring(client);

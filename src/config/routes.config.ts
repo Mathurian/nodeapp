@@ -87,6 +87,7 @@ import permissionsRoutes from '../routes/permissionsRoutes'
 import scoreGovernanceRoutes from '../routes/scoreGovernanceRoutes'
 import databaseHealthRoutes from '../routes/databaseHealthRoutes'
 import monitoringRoutes from '../routes/monitoringRoutes'
+import telemetryRoutes from '../routes/telemetryRoutes'
 
 /**
  * Helper to register routes for both legacy and versioned paths
@@ -213,6 +214,7 @@ export const registerRoutes = (app: Application): void => {
   registerRoute(app, '/sms', smsRoutes);
   registerRoute(app, '/notifications', notificationsRoutes);
   registerRoute(app, '/notification-preferences', notificationPreferencesRoutes);
+  registerRoute(app, '/telemetry', telemetryRoutes);
 
   // Assignments and tracking
   registerRoute(app, '/assignments', assignmentsRoutes);

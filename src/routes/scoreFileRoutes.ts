@@ -83,8 +83,8 @@ router.use(authenticateToken);
 router.post(
   '/',
   requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
-  idempotencyMiddleware,
   scoreFileUpload.single('file'),
+  idempotencyMiddleware,
   logActivity('UPLOAD_SCORE_FILE', 'SCORE'),
   uploadScoreFile
 );

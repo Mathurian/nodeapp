@@ -2052,6 +2052,33 @@ model AuditorAssignment {
   @@map("auditor_assignments")
 }
 
+model IdempotencyRecord {
+  id             String               @id @default(cuid())
+  tenantId       String
+  actorType      IdempotencyActorType
+  actorId        String
+  method         String
+  path           String
+  canonicalPath  String
+  key            String
+  requestHash    String
+  status         IdempotencyStatus
+  statusCode     Int?
+  errorCode      String?
+  responseBody   Json?
+  digest         String?
+  expiresAt      DateTime
+  leaseExpiresAt DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  lastSeenAt     DateTime
+
+  @@unique([tenantId, actorType, actorId, method, canonicalPath, key], map: "uniq_idempotency_scope")
+  @@index([tenantId, expiresAt])
+  @@index([tenantId, status, updatedAt])
+  @@map("idempotency_records")
+}
+
 enum UserRole {
   SUPER_ADMIN
   ADMIN
@@ -2166,6 +2193,19 @@ enum EmailStatus {
 enum ScoringType {
   STRAIGHT  // Average all scores
   OLYMPIC   // Drop highest and lowest, then average
+}
+
+enum IdempotencyActorType {
+  USER
+  SERVICE
+  SYSTEM
+}
+
+enum IdempotencyStatus {
+  PENDING
+  COMPLETED
+  FAILED_RETRYABLE
+  FAILED_TERMINAL
 }
 
 // Feature Flags - Backlog Enhancement

@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
+import { clearOfflineMutationQueue } from '../services/offlineMutationQueue'
+import { clearOfflineSyncTelemetry } from '../services/offlineSyncTelemetry'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
 
 interface TenantInfo {
@@ -62,6 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
+  const previousSessionKeyRef = useRef<string | null | undefined>(undefined)
 
   const isAuthenticated = !!user
 
@@ -110,6 +113,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     initAuth()
   }, [])
+
+  useEffect(() => {
+    if (isLoading) {
+      return
+    }
+
+    const tenantId = user?.tenantId || user?.tenant?.id || null
+    const sessionKey = user ? `${user.id}:${tenantId || 'no-tenant'}` : null
+
+    if (previousSessionKeyRef.current === undefined) {
+      previousSessionKeyRef.current = sessionKey
+      return
+    }
+
+    if (previousSessionKeyRef.current !== sessionKey) {
+      void clearOfflineMutationQueue()
+      clearOfflineSyncTelemetry()
+    }
+
+    previousSessionKeyRef.current = sessionKey
+  }, [isLoading, user?.id, user?.tenantId, user?.tenant?.id])
 
   const login = async (email: string, password: string, tenantSlug?: string) => {
     try {

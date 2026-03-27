@@ -90,7 +90,7 @@ router.put('/:scoreId',
   logActivity('UPDATE_SCORE', 'SCORE'),
   updateScore
 )
-router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
+router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), idempotencyMiddleware, logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
 router.post('/:scoreId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), logActivity('CERTIFY_SCORE', 'SCORE'), certifyScore)
 router.post('/:scoreId/unsign', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UNSIGN_SCORE', 'SCORE'), unsignScore)
 

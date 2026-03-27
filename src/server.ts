@@ -39,6 +39,7 @@ import { getCsrfToken, csrfProtection, csrfErrorHandler } from './middleware/csr
 import { initMetrics, metricsMiddleware, metricsEndpoint } from './middleware/metrics';
 import { tenantMiddleware, TenantIdentifier } from './middleware/tenantMiddleware';
 import { authenticateToken } from './middleware/auth';
+import { offlineWriteOwnershipGuard } from './middleware/offlineWriteOwnershipGuard';
 // S4-2: Correlation ID middleware for request tracing
 import { correlationIdMiddleware, contextMiddleware } from './middleware/correlationId';
 
@@ -47,12 +48,21 @@ import { createLogger } from './utils/logger';
 import { validateProductionConfig } from './utils/config';
 import { ensureDefaultTenant } from './utils/ensureDefaultTenant';
 import { env } from './config/env';
+import {
+  getOfflineWriteOwnershipManifestState,
+  initializeOfflineWriteOwnershipManifest,
+} from './config/offlineWriteOwnership.config';
+import {
+  getOfflineReliabilityInvariantState,
+  initializeOfflineReliabilityInvariants,
+} from './config/offlineReliability.config';
 
 // Services
 import ScheduledBackupService from './services/scheduledBackupService';
 import { BusinessMetricsCollector } from './services/BusinessMetricsCollector';
 import { ServiceMonitor } from './services/ServiceMonitor';
 import { ActiveSessionTracker } from './services/ActiveSessionTracker';
+import { IdempotencyLifecycleService } from './services/idempotency/IdempotencyLifecycleService';
 import WorkflowSchedulerService from './services/workflowSchedulerService';
 import { SettingsService } from './services/SettingsService';
 import { container } from './config/container';
@@ -101,6 +111,7 @@ const workflowSchedulerService = new WorkflowSchedulerService();
 let businessMetricsCollector: BusinessMetricsCollector | null = null;
 let serviceMonitor: ServiceMonitor | null = null;
 let activeSessionTracker: ActiveSessionTracker | null = null;
+let idempotencyLifecycleService: IdempotencyLifecycleService | null = null;
 
 /**
  * Parse and configure CORS origins
@@ -172,11 +183,23 @@ app.get('/metrics', metricsEndpoint);
 app.get('/health', async (_req: Request, res: Response) => {
   try {
     const dbHealthy = await testDatabaseConnection();
+    const manifestState = getOfflineWriteOwnershipManifestState();
+    const invariantState = getOfflineReliabilityInvariantState();
+    const overallStatus =
+      dbHealthy && manifestState.valid && invariantState.valid ? 'OK' : 'DEGRADED';
     res.json({
-      status: dbHealthy ? 'OK' : 'DEGRADED',
+      status: overallStatus,
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: dbHealthy ? 'connected' : 'disconnected',
+      offlineWriteManifest: {
+        initialized: manifestState.initialized,
+        valid: manifestState.valid,
+        usingFallback: manifestState.usingFallback,
+        reason: manifestState.reason,
+        version: manifestState.version,
+      },
+      offlineReliabilityInvariants: invariantState,
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -358,6 +381,13 @@ app.use('/api', tenantMiddleware);
  * so that req.tenantId and req.user are available in context
  */
 app.use('/api', contextMiddleware);
+
+/**
+ * Covered write-route safety gate.
+ * When manifest verification fails in non-strict mode, only matrix-covered writes
+ * are blocked; unrelated routes remain available.
+ */
+app.use('/api', offlineWriteOwnershipGuard);
 
 /**
  * Enhanced rate limiting with tenant-aware tiered limits
@@ -668,6 +698,9 @@ app.use(errorHandler);
  */
 const startServer = async (): Promise<void> => {
   try {
+    await initializeOfflineWriteOwnershipManifest();
+    initializeOfflineReliabilityInvariants();
+
     // Test database connection
     const dbConnected = await testDatabaseConnection();
     if (!dbConnected) {
@@ -732,6 +765,15 @@ const startServer = async (): Promise<void> => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         appLogger.error('Failed to start active session tracker', { error: errorMessage });
       }
+
+      try {
+        idempotencyLifecycleService = container.resolve(IdempotencyLifecycleService);
+        idempotencyLifecycleService.start();
+        appLogger.info('Idempotency lifecycle service started');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        appLogger.error('Failed to start idempotency lifecycle service', { error: errorMessage });
+      }
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -774,6 +816,11 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
     if (activeSessionTracker) {
       activeSessionTracker.stop();
       appLogger.info('Active session tracker stopped');
+    }
+
+    if (idempotencyLifecycleService) {
+      idempotencyLifecycleService.stop();
+      appLogger.info('Idempotency lifecycle service stopped');
     }
 
     // Close database connections

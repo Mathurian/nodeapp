@@ -2,6 +2,10 @@ import { apiClient } from './api'
 import { executeWithRetry, DEFAULT_MUTATION_RETRY_POLICY } from './retryExecutor'
 import { classifyNetworkError } from './networkErrorClassifier'
 import { listQueuedMutations, markMutationSuccess, queueMetrics, rescheduleMutation } from './offlineMutationQueue'
+import { matchOfflineWriteOwnership } from '../config/offlineWriteOwnership.manifest'
+import { flushOfflineSyncTelemetry, recordOfflineSyncTelemetryEvent } from './offlineSyncTelemetry'
+
+const APP_QUEUE_SOURCE_HEADER = 'X-Queue-Source'
 
 export interface OfflineSyncMetrics {
   queuedCount: number
@@ -23,6 +27,13 @@ const emitMetrics = async (syncingCount = 0) => {
 }
 
 const replaySingleMutation = async (record: Awaited<ReturnType<typeof listQueuedMutations>>[number]): Promise<void> => {
+  const ownership = matchOfflineWriteOwnership(record.method, record.endpoint)
+  if (!ownership || ownership.queueOwner !== 'app') {
+    await recordOfflineSyncTelemetryEvent(record.method, record.endpoint, 'dropped', 'app', null)
+    await markMutationSuccess(record.id)
+    return
+  }
+
   try {
     await executeWithRetry(
       async () => {
@@ -30,20 +41,34 @@ const replaySingleMutation = async (record: Awaited<ReturnType<typeof listQueued
           url: record.endpoint,
           method: record.method,
           data: record.payload,
-          headers: record.headers,
+          headers: {
+            ...record.headers,
+            [APP_QUEUE_SOURCE_HEADER]: 'app',
+          },
         })
       },
       DEFAULT_MUTATION_RETRY_POLICY,
     )
 
     await markMutationSuccess(record.id)
+    await recordOfflineSyncTelemetryEvent(record.method, record.endpoint, 'replay_success', 'app', null)
   } catch (error) {
     const cls = classifyNetworkError(error)
-    const delayMs = Math.min(2 ** Math.max(record.attemptCount, 0) * 1000, 60_000)
+    const permanentFailure = record.attemptCount + 1 >= MAX_REPLAY_FAILURES || !cls.retryable
+    const delayMs = cls.retryAfterMs
+      ? Math.max(1_000, cls.retryAfterMs)
+      : Math.min(2 ** Math.max(record.attemptCount, 0) * 1000, 60_000)
     await rescheduleMutation(record.id, cls.message, delayMs)
-    if (record.attemptCount + 1 >= MAX_REPLAY_FAILURES || !cls.retryable) {
+    if (permanentFailure) {
       await rescheduleMutation(record.id, `Permanent failure: ${cls.message}`, 24 * 60 * 60 * 1000)
     }
+    await recordOfflineSyncTelemetryEvent(
+      record.method,
+      record.endpoint,
+      permanentFailure ? 'replay_permanent_failure' : 'replay_retry',
+      'app',
+      cls,
+    )
     throw error
   }
 }
@@ -75,11 +100,13 @@ export const startOfflineSyncOrchestrator = (listener: MetricsListener): (() => 
   listeners.push(listener)
 
   const handleOnline = () => {
+    void flushOfflineSyncTelemetry()
     void runOfflineSyncOnce()
   }
 
   const handleVisibility = () => {
     if (document.visibilityState === 'visible') {
+      void flushOfflineSyncTelemetry()
       void runOfflineSyncOnce()
     }
   }
@@ -88,10 +115,12 @@ export const startOfflineSyncOrchestrator = (listener: MetricsListener): (() => 
   document.addEventListener('visibilitychange', handleVisibility)
 
   heartbeatHandle = window.setInterval(() => {
+    void flushOfflineSyncTelemetry()
     void runOfflineSyncOnce()
   }, 20_000)
 
   void emitMetrics(0)
+  void flushOfflineSyncTelemetry()
   void runOfflineSyncOnce()
 
   return () => {

@@ -11,6 +11,10 @@ import { createRequestLogger } from '../utils/logger';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getRequiredParam } from '../utils/routeHelpers';
+import {
+  getOfflineWriteTimeoutMs,
+  matchOfflineWriteOwnershipRoute,
+} from '../config/offlineWriteOwnership.config';
 
 export class ScoreFileController {
   private scoreFileService: ScoreFileService;
@@ -47,6 +51,9 @@ export class ScoreFileController {
       }
 
       const relativeFilePath = path.relative(process.cwd(), req.file.path);
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
       const contextMetadata = {
         contextType: criterionId ? 'CRITERION_COMMENT' : (contestantId ? 'CONTESTANT' : 'CATEGORY'),
         criterionId: criterionId || null,
@@ -65,7 +72,8 @@ export class ScoreFileController {
           notes: JSON.stringify(contextMetadata),
           tenantId: req.user.tenantId
         },
-        req.user.id
+        req.user.id,
+        timeoutMs,
       );
 
       log.info('Score file uploaded', { categoryId, judgeId, fileId: scoreFile.id });
@@ -225,7 +233,10 @@ export class ScoreFileController {
         req.user.tenantId,
         { status, notes },
         req.user.id,
-        req.user.role
+        req.user.role,
+        getOfflineWriteTimeoutMs(
+          matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+        ),
       );
 
       log.info('Score file updated', { id });
@@ -252,7 +263,10 @@ export class ScoreFileController {
         id,
         req.user.tenantId,
         req.user.id,
-        req.user.role
+        req.user.role,
+        getOfflineWriteTimeoutMs(
+          matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+        ),
       );
 
       log.info('Score file deleted', { id });

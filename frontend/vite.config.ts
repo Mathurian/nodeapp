@@ -2,6 +2,29 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { getWorkboxOwnedRoutes } from './src/config/offlineWriteOwnership.manifest'
+
+const buildWorkboxUrlPattern = (matchExpression: string): RegExp => {
+  const stripped = matchExpression.replace(/^\^/, '').replace(/\$$/, '')
+  return new RegExp(`\\/api(?:\\/v\\d+)?${stripped}$`, 'i')
+}
+
+const buildWorkboxRuntimeCaching = () =>
+  getWorkboxOwnedRoutes().map((route) => ({
+    urlPattern: buildWorkboxUrlPattern(route.matchExpression),
+    handler: 'NetworkOnly' as const,
+    method: route.method,
+    options: route.backgroundSync
+      ? {
+          backgroundSync: {
+            name: route.backgroundSync.queueName,
+            options: {
+              maxRetentionTime: route.backgroundSync.maxRetentionMinutes,
+            },
+          },
+        }
+      : undefined,
+  }))
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -84,32 +107,7 @@ export default defineConfig({
           /^\/cdn-cgi\//
         ],
         runtimeCaching: [
-          {
-            urlPattern: /\/api\/v1\/(scoring|commentary|score-files)(\/.*)?$/i,
-            handler: 'NetworkOnly',
-            method: 'POST',
-            options: {
-              backgroundSync: {
-                name: 'scoring-write-queue',
-                options: {
-                  maxRetentionTime: 24 * 60,
-                }
-              }
-            }
-          },
-          {
-            urlPattern: /\/api\/v1\/(scoring|commentary|score-files)(\/.*)?$/i,
-            handler: 'NetworkOnly',
-            method: 'PUT',
-            options: {
-              backgroundSync: {
-                name: 'scoring-write-queue',
-                options: {
-                  maxRetentionTime: 24 * 60,
-                }
-              }
-            }
-          },
+          ...buildWorkboxRuntimeCaching(),
           {
             urlPattern: /^https:\/\/api\..*/i,
             handler: 'NetworkFirst',

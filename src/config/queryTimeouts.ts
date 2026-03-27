@@ -17,7 +17,9 @@ export const QUERY_TIMEOUTS = {
 
 /**
  * Query timeout middleware
- * Automatically cancels queries that exceed configured timeout
+ * Observability-only timing middleware.
+ * Real write cancellation should be enforced with transaction-scoped
+ * statement_timeout helpers rather than Promise.race timeouts.
  */
 export function createQueryTimeoutMiddleware(defaultTimeout = QUERY_TIMEOUTS.standard): Prisma.Middleware {
   return async (params, next) => {
@@ -35,30 +37,11 @@ export function createQueryTimeoutMiddleware(defaultTimeout = QUERY_TIMEOUTS.sta
       timeout = QUERY_TIMEOUTS.simple;
     }
 
-    // Create timeout promise
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        const duration = Date.now() - startTime;
-        logger.error('Query timeout exceeded', {
-          model: params.model,
-          action: params.action,
-          timeout,
-          duration,
-        });
-        reject(new Error(`Query timeout: ${params.model}.${params.action} exceeded ${timeout}ms`));
-      }, timeout);
-    });
-
-    // Race between query and timeout
     try {
-      const result = await Promise.race([
-        next(params),
-        timeoutPromise,
-      ]);
+      const result = await next(params);
 
       const duration = Date.now() - startTime;
 
-      // Log slow queries (>50% of timeout)
       if (duration > timeout * 0.5) {
         logger.warn('Slow query detected', {
           model: params.model,
@@ -69,12 +52,23 @@ export function createQueryTimeoutMiddleware(defaultTimeout = QUERY_TIMEOUTS.sta
         });
       }
 
+      if (duration > timeout) {
+        logger.error('Query duration exceeded configured threshold', {
+          model: params.model,
+          action: params.action,
+          timeout,
+          duration,
+        });
+      }
+
       return result;
     } catch (error) {
-      // Log and re-throw
+      const duration = Date.now() - startTime;
       logger.error('Query error', {
         model: params.model,
         action: params.action,
+        timeout,
+        duration,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;

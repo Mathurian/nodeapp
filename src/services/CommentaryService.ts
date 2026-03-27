@@ -1,6 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
+import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
 
 // P2-4: Proper type definitions for commentary responses
 type ScoreCommentWithJudge = Prisma.ScoreCommentGetPayload<{
@@ -80,7 +82,10 @@ export class CommentaryService extends BaseService {
     super();
   }
 
-  async create(data: CreateCommentDto): Promise<ScoreCommentWithJudge> {
+  async create(
+    data: CreateCommentDto,
+    timeoutMs: number = QUERY_TIMEOUTS.standard,
+  ): Promise<ScoreCommentWithJudge> {
     if (!data.scoreId || !data.criterionId || !data.contestantId || !data.comment) {
       throw this.badRequestError('Score ID, criterion ID, contestant ID, and comment are required');
     }
@@ -95,25 +100,30 @@ export class CommentaryService extends BaseService {
       throw this.notFoundError('Score', data.scoreId);
     }
 
-    return await this.prisma.scoreComment.create({
-      data: {
-        tenantId: score.tenantId,
-        scoreId: data.scoreId,
-        criterionId: data.criterionId,
-        contestantId: data.contestantId,
-        judgeId: data.judgeId,
-        comment: data.comment,
-        isPrivate: data.isPrivate || false
-      },
-      include: {
-        judge: {
-          select: {
-            name: true,
-            email: true
+    return await withMutationTimeoutTx(
+      async (tx) =>
+        await tx.scoreComment.create({
+          data: {
+            tenantId: score.tenantId,
+            scoreId: data.scoreId,
+            criterionId: data.criterionId,
+            contestantId: data.contestantId,
+            judgeId: data.judgeId,
+            comment: data.comment,
+            isPrivate: data.isPrivate || false
+          },
+          include: {
+            judge: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
           }
-        }
-      }
-    });
+        }),
+      timeoutMs,
+      this.prisma,
+    );
   }
 
   async getCommentsForScore(scoreId: string, userRole: string): Promise<ScoreCommentWithDetails[]> {
@@ -185,7 +195,13 @@ export class CommentaryService extends BaseService {
     }) as ScoreCommentWithFullDetails[];
   }
 
-  async update(id: string, data: UpdateCommentDto, userId: string, userRole: string): Promise<ScoreCommentWithJudge> {
+  async update(
+    id: string,
+    data: UpdateCommentDto,
+    userId: string,
+    userRole: string,
+    timeoutMs: number = QUERY_TIMEOUTS.standard,
+  ): Promise<ScoreCommentWithJudge> {
     const existingComment = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
@@ -198,24 +214,34 @@ export class CommentaryService extends BaseService {
       throw this.forbiddenError('Insufficient permissions to update this comment');
     }
 
-    return await this.prisma.scoreComment.update({
-      where: { id },
-      data: {
-        ...(data.comment !== undefined && { comment: data.comment }),
-        ...(data.isPrivate !== undefined && { isPrivate: data.isPrivate })
-      },
-      include: {
-        judge: {
-          select: {
-            name: true,
-            email: true
+    return await withMutationTimeoutTx(
+      async (tx) =>
+        await tx.scoreComment.update({
+          where: { id },
+          data: {
+            ...(data.comment !== undefined && { comment: data.comment }),
+            ...(data.isPrivate !== undefined && { isPrivate: data.isPrivate })
+          },
+          include: {
+            judge: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
           }
-        }
-      }
-    });
+        }),
+      timeoutMs,
+      this.prisma,
+    );
   }
 
-  async delete(id: string, userId: string, userRole: string): Promise<void> {
+  async delete(
+    id: string,
+    userId: string,
+    userRole: string,
+    timeoutMs: number = QUERY_TIMEOUTS.standard,
+  ): Promise<void> {
     const existingComment = await this.prisma.scoreComment.findUnique({
       where: { id }
     });
@@ -228,8 +254,14 @@ export class CommentaryService extends BaseService {
       throw this.forbiddenError('Insufficient permissions to delete this comment');
     }
 
-    await this.prisma.scoreComment.delete({
-      where: { id }
-    });
+    await withMutationTimeoutTx(
+      async (tx) => {
+        await tx.scoreComment.delete({
+          where: { id }
+        });
+      },
+      timeoutMs,
+      this.prisma,
+    );
   }
 }

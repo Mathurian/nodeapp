@@ -8,6 +8,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, ForbiddenError, ConflictError } from './BaseService';
 import { ScoreRepository } from '../repositories/ScoreRepository';
 import { CacheService } from './CacheService';
+import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
+import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
 
 // P2-4: Proper type definitions for score responses
 type ScoreWithRelations = Prisma.ScoreGetPayload<{
@@ -239,7 +241,12 @@ export class ScoringService extends BaseService {
   /**
    * Submit a score
    */
-  async submitScore(data: SubmitScoreDTO, userId: string, tenantId: string): Promise<ScoreWithRelations> {
+  async submitScore(
+    data: SubmitScoreDTO,
+    userId: string,
+    tenantId: string,
+    timeoutMs: number = QUERY_TIMEOUTS.standard,
+  ): Promise<ScoreWithRelations> {
     try {
       const { categoryId, contestantId, criteriaId, score, comments } = data;
 
@@ -350,19 +357,24 @@ export class ScoringService extends BaseService {
       // P2-2 OPTIMIZATION: Selective field loading
       let newScore: ScoreWithRelations;
       try {
-        newScore = await this.prisma.score.create({
-          data: {
-            categoryId,
-            contestantId,
-            criterionId: criteriaId || null,
-            judgeId,
-            score: numericScore,
-            tenantId,
-            certifiedAt: null,
-            certifiedBy: null
-          },
-          select: SCORE_WITH_RELATIONS_SELECT,
-        }) as ScoreWithRelations;
+        newScore = await withMutationTimeoutTx(
+          async (tx) =>
+            await tx.score.create({
+              data: {
+                categoryId,
+                contestantId,
+                criterionId: criteriaId || null,
+                judgeId,
+                score: numericScore,
+                tenantId,
+                certifiedAt: null,
+                certifiedBy: null
+              },
+              select: SCORE_WITH_RELATIONS_SELECT,
+            }) as ScoreWithRelations,
+          timeoutMs,
+          this.prisma,
+        );
       } catch (error: any) {
         // P2002 is Prisma's unique constraint violation error
         if (error.code === 'P2002') {

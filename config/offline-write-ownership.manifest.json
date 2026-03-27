@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "routes": [
+    {
+      "id": "scoring-submit",
+      "method": "POST",
+      "pattern": "/scoring/category/:categoryId/contestant/:contestantId",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "scoring-update",
+      "method": "PUT",
+      "pattern": "/scoring/:scoreId",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "scoring-delete",
+      "method": "DELETE",
+      "pattern": "/scoring/:scoreId",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "commentary-create",
+      "method": "POST",
+      "pattern": "/commentary",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "commentary-score-create",
+      "method": "POST",
+      "pattern": "/commentary/scores",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "commentary-update",
+      "method": "PUT",
+      "pattern": "/commentary/:id",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "commentary-delete",
+      "method": "DELETE",
+      "pattern": "/commentary/:id",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation"
+    },
+    {
+      "id": "score-files-upload",
+      "method": "POST",
+      "pattern": "/score-files",
+      "queueOwner": "sw",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "upload",
+      "backgroundSync": {
+        "queueName": "score-file-write-queue",
+        "maxRetentionMinutes": 1440
+      }
+    },
+    {
+      "id": "score-files-update",
+      "method": "PATCH",
+      "pattern": "/score-files/:id",
+      "queueOwner": "sw",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "upload",
+      "backgroundSync": {
+        "queueName": "score-file-write-queue",
+        "maxRetentionMinutes": 1440
+      }
+    },
+    {
+      "id": "score-files-delete",
+      "method": "DELETE",
+      "pattern": "/score-files/:id",
+      "queueOwner": "none",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "upload"
+    }
+  ]
+}

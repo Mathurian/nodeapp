@@ -61,7 +61,8 @@ const TENANT_SCOPED_MODELS = new Set([
   // Missing tenant-scoped models discovered in schema parity review
   'activityLog', 'certification', 'errorLog', 'eventLog',
   'rolePermission', 'permissionAuditLog',
-  'scoreGovernanceRequest', 'scoreGovernanceApproval'
+  'scoreGovernanceRequest', 'scoreGovernanceApproval',
+  'idempotencyRecord'
 ].map(model => model.toLowerCase()));
 
 /**

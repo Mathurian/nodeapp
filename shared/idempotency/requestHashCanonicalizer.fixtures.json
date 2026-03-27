@@ -1,0 +1,14 @@
+[
+  {
+    "name": "stable-json-ordering",
+    "input": {
+      "method": "POST",
+      "canonicalPath": "/commentary",
+      "body": {
+        "b": 2,
+        "a": 1
+      }
+    },
+    "serialized": "{\"method\":\"POST\",\"canonicalPath\":\"/commentary\",\"params\":{},\"query\":{},\"body\":{\"a\":1,\"b\":2},\"files\":null}"
+  }
+]

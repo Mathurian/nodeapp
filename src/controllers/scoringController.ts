@@ -25,6 +25,11 @@ import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } fr
 import { resolveBioFromCandidates } from '../utils/bioResolver';
 import { applyCertificationStage, refreshJudgeStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 import { resolveRequestTenantId } from '../utils/tenantContext';
+import {
+  getOfflineWriteTimeoutMs,
+  matchOfflineWriteOwnershipRoute,
+} from '../config/offlineWriteOwnership.config';
+import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -147,7 +152,10 @@ export class ScoringController {
         sendBadRequest(res, 'Tenant context is required');
         return;
       }
-      const newScore = await this.scoringService.submitScore(data, req.user.id, tenantId);
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
+      const newScore = await this.scoringService.submitScore(data, req.user.id, tenantId, timeoutMs);
 
       log.info('Score submitted successfully', { scoreId: newScore.id });
 
@@ -241,13 +249,22 @@ export class ScoringController {
 
       // Comments are editable regardless of certification/lock status.
       if (isCommentOnlyUpdate) {
-        await this.prisma.score.update({
-          where: { id: scoreId },
-          data: {
-            comment: data.comments,
-            updatedAt: new Date()
-          }
-        });
+        const timeoutMs = getOfflineWriteTimeoutMs(
+          matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+        );
+        await withMutationTimeoutTx(
+          async (tx) => {
+            await tx.score.update({
+              where: { id: scoreId },
+              data: {
+                comment: data.comments,
+                updatedAt: new Date()
+              }
+            });
+          },
+          timeoutMs,
+          this.prisma,
+        );
 
         const updatedScore = await this.prisma.score.findUnique({
           where: { id: scoreId },
@@ -324,14 +341,22 @@ export class ScoringController {
       }
 
       // Atomic update: all checks happen in the database query
-      const updateResult = await this.prisma.score.updateMany({
-        where: whereConditions,
-        data: {
-          score: data.score,
-          ...(data.comments !== undefined && { comment: data.comments }),
-          updatedAt: new Date()
-        }
-      });
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
+      const updateResult = await withMutationTimeoutTx(
+        async (tx) =>
+          await tx.score.updateMany({
+            where: whereConditions,
+            data: {
+              score: data.score,
+              ...(data.comments !== undefined && { comment: data.comments }),
+              updatedAt: new Date()
+            }
+          }),
+        timeoutMs,
+        this.prisma,
+      );
 
       // If no rows were updated, determine the specific reason
       if (updateResult.count === 0) {
@@ -470,9 +495,17 @@ export class ScoringController {
       }
 
       // Atomic delete: all checks happen in the database query
-      const deleteResult = await this.prisma.score.deleteMany({
-        where: whereConditions
-      });
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
+      const deleteResult = await withMutationTimeoutTx(
+        async (tx) =>
+          await tx.score.deleteMany({
+            where: whereConditions
+          }),
+        timeoutMs,
+        this.prisma,
+      );
 
       // If no rows were deleted, determine the specific reason
       if (deleteResult.count === 0) {

@@ -12,6 +12,8 @@ import { executeWithRetry } from '../services/retryExecutor'
 import { classifyNetworkError } from '../services/networkErrorClassifier'
 import { enqueueMutation } from '../services/offlineMutationQueue'
 import { startOfflineSyncOrchestrator } from '../services/offlineSyncOrchestrator'
+import { matchOfflineWriteOwnership } from '../config/offlineWriteOwnership.manifest'
+import { recordOfflineSyncTelemetryEvent } from '../services/offlineSyncTelemetry'
 import { appendDocxPreviewQuery, inferFileNameFromPath, isDocxFile, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   TrophyIcon,
@@ -279,7 +281,12 @@ const ScoringPage: React.FC = () => {
       return
     } catch (error) {
       const classification = classifyNetworkError(error)
-      if (OFFLINE_MUTATION_QUEUE_ENABLED && classification.retryable) {
+      const ownership = matchOfflineWriteOwnership(method, endpoint)
+      if (
+        OFFLINE_MUTATION_QUEUE_ENABLED &&
+        classification.retryable &&
+        ownership?.queueOwner === 'app'
+      ) {
         await enqueueMutation({
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           endpoint,
@@ -289,6 +296,7 @@ const ScoringPage: React.FC = () => {
           idempotencyKey,
           entityKey,
         })
+        void recordOfflineSyncTelemetryEvent(method, endpoint, 'enqueued', 'app', classification)
         setSaveStatus('queued')
         toast('Saved offline. Will sync automatically.')
         return

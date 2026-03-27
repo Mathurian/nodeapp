@@ -28,6 +28,12 @@ export class MetricsService {
   private requestsWithCorrelationId: Counter<string>;
   // Tenant segregation violation tracking
   private tenantSegregationViolations: Counter<string>;
+  private offlineSyncTelemetryEvents: Counter<string>;
+  private offlineSyncTelemetryBatches: Counter<string>;
+  private idempotencyReservations: Counter<string>;
+  private idempotencyFinalizations: Counter<string>;
+  private idempotencyCleanupRuns: Counter<string>;
+  private idempotencyCleanupRows: Counter<string>;
   // Test execution metrics
   private testRunsTotal: Counter<string>;
   private testPassTotal: Counter<string>;
@@ -165,6 +171,48 @@ export class MetricsService {
       name: 'tenant_segregation_violations_total',
       help: 'Total number of tenant segregation policy violations or denials',
       labelNames: ['code', 'layer', 'mode', 'outcome'],
+      registers: [this.register],
+    });
+
+    this.offlineSyncTelemetryEvents = new Counter({
+      name: 'offline_sync_telemetry_events_total',
+      help: 'Total number of accepted offline-sync telemetry events',
+      labelNames: ['queue_source', 'operation', 'result', 'network_state', 'status_bucket'],
+      registers: [this.register],
+    });
+
+    this.offlineSyncTelemetryBatches = new Counter({
+      name: 'offline_sync_telemetry_batches_total',
+      help: 'Total number of offline-sync telemetry ingest batches',
+      labelNames: ['outcome'],
+      registers: [this.register],
+    });
+
+    this.idempotencyReservations = new Counter({
+      name: 'idempotency_reservations_total',
+      help: 'Total number of idempotency reservation attempts by outcome',
+      labelNames: ['outcome'],
+      registers: [this.register],
+    });
+
+    this.idempotencyFinalizations = new Counter({
+      name: 'idempotency_finalizations_total',
+      help: 'Total number of idempotency finalization transitions by resulting status',
+      labelNames: ['status'],
+      registers: [this.register],
+    });
+
+    this.idempotencyCleanupRuns = new Counter({
+      name: 'idempotency_cleanup_runs_total',
+      help: 'Total number of idempotency cleanup run attempts by outcome',
+      labelNames: ['outcome'],
+      registers: [this.register],
+    });
+
+    this.idempotencyCleanupRows = new Counter({
+      name: 'idempotency_cleanup_rows_total',
+      help: 'Total number of idempotency lifecycle rows processed by operation',
+      labelNames: ['operation'],
       registers: [this.register],
     });
 
@@ -480,6 +528,58 @@ export class MetricsService {
       mode,
       outcome,
     });
+  }
+
+  recordOfflineSyncTelemetryEvent(
+    queueSource: 'app' | 'sw',
+    operation: string,
+    result: 'enqueued' | 'replay_success' | 'replay_retry' | 'replay_permanent_failure' | 'dropped',
+    networkState: 'online' | 'offline' | 'unknown',
+    statusBucket: '2xx' | '4xx' | '429' | '5xx' | 'timeout' | 'network_error'
+  ): void {
+    this.offlineSyncTelemetryEvents.inc({
+      queue_source: queueSource,
+      operation,
+      result,
+      network_state: networkState,
+      status_bucket: statusBucket,
+    });
+  }
+
+  recordOfflineSyncTelemetryBatch(
+    outcome: 'accepted' | 'accepted_with_duplicates' | 'rejected',
+    count: number,
+  ): void {
+    this.offlineSyncTelemetryBatches.inc({ outcome }, count);
+  }
+
+  recordIdempotencyReservation(
+    outcome: 'created' | 'reused' | 'failed',
+  ): void {
+    this.idempotencyReservations.inc({ outcome });
+  }
+
+  recordIdempotencyFinalization(
+    status: 'PENDING' | 'COMPLETED' | 'FAILED_RETRYABLE' | 'FAILED_TERMINAL',
+  ): void {
+    this.idempotencyFinalizations.inc({ status });
+  }
+
+  recordIdempotencyCleanupRun(
+    outcome: 'success' | 'lock_skipped' | 'failed',
+  ): void {
+    this.idempotencyCleanupRuns.inc({ outcome });
+  }
+
+  recordIdempotencyCleanupRows(
+    operation: 'expired_delete',
+    count: number,
+  ): void {
+    if (count <= 0) {
+      return;
+    }
+
+    this.idempotencyCleanupRows.inc({ operation }, count);
   }
 
   /**
