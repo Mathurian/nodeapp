@@ -53,7 +53,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - client compatibility matrix (by client version/integration) gates progression from soft-fail to hard-fail phases.
    - migration payload examples must include both canonical and legacy alias fields during compatibility windows, with explicit alias removal dates.
 8. Idempotency key abuse resistance is mandatory:
-   - enforce strict `x-idempotency-key` validation (allowed charset, min/max length, normalization rules) with deterministic invalid-key error code.
+   - enforce strict `x-idempotency-key` validation (allowed charset, min/max length, transport decoding) with deterministic invalid-key error code.
+   - validation is parse/accept-reject only: do not apply semantic normalization (no trim/case-fold/rewrite) after decode, so key identity remains byte-stable.
    - publish client-generation guidance (UUIDv4 or equivalent high-entropy keys) and prohibit low-entropy/reused keys.
    - apply per-tenant/per-actor request and in-flight pending-reservation limits to prevent storage exhaustion and hot-partition abuse.
    - require safe logging policy (never log raw idempotency keys in plaintext; use hashed/truncated forms for diagnostics).
@@ -135,7 +136,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
-   - reject invalid idempotency keys before store lookup using canonical validation rules (format, length, charset); return deterministic non-retryable error code.
+   - reject invalid idempotency keys before store lookup using canonical validation rules (format, length, charset, decode validity); return deterministic non-retryable error code.
+   - key handling is validation-only and byte-stable after decode; no semantic normalization/transformation is allowed.
    - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend from a single shared implementation artifact (not duplicated logic): stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
@@ -253,6 +255,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - packaging/runtime contract is explicit:
      - backend runtime reads packaged `config/offline-write-ownership.manifest.json` from deploy artifact (not from source checkout assumptions).
      - startup fail-fast in strict mode if source manifest missing/invalid/version-mismatched; non-strict mode serves writes disabled for covered routes and emits critical alerts.
+     - non-strict mode uses scoped protection controls to limit blast radius:
+       - disable only matrix-covered write routes that cannot be safely owned, keep unrelated read routes and non-covered writes available.
+       - expose an explicit operator kill-switch to force strict fail-fast if partial availability is not acceptable for the environment.
+       - require an incident runbook with 15-minute recovery target for manifest restore/regeneration, plus rollback path to last known-good manifest artifact.
      - frontend projections embed the same manifest version/hash as backend source; startup diagnostics verify parity.
    - if endpoint belongs to app-queue domain, Workbox must not enqueue it
    - if endpoint belongs to Workbox domain, app queue must not enqueue it
@@ -397,6 +403,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/config/database.ts`
    - `src/config/queryTimeouts.ts`
    - `src/utils/dbMutationTimeout.ts` (or equivalent wrapped execution module for non-Prisma write paths)
+   - `src/security/replayPayloadCrypto.ts` (envelope encryption/decryption helper for replay payload persistence)
+   - `src/config/replayPayloadCrypto.ts` (key provider wiring, key versioning, rotation policy controls)
    - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers plus `Retry-After` exposure)
    - `src/middleware/errorHandler.ts`
    - telemetry route/controller/service files
@@ -414,6 +422,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - backend unit/integration additions for idempotency and timeout
    - frontend tests for queue/orchestrator/retry behavior
    - configuration invariant tests for TTL alignment and source/projection manifest parity
+   - replay-payload encryption tests: encrypt/decrypt correctness, key-version tagging, and dual-read/single-write rotation compatibility
+   - manifest degraded-mode tests: scoped route disablement behavior and strict-mode kill-switch enforcement
 6. Documentation:
    - update checklist status
    - add rollout and rollback runbook details
@@ -425,6 +435,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - publish migration rollback runbook for `IdempotencyRecord` expand/backfill/contract lifecycle and abort thresholds
    - document phase-promotion gate metrics, approval owners, and runbook recording requirements
    - document idempotency-key validation/abuse controls, offline-queue storage security posture, and error-budget freeze/override policy
+   - document replay-payload encryption key lifecycle (generation, storage, rotation cadence, revocation, breakglass recovery)
+   - document manifest incident response for non-strict degraded mode, scoped kill-switch usage, and recovery/rollback timelines
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
@@ -445,7 +457,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - sync delay breaches: p95 > 180s for 30 continuous minutes
    - sustained queue-depth breach: global queued count > 5000 for 15 continuous minutes
    - telemetry drop-rate >= 5% for 15 continuous minutes
-9. Error-budget governance is defined and enforced:
+9. Security robustness gates are met before release:
+   - replay-payload encryption-at-rest is enabled for all allowlisted payload-persistence routes.
+   - at least one key-rotation drill (dual-read/single-write path) passes in non-prod with documented evidence.
+   - manifest degraded-mode recovery drill meets runbook target and operator kill-switch behavior is verified.
+10. Error-budget governance is defined and enforced:
    - fast- and slow-burn calculations are published for core reliability SLOs.
    - any burn-rate breach blocks phase promotion until stabilization criteria are met.
    - override path requires documented risk acceptance and owner approvals in rollout changelog.
