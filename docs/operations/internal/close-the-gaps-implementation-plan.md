@@ -63,6 +63,18 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - queued payloads store only required mutation fields; tokens/secrets are prohibited.
    - queue purge triggers are explicit (logout/session switch/tenant switch/max age expiry).
    - shared-device risk posture and optional at-rest encryption requirements are documented for sensitive deployments.
+10. Manifest signing key custody must follow supply-chain security best practices:
+   - signing private keys are non-exportable and hosted in KMS/HSM-backed systems (no plaintext key material on CI runners or release hosts).
+   - signing operations are executed only in trusted CI/release identity boundaries (OIDC/service identity), never from developer workstations.
+   - trust-store policy must support key rotation + revocation and block unsigned or untrusted-key signatures at startup.
+11. Durable store scalability and lifecycle controls are mandatory:
+   - idempotency persistence and telemetry ingest must include explicit capacity SLOs, load-test gates, and storage growth/bloat controls.
+   - retention and cleanup policies must be coupled with operational thresholds (row growth, cleanup lag, index bloat) and automated alerts.
+   - schema/runtime strategy must include long-horizon scale controls (partitioning/archival strategy and vacuum/analyze policy).
+12. Replay-payload encryption key custody must match signing-key rigor:
+   - replay-payload encryption keys are non-exportable and hosted in KMS/HSM-backed systems (no plaintext key material on app hosts, CI runners, or release hosts).
+   - encryption/decryption operations use trusted runtime identities and key-versioned provider APIs; workstation-managed keys are prohibited.
+   - rotation, revocation, and breakglass recovery procedures are documented and tested before any payload-persistence allowlist is enabled.
 
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
@@ -80,6 +92,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - service credential/job token: `actorType='SERVICE'`, `actorId=<serviceName|clientId>`
      - internal/system path: `actorType='SYSTEM'`, `actorId='internal'`
    - `actorType`/`actorId` are non-null for all new writes; legacy null records are migrated before enforcement.
+   - canonical path migration safety:
+     - legacy rows must be backfilled with `canonicalPath` using the versioned shared `routeCanonicalizer`.
+     - pre-constraint uniqueness audit is required on `(tenantId, actorType, actorId, method, canonicalPath, key)`.
+     - canonicalization-induced collisions must be resolved deterministically and archived before enforcing uniqueness.
 3. Add backend idempotency storage abstraction:
    - `IdempotencyStore` interface, DB source-of-truth with Redis accelerator.
 4. Keep/extend idempotency headers:
@@ -92,11 +108,19 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - explicit request contract:
      - top-level fields: `schemaVersion` (required), `batchId` (optional), `events` (required array)
      - per-event fields: `eventId` (required dedupe token), `clientTimestamp` (required freshness validation), `operation`, `result`, `network_state`, `status_bucket` (allowlisted enums)
+     - numeric/versioned defaults:
+       - `clientTimestamp` freshness window: `TELEMETRY_MAX_CLOCK_SKEW_MS` default `300000` (5 minutes)
+       - `eventId` dedupe window: `TELEMETRY_EVENT_DEDUPE_WINDOW_MS` default `86400000` (24 hours)
+       - schema/version docs must record any override from defaults before rollout.
    - explicit validation/response contract:
      - `TELEMETRY_INVALID_PAYLOAD` -> 400 (non-retryable)
      - `TELEMETRY_STALE_EVENT` -> 422 (non-retryable; outside freshness window)
      - `TELEMETRY_QUOTA_EXCEEDED` -> 429 + `Retry-After` (retryable)
      - `TELEMETRY_DUPLICATE_EVENT` -> 200 (idempotent no-op acceptance; non-retryable)
+   - backend dedupe-state contract:
+     - `eventId` duplicate detection is enforced by a bounded server-side dedupe store with TTL equal to `TELEMETRY_EVENT_DEDUPE_WINDOW_MS`.
+     - dedupe state is tenant-scoped, capacity-limited, and subject to cleanup/expiry controls so storage cannot grow unbounded.
+     - dedupe-store eviction or degradation behavior must be explicit, observable, and fail-safe for primary write protection.
 6. Add queue-source contract for overlap diagnostics:
    - `X-Queue-Source: app` for app replays
    - classify SW-origin writes as `sw` for telemetry when possible.
@@ -139,6 +163,12 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - use reversible migration staging (expand -> backfill -> validate -> contract), with explicit rollback notes at each stage.
    - define migration abort thresholds before contract phase (lock timeout, migration error-rate, unresolved collision count) and stop criteria if exceeded.
    - require snapshot/backup checkpoint before irreversible steps (non-null + unique constraint contract phase).
+   - canonicalPath backfill and verification sequence is mandatory:
+     - run an expand migration that adds nullable `canonicalPath`.
+     - populate `canonicalPath` for existing rows using the shared versioned `routeCanonicalizer`.
+     - run dry-run and enforced uniqueness audits on `(tenantId, actorType, actorId, method, canonicalPath, key)`.
+     - resolve and archive canonicalization collisions using deterministic winner rules before contract migration.
+     - enforce `canonicalPath` requiredness only after zero unresolved collisions are confirmed.
 2. Implement backend store components:
    - DB repository for canonical persistence and replay lookup
    - Redis accessor for fast cache hit path with matching TTL
@@ -151,6 +181,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
    - Before controller side effects, compute canonical route identity and attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, canonicalPath, key)`.
+   - canonical-path rollout must use shadow/compare mode before enforcement:
+     - while `IDEMPOTENCY_CANONICAL_ENFORCE=false`, compute both legacy `path` key and `canonicalPath` key, emit divergence metrics, and keep legacy enforcement authoritative.
+     - promote `IDEMPOTENCY_CANONICAL_ENFORCE=true` only after shadow divergence is <= 0.1% over a 72-hour window and no high-severity route mismatches remain.
+     - retain rollback toggle to revert to legacy enforcement if post-promotion divergence alerts trigger.
    - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with adaptive `Retry-After` (bounded, jitter-compatible value such as 1-10s) and no side effects.
    - `pending` reservations use lease semantics with `leaseExpiresAt`; handlers extend lease heartbeat while work is active.
    - stale reclaim is allowed only when lease is expired and no active heartbeat is observed.
@@ -192,7 +226,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - apply denylist redaction as defense-in-depth: `password`, `access_token`, `refresh_token`, `signature`, `secret`
      - enforce max serialized replay payload size (`IDEMPOTENCY_MAX_RESPONSE_BYTES`, default 65536)
      - if over limit after redaction, store minimal replay envelope (status/code/message/digest) and mark replay mode as metadata-only
-     - enforce encryption-at-rest for persisted replay payload fields and key-rotation policy for encryption keys.
+     - enforce encryption-at-rest for persisted replay payload fields using non-exportable KMS/HSM-backed keys and key-rotation policy controls.
      - default to metadata-only persistence unless a route is explicitly allowlisted for payload persistence.
      - require access-audit logging for replay payload reads outside normal replay flow.
 5. TTL:
@@ -334,6 +368,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - payload freshness checks (timestamp skew bounds) and optional nonce/event-id dedupe for replayed batches.
      - malformed-payload strike counters with progressive throttling to protect ingest capacity.
      - edge/API-gateway protections (route-specific rate limits and strict request-size ceilings).
+   - telemetry dedupe-state operations are explicit:
+     - define dedupe-store backend, TTL expiry cadence, max cardinality thresholds, and alerting on dedupe-store saturation/eviction.
+     - promotion is blocked if dedupe-store saturation or eviction exceeds documented thresholds.
 2. Add Prometheus metrics:
    - queue depth
    - replay success/failure
@@ -350,6 +387,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - staged enablement by environment/tenant allowlist
    - phase promotion is additionally gated by explicit error-budget burn-rate policy (fast/slow burn thresholds), with automatic freeze when exceeded.
    - phase advancement/resume after freeze requires recorded owner approval and stabilization window completion.
+   - canonical-path enforcement promotion is independently gated by shadow/compare metrics and explicit owner approval record.
 5. Rollback procedure:
    - disable queue feature flag safely
    - retain online-write behavior
@@ -364,6 +402,16 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - Redis TTL <= DB `expiresAt`
    - strict mode fails startup on invariant violations; non-strict mode emits error logs + metrics and blocks phase advancement.
    - expose invariant status in health/diagnostic telemetry for deployment gate checks.
+7. Long-horizon storage operations and bloat controls:
+   - define idempotency and telemetry table maintenance policy:
+     - scheduled vacuum/analyze cadence for high-churn tables
+     - index health checks and reindex criteria
+     - cleanup lag budget with alert thresholds
+   - define archival/partition lifecycle for `IdempotencyRecord`:
+     - default strategy: range partition by `expiresAt` (monthly partitions) with automated partition creation and aged partition drop after retention.
+     - if partitioning is deferred by compatibility constraints, require explicit exception record with compensating controls and a dated migration deadline.
+   - add storage growth SLO gates:
+     - idempotency table growth rate, cleanup lag, and bloat percentage must remain within documented thresholds before phase promotion.
 
 ## Phase 7: Test and Verification Gates
 1. Backend unit tests:
@@ -378,6 +426,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - raw SQL/non-Prisma write-path timeout cancellation parity coverage for matrix-listed routes
    - telemetry ingest outage/latency does not block primary write success
    - canonical route identity normalization tests verify path variants collapse to a single idempotency reservation scope
+   - canonical shadow-mode parity tests verify divergence accounting and safe promotion criteria behavior before canonical enforcement enablement
+   - canonicalPath backfill migration tests validate deterministic collision handling and zero unresolved-collision contract gate
    - telemetry abuse controls (quota/freshness/malformed payload throttling) enforce bounded ingest resource usage
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
@@ -411,6 +461,24 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - idempotency classification matrix contract tests prove no terminal handler path leaves `pending`.
    - timeout/transient legacy alias compatibility tests pass for all listed pre-upgrade clients/integrations.
 
+## Phase 8: Capacity and Data-Lifecycle Hardening
+1. Capacity model and baseline:
+   - define expected steady-state and burst envelopes:
+     - steady-state write QPS per tenant and global
+     - offline replay burst multiplier assumptions
+     - telemetry event throughput and batch sizes
+   - publish target SLOs for p95/p99 latency and error rates under modeled load.
+2. Load and soak validation:
+   - run load tests for idempotency read/write paths, replay storms, and telemetry ingest at projected peak and 2x projected peak.
+   - run 24-hour soak tests with cleanup jobs enabled to validate stability under churn.
+   - require pass/fail thresholds before enabling hard-fail rollout phases.
+3. Storage and maintenance validation:
+   - validate partition/cleanup operations at scale (partition create/drop, expired-row purge, index maintenance) in staging-like data volume.
+   - measure and gate on cleanup job duration, lock contention, and query performance impact.
+4. Release-gate integration:
+   - block promotion when capacity gates fail (latency/error/bloat/cleanup lag thresholds).
+   - require explicit owner sign-off for any temporary exception with expiration date and rollback plan.
+
 ## File-Level Deliverables
 1. Frontend:
    - `frontend/src/vite-env.d.ts`
@@ -428,18 +496,21 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/config/queryTimeouts.ts`
    - `src/utils/dbMutationTimeout.ts` (or equivalent wrapped execution module for non-Prisma write paths)
    - `src/security/manifestSignature.ts` (manifest signature verification and key-id enforcement)
+   - `src/security/manifestSigningClient.ts` (KMS/HSM-backed signing client used by CI/release pipeline)
    - `src/config/manifestTrustStore.ts` (trusted manifest signing key source, rotation, and revocation controls)
    - `src/security/replayPayloadCrypto.ts` (envelope encryption/decryption helper for replay payload persistence)
-   - `src/config/replayPayloadCrypto.ts` (key provider wiring, key versioning, rotation policy controls)
+   - `src/config/replayPayloadCrypto.ts` (KMS/HSM-backed key provider wiring, key versioning, rotation policy controls)
    - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers plus `Retry-After` exposure)
    - `src/middleware/errorHandler.ts`
    - telemetry route/controller/service files
+   - `src/services/TelemetryDedupeStore.ts` (bounded tenant-scoped `eventId` dedupe store with TTL/cleanup semantics)
    - `src/services/MetricsService.ts`
 3. Shared configuration:
    - `config/offline-write-ownership.manifest.json`
    - `config/offline-write-ownership.manifest.sig` (detached signature artifact persisted with release package)
    - `scripts/build/generate-offline-write-ownership-manifest.ts` (or equivalent generator + parity check entrypoint)
    - `scripts/build/sign-offline-write-ownership-manifest.ts` (CI/release signing step)
+   - `scripts/ci/sign-manifest-with-kms.sh` (trusted-boundary signing wrapper; no local private key files)
    - build hooks/wiring for generator in backend/frontend build pipelines and CI required checks
    - `shared/idempotency/requestHashCanonicalizer.ts` (single shared implementation artifact consumed by backend + frontend)
    - `shared/idempotency/requestHashCanonicalizer.fixtures.json` (canonical parity vectors for backend/frontend contract tests)
@@ -452,11 +523,14 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - backend unit/integration additions for idempotency and timeout
    - frontend tests for queue/orchestrator/retry behavior
    - configuration invariant tests for TTL alignment and source/projection manifest parity
-   - replay-payload encryption tests: encrypt/decrypt correctness, key-version tagging, and dual-read/single-write rotation compatibility
+   - replay-payload encryption tests: encrypt/decrypt correctness, KMS/HSM-backed key-provider enforcement, key-version tagging, and dual-read/single-write rotation compatibility
    - manifest degraded-mode tests: scoped route disablement behavior and strict-mode kill-switch enforcement
    - manifest signature tests: valid signature acceptance, tampered manifest rejection, revoked/unknown `keyId` rejection, and signature-age policy enforcement
-   - telemetry ingest contract tests: freshness window handling, duplicate `eventId` handling, and quota 429 behavior with `Retry-After`
+   - telemetry ingest contract tests: freshness window handling (including 300000ms skew boundaries), duplicate `eventId` handling (including 86400000ms dedupe window), and quota 429 behavior with `Retry-After`
    - shared route canonicalizer tests: path-variant collapse and reverse-proxy rewrite compatibility fixtures
+   - load/soak tests for idempotency and telemetry throughput at projected and 2x projected peak load
+   - storage lifecycle tests for partition creation/drop, cleanup lag enforcement, and bloat-threshold alerting
+   - telemetry dedupe-store tests: TTL expiry, tenant scoping, saturation behavior, eviction/cleanup semantics, and duplicate acceptance guarantees
 6. Documentation:
    - update checklist status
    - add rollout and rollback runbook details
@@ -468,12 +542,17 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - publish migration rollback runbook for `IdempotencyRecord` expand/backfill/contract lifecycle and abort thresholds
    - document phase-promotion gate metrics, approval owners, and runbook recording requirements
    - document idempotency-key validation/abuse controls, offline-queue storage security posture, and error-budget freeze/override policy
-   - document replay-payload encryption key lifecycle (generation, storage, rotation cadence, revocation, breakglass recovery)
+   - document replay-payload encryption key lifecycle (generation, KMS/HSM custody, storage, rotation cadence, revocation, breakglass recovery)
    - document manifest incident response for non-strict degraded mode, scoped kill-switch usage, and recovery/rollback timelines
    - document manifest signing key lifecycle and trust-store operations (generation, distribution, rotation, revocation, breakglass verification)
    - document route-canonicalization rules for idempotency scoping and reverse-proxy rewrite compatibility requirements
+   - publish canonicalPath backfill and shadow-rollout runbook (metrics, thresholds, promotion/rollback criteria, and operator actions)
    - document telemetry abuse controls (quota model, freshness window, malformed-payload throttling, and response semantics)
+   - document telemetry dedupe-store architecture, retention/cleanup policy, and saturation/eviction operational response
    - document data-governance lifecycle for replay payload records (retention, erasure/offboarding handling, and legal-hold exceptions)
+   - document signer key custody policy (non-exportable KMS/HSM keys, trusted CI identity boundary, workstation signing prohibition)
+   - publish capacity model and SLO thresholds (steady-state and burst assumptions) for rollout sign-off
+   - document idempotency/telemetry storage maintenance policy (partitioning, vacuum/analyze cadence, bloat and cleanup-lag thresholds)
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
@@ -496,6 +575,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - telemetry drop-rate >= 5% for 15 continuous minutes
 9. Security robustness gates are met before release:
    - replay-payload encryption-at-rest is enabled for all allowlisted payload-persistence routes.
+   - replay-payload encryption keys are hosted in non-exportable KMS/HSM-backed systems and plaintext host-managed keys are not used.
    - at least one key-rotation drill (dual-read/single-write path) passes in non-prod with documented evidence.
    - manifest degraded-mode recovery drill meets runbook target and operator kill-switch behavior is verified.
    - manifest signature verification is enforced and at least one tamper-detection drill passes in non-prod with documented evidence.
@@ -504,6 +584,19 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - fast- and slow-burn calculations are published for core reliability SLOs.
    - any burn-rate breach blocks phase promotion until stabilization criteria are met.
    - override path requires documented risk acceptance and owner approvals in rollout changelog.
+11. Canonical-path migration and rollout gates are met before release:
+   - canonicalPath backfill completes with zero unresolved uniqueness collisions.
+   - shadow/compare divergence is <= 0.1% for 72 continuous hours before canonical enforcement is enabled.
+   - canonical enforcement rollback toggle is validated in non-prod.
+12. Telemetry abuse-window controls are numerically versioned and enforced:
+   - freshness window default `TELEMETRY_MAX_CLOCK_SKEW_MS=300000` is enforced at boundary conditions.
+   - dedupe window default `TELEMETRY_EVENT_DEDUPE_WINDOW_MS=86400000` is enforced at boundary conditions.
+   - any override from defaults is documented in schema/version rollout artifacts before promotion.
+13. Capacity and lifecycle scalability gates are met before release:
+   - load tests pass at projected peak and 2x projected peak with documented p95/p99 latency and error-rate thresholds.
+   - 24-hour soak tests pass with cleanup jobs enabled and no sustained degradation.
+   - idempotency and telemetry storage controls meet thresholds for cleanup lag, bloat percentage, and lock contention.
+   - telemetry dedupe-store saturation and eviction stay within documented thresholds during peak and soak validation.
 
 ## Assumptions and Defaults
 1. Idempotency retention defaults to 24 hours.
