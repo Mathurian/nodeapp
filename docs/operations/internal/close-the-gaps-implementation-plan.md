@@ -142,7 +142,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
        - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> retryable 409 (state preserved; no terminalization).
        - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> terminal 409 (no side effects; no replay mutation of existing completed record).
        - retryable auth-expiry cases (`IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`) -> `failed_retryable`.
-       - all other 401/403/404/405/408/409(domain)/410/412/415/422/423/424/428 -> `failed_terminal` unless explicitly listed as retryable in the ownership matrix.
+       - all other 401/403/404/405/409(domain)/410/412/415/422/423/424/428 -> `failed_terminal` unless explicitly listed as retryable in the ownership matrix.
+       - 408 (`REQUEST_TIMEOUT`) -> `failed_retryable`.
      - 429/5xx/query-timeout/server-observed transport failures: `failed_retryable`.
      - uncaught exceptions/unknown classifications: default to `failed_retryable` with bounded expiry and deterministic `UNKNOWN_RETRYABLE` code until classified.
    - no response path may leave a reservation stuck in `pending` after handler completion; contract tests enforce closure to `completed`/`failed_retryable`/`failed_terminal`.
@@ -384,6 +385,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `config/offline-write-ownership.manifest.json`
    - `scripts/build/generate-offline-write-ownership-manifest.ts` (or equivalent generator + parity check entrypoint)
    - build hooks/wiring for generator in backend/frontend build pipelines and CI required checks
+   - `shared/idempotency/requestHashCanonicalizer.ts` (single shared implementation artifact consumed by backend + frontend)
+   - `shared/idempotency/requestHashCanonicalizer.fixtures.json` (canonical parity vectors for backend/frontend contract tests)
 4. Data model:
    - `prisma/schema.prisma`
    - idempotency migration files
