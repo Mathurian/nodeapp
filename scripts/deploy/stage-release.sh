@@ -107,6 +107,11 @@ sudo rsync -a --delete "$APP_ROOT/src/templates/email/" "$REL/src/templates/emai
 sudo rsync -a --delete "$APP_ROOT/src/templates/print/" "$REL/dist/templates/print/"
 sudo cp "$APP_ROOT/package.json" "$APP_ROOT/package-lock.json" "$REL/"
 
+# Release runtime files must remain readable by the service account even when
+# source workspace permissions are more restrictive.
+sudo find "$REL/config" -type d -exec chmod 755 {} +
+sudo find "$REL/config" -type f -exec chmod 644 {} +
+
 echo "Installing runtime dependencies..."
 (
   cd "$REL"
