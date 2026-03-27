@@ -58,6 +58,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - publish client-generation guidance (UUIDv4 or equivalent high-entropy keys) and prohibit low-entropy/reused keys.
    - apply per-tenant/per-actor request and in-flight pending-reservation limits to prevent storage exhaustion and hot-partition abuse.
    - require safe logging policy (never log raw idempotency keys in plaintext; use hashed/truncated forms for diagnostics).
+   - canonical route identity for idempotency scope is explicitly normalized before lookup/reservation (method casing, path trailing-slash policy, decode/encode handling, and version/alias handling) to prevent path-variant dedupe bypass.
 9. Offline queue client storage must follow data-minimization and security controls:
    - queued payloads store only required mutation fields; tokens/secrets are prohibited.
    - queue purge triggers are explicit (logout/session switch/tenant switch/max age expiry).
@@ -66,8 +67,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
 2. Add Prisma model for idempotency persistence:
-   - `IdempotencyRecord` with `key`, `tenantId`, `actorType`, `actorId`, `method`, `path`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
-   - unique index: `(tenantId, actorType, actorId, method, path, key)`
+   - `IdempotencyRecord` with `key`, `tenantId`, `actorType`, `actorId`, `method`, `path`, `canonicalPath`, `requestHash`, `status` (`pending` | `completed` | `failed_retryable` | `failed_terminal`), `statusCode`, `responseBody`, `digest`, `expiresAt`, `createdAt`, `updatedAt`, `lastSeenAt`
+   - unique index: `(tenantId, actorType, actorId, method, canonicalPath, key)`
    - state invariants are explicit and enforced:
      - `pending`: `statusCode`/`responseBody`/`digest` are null, `lastSeenAt` required.
      - `completed`: `statusCode` + replay payload/digest required (subject to metadata-only size guardrail mode).
@@ -141,8 +142,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend from a single shared implementation artifact (not duplicated logic): stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
-   - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, path, key)`.
-   - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with `Retry-After: 1` (no side effects).
+   - Before controller side effects, compute canonical route identity and attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, canonicalPath, key)`.
+   - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with adaptive `Retry-After` (bounded, jitter-compatible value such as 1-10s) and no side effects.
    - `pending` reservations use lease semantics with `leaseExpiresAt`; handlers extend lease heartbeat while work is active.
    - stale reclaim is allowed only when lease is expired and no active heartbeat is observed.
    - If existing `pending` is stale (lease expired beyond `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
@@ -165,7 +166,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - uncaught exceptions/unknown classifications: default to `failed_retryable` with bounded expiry and deterministic `UNKNOWN_RETRYABLE` code until classified.
    - no response path may leave a reservation stuck in `pending` after handler completion; contract tests enforce closure to `completed`/`failed_retryable`/`failed_terminal`.
    - 409 handling is explicit and code-driven (never generic by status alone):
-     - `IDEMPOTENCY_REQUEST_IN_PROGRESS`: return retryable 409 + `Retry-After`, preserve current reservation state (`pending`/`failed_retryable`), no terminalization.
+     - `IDEMPOTENCY_REQUEST_IN_PROGRESS`: return retryable 409 + adaptive `Retry-After`, preserve current reservation state (`pending`/`failed_retryable`), no terminalization.
      - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`: return terminal 409 conflict, execute no side effects, and do not mutate an existing completed replay record.
    - On auth/session-expiry errors (401 and retryable 403 cases such as CSRF/session refresh), transition to `failed_retryable` and return `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`; do not pin terminal outcome.
    - On authorization-denied errors (non-retryable 403 such as `ACCESS_DENIED`/`AUTHORIZATION_ERROR`), transition to `failed_terminal`.
@@ -203,6 +204,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - same idempotency key with different payload returns `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` and does not execute side effects.
    - auth-expiry replay does not become terminal; after successful re-auth the same key can complete exactly once.
    - shared request-hash fixture vectors pass identically in backend and frontend runtimes (parity gate for canonicalizer).
+   - path-variant fixture vectors (trailing slash/casing/encoded path variants/version alias forms) map to one canonical route identity and one idempotency reservation keyspace.
 
 ## Phase 3: Timeout Semantics End-to-End
 1. Wire query timeout middleware into active Prisma setup in `src/config/database.ts`.
@@ -251,6 +253,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - local dev: generator runs via `npm run build:offline-write-ownership` (or equivalent) and is required before frontend dev/build.
      - CI: parity check runs in required status checks and fails on drift.
      - release build: generator runs in prebuild stage for backend/frontend artifacts.
+   - manifest integrity is cryptographically verifiable:
+     - source manifest is signed in CI/release packaging.
+     - backend startup verifies signature against trusted key material before enabling covered write routes.
+     - invalid signature is treated as invalid manifest under strict/non-strict behavior.
    - CI fails if generated artifact drifts from source.
    - packaging/runtime contract is explicit:
      - backend runtime reads packaged `config/offline-write-ownership.manifest.json` from deploy artifact (not from source checkout assumptions).
@@ -313,6 +319,11 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - `network_state`: `online|offline|unknown`
      - `status_bucket`: `2xx|4xx|429|5xx|timeout|network_error`
    - Tenant/user correlation remains in logs/event storage only, not Prometheus label cardinality.
+   - Add abuse resistance controls beyond authentication:
+     - per-tenant/per-actor quotas (burst + sustained windows) with deterministic 429 handling.
+     - payload freshness checks (timestamp skew bounds) and optional nonce/event-id dedupe for replayed batches.
+     - malformed-payload strike counters with progressive throttling to protect ingest capacity.
+     - edge/API-gateway protections (route-specific rate limits and strict request-size ceilings).
 2. Add Prometheus metrics:
    - queue depth
    - replay success/failure
@@ -356,6 +367,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - CORS/readability coverage for `Retry-After` on retryable 401/409/429 responses
    - raw SQL/non-Prisma write-path timeout cancellation parity coverage for matrix-listed routes
    - telemetry ingest outage/latency does not block primary write success
+   - canonical route identity normalization tests verify path variants collapse to a single idempotency reservation scope
+   - telemetry abuse controls (quota/freshness/malformed payload throttling) enforce bounded ingest resource usage
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
    - replay on reconnect/foreground
@@ -384,6 +397,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - targeted reliability/offline test suites
 7. Additional rollout gate assertions:
    - manifest source/projection hash parity verified in CI and at runtime startup diagnostics.
+   - manifest signature verification passes in CI and at runtime startup diagnostics.
    - idempotency classification matrix contract tests prove no terminal handler path leaves `pending`.
    - timeout/transient legacy alias compatibility tests pass for all listed pre-upgrade clients/integrations.
 
@@ -437,6 +451,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - document idempotency-key validation/abuse controls, offline-queue storage security posture, and error-budget freeze/override policy
    - document replay-payload encryption key lifecycle (generation, storage, rotation cadence, revocation, breakglass recovery)
    - document manifest incident response for non-strict degraded mode, scoped kill-switch usage, and recovery/rollback timelines
+   - document route-canonicalization rules for idempotency scoping and reverse-proxy rewrite compatibility requirements
+   - document telemetry abuse controls (quota model, freshness window, malformed-payload throttling, and response semantics)
+   - document data-governance lifecycle for replay payload records (retention, erasure/offboarding handling, and legal-hold exceptions)
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
@@ -461,6 +478,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - replay-payload encryption-at-rest is enabled for all allowlisted payload-persistence routes.
    - at least one key-rotation drill (dual-read/single-write path) passes in non-prod with documented evidence.
    - manifest degraded-mode recovery drill meets runbook target and operator kill-switch behavior is verified.
+   - manifest signature verification is enforced and at least one tamper-detection drill passes in non-prod with documented evidence.
+   - replay-payload data-governance controls are validated in non-prod (retention expiry + erasure/offboarding flow evidence).
 10. Error-budget governance is defined and enforced:
    - fast- and slow-burn calculations are published for core reliability SLOs.
    - any burn-rate breach blocks phase promotion until stabilization criteria are met.
