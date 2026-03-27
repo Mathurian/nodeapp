@@ -89,6 +89,14 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 5. Add telemetry endpoint:
    - `POST /api/v1/telemetry/offline-sync` (authenticated, tenant-scoped, rate-limited).
    - versioned payload contract with bounded-cardinality fields and request-size guardrails.
+   - explicit request contract:
+     - top-level fields: `schemaVersion` (required), `batchId` (optional), `events` (required array)
+     - per-event fields: `eventId` (required dedupe token), `clientTimestamp` (required freshness validation), `operation`, `result`, `network_state`, `status_bucket` (allowlisted enums)
+   - explicit validation/response contract:
+     - `TELEMETRY_INVALID_PAYLOAD` -> 400 (non-retryable)
+     - `TELEMETRY_STALE_EVENT` -> 422 (non-retryable; outside freshness window)
+     - `TELEMETRY_QUOTA_EXCEEDED` -> 429 + `Retry-After` (retryable)
+     - `TELEMETRY_DUPLICATE_EVENT` -> 200 (idempotent no-op acceptance; non-retryable)
 6. Add queue-source contract for overlap diagnostics:
    - `X-Queue-Source: app` for app replays
    - classify SW-origin writes as `sw` for telemetry when possible.
@@ -152,7 +160,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - asynchronous `202 Accepted` mutation routes must declare explicit idempotency semantics in the ownership matrix:
      - either excluded from replayable `completed` contract, or
      - replay returns deterministic operation token/job identifier with duplicate job creation prevention guarantees.
-   - On deterministic client error (400/404/422), transition to `failed_terminal`, persist replay payload.
+   - Final state transitions are determined solely by the response-classification matrix below; no pre-matrix fallback classification is authoritative.
    - Idempotency response-classification matrix is exhaustive and authoritative:
      - 2xx: `completed`.
      - 3xx on covered mutation routes: `failed_terminal` (treat redirect responses as non-retryable misconfiguration unless explicitly allowlisted).
@@ -256,6 +264,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - manifest integrity is cryptographically verifiable:
      - source manifest is signed in CI/release packaging.
      - backend startup verifies signature against trusted key material before enabling covered write routes.
+     - signature envelope includes `keyId`, `algorithm`, `manifestHash`, and `signedAt`.
+     - trust validation checks key status (active/revoked), allowed algorithm set, and optional max signature age policy.
      - invalid signature is treated as invalid manifest under strict/non-strict behavior.
    - CI fails if generated artifact drifts from source.
    - packaging/runtime contract is explicit:
@@ -417,6 +427,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/config/database.ts`
    - `src/config/queryTimeouts.ts`
    - `src/utils/dbMutationTimeout.ts` (or equivalent wrapped execution module for non-Prisma write paths)
+   - `src/security/manifestSignature.ts` (manifest signature verification and key-id enforcement)
+   - `src/config/manifestTrustStore.ts` (trusted manifest signing key source, rotation, and revocation controls)
    - `src/security/replayPayloadCrypto.ts` (envelope encryption/decryption helper for replay payload persistence)
    - `src/config/replayPayloadCrypto.ts` (key provider wiring, key versioning, rotation policy controls)
    - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers plus `Retry-After` exposure)
@@ -425,10 +437,14 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/services/MetricsService.ts`
 3. Shared configuration:
    - `config/offline-write-ownership.manifest.json`
+   - `config/offline-write-ownership.manifest.sig` (detached signature artifact persisted with release package)
    - `scripts/build/generate-offline-write-ownership-manifest.ts` (or equivalent generator + parity check entrypoint)
+   - `scripts/build/sign-offline-write-ownership-manifest.ts` (CI/release signing step)
    - build hooks/wiring for generator in backend/frontend build pipelines and CI required checks
    - `shared/idempotency/requestHashCanonicalizer.ts` (single shared implementation artifact consumed by backend + frontend)
    - `shared/idempotency/requestHashCanonicalizer.fixtures.json` (canonical parity vectors for backend/frontend contract tests)
+   - `shared/idempotency/routeCanonicalizer.ts` (single shared canonical route identity implementation consumed by idempotency middleware/repository)
+   - `shared/idempotency/routeCanonicalizer.fixtures.json` (path-variant canonicalization fixture vectors)
 4. Data model:
    - `prisma/schema.prisma`
    - idempotency migration files
@@ -438,6 +454,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - configuration invariant tests for TTL alignment and source/projection manifest parity
    - replay-payload encryption tests: encrypt/decrypt correctness, key-version tagging, and dual-read/single-write rotation compatibility
    - manifest degraded-mode tests: scoped route disablement behavior and strict-mode kill-switch enforcement
+   - manifest signature tests: valid signature acceptance, tampered manifest rejection, revoked/unknown `keyId` rejection, and signature-age policy enforcement
+   - telemetry ingest contract tests: freshness window handling, duplicate `eventId` handling, and quota 429 behavior with `Retry-After`
+   - shared route canonicalizer tests: path-variant collapse and reverse-proxy rewrite compatibility fixtures
 6. Documentation:
    - update checklist status
    - add rollout and rollback runbook details
@@ -451,6 +470,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - document idempotency-key validation/abuse controls, offline-queue storage security posture, and error-budget freeze/override policy
    - document replay-payload encryption key lifecycle (generation, storage, rotation cadence, revocation, breakglass recovery)
    - document manifest incident response for non-strict degraded mode, scoped kill-switch usage, and recovery/rollback timelines
+   - document manifest signing key lifecycle and trust-store operations (generation, distribution, rotation, revocation, breakglass verification)
    - document route-canonicalization rules for idempotency scoping and reverse-proxy rewrite compatibility requirements
    - document telemetry abuse controls (quota model, freshness window, malformed-payload throttling, and response semantics)
    - document data-governance lifecycle for replay payload records (retention, erasure/offboarding handling, and legal-hold exceptions)
