@@ -52,6 +52,15 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - OpenAPI/reference docs are updated for new headers, error codes, and phase behavior before phase advancement.
    - client compatibility matrix (by client version/integration) gates progression from soft-fail to hard-fail phases.
    - migration payload examples must include both canonical and legacy alias fields during compatibility windows, with explicit alias removal dates.
+8. Idempotency key abuse resistance is mandatory:
+   - enforce strict `x-idempotency-key` validation (allowed charset, min/max length, normalization rules) with deterministic invalid-key error code.
+   - publish client-generation guidance (UUIDv4 or equivalent high-entropy keys) and prohibit low-entropy/reused keys.
+   - apply per-tenant/per-actor request and in-flight pending-reservation limits to prevent storage exhaustion and hot-partition abuse.
+   - require safe logging policy (never log raw idempotency keys in plaintext; use hashed/truncated forms for diagnostics).
+9. Offline queue client storage must follow data-minimization and security controls:
+   - queued payloads store only required mutation fields; tokens/secrets are prohibited.
+   - queue purge triggers are explicit (logout/session switch/tenant switch/max age expiry).
+   - shared-device risk posture and optional at-rest encryption requirements are documented for sensitive deployments.
 
 ## Public API / Interface / Type Changes
 1. Add `VITE_OFFLINE_MUTATION_QUEUE_ENABLED?: string` to `frontend/src/vite-env.d.ts`.
@@ -126,14 +135,20 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
+   - reject invalid idempotency keys before store lookup using canonical validation rules (format, length, charset); return deterministic non-retryable error code.
    - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend from a single shared implementation artifact (not duplicated logic): stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
    - If record status is `completed` or `failed_terminal` and unexpired, replay stored response.
    - Before controller side effects, attempt atomic DB reservation (`pending`) for `(tenantId, actorType, actorId, method, path, key)`.
    - If reservation already exists as fresh `pending`/`failed_retryable`, return `409 IDEMPOTENCY_REQUEST_IN_PROGRESS` with `Retry-After: 1` (no side effects).
-   - If existing `pending` is stale (`updatedAt` older than `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
+   - `pending` reservations use lease semantics with `leaseExpiresAt`; handlers extend lease heartbeat while work is active.
+   - stale reclaim is allowed only when lease is expired and no active heartbeat is observed.
+   - If existing `pending` is stale (lease expired beyond `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - If existing `failed_retryable` is stale (`updatedAt` older than `IDEMPOTENCY_RETRYABLE_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - On first successful 2xx, transition `pending -> completed`, persist replay payload, then cache Redis.
+   - asynchronous `202 Accepted` mutation routes must declare explicit idempotency semantics in the ownership matrix:
+     - either excluded from replayable `completed` contract, or
+     - replay returns deterministic operation token/job identifier with duplicate job creation prevention guarantees.
    - On deterministic client error (400/404/422), transition to `failed_terminal`, persist replay payload.
    - Idempotency response-classification matrix is exhaustive and authoritative:
      - 2xx: `completed`.
@@ -166,6 +181,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
      - apply denylist redaction as defense-in-depth: `password`, `access_token`, `refresh_token`, `signature`, `secret`
      - enforce max serialized replay payload size (`IDEMPOTENCY_MAX_RESPONSE_BYTES`, default 65536)
      - if over limit after redaction, store minimal replay envelope (status/code/message/digest) and mark replay mode as metadata-only
+     - enforce encryption-at-rest for persisted replay payload fields and key-rotation policy for encryption keys.
+     - default to metadata-only persistence unless a route is explicitly allowlisted for payload persistence.
+     - require access-audit logging for replay payload reads outside normal replay flow.
 5. TTL:
    - 24h default
    - env-configurable with min/max guardrails
@@ -303,6 +321,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 4. Feature flag rollout:
    - keep queue feature gated
    - staged enablement by environment/tenant allowlist
+   - phase promotion is additionally gated by explicit error-budget burn-rate policy (fast/slow burn thresholds), with automatic freeze when exceeded.
+   - phase advancement/resume after freeze requires recorded owner approval and stabilization window completion.
 5. Rollback procedure:
    - disable queue feature flag safely
    - retain online-write behavior
@@ -404,6 +424,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - include migration-era compatibility examples (canonical + legacy aliases) for timeout/transient/rate-limit contracts
    - publish migration rollback runbook for `IdempotencyRecord` expand/backfill/contract lifecycle and abort thresholds
    - document phase-promotion gate metrics, approval owners, and runbook recording requirements
+   - document idempotency-key validation/abuse controls, offline-queue storage security posture, and error-budget freeze/override policy
 
 ## Acceptance Criteria
 1. Backend and frontend builds pass.
@@ -424,6 +445,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - sync delay breaches: p95 > 180s for 30 continuous minutes
    - sustained queue-depth breach: global queued count > 5000 for 15 continuous minutes
    - telemetry drop-rate >= 5% for 15 continuous minutes
+9. Error-budget governance is defined and enforced:
+   - fast- and slow-burn calculations are published for core reliability SLOs.
+   - any burn-rate breach blocks phase promotion until stabilization criteria are met.
+   - override path requires documented risk acceptance and owner approvals in rollout changelog.
 
 ## Assumptions and Defaults
 1. Idempotency retention defaults to 24 hours.
