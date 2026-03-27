@@ -53,7 +53,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - client compatibility matrix (by client version/integration) gates progression from soft-fail to hard-fail phases.
    - migration payload examples must include both canonical and legacy alias fields during compatibility windows, with explicit alias removal dates.
 8. Idempotency key abuse resistance is mandatory:
-   - enforce strict `x-idempotency-key` validation (allowed charset, min/max length, transport decoding) with deterministic invalid-key error code.
+   - enforce strict `x-idempotency-key` validation (allowed charset, min/max length, transport decoding) with deterministic `IDEMPOTENCY_INVALID_KEY` error code.
    - publish a normative wire-format grammar for `x-idempotency-key` (single header instance, accepted character class, and explicit byte-length bounds aligned to API gateway/CDN/WAF limits).
    - reject malformed/duplicate/non-printable header variants deterministically, including explicit behavior for multiple header instances and invalid transport-encoding edge cases.
    - validation is parse/accept-reject only: do not apply semantic normalization (no trim/case-fold/rewrite) after decode, so key identity remains byte-stable.
@@ -144,6 +144,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - compatibility rule: emit legacy `RATE_LIMIT_EXCEEDED` alias in response metadata during migration window; remove only after client compatibility gate passes.
    - compatibility rule: emit legacy timeout/transient aliases during migration window (e.g., legacy timeout/transient codes/messages) and remove only after client compatibility gate passes.
 8. Add deterministic idempotency conflict/mismatch codes:
+   - `IDEMPOTENCY_INVALID_KEY` -> 400
    - `IDEMPOTENCY_REQUEST_IN_PROGRESS` -> 409 + `Retry-After`
    - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH` -> 409
 9. Add deterministic auth-expiry replay code:
@@ -184,7 +185,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 3. Refactor `src/middleware/idempotency.ts` to use store abstraction.
 4. Request flow:
    - On key present, read Redis, fallback DB.
-   - reject invalid idempotency keys before store lookup using canonical validation rules (format, length, charset, decode validity); return deterministic non-retryable error code.
+   - reject invalid idempotency keys before store lookup using canonical validation rules (format, length, charset, decode validity); return `400 IDEMPOTENCY_INVALID_KEY` with no reservation side effects.
    - key handling is validation-only and byte-stable after decode; no semantic normalization/transformation is allowed.
    - `requestHash` uses a deterministic canonicalization contract shared by frontend and backend from a single shared implementation artifact (not duplicated logic): stable JSON key ordering, UTF-8 normalization, explicit inclusion/exclusion of request components, and a defined multipart/file-upload hashing strategy.
    - On record hit, always validate `requestHash` equality first; mismatch returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
@@ -438,6 +439,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 1. Backend unit tests:
    - idempotency replay hit/miss and TTL behavior
    - timeout/transient mapping contract assertions
+   - invalid idempotency-key validation returns `400 IDEMPOTENCY_INVALID_KEY` and performs no reservation write
 2. Backend integration tests:
    - replay behavior across restart simulation
    - replay behavior across multi-instance simulation
