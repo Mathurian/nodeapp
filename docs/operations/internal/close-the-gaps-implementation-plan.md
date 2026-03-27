@@ -10,8 +10,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 
 ## Current Baseline
 1. Backend build passes.
-2. Frontend build fails on `enqueueMutation` typing (`lastError` missing).
-3. `VITE_OFFLINE_MUTATION_QUEUE_ENABLED` is used in code but missing in frontend env typings.
+2. Frontend build status must be re-validated at execution start; prior snapshot flagged an `enqueueMutation` typing mismatch (`lastError` missing).
+3. `VITE_OFFLINE_MUTATION_QUEUE_ENABLED` usage and frontend env typings must be verified for parity at execution start.
 4. Backend idempotency currently uses in-memory `Map` and is not durable/cross-instance safe.
 5. Timeout code mapping exists in `errorHandler`, but query-timeout middleware is not wired into active Prisma path.
 6. Offline queue/orchestrator has implementation but limited dedicated automated coverage.
@@ -125,10 +125,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - If existing `pending` is stale (`updatedAt` older than `IDEMPOTENCY_PENDING_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - If existing `failed_retryable` is stale (`updatedAt` older than `IDEMPOTENCY_RETRYABLE_STALE_MS`, default 30000), atomically reclaim reservation via compare-and-set and continue.
    - On first successful 2xx, transition `pending -> completed`, persist replay payload, then cache Redis.
-   - On deterministic client error (400/404/409/422), transition to `failed_terminal`, persist replay payload.
+   - On deterministic client error (400/404/422), transition to `failed_terminal`, persist replay payload.
+   - 409 handling is explicit and code-driven (never generic by status alone):
+     - `IDEMPOTENCY_REQUEST_IN_PROGRESS`: return retryable 409 + `Retry-After`, preserve current reservation state (`pending`/`failed_retryable`), no terminalization.
+     - `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`: return terminal 409 conflict, execute no side effects, and do not mutate an existing completed replay record.
    - On auth/session-expiry errors (401 and retryable 403 cases such as CSRF/session refresh), transition to `failed_retryable` and return `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE`; do not pin terminal outcome.
    - On authorization-denied errors (non-retryable 403 such as `ACCESS_DENIED`/`AUTHORIZATION_ERROR`), transition to `failed_terminal`.
-   - On transient/unknown failure (429/5xx/timeout/network abort), transition to `failed_retryable` with short expiry/heartbeat, no replay payload commitment.
+   - On transient/unknown failure (429/5xx/timeout/server-observed transport failure), transition to `failed_retryable` with short expiry/heartbeat, no replay payload commitment.
    - On Redis miss + DB hit, repopulate Redis.
    - Crash-window semantics are explicit and mandatory:
      - for DB-backed mutations on covered routes where business side effects are transaction-capable, perform idempotency completion write in the same DB transaction as business side effects.
@@ -180,6 +183,8 @@ Execution order is: restore green build, harden correctness and dedupe, then com
 9. Canonical error payload fields are versioned and contract-tested end-to-end.
 10. Covered timeout-enforced route set is sourced from the canonical write ownership matrix artifact (no duplicated route literals across sections).
 11. All covered routes must execute Prisma writes via a shared `withMutationTimeoutTx` helper that sets `SET LOCAL statement_timeout` before write operations.
+12. All covered non-Prisma mutation paths (raw SQL/query builders) must execute through a shared timeout-enforcing DB helper that applies transaction-scoped statement timeout with equivalent cancellation semantics.
+13. Any write path that cannot support transaction-scoped timeout must be explicitly excluded in the canonical write ownership matrix with rationale, compensating controls, and owner approval before rollout.
 
 ## Phase 4: Dual Queue Guardrails (App Queue + Workbox Sync)
 1. Keep both queues but define responsibilities:
@@ -194,8 +199,9 @@ Execution order is: restore green build, harden correctness and dedupe, then com
        - `frontend/src/config/offlineWriteOwnership.manifest.json`
    - ownership rules:
      - only this manifest defines queue ownership
-     - `frontend/vite.config.ts` and app queue selector import from this source (no duplicated route literals)
-     - backend timeout/idempotency enforcement reads the same manifest source (`config/offline-write-ownership.manifest.json`) so phase behavior and enforcement cannot drift.
+     - backend timeout/idempotency enforcement reads the root source manifest (`config/offline-write-ownership.manifest.json`).
+     - frontend runtime consumers (`frontend/vite.config.ts`, queue selectors, and tests) read generated frontend projections only (`frontend/src/config/offlineWriteOwnership.manifest.ts` / `.json`) produced from the root source manifest.
+     - generation and CI parity checks enforce source/projection drift prevention (no duplicated route literals).
      - CI fails if generated artifact drifts from source.
    - if endpoint belongs to app-queue domain, Workbox must not enqueue it
    - if endpoint belongs to Workbox domain, app queue must not enqueue it
@@ -271,6 +277,13 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - database rollback path for in-flight idempotency migration is defined per stage:
      - expand/backfill stages are reversible by schema + code rollback.
      - contract stage requires pre-captured backup/snapshot for full data rollback; otherwise use forward-fix playbook.
+6. TTL invariant enforcement gates:
+   - add startup/runtime invariant checks that enforce:
+     - app queue max replay horizon <= server idempotency TTL (unless explicit fallback mode is enabled)
+     - Workbox retention <= server idempotency TTL (unless explicit fallback mode is enabled)
+     - Redis TTL <= DB `expiresAt`
+   - strict mode fails startup on invariant violations; non-strict mode emits error logs + metrics and blocks phase advancement.
+   - expose invariant status in health/diagnostic telemetry for deployment gate checks.
 
 ## Phase 7: Test and Verification Gates
 1. Backend unit tests:
@@ -282,6 +295,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - pending-reservation crash-window reconciliation behavior
    - CORS preflight coverage for replay/idempotency headers on write routes
    - CORS/readability coverage for `Retry-After` on retryable 401/409/429 responses
+   - raw SQL/non-Prisma write-path timeout cancellation parity coverage for matrix-listed routes
    - telemetry ingest outage/latency does not block primary write success
 3. Frontend service tests:
    - enqueue on retryable timeout/network failure
@@ -292,7 +306,10 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - TTL mismatch behavior when client replay exceeds server idempotency retention
    - `IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE` does not trigger logout for compatible clients and replays after successful re-auth
    - client-observable transport abort classification is emitted to telemetry and queue policy correctly
-4. E2E/manual scenario verification:
+   - generated ownership projection parity checks against source manifest fixtures
+4. Configuration invariant tests:
+   - startup/runtime TTL invariant checks fail as expected on misconfiguration and pass on valid bounds.
+5. E2E/manual scenario verification:
    - online save
    - forced timeout and retry
    - offline enqueue
@@ -301,7 +318,7 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - telemetry flush with expired auth/session and expected degrade behavior
    - shared queue-routing manifest parity test between app and Workbox consumers
    - request-hash canonicalization parity tests across frontend/backend fixtures
-5. Final gate commands:
+6. Final gate commands:
    - `git status --short`
    - `npm run build`
    - `cd frontend && npm run build`
@@ -322,18 +339,21 @@ Execution order is: restore green build, harden correctness and dedupe, then com
    - `src/middleware/idempotency.ts`
    - `src/config/database.ts`
    - `src/config/queryTimeouts.ts`
+   - `src/utils/dbMutationTimeout.ts` (or equivalent wrapped execution module for non-Prisma write paths)
    - `src/config/express.config.ts` (CORS allow/expose header updates for replay/idempotency headers plus `Retry-After` exposure)
    - `src/middleware/errorHandler.ts`
    - telemetry route/controller/service files
    - `src/services/MetricsService.ts`
 3. Shared configuration:
    - `config/offline-write-ownership.manifest.json`
+   - `scripts/build/generate-offline-write-ownership-manifest.ts` (or equivalent generator + parity check entrypoint)
 4. Data model:
    - `prisma/schema.prisma`
    - idempotency migration files
 5. Tests:
    - backend unit/integration additions for idempotency and timeout
    - frontend tests for queue/orchestrator/retry behavior
+   - configuration invariant tests for TTL alignment and source/projection manifest parity
 6. Documentation:
    - update checklist status
    - add rollout and rollback runbook details
