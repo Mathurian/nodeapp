@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
 import api, { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
+import { formatDocumentTitle } from '../utils/documentTitle'
 import { EyeIcon, EyeSlashIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline'
 import { FormProvider, FormInput, FormField } from '../components/form'
 import { loginSchema, LoginInput } from '../lib/validation'
@@ -189,7 +190,7 @@ const LoginPage: React.FC = () => {
 
   // Update document title and favicon
   useEffect(() => {
-    document.title = `${settings.appName} - Sign In`
+    document.title = formatDocumentTitle(`${settings.appName} - Sign In`)
     const targetFavicon = settings.faviconPath || '/favicon.ico'
     const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
     if (favicon) {

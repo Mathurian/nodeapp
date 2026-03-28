@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, ReactNod
 import { useLocation } from 'react-router-dom'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import { settingsAPI } from '../services/api'
+import { formatDocumentTitle } from '../utils/documentTitle'
 import { extractTenantSlugFromPath } from '../utils/routeSegments'
 
 interface SystemSettings {
@@ -200,7 +201,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       console.error('Failed to load system settings:', err)
       setSettings({})
       clearThemeSettings()
-      document.title = DEFAULT_APP_BASELINE.appName
+      document.title = formatDocumentTitle(DEFAULT_APP_BASELINE.appName)
       setError(err.message || 'Failed to load settings')
     } finally {
       if (requestSequence === requestSequenceRef.current) {
@@ -214,7 +215,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
     // Set document title
     if (themeSettings.app_name) {
-      document.title = themeSettings.app_name
+      document.title = formatDocumentTitle(themeSettings.app_name)
     }
 
     // Apply CSS custom properties

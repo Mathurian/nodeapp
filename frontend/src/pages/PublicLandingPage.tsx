@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
+import { formatDocumentTitle } from '../utils/documentTitle'
 import {
   CalendarIcon,
   TrophyIcon,
@@ -105,7 +106,7 @@ const PublicLandingPage: React.FC = () => {
   }, [slug])
 
   useEffect(() => {
-    document.title = appName
+    document.title = formatDocumentTitle(appName)
     const targetFavicon = faviconPath || '/favicon.ico'
     const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
     if (favicon) {
