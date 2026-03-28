@@ -111,7 +111,6 @@ category_id,contestant_id,score_id,judge_id
 cm2abc123...,cm2con456...,cm2sc789...,cm2jd111...
 cm2abc124...,cm2con457...,cm2sc790...,cm2jd222...
 ```
-`live_ids.csv` drives category/contestant/score IDs used by concurrent actions.
 
 ## Run examples
 
@@ -132,28 +131,12 @@ Then run:
 
 ```bash
 jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter/results.jtl
-Override runtime values from CLI:
-
-```bash
-jmeter -n \
-  -Jprotocol=http \
-  -Jhost=localhost \
-  -Jport=3000 \
-  -JbaseUrl=http://localhost:3000 \
-  -JtenantSlug=dev-tenant \
-  -JtestDurationSecs=1800 \
-  -JrampUpSecs=120 \
-  -JjudgeThreads=120 \
-  -JtallyThreads=20 \
-  -JauditorThreads=20 \
-  -JboardThreads=16 \
-  -JadminThreads=14 \
-  -t tests/load/jmeter/active-event-concurrency.jmx \
-  -l tests/load/jmeter/results.jtl
 ```
 
 ## Notes
 
 - Endpoints target `/api/*` (legacy path) and are compatible with `/api/v1/*` if you change `apiPrefix`.
 - Test plan sends `X-Tenant-Slug` for multi-tenant routing.
+- Authentication in this plan is cookie-based (`access_token` cookie from `/auth/login`) using JMeter `HTTP Cookie Manager`; it does not require Bearer token headers.
+- The plan fetches CSRF token from `${apiPrefix}/csrf-token` and sends it as `X-CSRF-Token` on mutating requests.
 - Write requests include `Idempotency-Key` headers using JMeter's `${__UUID()}` function.

@@ -149,9 +149,32 @@
               <stringProp name="Header.name">X-Tenant-Slug</stringProp>
               <stringProp name="Header.value">${tenantSlug}</stringProp>
             </elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header">
+              <stringProp name="Header.name">X-CSRF-Token</stringProp>
+              <stringProp name="Header.value">${csrfToken}</stringProp>
+            </elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Judge)">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+          <stringProp name="HTTPSampler.path">${apiPrefix}/csrf-token</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.domain">${host}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract CSRF token (Judge)">
+            <stringProp name="JSONPostProcessor.referenceNames">csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
 
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Judge Login">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -186,10 +209,6 @@
 
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Judge Auth Header">
           <collectionProp name="HeaderManager.headers">
-            <elementProp name="Authorization" elementType="Header">
-              <stringProp name="Header.name">Authorization</stringProp>
-              <stringProp name="Header.value">Bearer ${judgeToken}</stringProp>
-            </elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header">
               <stringProp name="Header.name">X-Tenant-Slug</stringProp>
               <stringProp name="Header.value">${tenantSlug}</stringProp>
@@ -352,6 +371,32 @@
           <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
         </CSVDataSet>
         <hashTree/>
+                <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Tally)">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Tally)">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+          <stringProp name="HTTPSampler.path">${apiPrefix}/csrf-token</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.domain">${host}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract CSRF token (Tally)">
+            <stringProp name="JSONPostProcessor.referenceNames">csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Tally Login">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
@@ -380,9 +425,9 @@
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Tally Auth Header">
           <collectionProp name="HeaderManager.headers">
-            <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${tallyToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -452,6 +497,32 @@
           <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
         </CSVDataSet>
         <hashTree/>
+                <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Auditor)">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Auditor)">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+          <stringProp name="HTTPSampler.path">${apiPrefix}/csrf-token</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.domain">${host}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract CSRF token (Auditor)">
+            <stringProp name="JSONPostProcessor.referenceNames">csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Auditor Login">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"email":"${email}","password":"${password}"}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
@@ -472,9 +543,9 @@
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auditor Auth Header">
           <collectionProp name="HeaderManager.headers">
-            <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${auditorToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -540,6 +611,32 @@
           <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
         </CSVDataSet>
         <hashTree/>
+                <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Board)">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Board)">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+          <stringProp name="HTTPSampler.path">${apiPrefix}/csrf-token</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.domain">${host}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract CSRF token (Board)">
+            <stringProp name="JSONPostProcessor.referenceNames">csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Board Login">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"email":"${email}","password":"${password}"}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
@@ -560,9 +657,9 @@
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Board Auth Header">
           <collectionProp name="HeaderManager.headers">
-            <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${boardToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -609,6 +706,32 @@
           <stringProp name="variableNames">email,password</stringProp>
         </CSVDataSet>
         <hashTree/>
+                <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Admin)">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Admin)">
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
+          <stringProp name="HTTPSampler.path">${apiPrefix}/csrf-token</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.domain">${host}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract CSRF token (Admin)">
+            <stringProp name="JSONPostProcessor.referenceNames">csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.csrfToken</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Admin Login">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"email":"${email}","password":"${password}"}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
@@ -629,9 +752,9 @@
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Admin Auth Header">
           <collectionProp name="HeaderManager.headers">
-            <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${adminToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
+            <elementProp name="X-CSRF-Token" elementType="Header"><stringProp name="Header.name">X-CSRF-Token</stringProp><stringProp name="Header.value">${csrfToken}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
