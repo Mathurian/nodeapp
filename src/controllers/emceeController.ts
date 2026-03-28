@@ -47,6 +47,7 @@ export class EmceeController {
         eventId: eventId as string,
         contestId: contestId as string,
         categoryId: categoryId as string,
+        tenantId: req.user?.tenantId,
       });
 
       res.json(scripts);
@@ -67,7 +68,9 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      const script = await this.emceeService.getScript(scriptId);
+      const script = await this.emceeService.getScript(scriptId, {
+        tenantId: req.user?.tenantId,
+      });
       res.json(script);
     } catch (error) {
       log.error('Get script error:', error);
@@ -282,7 +285,7 @@ export class EmceeController {
         contestId,
         categoryId,
         order: order ? parseInt(order) : 0,
-      });
+      }, req.user?.tenantId);
 
       res.json(script);
     } catch (error) {
@@ -302,7 +305,7 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      await this.emceeService.deleteScript(id);
+      await this.emceeService.deleteScript(id, req.user?.tenantId);
       res.status(204).send();
     } catch (error) {
       log.error('Delete script error:', error);
@@ -311,7 +314,7 @@ export class EmceeController {
   };
 
   /**
-   * Toggle script (legacy endpoint kept for backward compatibility)
+   * Toggle script (legacy compatibility endpoint)
    */
   toggleScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'emcee');
@@ -321,12 +324,10 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      const script = await this.emceeService.getScript(id);
-      res.status(409).json({
-        success: false,
-        error: 'Script active/inactive state is not supported in the current data model',
-        data: script
+      const script = await this.emceeService.getScript(id, {
+        tenantId: req.user?.tenantId,
       });
+      res.json(script);
     } catch (error) {
       log.error('Toggle script error:', error);
       return next(error);
@@ -344,7 +345,9 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      const script = await this.emceeService.getScriptFileInfo(scriptId);
+      const script = await this.emceeService.getScriptFileInfo(scriptId, {
+        tenantId: req.user?.tenantId,
+      });
 
       if (!script.filePath) {
         res.status(404).json({ error: 'Script file not found' });
@@ -415,7 +418,9 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      const script = await this.emceeService.getScriptFileInfo(scriptId);
+      const script = await this.emceeService.getScriptFileInfo(scriptId, {
+        tenantId: req.user?.tenantId,
+      });
       if (!script.filePath) {
         res.status(404).json({ error: 'Script file not found' });
         return;

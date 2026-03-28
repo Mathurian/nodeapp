@@ -317,12 +317,18 @@ export class EmceeService extends BaseService {
   /**
    * Get scripts filtered by event/contest/category
    */
-  async getScripts(filters: { eventId?: string; contestId?: string; categoryId?: string }): Promise<Prisma.EmceeScriptGetPayload<{}>[]> {
+  async getScripts(filters: {
+    eventId?: string;
+    contestId?: string;
+    categoryId?: string;
+    tenantId?: string;
+  }): Promise<Prisma.EmceeScriptGetPayload<{}>[]> {
     const whereClause: Prisma.EmceeScriptWhereInput = {};
 
     if (filters.eventId) whereClause.eventId = filters.eventId;
     if (filters.contestId) whereClause.contestId = filters.contestId;
     if (filters.categoryId) whereClause.categoryId = filters.categoryId;
+    if (filters.tenantId) whereClause.tenantId = filters.tenantId;
 
     const scripts = await this.prisma.emceeScript.findMany({
       where: whereClause,
@@ -335,9 +341,16 @@ export class EmceeService extends BaseService {
   /**
    * Get a specific script by ID with relations
    */
-  async getScript(scriptId: string): Promise<EmceeScriptWithRelations> {
-    const script = await this.prisma.emceeScript.findUnique({
-      where: { id: scriptId },
+  async getScript(
+    scriptId: string,
+    options?: { tenantId?: string }
+  ): Promise<EmceeScriptWithRelations> {
+    const whereClause: Prisma.EmceeScriptWhereInput = { id: scriptId };
+
+    if (options?.tenantId) whereClause.tenantId = options.tenantId;
+
+    const script = await this.prisma.emceeScript.findFirst({
+      where: whereClause,
       include: {
         event: {
           select: {
@@ -876,8 +889,13 @@ export class EmceeService extends BaseService {
       contestId?: string | null;
       categoryId?: string | null;
       order?: number;
-    }
+    },
+    tenantId?: string
   ): Promise<Prisma.EmceeScriptGetPayload<{}>> {
+    if (tenantId) {
+      await this.getScript(id, { tenantId });
+    }
+
     const script = await this.prisma.emceeScript.update({
       where: { id },
       data: {
@@ -896,7 +914,11 @@ export class EmceeService extends BaseService {
   /**
    * Delete a script
    */
-  async deleteScript(id: string): Promise<void> {
+  async deleteScript(id: string, tenantId?: string): Promise<void> {
+    if (tenantId) {
+      await this.getScript(id, { tenantId });
+    }
+
     await this.prisma.emceeScript.delete({
       where: { id },
     });
@@ -905,9 +927,16 @@ export class EmceeService extends BaseService {
   /**
    * Get script file info
    */
-  async getScriptFileInfo(scriptId: string): Promise<Prisma.EmceeScriptGetPayload<{}>> {
-    const script = await this.prisma.emceeScript.findUnique({
-      where: { id: scriptId },
+  async getScriptFileInfo(
+    scriptId: string,
+    options?: { tenantId?: string }
+  ): Promise<Prisma.EmceeScriptGetPayload<{}>> {
+    const whereClause: Prisma.EmceeScriptWhereInput = { id: scriptId };
+
+    if (options?.tenantId) whereClause.tenantId = options.tenantId;
+
+    const script = await this.prisma.emceeScript.findFirst({
+      where: whereClause,
     });
 
     if (!script || !script.filePath) {

@@ -206,7 +206,7 @@ export class BoardController {
       }
 
       const { id } = req.params;
-      const { title, content, type, eventId, contestId, categoryId, order, notes, isActive } = req.body;
+      const { title, content, type, eventId, contestId, categoryId, order, notes } = req.body;
 
       if (!id) {
         res.status(400).json({ error: 'Script ID required' });
@@ -222,8 +222,7 @@ export class BoardController {
         categoryId,
         order,
         notes,
-        isActive,
-      });
+      }, req.user.tenantId);
 
       res.json(script);
     } catch (error) {
@@ -250,34 +249,10 @@ export class BoardController {
         return;
       }
 
-      const result = await this.boardService.deleteEmceeScript(id);
+      const result = await this.boardService.deleteEmceeScript(id, req.user.tenantId);
       res.json(result);
     } catch (error) {
       log.error('Delete emcee script error', error);
-      return next(error);
-    }
-  };
-
-  /**
-   * Generate board report
-   */
-  generateReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const log = createRequestLogger(req, 'board');
-    try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
-
-      const { type } = req.body;
-
-      log.warn('Generate report rejected: endpoint not supported', { type });
-      res.status(409).json({
-        error: 'Board-specific report generation is not currently supported',
-        message: 'Use the main reports workflow to generate report artifacts.',
-      });
-    } catch (error) {
-      log.error('Generate report error', error);
       return next(error);
     }
   };
@@ -373,7 +348,6 @@ export const getEmceeScripts = controller.getEmceeScripts;
 export const createEmceeScript = controller.createEmceeScript;
 export const updateEmceeScript = controller.updateEmceeScript;
 export const deleteEmceeScript = controller.deleteEmceeScript;
-export const generateReport = controller.generateReport;
 export const getScoreRemovalRequests = controller.getScoreRemovalRequests;
 export const approveScoreRemoval = controller.approveScoreRemoval;
 export const rejectScoreRemoval = controller.rejectScoreRemoval;

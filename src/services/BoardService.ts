@@ -421,9 +421,15 @@ export class BoardService extends BaseService {
       categoryId?: string;
       order?: number;
       notes?: string;
-      isActive?: boolean;
-    }
+    },
+    tenantId?: string
   ): Promise<EmceeScript> {
+    if (tenantId) {
+      await this.prisma.emceeScript.findFirstOrThrow({
+        where: { id: scriptId, tenantId },
+      });
+    }
+
     const script: EmceeScript = await this.prisma.emceeScript.update({
       where: { id: scriptId },
       data,
@@ -435,7 +441,13 @@ export class BoardService extends BaseService {
   /**
    * Delete emcee script
    */
-  async deleteEmceeScript(scriptId: string): Promise<DeleteResponse> {
+  async deleteEmceeScript(scriptId: string, tenantId?: string): Promise<DeleteResponse> {
+    if (tenantId) {
+      await this.prisma.emceeScript.findFirstOrThrow({
+        where: { id: scriptId, tenantId },
+      });
+    }
+
     await this.prisma.emceeScript.delete({
       where: { id: scriptId },
     });
