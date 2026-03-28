@@ -224,6 +224,7 @@
           <intProp name="ThroughputController.style">1</intProp>
           <boolProp name="ThroughputController.perThread">false</boolProp>
           <stringProp name="ThroughputController.percentThroughput">70.0</stringProp>
+          <floatProp name="ThroughputController.percentThroughput">70.0</floatProp>
           <intProp name="ThroughputController.maxThroughput">1</intProp>
         </ThroughputController>
         <hashTree>
@@ -261,6 +262,7 @@
           <intProp name="ThroughputController.style">1</intProp>
           <boolProp name="ThroughputController.perThread">false</boolProp>
           <stringProp name="ThroughputController.percentThroughput">20.0</stringProp>
+          <floatProp name="ThroughputController.percentThroughput">20.0</floatProp>
           <intProp name="ThroughputController.maxThroughput">1</intProp>
         </ThroughputController>
         <hashTree>
@@ -298,6 +300,7 @@
           <intProp name="ThroughputController.style">1</intProp>
           <boolProp name="ThroughputController.perThread">false</boolProp>
           <stringProp name="ThroughputController.percentThroughput">10.0</stringProp>
+          <floatProp name="ThroughputController.percentThroughput">10.0</floatProp>
           <intProp name="ThroughputController.maxThroughput">1</intProp>
         </ThroughputController>
         <hashTree>

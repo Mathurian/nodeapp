@@ -111,6 +111,7 @@ category_id,contestant_id,score_id,judge_id
 cm2abc123...,cm2con456...,cm2sc789...,cm2jd111...
 cm2abc124...,cm2con457...,cm2sc790...,cm2jd222...
 ```
+`live_ids.csv` drives category/contestant/score IDs used by concurrent actions.
 
 ## Run examples
 
@@ -125,6 +126,7 @@ jmeter -n \
   -Jprotocol=http \
   -Jhost=localhost \
   -Jport=3000 \
+  -JbaseUrl=http://localhost:3000 \
   -JtenantSlug=dev-tenant \
   -JtestDurationSecs=1800 \
   -JrampUpSecs=120 \
