@@ -7,11 +7,6 @@
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
         <collectionProp name="Arguments.arguments">
-          <elementProp name="baseUrl" elementType="Argument">
-            <stringProp name="Argument.name">baseUrl</stringProp>
-            <stringProp name="Argument.value">http://localhost:3000</stringProp>
-            <stringProp name="Argument.metadata">=</stringProp>
-          </elementProp>
           <elementProp name="protocol" elementType="Argument">
             <stringProp name="Argument.name">protocol</stringProp>
             <stringProp name="Argument.value">http</stringProp>
@@ -115,10 +110,6 @@
         <stringProp name="ThreadGroup.ramp_time">${rampUpSecs}</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">${testDurationSecs}</stringProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(judgeThreads,120)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(rampUpSecs,120)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">${__P(testDurationSecs,1800)}</stringProp>
         <stringProp name="ThreadGroup.delay">0</stringProp>
       </ThreadGroup>
       <hashTree>
@@ -157,7 +148,6 @@
             <elementProp name="X-Tenant-Slug" elementType="Header">
               <stringProp name="Header.name">X-Tenant-Slug</stringProp>
               <stringProp name="Header.value">${tenantSlug}</stringProp>
-              <stringProp name="Header.value">${__P(tenantSlug,dev-tenant)}</stringProp>
             </elementProp>
           </collectionProp>
         </HeaderManager>
@@ -175,7 +165,6 @@
             </collectionProp>
           </elementProp>
           <stringProp name="HTTPSampler.path">${apiPrefix}/auth/login</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auth/login</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <stringProp name="HTTPSampler.follow_redirects">true</stringProp>
           <stringProp name="HTTPSampler.use_keepalive">true</stringProp>
@@ -184,9 +173,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract judge token">
@@ -207,7 +193,6 @@
             <elementProp name="X-Tenant-Slug" elementType="Header">
               <stringProp name="Header.name">X-Tenant-Slug</stringProp>
               <stringProp name="Header.value">${tenantSlug}</stringProp>
-              <stringProp name="Header.value">${__P(tenantSlug,dev-tenant)}</stringProp>
             </elementProp>
             <elementProp name="Content-Type" elementType="Header">
               <stringProp name="Header.name">Content-Type</stringProp>
@@ -232,23 +217,6 @@
 
         <GenericController guiclass="LogicControllerGui" testclass="GenericController" testname="Judge: Submit Scores">
         </GenericController>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/scoring/categories</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <stringProp name="HTTPSampler.follow_redirects">true</stringProp>
-          <stringProp name="HTTPSampler.use_keepalive">true</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
-        </HTTPSamplerProxy>
-        <hashTree/>
-
-        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Judge: Submit Scores (70%)">
-          <intProp name="ThroughputController.style">1</intProp>
-          <boolProp name="ThroughputController.perThread">false</boolProp>
-          <stringProp name="ThroughputController.percentThroughput">70.0</stringProp>
-          <floatProp name="ThroughputController.percentThroughput">70.0</floatProp>
-          <intProp name="ThroughputController.maxThroughput">1</intProp>
-        </ThroughputController>
         <hashTree>
           <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Submit Score">
             <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -266,11 +234,6 @@
             <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
             <stringProp name="HTTPSampler.domain">${host}</stringProp>
             <stringProp name="HTTPSampler.port">${port}</stringProp>
-            <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/scoring/category/${category_id}/contestant/${contestant_id}</stringProp>
-            <stringProp name="HTTPSampler.method">POST</stringProp>
-            <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-            <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-            <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
           </HTTPSamplerProxy>
           <hashTree>
             <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Idempotency Header - Submit Score">
@@ -287,13 +250,6 @@
 
         <GenericController guiclass="LogicControllerGui" testclass="GenericController" testname="Judge: Commentary">
         </GenericController>
-        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Judge: Commentary (20%)">
-          <intProp name="ThroughputController.style">1</intProp>
-          <boolProp name="ThroughputController.perThread">false</boolProp>
-          <stringProp name="ThroughputController.percentThroughput">20.0</stringProp>
-          <floatProp name="ThroughputController.percentThroughput">20.0</floatProp>
-          <intProp name="ThroughputController.maxThroughput">1</intProp>
-        </ThroughputController>
         <hashTree>
           <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Create Commentary">
             <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -311,11 +267,6 @@
             <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
             <stringProp name="HTTPSampler.domain">${host}</stringProp>
             <stringProp name="HTTPSampler.port">${port}</stringProp>
-            <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/commentary</stringProp>
-            <stringProp name="HTTPSampler.method">POST</stringProp>
-            <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-            <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-            <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
           </HTTPSamplerProxy>
           <hashTree>
             <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Idempotency Header - Commentary">
@@ -332,13 +283,6 @@
 
         <GenericController guiclass="LogicControllerGui" testclass="GenericController" testname="Judge: Update Existing Score">
         </GenericController>
-        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Judge: Update Existing Score (10%)">
-          <intProp name="ThroughputController.style">1</intProp>
-          <boolProp name="ThroughputController.perThread">false</boolProp>
-          <stringProp name="ThroughputController.percentThroughput">10.0</stringProp>
-          <floatProp name="ThroughputController.percentThroughput">10.0</floatProp>
-          <intProp name="ThroughputController.maxThroughput">1</intProp>
-        </ThroughputController>
         <hashTree>
           <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Update Score">
             <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -356,11 +300,6 @@
             <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
             <stringProp name="HTTPSampler.domain">${host}</stringProp>
             <stringProp name="HTTPSampler.port">${port}</stringProp>
-            <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/scoring/${score_id}</stringProp>
-            <stringProp name="HTTPSampler.method">PUT</stringProp>
-            <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-            <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-            <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
           </HTTPSamplerProxy>
           <hashTree>
             <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Idempotency Header - Update Score">
@@ -392,10 +331,6 @@
         <stringProp name="ThreadGroup.ramp_time">${rampUpSecs}</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">${testDurationSecs}</stringProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(tallyThreads,20)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(rampUpSecs,120)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">${__P(testDurationSecs,1800)}</stringProp>
         <stringProp name="ThreadGroup.delay">15</stringProp>
       </ThreadGroup>
       <hashTree>
@@ -433,11 +368,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auth/login</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract tally token">
@@ -453,7 +383,6 @@
             <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${tallyToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
-            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${__P(tenantSlug,dev-tenant)}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -464,11 +393,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/tally-master/pending-certifications</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Certify Judge Scores">
@@ -479,11 +403,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/category-certifications/category/${category_id}/judge/${judge_id}/certify</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Certify Contestant Scores">
@@ -493,11 +412,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/category-certifications/category/${category_id}/contestant/${contestant_id}/certify</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <UniformRandomTimer guiclass="UniformRandomTimerGui" testclass="UniformRandomTimer" testname="Tally Think Time">
@@ -517,10 +431,6 @@
         <stringProp name="ThreadGroup.ramp_time">${rampUpSecs}</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">${testDurationSecs}</stringProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(auditorThreads,20)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(rampUpSecs,120)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">${__P(testDurationSecs,1800)}</stringProp>
         <stringProp name="ThreadGroup.delay">30</stringProp>
       </ThreadGroup>
       <hashTree>
@@ -550,11 +460,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auth/login</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract auditor token">
@@ -570,7 +475,6 @@
             <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${auditorToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
-            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${__P(tenantSlug,dev-tenant)}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -581,11 +485,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auditor/pending-audits</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Verify Score">
@@ -596,11 +495,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auditor/verify-score/${score_id}</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Submit Final Certification">
@@ -611,11 +505,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auditor/category/${category_id}/final-certification/submit</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
@@ -630,10 +519,6 @@
         <stringProp name="ThreadGroup.ramp_time">${rampUpSecs}</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">${testDurationSecs}</stringProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(boardThreads,16)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(rampUpSecs,120)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">${__P(testDurationSecs,1800)}</stringProp>
         <stringProp name="ThreadGroup.delay">45</stringProp>
       </ThreadGroup>
       <hashTree>
@@ -663,11 +548,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auth/login</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract board token">
@@ -683,7 +563,6 @@
             <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${boardToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
-            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${__P(tenantSlug,dev-tenant)}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -694,11 +573,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/board/pending-approvals</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Submit Board Certification">
@@ -709,11 +583,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/board/category/${category_id}/certification/submit</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
@@ -728,10 +597,6 @@
         <stringProp name="ThreadGroup.ramp_time">${rampUpSecs}</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">${testDurationSecs}</stringProp>
-        <stringProp name="ThreadGroup.num_threads">${__P(adminThreads,14)}</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">${__P(rampUpSecs,120)}</stringProp>
-        <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">${__P(testDurationSecs,1800)}</stringProp>
         <stringProp name="ThreadGroup.delay">60</stringProp>
       </ThreadGroup>
       <hashTree>
@@ -752,11 +617,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/auth/login</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract admin token">
@@ -772,7 +632,6 @@
             <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${adminToken}</stringProp></elementProp>
             <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${tenantSlug}</stringProp></elementProp>
-            <elementProp name="X-Tenant-Slug" elementType="Header"><stringProp name="Header.name">X-Tenant-Slug</stringProp><stringProp name="Header.value">${__P(tenantSlug,dev-tenant)}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager>
         <hashTree/>
@@ -783,11 +642,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/events</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Board Stats View (cross-role visibility)">
@@ -797,11 +651,6 @@
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
           <stringProp name="HTTPSampler.domain">${host}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.path">${__P(apiPrefix,/api)}/board/stats</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
-          <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
-          <stringProp name="HTTPSampler.port">${__P(port,3000)}</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
         <UniformRandomTimer guiclass="UniformRandomTimerGui" testclass="UniformRandomTimer" testname="Admin Think Time">
