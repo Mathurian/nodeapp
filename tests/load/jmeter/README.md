@@ -119,6 +119,19 @@ cm2abc124...,cm2con457...,cm2sc790...,cm2jd222...
 jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter/results.jtl
 ```
 
+Override runtime values by editing **User Defined Variables** inside the JMX (`protocol`, `host`, `port`, `apiPrefix`, `tenantSlug`, thread counts, ramp, duration).
+
+Example production-like values:
+
+- `protocol=https`
+- `host=conmgr.com`
+- `port=443`
+- `tenantSlug=okckw`
+
+Then run:
+
+```bash
+jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter/results.jtl
 Override runtime values from CLI:
 
 ```bash
