@@ -102,6 +102,8 @@ export default defineConfig({
         // This prevents `/api/...` links (like bio files) from being treated as tenant routes.
         navigateFallbackDenylist: [
           /^\/api\//,
+          /^\/monitoring\//,
+          /^\/api-docs(?:\/|$)/,
           /^\/uploads\//,
           /^\/socket\.io\//,
           /^\/cdn-cgi\//

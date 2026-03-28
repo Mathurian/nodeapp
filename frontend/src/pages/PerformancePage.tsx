@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
+import { detectRuntimeEnvironment } from '../utils/runtimeEnvironment'
 import {
   ArrowTopRightOnSquareIcon,
   ChartBarIcon,
@@ -43,6 +44,40 @@ interface SlowQuery {
   query: string
   duration: number
   timestamp: string
+}
+
+const formatSlowEndpointTimestamp = (timestamp: string): string => {
+  const parsed = new Date(timestamp)
+  if (Number.isNaN(parsed.getTime())) {
+    return timestamp
+  }
+
+  return parsed.toLocaleString()
+}
+
+const resolveMonitoringOrigin = (): string => {
+  if (typeof window === 'undefined') {
+    return 'https://conmgr.com'
+  }
+
+  const { origin, hostname } = window.location
+  const normalizedHost = hostname.toLowerCase()
+
+  if (normalizedHost === 'localhost' || normalizedHost === '127.0.0.1' || normalizedHost === '::1') {
+    return origin
+  }
+
+  const runtimeEnvironment = detectRuntimeEnvironment(normalizedHost)
+
+  if (runtimeEnvironment === 'dev') {
+    return 'https://dev.conmgr.com'
+  }
+
+  if (runtimeEnvironment === 'prod') {
+    return 'https://conmgr.com'
+  }
+
+  return origin
 }
 
 const PerformancePage: React.FC = () => {
@@ -125,15 +160,18 @@ const PerformancePage: React.FC = () => {
     if (tenantId) grafanaParams.set('var-tenantId', tenantId)
     if (tenantSlug) grafanaParams.set('var-tenantSlug', tenantSlug)
   }
-  const tenantScopedGrafanaUrl = grafanaParams.toString()
+  const monitoringOrigin = resolveMonitoringOrigin()
+  const grafanaPath = grafanaParams.toString()
     ? `/monitoring/grafana/?${grafanaParams.toString()}`
     : '/monitoring/grafana/'
+  const tenantScopedGrafanaUrl = new URL(grafanaPath, monitoringOrigin).toString()
   const tenantScopedPrometheusExpression = !isSuperAdmin && tenantId
     ? `sum by (route, method) (rate(http_requests_total{tenantId="${tenantId}"}[5m]))`
     : ''
-  const tenantScopedPrometheusUrl = tenantScopedPrometheusExpression
+  const prometheusPath = tenantScopedPrometheusExpression
     ? `/monitoring/prometheus/graph?g0.expr=${encodeURIComponent(tenantScopedPrometheusExpression)}&g0.tab=0`
     : '/monitoring/prometheus/'
+  const tenantScopedPrometheusUrl = new URL(prometheusPath, monitoringOrigin).toString()
 
   if (!canAccessMonitoring) {
     return (
@@ -385,15 +423,15 @@ const PerformancePage: React.FC = () => {
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {slowQueries.map((query, index) => (
                 <div key={index} className="p-4">
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <span className="text-sm font-semibold text-red-600 dark:text-red-400">
                       {query.duration.toFixed(2)}ms
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                      {query.timestamp}
+                    <span className="text-xs text-gray-500 dark:text-gray-300">
+                      {formatSlowEndpointTimestamp(query.timestamp)}
                     </span>
                   </div>
-                  <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded overflow-x-auto">
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-gray-100 p-2 text-xs text-gray-900 dark:bg-gray-900 dark:text-gray-100">
                     {query.query}
                   </pre>
                 </div>
