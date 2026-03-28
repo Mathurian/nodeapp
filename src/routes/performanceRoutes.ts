@@ -23,7 +23,7 @@ router.use(authenticateToken)
  *       200:
  *         description: System metrics retrieved successfully
  */
-router.get('/metrics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getSystemMetrics)
+router.get('/metrics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getSystemMetrics)
 
 /**
  * @swagger
@@ -37,7 +37,7 @@ router.get('/metrics', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'
  *       200:
  *         description: Performance statistics retrieved successfully
  */
-router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getPerformanceStats)
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPerformanceStats)
 
 /**
  * @swagger
@@ -52,7 +52,7 @@ router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])
  *       200:
  *         description: Monitoring dashboard retrieved successfully
  */
-router.get('/dashboard', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getMonitoringDashboard)
+router.get('/dashboard', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getMonitoringDashboard)
 
 export default router;
 

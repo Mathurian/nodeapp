@@ -265,6 +265,186 @@ export const getPermissionStats = async (
 };
 
 /**
+ * Get permission audit logs for the active tenant scope
+ */
+export const getPermissionAuditLogs = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> => {
+  try {
+    if (!req.user) {
+      return sendForbidden(res, 'Authentication required');
+    }
+
+    const prisma = (req as any).prisma;
+    const tenantId = (req as any).tenantId || req.user.tenantId;
+
+    if (!tenantId) {
+      return sendError(res, 'Tenant context is required', 400);
+    }
+
+    const role = (req.query['role'] as UserRole | undefined) || undefined;
+    const resource = String(req.query['resource'] || '').trim() || undefined;
+    const changedBy = String(req.query['changedBy'] || '').trim() || undefined;
+    const startDateRaw = String(req.query['startDate'] || '').trim();
+    const endDateRaw = String(req.query['endDate'] || '').trim();
+    const page = Math.max(parseInt(String(req.query['page'] || '1'), 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(String(req.query['limit'] || '50'), 10) || 50, 1),
+      200
+    );
+
+    const whereClause: any = {
+      tenantId,
+    };
+
+    if (role) {
+      whereClause.role = role;
+    }
+
+    if (resource) {
+      whereClause.resource = {
+        contains: resource,
+        mode: 'insensitive',
+      };
+    }
+
+    if (startDateRaw || endDateRaw) {
+      whereClause.changedAt = {};
+
+      if (startDateRaw) {
+        const startDate = new Date(startDateRaw);
+        if (Number.isNaN(startDate.getTime())) {
+          return sendError(res, 'Invalid startDate', 400);
+        }
+        whereClause.changedAt.gte = startDate;
+      }
+
+      if (endDateRaw) {
+        const endDate = new Date(endDateRaw);
+        if (Number.isNaN(endDate.getTime())) {
+          return sendError(res, 'Invalid endDate', 400);
+        }
+        whereClause.changedAt.lte = endDate;
+      }
+    }
+
+    if (changedBy) {
+      const matchingUsers = await prisma.user.findMany({
+        where: {
+          tenantId,
+          OR: [
+            {
+              id: changedBy,
+            },
+            {
+              email: {
+                contains: changedBy,
+                mode: 'insensitive',
+              },
+            },
+            {
+              name: {
+                contains: changedBy,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const changedByIds = Array.from(
+        new Set([changedBy, ...matchingUsers.map((user: { id: string }) => user.id)]),
+      );
+
+      whereClause.changedBy = {
+        in: changedByIds,
+      };
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.permissionAuditLog.findMany({
+        where: whereClause,
+        orderBy: {
+          changedAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.permissionAuditLog.count({
+        where: whereClause,
+      }),
+    ]);
+
+    const changedByIds = Array.from(
+      new Set(
+        logs
+          .map((log: { changedBy: string }) => String(log.changedBy || '').trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const changedByUsers = changedByIds.length > 0
+      ? await prisma.user.findMany({
+          where: {
+            id: {
+              in: changedByIds,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        })
+      : [];
+
+    const changedByUserMap = new Map(
+      changedByUsers.map((changedByUser: { id: string; name: string | null; email: string | null }) => [
+        changedByUser.id,
+        {
+          name: changedByUser.name || changedByUser.email || 'Unknown User',
+          email: changedByUser.email || '',
+        },
+      ]),
+    );
+
+    const data = logs.map((log: any) => ({
+      ...log,
+      changedByUser: changedByUserMap.get(log.changedBy) || undefined,
+    }));
+
+    logger.info('Fetched permission audit logs', {
+      userId: req.user.id,
+      tenantId,
+      count: data.length,
+      total,
+      page,
+      limit,
+      role,
+      resource,
+      changedBy,
+    });
+
+    return res.json({
+      success: true,
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    logger.error('Error fetching permission audit logs', { error });
+    return next(error);
+  }
+};
+
+/**
  * Update a single permission
  */
 export const updatePermission = async (

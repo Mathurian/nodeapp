@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useId, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import {
@@ -192,6 +192,7 @@ const buildPayload = (form: WorkflowForm) => {
 
 const WorkflowManagementPage: React.FC = () => {
   const { user } = useAuth()
+  const idBase = useId()
   const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -207,6 +208,14 @@ const WorkflowManagementPage: React.FC = () => {
     () => ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || ''),
     [user?.role]
   )
+  const workflowNameId = `${idBase}-workflow-name`
+  const workflowTypeId = `${idBase}-workflow-type`
+  const workflowDescriptionId = `${idBase}-workflow-description`
+  const workflowWinnerUnlockEnabledId = `${idBase}-workflow-winner-unlock-enabled`
+  const workflowWinnerUnlockContestId = `${idBase}-workflow-winner-unlock-contest-id`
+  const workflowWinnerUnlockModeId = `${idBase}-workflow-winner-unlock-mode`
+  const workflowWinnerUnlockTriggerId = `${idBase}-workflow-winner-unlock-trigger`
+  const workflowWinnerUnlockDateTimeId = `${idBase}-workflow-winner-unlock-datetime`
 
   useEffect(() => {
     fetchWorkflows()
@@ -614,8 +623,9 @@ const WorkflowManagementPage: React.FC = () => {
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                  <label htmlFor={workflowNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                   <input
+                    id={workflowNameId}
                     type="text"
                     value={form.name}
                     onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -623,8 +633,9 @@ const WorkflowManagementPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                  <label htmlFor={workflowTypeId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                   <select
+                    id={workflowTypeId}
                     value={form.type}
                     onChange={(e) => {
                       const nextType = e.target.value
@@ -649,8 +660,9 @@ const WorkflowManagementPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <label htmlFor={workflowDescriptionId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                 <textarea
+                  id={workflowDescriptionId}
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                   rows={3}
@@ -671,8 +683,9 @@ const WorkflowManagementPage: React.FC = () => {
               </div>
 
               <div className="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-4 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-indigo-900 dark:text-indigo-100">
+                <label htmlFor={workflowWinnerUnlockEnabledId} className="flex items-center gap-2 text-sm font-medium text-indigo-900 dark:text-indigo-100">
                   <input
+                    id={workflowWinnerUnlockEnabledId}
                     type="checkbox"
                     checked={form.winnerUnlock.enabled}
                     onChange={(e) => setForm((prev) => ({
@@ -692,10 +705,11 @@ const WorkflowManagementPage: React.FC = () => {
                 {form.winnerUnlock.enabled && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                      <label htmlFor={workflowWinnerUnlockContestId} className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
                         Contest ID
                       </label>
                       <input
+                        id={workflowWinnerUnlockContestId}
                         type="text"
                         value={form.winnerUnlock.contestId}
                         onChange={(e) => setForm((prev) => ({
@@ -711,10 +725,11 @@ const WorkflowManagementPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                      <label htmlFor={workflowWinnerUnlockModeId} className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
                         Mode
                       </label>
                       <select
+                        id={workflowWinnerUnlockModeId}
                         value={form.winnerUnlock.mode}
                         onChange={(e) => {
                           const mode = e.target.value as 'trigger' | 'scheduled'
@@ -738,10 +753,11 @@ const WorkflowManagementPage: React.FC = () => {
 
                     {form.winnerUnlock.mode === 'trigger' ? (
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                        <label htmlFor={workflowWinnerUnlockTriggerId} className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
                           Trigger Event
                         </label>
                         <select
+                          id={workflowWinnerUnlockTriggerId}
                           value={form.winnerUnlock.triggerEvent}
                           onChange={(e) => setForm((prev) => ({
                             ...prev,
@@ -762,10 +778,11 @@ const WorkflowManagementPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                        <label htmlFor={workflowWinnerUnlockDateTimeId} className="block text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
                           Unlock Date / Time
                         </label>
                         <input
+                          id={workflowWinnerUnlockDateTimeId}
                           type="datetime-local"
                           value={form.winnerUnlock.unlockAt}
                           onChange={(e) => setForm((prev) => ({
@@ -786,7 +803,7 @@ const WorkflowManagementPage: React.FC = () => {
 
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Workflow Steps</label>
+                  <h4 className="block text-sm font-medium text-gray-700 dark:text-gray-300">Workflow Steps</h4>
                   <button
                     onClick={addStep}
                     className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
@@ -797,6 +814,15 @@ const WorkflowManagementPage: React.FC = () => {
                 <div className="space-y-3">
                   {form.steps.map((step, index) => (
                     <div key={`step-${index}`} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                      {(() => {
+                        const stepNameId = `${idBase}-workflow-step-${index}-name`
+                        const stepRoleId = `${idBase}-workflow-step-${index}-role`
+                        const stepDescriptionId = `${idBase}-workflow-step-${index}-description`
+                        const stepRequireApprovalId = `${idBase}-workflow-step-${index}-require-approval`
+                        const stepAutoAdvanceId = `${idBase}-workflow-step-${index}-auto-advance`
+
+                        return (
+                          <>
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                           Step {index + 1}
@@ -810,14 +836,22 @@ const WorkflowManagementPage: React.FC = () => {
                         </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label htmlFor={stepNameId} className="sr-only">
+                          Step {index + 1} name
+                        </label>
                         <input
+                          id={stepNameId}
                           type="text"
                           placeholder="Step name"
                           value={step.name}
                           onChange={(e) => updateStep(index, { name: e.target.value })}
                           className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         />
+                        <label htmlFor={stepRoleId} className="sr-only">
+                          Step {index + 1} required role
+                        </label>
                         <select
+                          id={stepRoleId}
                           value={step.requiredRole || ''}
                           onChange={(e) => updateStep(index, { requiredRole: e.target.value as WorkflowRole | '' })}
                           className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -828,7 +862,11 @@ const WorkflowManagementPage: React.FC = () => {
                           ))}
                         </select>
                       </div>
+                      <label htmlFor={stepDescriptionId} className="sr-only">
+                        Step {index + 1} description
+                      </label>
                       <textarea
+                        id={stepDescriptionId}
                         placeholder="Step description"
                         value={step.description || ''}
                         onChange={(e) => updateStep(index, { description: e.target.value })}
@@ -836,8 +874,9 @@ const WorkflowManagementPage: React.FC = () => {
                         className="mt-3 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                       <div className="flex flex-wrap gap-4 mt-3">
-                        <label className="text-sm text-gray-700 dark:text-gray-300">
+                        <label htmlFor={stepRequireApprovalId} className="text-sm text-gray-700 dark:text-gray-300">
                           <input
+                            id={stepRequireApprovalId}
                             type="checkbox"
                             checked={step.requireApproval !== false}
                             onChange={(e) => updateStep(index, { requireApproval: e.target.checked })}
@@ -845,8 +884,9 @@ const WorkflowManagementPage: React.FC = () => {
                           />
                           Require approval
                         </label>
-                        <label className="text-sm text-gray-700 dark:text-gray-300">
+                        <label htmlFor={stepAutoAdvanceId} className="text-sm text-gray-700 dark:text-gray-300">
                           <input
+                            id={stepAutoAdvanceId}
                             type="checkbox"
                             checked={Boolean(step.autoAdvance)}
                             onChange={(e) => updateStep(index, { autoAdvance: e.target.checked })}
@@ -855,6 +895,9 @@ const WorkflowManagementPage: React.FC = () => {
                           Auto-advance
                         </label>
                       </div>
+                          </>
+                        )
+                      })()}
                     </div>
                   ))}
                 </div>

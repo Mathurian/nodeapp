@@ -374,7 +374,10 @@ export class TallyMasterController {
   approveScoreRemoval = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      res.status(501).json({ error: 'Score removal approval to be implemented in ScoreRemovalService' });
+      res.status(410).json({
+        error: 'Legacy tally score-removal approval endpoint is no longer available',
+        message: 'Use the current board score-removal workflow for approval actions.',
+      });
     } catch (error) {
       log.error('Approve score removal error', error);
       return next(error);
@@ -387,7 +390,10 @@ export class TallyMasterController {
   rejectScoreRemoval = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      res.status(501).json({ error: 'Score removal rejection to be implemented in ScoreRemovalService' });
+      res.status(410).json({
+        error: 'Legacy tally score-removal rejection endpoint is no longer available',
+        message: 'Use the current board score-removal workflow for rejection actions.',
+      });
     } catch (error) {
       log.error('Reject score removal error', error);
       return next(error);
@@ -547,7 +553,10 @@ export class TallyMasterController {
   removeJudgeContestantScores = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'tallyMaster');
     try {
-      res.status(501).json({ error: 'Remove judge contestant scores to be implemented' });
+      res.status(410).json({
+        error: 'Legacy tally score-removal execution endpoint is no longer available',
+        message: 'Use the current governed score-removal workflow to remove scores.',
+      });
     } catch (error) {
       log.error('Remove judge contestant scores error', error);
       return next(error);

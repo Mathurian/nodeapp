@@ -38,7 +38,7 @@ const generalLimiter = isTestEnv ? noopLimiter : rateLimit({
     req.path === '/health' ||
     isLocalhost(req) ||
     isBootstrapPath(req.path) ||
-    req.path.startsWith('/v1/test-runner') // Test runner has SUPER_ADMIN/ADMIN auth checks
+    req.path.startsWith('/v1/test-runner') // Test runner and UAT ID routes have dedicated auth checks
 })
 
 // Higher-volume limiter for bootstrap/public-read endpoints

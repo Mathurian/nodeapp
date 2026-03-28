@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useId } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import {
   BuildingOfficeIcon,
   PlusIcon,
   PencilIcon,
-  Cog6ToothIcon,
   CheckCircleIcon,
   XCircleIcon,
   TrashIcon,
@@ -40,6 +39,7 @@ const TenantManagementPage: React.FC = () => {
   const [deletingTenantId, setDeletingTenantId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
+  const idBase = useId()
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -205,6 +205,20 @@ const TenantManagementPage: React.FC = () => {
       scoringType: 'STRAIGHT' as 'STRAIGHT' | 'OLYMPIC',
     })
   }
+
+  const tenantNameId = `${idBase}-tenant-name`
+  const tenantSlugId = `${idBase}-tenant-slug`
+  const tenantDomainId = `${idBase}-tenant-domain`
+  const tenantAdminNameId = `${idBase}-tenant-admin-name`
+  const tenantAdminEmailId = `${idBase}-tenant-admin-email`
+  const tenantAdminPasswordId = `${idBase}-tenant-admin-password`
+  const tenantIsActiveId = `${idBase}-tenant-is-active`
+  const tenantScoringTypeId = `${idBase}-tenant-scoring-type`
+  const tenantPlanTypeId = `${idBase}-tenant-plan-type`
+  const tenantSubscriptionStatusId = `${idBase}-tenant-subscription-status`
+  const tenantMaxUsersId = `${idBase}-tenant-max-users`
+  const tenantMaxEventsId = `${idBase}-tenant-max-events`
+  const tenantMaxStorageId = `${idBase}-tenant-max-storage`
 
   const openEditModal = (tenant: Tenant) => {
     const normalizedDomain = (tenant.domain || '').trim().toLowerCase()
@@ -402,10 +416,11 @@ const TenantManagementPage: React.FC = () => {
               </h3>
               <form id="tenant-management-form" className="space-y-4" onSubmit={handleTenantSubmit}>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor={tenantNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Tenant Name
                   </label>
                   <input
+                    id={tenantNameId}
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -414,10 +429,11 @@ const TenantManagementPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor={tenantSlugId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Slug (URL identifier)
                   </label>
                   <input
+                    id={tenantSlugId}
                     type="text"
                     value={formData.slug}
                     onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
@@ -427,10 +443,11 @@ const TenantManagementPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor={tenantDomainId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Custom Domain (Optional)
                   </label>
                   <input
+                    id={tenantDomainId}
                     type="text"
                     value={formData.domain}
                     onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
@@ -449,10 +466,11 @@ const TenantManagementPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor={tenantAdminNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Admin Name
                       </label>
                       <input
+                        id={tenantAdminNameId}
                         type="text"
                         value={formData.adminName}
                         onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
@@ -463,10 +481,11 @@ const TenantManagementPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor={tenantAdminEmailId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Admin Email
                       </label>
                       <input
+                        id={tenantAdminEmailId}
                         type="email"
                         value={formData.adminEmail}
                         onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
@@ -477,10 +496,11 @@ const TenantManagementPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor={tenantAdminPasswordId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Admin Password
                       </label>
                       <input
+                        id={tenantAdminPasswordId}
                         type="password"
                         value={formData.adminPassword}
                         onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
@@ -493,8 +513,9 @@ const TenantManagementPage: React.FC = () => {
                 )}
 
                 <div>
-                  <label className="flex items-center gap-2">
+                  <label htmlFor={tenantIsActiveId} className="flex items-center gap-2">
                     <input
+                      id={tenantIsActiveId}
                       type="checkbox"
                       checked={formData.isActive}
                       onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
@@ -507,10 +528,11 @@ const TenantManagementPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor={tenantScoringTypeId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Scoring Type
                   </label>
                   <select
+                    id={tenantScoringTypeId}
                     value={formData.scoringType}
                     onChange={(e) => setFormData({ ...formData, scoringType: e.target.value as 'STRAIGHT' | 'OLYMPIC' })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -532,10 +554,11 @@ const TenantManagementPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor={tenantPlanTypeId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Plan Type
                     </label>
                     <select
+                      id={tenantPlanTypeId}
                       value={formData.planType}
                       onChange={(e) => setFormData({ ...formData, planType: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -549,10 +572,11 @@ const TenantManagementPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor={tenantSubscriptionStatusId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Subscription Status
                     </label>
                     <select
+                      id={tenantSubscriptionStatusId}
                       value={formData.subscriptionStatus}
                       onChange={(e) => setFormData({ ...formData, subscriptionStatus: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -567,10 +591,11 @@ const TenantManagementPage: React.FC = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor={tenantMaxUsersId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Max Users
                     </label>
                     <input
+                      id={tenantMaxUsersId}
                       type="number"
                       value={formData.maxUsers}
                       onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value ? parseInt(e.target.value) : '' })}
@@ -581,10 +606,11 @@ const TenantManagementPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor={tenantMaxEventsId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Max Events
                     </label>
                     <input
+                      id={tenantMaxEventsId}
                       type="number"
                       value={formData.maxEvents}
                       onChange={(e) => setFormData({ ...formData, maxEvents: e.target.value ? parseInt(e.target.value) : '' })}
@@ -595,10 +621,11 @@ const TenantManagementPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor={tenantMaxStorageId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Max Storage (MB)
                     </label>
                     <input
+                      id={tenantMaxStorageId}
                       type="number"
                       value={formData.maxStorage}
                       onChange={(e) => setFormData({ ...formData, maxStorage: e.target.value ? parseInt(e.target.value) : '' })}

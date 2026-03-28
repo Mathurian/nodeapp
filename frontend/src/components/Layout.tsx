@@ -108,6 +108,7 @@ const ROUTE_LABELS: Record<string, string> = {
   'audit-logs': 'Audit Logs',
   'score-removal': 'Score Removal',
   'test-runner': 'Test Runner',
+  'uat-ids': 'UAT IDs',
   help: 'Help',
 }
 

@@ -59,34 +59,9 @@ export const resolveDefaultTenantId = async (db: PrismaClient): Promise<string> 
     return byConfiguredSlug.id;
   }
 
-  const fallbackDefaultSlug = await db.tenant.findUnique({
-    where: { slug: 'default' },
-    select: { id: true, slug: true },
+  logger.error('Unable to resolve configured default tenant', {
+    configuredIds: candidateIds,
+    configuredSlugs: candidateSlugs,
   });
-  if (fallbackDefaultSlug) {
-    logger.warn('Resolved default tenant via hard fallback slug', {
-      tenantId: fallbackDefaultSlug.id,
-      tenantSlug: fallbackDefaultSlug.slug,
-      configuredIds: candidateIds,
-      configuredSlugs: candidateSlugs,
-    });
-    return fallbackDefaultSlug.id;
-  }
-
-  const oldestTenant = await db.tenant.findFirst({
-    orderBy: { createdAt: 'asc' },
-    select: { id: true, slug: true },
-  });
-
-  if (oldestTenant) {
-    logger.error('Resolved default tenant via oldest-tenant fallback', {
-      tenantId: oldestTenant.id,
-      tenantSlug: oldestTenant.slug,
-      configuredIds: candidateIds,
-      configuredSlugs: candidateSlugs,
-    });
-    return oldestTenant.id;
-  }
-
-  throw new Error('Unable to resolve default tenant: no tenant records exist');
+  throw new Error('Unable to resolve default tenant from configured TENANT_DEFAULT_IDS or TENANT_DEFAULT_SLUGS');
 };

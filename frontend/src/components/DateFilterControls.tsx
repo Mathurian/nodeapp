@@ -19,6 +19,10 @@ const DateFilterControls: React.FC<DateFilterControlsProps> = ({
   onClear,
   filters,
 }) => {
+  const createdAfterId = 'date-filter-created-after'
+  const createdBeforeId = 'date-filter-created-before'
+  const sortById = 'date-filter-sort-by'
+
   const handleDateChange = (field: 'createdAfter' | 'createdBefore', value: string) => {
     onFilterChange({
       ...filters,
@@ -53,8 +57,9 @@ const DateFilterControls: React.FC<DateFilterControlsProps> = ({
 
       {/* Created After */}
       <div className="flex items-center gap-2">
-        <label className="text-sm text-gray-600 dark:text-gray-400">From:</label>
+        <label htmlFor={createdAfterId} className="text-sm text-gray-600 dark:text-gray-400">From:</label>
         <input
+          id={createdAfterId}
           type="date"
           value={filters.createdAfter || ''}
           onChange={(e) => handleDateChange('createdAfter', e.target.value)}
@@ -64,8 +69,9 @@ const DateFilterControls: React.FC<DateFilterControlsProps> = ({
 
       {/* Created Before */}
       <div className="flex items-center gap-2">
-        <label className="text-sm text-gray-600 dark:text-gray-400">To:</label>
+        <label htmlFor={createdBeforeId} className="text-sm text-gray-600 dark:text-gray-400">To:</label>
         <input
+          id={createdBeforeId}
           type="date"
           value={filters.createdBefore || ''}
           onChange={(e) => handleDateChange('createdBefore', e.target.value)}
@@ -75,8 +81,9 @@ const DateFilterControls: React.FC<DateFilterControlsProps> = ({
 
       {/* Sort By */}
       <div className="flex items-center gap-2">
-        <label className="text-sm text-gray-600 dark:text-gray-400">Sort:</label>
+        <label htmlFor={sortById} className="text-sm text-gray-600 dark:text-gray-400">Sort:</label>
         <select
+          id={sortById}
           value={filters.sortBy || ''}
           onChange={(e) => handleSortByChange(e.target.value)}
           className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"

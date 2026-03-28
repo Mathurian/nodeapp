@@ -179,7 +179,6 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 | DELETE | `/api/v1/board/emcee-scripts/:id` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
 | PUT | `/api/v1/board/emcee-scripts/:id` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
 | GET | `/api/v1/board/pending-approvals` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
-| POST | `/api/v1/board/reports` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
 | GET | `/api/v1/board/score-removal` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
 | POST | `/api/v1/board/score-removal` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
 | GET | `/api/v1/board/score-removal-requests-old` | TENANT_SCOPED | ADMIN, BOARD, ORGANIZER, SUPER_ADMIN | `src/routes/boardRoutes.ts` |
@@ -193,9 +192,7 @@ Source command: `node scripts/ops/generate-tenant-enforcement-matrix.js`
 | POST | `/api/v1/bulk/assignments/create` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
 | POST | `/api/v1/bulk/assignments/delete` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
 | POST | `/api/v1/bulk/assignments/reassign` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
-| POST | `/api/v1/bulk/contests/certify` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
 | POST | `/api/v1/bulk/contests/delete` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
-| POST | `/api/v1/bulk/contests/status` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
 | POST | `/api/v1/bulk/events/clone` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
 | POST | `/api/v1/bulk/events/delete` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |
 | POST | `/api/v1/bulk/events/status` | TENANT_SCOPED | ADMIN, SUPER_ADMIN | `src/routes/bulkRoutes.ts` |

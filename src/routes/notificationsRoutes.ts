@@ -10,8 +10,10 @@ import { NotificationsController } from '../controllers/notificationsController'
 import { authenticateToken as authenticate } from '../middleware/auth';
 import { sendNotification, broadcastByRole } from '../controllers/notificationsController';
 import { validate, notificationQuerySchema, cleanupQuerySchema, createNotificationSchema, broadcastNotificationSchema, idParamSchema } from '../middleware/validation';
+import { createLogger } from '../utils/logger';
 
 const router = Router();
+const logger = createLogger('notificationsRoutes');
 
 /**
  * @swagger
@@ -46,19 +48,12 @@ router.get('/', authenticate, validate(notificationQuerySchema, 'query'), async 
     const limit = parseInt(req.query['limit'] as string) || 50;
     const offset = parseInt(req.query['offset'] as string) || 0;
 
-    console.log('[NOTIFICATIONS_GET] Fetching notifications:', {
-      userId,
-      tenantId,
-      userEmail: req.user!.email,
-      limit,
-      offset
-    });
-
     const notifications = await notificationService.getUserNotifications(userId, tenantId, limit, offset);
-
-    console.log('[NOTIFICATIONS_GET] Found notifications:', {
+    logger.debug('Fetched notifications for current user', {
+      tenantId,
       count: notifications.length,
-      notifications: notifications.map(n => ({ id: n.id, title: n.title, userId: n.userId }))
+      limit,
+      offset,
     });
 
     res.json(notifications);

@@ -19,6 +19,7 @@ import * as path from 'path';
 import EventBusService, { AppEventType } from './EventBusService';
 import BackupTransferService from './BackupTransferService';
 import { env } from '../config/env';
+import { withTenantDbRlsContext } from '../utils/prismaRlsContext';
 
 const execAsync = promisify(exec);
 const logger = createLogger('DRAutomationService');
@@ -156,37 +157,82 @@ export interface DRDashboard {
 }
 
 export class DRAutomationService {
+  private static async withOptionalTenantDbContext<T>(
+    tenantId: string,
+    client: PrismaClient | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    if (client) {
+      return operation(client);
+    }
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId, isSuperAdmin: false },
+      async tx => operation(tx)
+    );
+  }
+
+  private static async withOptionalSystemDbContext<T>(
+    client: PrismaClient | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    if (client) {
+      return operation(client);
+    }
+
+    return withTenantDbRlsContext(
+      prisma as PrismaClient,
+      { tenantId: null, isSuperAdmin: true },
+      async tx => operation(tx)
+    );
+  }
+
+  private static async withOptionalScopedDbContext<T>(
+    tenantId: string | null | undefined,
+    client: PrismaClient | undefined,
+    operation: (db: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    const normalizedTenantId = String(tenantId || '').trim();
+    if (normalizedTenantId) {
+      return this.withOptionalTenantDbContext(normalizedTenantId, client, operation);
+    }
+
+    return this.withOptionalSystemDbContext(client, operation);
+  }
+
   /**
    * Get or create DR configuration for a tenant
    */
   static async getDRConfig(tenantId?: string, client?: PrismaClient): Promise<DRConfig> {
     try {
-      const db = client || prisma;
-      let config = await db.drConfig.findFirst({
-        where: tenantId ? { tenantId } : {},
-        orderBy: { createdAt: 'desc' }
-      });
-
-      if (!config) {
-        // Create default config
-        config = await db.drConfig.create({
-          data: {
-            tenantId,
-            backupFrequency: 'daily',
-            backupRetentionDays: 30,
-            enableAutoBackup: true,
-            enablePITR: false,
-            enableDRTesting: true,
-            drTestFrequency: 'weekly',
-            rtoMinutes: 240,
-            rpoMinutes: 60,
-          }
+      return this.withOptionalScopedDbContext(tenantId, client, async db => {
+        let config = await db.drConfig.findFirst({
+          where: tenantId ? { tenantId } : {},
+          orderBy: { createdAt: 'desc' }
         });
 
-        logger.info(`Created default DR config for tenant ${tenantId || 'global'}`);
-      }
+        if (!config) {
+          // Create default config
+          config = await db.drConfig.create({
+            data: {
+              tenantId,
+              backupFrequency: 'daily',
+              backupRetentionDays: 30,
+              enableAutoBackup: true,
+              enablePITR: false,
+              enableDRTesting: true,
+              drTestFrequency: 'weekly',
+              rtoMinutes: 240,
+              rpoMinutes: 60,
+            }
+          });
 
-      return config;
+          logger.info(`Created default DR config for tenant ${tenantId || 'global'}`);
+        }
+
+        return config;
+      });
     } catch (error) {
       logger.error('Error getting DR config:', error);
       throw error;
@@ -198,11 +244,12 @@ export class DRAutomationService {
    */
   static async updateDRConfig(id: string, input: DRConfigInput, client?: PrismaClient): Promise<DRConfig> {
     try {
-      const db = client || prisma;
-      const config = await db.drConfig.update({
-        where: { id },
-        data: input
-      });
+      const config = await this.withOptionalSystemDbContext(client, async db =>
+        db.drConfig.update({
+          where: { id },
+          data: input
+        })
+      );
 
       logger.info(`Updated DR config ${id}`);
 
@@ -225,24 +272,25 @@ export class DRAutomationService {
    */
   static async createBackupSchedule(input: BackupScheduleInput, client?: PrismaClient): Promise<BackupSchedule> {
     try {
-      const db = client || prisma;
       const normalizedFrequency = this.normalizeFrequency(input.frequency);
       const nextRunAt = this.calculateNextRun(normalizedFrequency);
 
-      const schedule = await db.backupSchedule.create({
-        data: {
-          tenantId: input.tenantId,
-          name: input.name,
-          backupType: input.backupType || 'full',
-          frequency: normalizedFrequency,
-          enabled: input.enabled !== false,
-          retentionDays: input.retentionDays || 30,
-          targets: input.targets || [],
-          compression: input.compression !== false,
-          encryption: input.encryption || false,
-          nextRunAt
-        }
-      });
+      const schedule = await this.withOptionalScopedDbContext(input.tenantId, client, async db =>
+        db.backupSchedule.create({
+          data: {
+            tenantId: input.tenantId,
+            name: input.name,
+            backupType: input.backupType || 'full',
+            frequency: normalizedFrequency,
+            enabled: input.enabled !== false,
+            retentionDays: input.retentionDays || 30,
+            targets: input.targets || [],
+            compression: input.compression !== false,
+            encryption: input.encryption || false,
+            nextRunAt
+          }
+        })
+      );
 
       logger.info(`Created backup schedule: ${schedule.name} (${schedule.id})`);
       return schedule;
@@ -257,7 +305,6 @@ export class DRAutomationService {
    */
   static async updateBackupSchedule(id: string, input: Partial<BackupScheduleInput>, client?: PrismaClient): Promise<BackupSchedule> {
     try {
-      const db = client || prisma;
       const updateData: Partial<BackupScheduleInput> & { nextRunAt?: Date } = { ...input };
 
       if (input.frequency) {
@@ -266,10 +313,12 @@ export class DRAutomationService {
         updateData.nextRunAt = this.calculateNextRun(normalizedFrequency);
       }
 
-      const schedule = await db.backupSchedule.update({
-        where: { id },
-        data: updateData
-      });
+      const schedule = await this.withOptionalSystemDbContext(client, async db =>
+        db.backupSchedule.update({
+          where: { id },
+          data: updateData
+        })
+      );
 
       logger.info(`Updated backup schedule ${id}`);
       return schedule;
@@ -284,8 +333,9 @@ export class DRAutomationService {
    */
   static async deleteBackupSchedule(id: string, client?: PrismaClient): Promise<void> {
     try {
-      const db = client || prisma;
-      await db.backupSchedule.delete({ where: { id } });
+      await this.withOptionalSystemDbContext(client, async db => {
+        await db.backupSchedule.delete({ where: { id } });
+      });
       logger.info(`Deleted backup schedule ${id}`);
     } catch (error) {
       logger.error('Error deleting backup schedule:', error);
@@ -298,11 +348,12 @@ export class DRAutomationService {
    */
   static async listBackupSchedules(tenantId?: string, client?: PrismaClient): Promise<BackupSchedule[]> {
     try {
-      const db = client || prisma;
-      return await db.backupSchedule.findMany({
-        where: tenantId ? { tenantId } : {},
-        orderBy: { createdAt: 'desc' }
-      });
+      return await this.withOptionalScopedDbContext(tenantId, client, async db =>
+        db.backupSchedule.findMany({
+          where: tenantId ? { tenantId } : {},
+          orderBy: { createdAt: 'desc' }
+        })
+      );
     } catch (error) {
       logger.error('Error listing backup schedules:', error);
       throw error;
@@ -314,17 +365,18 @@ export class DRAutomationService {
    */
   static async createBackupTarget(input: BackupTargetInput, client?: PrismaClient): Promise<BackupTarget> {
     try {
-      const db = client || prisma;
-      const target = await db.backupTarget.create({
-        data: {
-          tenantId: input.tenantId,
-          name: input.name,
-          type: input.type,
-          config: input.config as any,
-          enabled: input.enabled !== false,
-          priority: input.priority || 0
-        }
-      });
+      const target = await this.withOptionalScopedDbContext(input.tenantId, client, async db =>
+        db.backupTarget.create({
+          data: {
+            tenantId: input.tenantId,
+            name: input.name,
+            type: input.type,
+            config: input.config as any,
+            enabled: input.enabled !== false,
+            priority: input.priority || 0
+          }
+        })
+      );
 
       logger.info(`Created backup target: ${target.name} (${target.type})`);
       return target;
@@ -339,11 +391,12 @@ export class DRAutomationService {
    */
   static async updateBackupTarget(id: string, input: Partial<BackupTargetInput>, client?: PrismaClient): Promise<BackupTarget> {
     try {
-      const db = client || prisma;
-      const target = await db.backupTarget.update({
-        where: { id },
-        data: input as any
-      });
+      const target = await this.withOptionalSystemDbContext(client, async db =>
+        db.backupTarget.update({
+          where: { id },
+          data: input as any
+        })
+      );
 
       logger.info(`Updated backup target ${id}`);
       return target;
@@ -358,8 +411,9 @@ export class DRAutomationService {
    */
   static async deleteBackupTarget(id: string, client?: PrismaClient): Promise<void> {
     try {
-      const db = client || prisma;
-      await db.backupTarget.delete({ where: { id } });
+      await this.withOptionalSystemDbContext(client, async db => {
+        await db.backupTarget.delete({ where: { id } });
+      });
       logger.info(`Deleted backup target ${id}`);
     } catch (error) {
       logger.error('Error deleting backup target:', error);
@@ -372,11 +426,12 @@ export class DRAutomationService {
    */
   static async listBackupTargets(tenantId?: string, client?: PrismaClient): Promise<BackupTarget[]> {
     try {
-      const db = client || prisma;
-      return await db.backupTarget.findMany({
-        where: tenantId ? { tenantId } : {},
-        orderBy: { priority: 'desc' }
-      });
+      return await this.withOptionalScopedDbContext(tenantId, client, async db =>
+        db.backupTarget.findMany({
+          where: tenantId ? { tenantId } : {},
+          orderBy: { priority: 'desc' }
+        })
+      );
     } catch (error) {
       logger.error('Error listing backup targets:', error);
       throw error;
@@ -686,17 +741,18 @@ export class DRAutomationService {
    */
   static async getDRMetrics(tenantId?: string, metricType?: string, days: number = 30, client?: PrismaClient): Promise<DRMetric[]> {
     try {
-      const db = client || prisma;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      return await db.drMetric.findMany({
-        where: {
-          ...(tenantId && { tenantId }),
-          ...(metricType && { metricType }),
-          timestamp: { gte: since }
-        },
-        orderBy: { timestamp: 'desc' }
-      });
+      return await this.withOptionalScopedDbContext(tenantId, client, async db =>
+        db.drMetric.findMany({
+          where: {
+            ...(tenantId && { tenantId }),
+            ...(metricType && { metricType }),
+            timestamp: { gte: since }
+          },
+          orderBy: { timestamp: 'desc' }
+        })
+      );
     } catch (error) {
       logger.error('Error getting DR metrics:', error);
       throw error;
@@ -708,7 +764,6 @@ export class DRAutomationService {
    */
   static async getDRDashboard(tenantId?: string, client?: PrismaClient): Promise<DRDashboard> {
     try {
-      const db = client || prisma;
       const [
         config,
         schedules,
@@ -716,22 +771,24 @@ export class DRAutomationService {
         recentBackups,
         recentTests,
         metrics
-      ] = await Promise.all([
-        this.getDRConfig(tenantId, db),
-        this.listBackupSchedules(tenantId, db),
-        this.listBackupTargets(tenantId, db),
-        db.backupLog.findMany({
-          where: tenantId ? { tenantId } : {},
-          orderBy: { startedAt: 'desc' },
-          take: 10
-        }),
-        db.drTestLog.findMany({
-          where: tenantId ? { tenantId } : {},
-          orderBy: { startedAt: 'desc' },
-          take: 10
-        }),
-        this.getDRMetrics(tenantId, undefined, 7, db)
-      ]);
+      ] = await this.withOptionalScopedDbContext(tenantId, client, async db =>
+        Promise.all([
+          this.getDRConfig(tenantId, db),
+          this.listBackupSchedules(tenantId, db),
+          this.listBackupTargets(tenantId, db),
+          db.backupLog.findMany({
+            where: tenantId ? { tenantId } : {},
+            orderBy: { startedAt: 'desc' },
+            take: 10
+          }),
+          db.drTestLog.findMany({
+            where: tenantId ? { tenantId } : {},
+            orderBy: { startedAt: 'desc' },
+            take: 10
+          }),
+          this.getDRMetrics(tenantId, undefined, 7, db)
+        ])
+      );
 
       // Calculate statistics
       const totalBackups = recentBackups.length;
@@ -797,38 +854,39 @@ export class DRAutomationService {
    */
   static async checkRTORPOViolations(tenantId?: string, client?: PrismaClient): Promise<RTORPOViolationCheck> {
     try {
-      const db = client || prisma;
-      const config = await this.getDRConfig(tenantId, db);
+      return await this.withOptionalScopedDbContext(tenantId, client, async db => {
+        const config = await this.getDRConfig(tenantId, db);
 
-      // Check RPO (time since last successful backup)
-      const lastBackup = await db.backupLog.findFirst({
-        where: {
-          ...(tenantId && { tenantId }),
-          status: 'success'
-        },
-        orderBy: { completedAt: 'desc' }
+        // Check RPO (time since last successful backup)
+        const lastBackup = await db.backupLog.findFirst({
+          where: {
+            ...(tenantId && { tenantId }),
+            status: 'success'
+          },
+          orderBy: { completedAt: 'desc' }
+        });
+
+        const rpoViolation = lastBackup
+          ? (Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000) > config.rpoMinutes
+          : true;
+
+        if (rpoViolation) {
+          await this.recordMetric(tenantId, 'rpo_violation', 1, 'count', {
+            lastBackup: lastBackup?.completedAt,
+            rpoMinutes: config.rpoMinutes
+          }, db);
+        }
+
+        return {
+          rpoViolation,
+          rtoMinutes: config.rtoMinutes,
+          rpoMinutes: config.rpoMinutes,
+          lastBackup: lastBackup?.completedAt ?? null,
+          minutesSinceLastBackup: (lastBackup
+            ? Math.floor((Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000))
+            : null) as number
+        };
       });
-
-      const rpoViolation = lastBackup
-        ? (Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000) > config.rpoMinutes
-        : true;
-
-      if (rpoViolation) {
-        await this.recordMetric(tenantId, 'rpo_violation', 1, 'count', {
-          lastBackup: lastBackup?.completedAt,
-          rpoMinutes: config.rpoMinutes
-        }, db);
-      }
-
-      return {
-        rpoViolation,
-        rtoMinutes: config.rtoMinutes,
-        rpoMinutes: config.rpoMinutes,
-        lastBackup: lastBackup?.completedAt ?? null,
-        minutesSinceLastBackup: (lastBackup
-          ? Math.floor((Date.now() - lastBackup.completedAt!.getTime()) / (60 * 1000))
-          : null) as number
-      };
     } catch (error) {
       logger.error('Error checking RTO/RPO violations:', error);
       throw error;
@@ -941,16 +999,17 @@ export class DRAutomationService {
     client?: PrismaClient
   ): Promise<void> {
     try {
-      const db = client || prisma;
-      await db.drMetric.create({
-        data: {
-          tenantId: tenantId || null,
-          metricType,
-          // metricName: // Removed - not in schema metricType,
-          value,
-          unit,
-          metadata
-        }
+      await this.withOptionalScopedDbContext(tenantId, client, async db => {
+        await db.drMetric.create({
+          data: {
+            tenantId: tenantId || null,
+            metricType,
+            // metricName: // Removed - not in schema metricType,
+            value,
+            unit,
+            metadata
+          }
+        });
       });
     } catch (error) {
       logger.error('Error recording metric:', error);

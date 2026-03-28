@@ -260,6 +260,9 @@ const WinnersPage: React.FC = () => {
     return map
   }, [events])
 
+  const eventFilterId = 'winners-event-filter'
+  const contestFilterId = 'winners-contest-filter'
+
   return (
     <div className="cgr-page-container">
         <PageHeader
@@ -271,10 +274,11 @@ const WinnersPage: React.FC = () => {
         <Card className="rounded-lg p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={eventFilterId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Event
               </label>
               <select
+                id={eventFilterId}
                 value={selectedEventId}
                 onChange={(e) => setSelectedEventId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
@@ -287,10 +291,11 @@ const WinnersPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={contestFilterId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contest
               </label>
               <select
+                id={contestFilterId}
                 value={selectedContestId}
                 onChange={(e) => setSelectedContestId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"

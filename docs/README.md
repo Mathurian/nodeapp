@@ -39,7 +39,8 @@ Welcome to the complete documentation for Event Manager Contest System!
 
 ## Documentation Scope
 
-- Current, published docs are the markdown files in `docs/` plus `docs/testing/` and `docs/operations/`.
+- The in-app Help UI publishes the curated root guides defined by the application help access policy.
+- `docs/operations/`, `docs/testing/`, `docs/adr/`, and `docs/operations/internal/` remain operator/developer reference material and are not published in the in-app Help UI unless explicitly promoted.
 - Archived material is retained in `docs/outdated/` and is not published in the in-app Help UI.
 - If code and docs diverge, treat code as source of truth and update docs in the same change set.
 

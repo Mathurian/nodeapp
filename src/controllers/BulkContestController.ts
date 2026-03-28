@@ -34,28 +34,15 @@ export class BulkContestController {
         return;
       }
 
-      // Note: ContestService.updateContest doesn't accept status in DTO
-      // For now, remove bulk status change or implement it differently
-      const result = await this.bulkOperationService.executeBulkOperation(
-        async (contestId: string) => {
-          // Just update the contest without changing status
-          // Status changes should be done through proper workflow methods
-          await this.contestService.updateContest(contestId, {});
-        },
-        contestIds,
-        { batchSize: 10, continueOnError: true }
-      );
-
-      this.logger.info('Bulk contest status change completed', {
+      this.logger.warn('Bulk contest status change rejected: workflow not implemented', {
         userId: req.user?.id,
         contestIds,
         status,
-        result
       });
 
-      res.json({
-        message: 'Bulk status change completed (note: status field not supported, operation performed without status change)',
-        result
+      res.status(409).json({
+        error: 'Bulk contest status changes are not currently supported',
+        message: 'Update contest status through the supported contest workflow until bulk status transitions are implemented.',
       });
     } catch (error) {
       this.logger.error('Bulk change contest status failed', { error });
@@ -79,11 +66,9 @@ export class BulkContestController {
         return;
       }
 
-      // Note: ContestService doesn't have certifyContest method
-      // Certification is a complex workflow that should be done individually
-      res.status(501).json({
-        error: 'Bulk contest certification not implemented',
-        message: 'Contests must be certified individually through the certification workflow'
+      res.status(409).json({
+        error: 'Bulk contest certification is not currently supported',
+        message: 'Contests must be certified individually through the certification workflow.',
       });
       return;
     } catch (error) {

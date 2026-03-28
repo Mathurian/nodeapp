@@ -590,9 +590,9 @@ export const notificationsAPI = {
   markAllAsRead: () => api.put('/notifications/read-all'),
   delete: (id: string) => api.delete(`/notifications/${id}`),
   deleteAllRead: (daysOld?: number) => api.delete(`/notifications/read-all${daysOld ? `?daysOld=${daysOld}` : ''}`),
-  sendNotification: (data: { userIds: string[], title: string, message: string, type?: string, link?: string }) =>
+  sendNotification: (data: { userIds: string[], title: string, message: string, type?: string, link?: string, targetTenantId?: string | null }) =>
     api.post('/notifications/send', data),
-  broadcastByRole: (data: { roles: string[], title: string, message: string, type?: string, link?: string }) =>
+  broadcastByRole: (data: { roles: string[], title: string, message: string, type?: string, link?: string, targetTenantId?: string | null }) =>
     api.post('/notifications/broadcast', data),
 }
 
@@ -714,6 +714,17 @@ export const permissionsAPI = {
   invalidateCache: (role?: string, tenantId?: string) =>
     api.post('/permissions/cache/invalidate', { role, tenantId }),
 };
+
+export const testRunnerAPI = {
+  getUatIds: () => api.get('/test-runner/uat-ids'),
+  getFiles: () => api.get('/test-runner/files'),
+  getRuns: () => api.get('/test-runner/runs'),
+  startRun: (data: { testFile: string; testPattern?: string }) =>
+    api.post('/test-runner/run', data, { timeout: 30000 }),
+  getRun: (runId: string) => api.get(`/test-runner/run/${runId}`),
+  deleteRun: (runId: string) => api.delete(`/test-runner/run/${runId}`),
+  cleanupRuns: () => api.delete('/test-runner/runs/cleanup'),
+}
 
 // Export the api instance for direct use
 export { api, api as apiClient }

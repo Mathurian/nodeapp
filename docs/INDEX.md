@@ -29,18 +29,11 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 14. **[Advanced Features](14-ADVANCED-FEATURES.md)** - Feature flags, webhooks, custom fields, and 14 more advanced features
 
 ### Planning & Operations
-- **[Outstanding Tasks](operations/OUTSTANDING-TASKS.md)** - Current backlog: contract tests, Phase 5 deployment, GraphQL/CQRS evaluation, A/B testing
-- **[Next Steps (Phase 5)](operations/NEXT-STEPS.md)** - Final testing and production deployment checklist
 - **[Deployment Guide](operations/DEPLOYMENT-GUIDE.md)** - Full production deployment procedures
 - **[Testing Guide](testing/testing-guide.md)** - Testing infrastructure and coverage targets
-- **[Database Optimization](operations/DATABASE-OPTIMIZATION.md)** - Query optimization and indexing
-- **[Migration Guide](operations/MIGRATION-GUIDE.md)** - Database migration procedures
 
 ### Additional Resources
-- **[Accessibility Testing](testing/ACCESSIBILITY-TESTING.md)** - WCAG 2.1 AA compliance testing
 - **[CDN Setup](operations/CDN-SETUP.md)** - CDN configuration guide
-- **[Database Read Replicas](operations/DATABASE-READ-REPLICAS.md)** - Read replica setup
-- **[Visual Regression Testing](testing/VISUAL-REGRESSION-TESTING.md)** - Chromatic/screenshot testing
 
 ## About Event Manager
 
@@ -68,7 +61,8 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 
 ## Scope Notes
 
-- Help/Docs UI publishes the files under `docs/` except `docs/outdated/`.
+- The in-app Help UI publishes the curated root guides defined by the application help access policy.
+- `docs/operations/`, `docs/testing/`, `docs/adr/`, and `docs/operations/internal/` remain in-repo operational/reference material and are not part of the public Help UI surface unless explicitly promoted.
 - `docs/outdated/` remains in-repo for historical reference only.
 - For current test operations, use the guides in `docs/testing/`.
 

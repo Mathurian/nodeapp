@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { Modal } from './Modal'
-import { notificationsAPI, usersAPI } from '../services/api'
+import { notificationsAPI } from '../services/api'
 import { PaperAirplaneIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
@@ -37,6 +37,14 @@ interface SendFormData extends SendNotificationFormData {
   userIds: string[]
 }
 
+type SendNotificationPayload = SendFormData & {
+  targetTenantId?: string | null
+}
+
+type BroadcastNotificationPayload = BroadcastFormData & {
+  targetTenantId?: string | null
+}
+
 const ROLES = [
   { value: 'ADMIN', label: 'Admin' },
   { value: 'AUDITOR', label: 'Auditor' },
@@ -65,6 +73,18 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const [activeTab, setActiveTab] = useState<'users' | 'broadcast'>('users')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('current')
+  const usersTenantSelectId = 'send-notification-users-tenant'
+  const usersTitleInputId = 'send-notification-users-title'
+  const usersMessageInputId = 'send-notification-users-message'
+  const usersTypeInputId = 'send-notification-users-type'
+  const usersLinkInputId = 'send-notification-users-link'
+  const broadcastTenantSelectId = 'send-notification-broadcast-tenant'
+  const broadcastTitleInputId = 'send-notification-broadcast-title'
+  const broadcastMessageInputId = 'send-notification-broadcast-message'
+  const broadcastTypeInputId = 'send-notification-broadcast-type'
+  const broadcastLinkInputId = 'send-notification-broadcast-link'
+  const usersFieldsetId = 'send-notification-users-list'
+  const rolesFieldsetId = 'send-notification-role-list'
 
   // Form state for "Send to Users"
   const [sendFormData, setSendFormData] = useState<SendFormData>({
@@ -136,7 +156,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
   // Send to specific users mutation
   const sendMutation = useMutation(
     async (data: SendFormData) => {
-      const payload: any = {
+      const payload: SendNotificationPayload = {
         userIds: data.userIds,
         title: data.title,
         message: data.message,
@@ -158,10 +178,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         onClose()
         onSuccess?.()
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         console.error('Send notification error:', error)
-        console.error('Response data:', error.response?.data)
-        const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to send notification'
+        const errorMessage = axios.isAxiosError(error)
+          ? error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to send notification'
+          : 'Failed to send notification'
         toast.error(`Error: ${errorMessage}`)
       },
     }
@@ -170,7 +191,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
   // Broadcast by role mutation
   const broadcastMutation = useMutation(
     async (data: BroadcastFormData) => {
-      const payload: any = {
+      const payload: BroadcastNotificationPayload = {
         roles: data.roles,
         title: data.title,
         message: data.message,
@@ -192,8 +213,10 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         onClose()
         onSuccess?.()
       },
-      onError: (error: any) => {
-        const errorMessage = error.response?.data?.error || error.message || 'Failed to broadcast notification'
+      onError: (error: unknown) => {
+        const errorMessage = axios.isAxiosError(error)
+          ? error.response?.data?.error || error.message || 'Failed to broadcast notification'
+          : 'Failed to broadcast notification'
         toast.error(`Error: ${errorMessage}`)
       },
     }
@@ -322,10 +345,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
             {/* Tenant Selection (SUPER_ADMIN only) */}
             {isSuperAdmin && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor={usersTenantSelectId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Target Tenant
                 </label>
                 <select
+                  id={usersTenantSelectId}
                   value={selectedTenantId}
                   onChange={(e) => setSelectedTenantId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -345,10 +369,10 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
             )}
 
             {/* User Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <fieldset>
+              <legend className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Select Users <span className="text-red-500">*</span>
-              </label>
+              </legend>
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 max-h-48 overflow-y-auto bg-white dark:bg-gray-800">
                 {isLoadingUsers ? (
                   <div className="text-center text-gray-500 dark:text-gray-400 py-4">
@@ -360,41 +384,47 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {users.map((user) => (
-                      <label
+                    {users.map((user) => {
+                      const checkboxId = `${usersFieldsetId}-${user.id}`
+
+                      return (
+                      <div
                         key={user.id}
-                        className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+                        className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
                       >
                         <input
+                          id={checkboxId}
                           type="checkbox"
                           checked={sendFormData.userIds.includes(user.id)}
                           onChange={() => handleUserToggle(user.id)}
                           className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                         />
-                        <div className="flex-1">
+                        <label htmlFor={checkboxId} className="flex-1 cursor-pointer">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {user.name}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
                             {user.email} • {user.role}
                           </div>
-                        </div>
-                      </label>
-                    ))}
+                        </label>
+                      </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {sendFormData.userIds.length} user(s) selected
               </p>
-            </div>
+            </fieldset>
 
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={usersTitleInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Title <span className="text-red-500">*</span>
               </label>
               <input
+                id={usersTitleInputId}
                 type="text"
                 value={sendFormData.title}
                 onChange={(e) => setSendFormData({ ...sendFormData, title: e.target.value })}
@@ -406,10 +436,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Message */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={usersMessageInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Message <span className="text-red-500">*</span>
               </label>
               <textarea
+                id={usersMessageInputId}
                 value={sendFormData.message}
                 onChange={(e) => setSendFormData({ ...sendFormData, message: e.target.value })}
                 rows={4}
@@ -421,10 +452,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={usersTypeInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Type
               </label>
               <select
+                id={usersTypeInputId}
                 value={sendFormData.type}
                 onChange={(e) => setSendFormData({ ...sendFormData, type: e.target.value as NotificationType })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -440,10 +472,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Link */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={usersLinkInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Link (Optional)
               </label>
               <input
+                id={usersLinkInputId}
                 type="text"
                 value={sendFormData.link}
                 onChange={(e) => setSendFormData({ ...sendFormData, link: e.target.value })}
@@ -481,10 +514,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
             {/* Tenant Selection (SUPER_ADMIN only) */}
             {isSuperAdmin && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor={broadcastTenantSelectId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Target Tenant
                 </label>
                 <select
+                  id={broadcastTenantSelectId}
                   value={selectedTenantId}
                   onChange={(e) => setSelectedTenantId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -505,10 +539,10 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
             )}
 
             {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <fieldset>
+              <legend className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Select Roles <span className="text-red-500">*</span>
-              </label>
+              </legend>
               <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-800">
                 <div className="grid grid-cols-2 gap-2">
                   {ROLES.map((role) => (
@@ -517,6 +551,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
                       className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
                     >
                       <input
+                        id={`${rolesFieldsetId}-${role.value}`}
                         type="checkbox"
                         checked={broadcastFormData.roles.includes(role.value)}
                         onChange={() => handleRoleToggle(role.value)}
@@ -532,7 +567,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {broadcastFormData.roles.length} role(s) selected
               </p>
-            </div>
+            </fieldset>
 
             {/* Warning */}
             {broadcastFormData.roles.length > 0 && (
@@ -551,10 +586,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={broadcastTitleInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Title <span className="text-red-500">*</span>
               </label>
               <input
+                id={broadcastTitleInputId}
                 type="text"
                 value={broadcastFormData.title}
                 onChange={(e) => setBroadcastFormData({ ...broadcastFormData, title: e.target.value })}
@@ -566,10 +602,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Message */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={broadcastMessageInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Message <span className="text-red-500">*</span>
               </label>
               <textarea
+                id={broadcastMessageInputId}
                 value={broadcastFormData.message}
                 onChange={(e) => setBroadcastFormData({ ...broadcastFormData, message: e.target.value })}
                 rows={4}
@@ -581,10 +618,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={broadcastTypeInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Type
               </label>
               <select
+                id={broadcastTypeInputId}
                 value={broadcastFormData.type}
                 onChange={(e) => setBroadcastFormData({ ...broadcastFormData, type: e.target.value as NotificationType })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -600,10 +638,11 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
 
             {/* Link */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={broadcastLinkInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Link (Optional)
               </label>
               <input
+                id={broadcastLinkInputId}
                 type="text"
                 value={broadcastFormData.link}
                 onChange={(e) => setBroadcastFormData({ ...broadcastFormData, link: e.target.value })}

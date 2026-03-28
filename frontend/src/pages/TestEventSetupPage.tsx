@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { useMutation, useQuery } from 'react-query'
+import React, { useId, useState } from 'react'
+import { useMutation } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
@@ -60,6 +60,7 @@ interface TestEventResult {
 
 const TestEventSetupPage: React.FC = () => {
   const { user } = useAuth()
+  const idBase = useId()
 
   const [config, setConfig] = useState<TestEventConfig>({
     eventName: `Test Event ${new Date().toLocaleDateString()}`,
@@ -152,6 +153,23 @@ const TestEventSetupPage: React.FC = () => {
     setConfig(prev => ({ ...prev, [field]: value }))
   }
 
+  const eventNameId = `${idBase}-event-name`
+  const contestCountId = `${idBase}-contest-count`
+  const categoriesPerContestId = `${idBase}-categories-per-contest`
+  const contestantsPerCategoryId = `${idBase}-contestants-per-category`
+  const judgesPerCategoryId = `${idBase}-judges-per-category`
+  const tallyMastersPerContestId = `${idBase}-tally-masters-per-contest`
+  const auditorsPerContestId = `${idBase}-auditors-per-contest`
+  const organizersId = `${idBase}-organizers`
+  const boardUsersId = `${idBase}-board-users`
+  const emceesId = `${idBase}-emcees`
+  const adminsId = `${idBase}-admins`
+  const defaultPasswordId = `${idBase}-default-password`
+  const createNewTenantId = `${idBase}-create-new-tenant`
+  const tenantNameId = `${idBase}-tenant-name`
+  const assignJudgesId = `${idBase}-assign-judges`
+  const assignContestantsId = `${idBase}-assign-contestants`
+
   if (!isAdmin) {
     return (
       <div className="cgr-page-container min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -199,10 +217,11 @@ const TestEventSetupPage: React.FC = () => {
 
           {/* Event Name */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={eventNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Event Name
             </label>
             <input
+              id={eventNameId}
               type="text"
               value={config.eventName}
               onChange={(e) => updateConfig('eventName', e.target.value)}
@@ -214,10 +233,11 @@ const TestEventSetupPage: React.FC = () => {
           {/* Contest/Category Settings */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={contestCountId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Number of Contests (1-10)
               </label>
               <input
+                id={contestCountId}
                 type="number"
                 min="1"
                 max="10"
@@ -227,10 +247,11 @@ const TestEventSetupPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={categoriesPerContestId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Categories per Contest (1-10)
               </label>
               <input
+                id={categoriesPerContestId}
                 type="number"
                 min="1"
                 max="10"
@@ -245,10 +266,11 @@ const TestEventSetupPage: React.FC = () => {
           <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-6">Participants</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={contestantsPerCategoryId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contestants per Category (1-50)
               </label>
               <input
+                id={contestantsPerCategoryId}
                 type="number"
                 min="1"
                 max="50"
@@ -258,10 +280,11 @@ const TestEventSetupPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={judgesPerCategoryId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Judges per Contest (1-15)
               </label>
               <input
+                id={judgesPerCategoryId}
                 type="number"
                 min="1"
                 max="15"
@@ -279,10 +302,11 @@ const TestEventSetupPage: React.FC = () => {
           <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-6">Staff per Contest</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={tallyMastersPerContestId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Tally Masters per Contest
               </label>
               <input
+                id={tallyMastersPerContestId}
                 type="number"
                 min="0"
                 max="5"
@@ -292,10 +316,11 @@ const TestEventSetupPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={auditorsPerContestId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Auditors per Contest
               </label>
               <input
+                id={auditorsPerContestId}
                 type="number"
                 min="0"
                 max="5"
@@ -313,10 +338,11 @@ const TestEventSetupPage: React.FC = () => {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={organizersId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Organizers
               </label>
               <input
+                id={organizersId}
                 type="number"
                 min="0"
                 max="10"
@@ -326,10 +352,11 @@ const TestEventSetupPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={boardUsersId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Board Users
               </label>
               <input
+                id={boardUsersId}
                 type="number"
                 min="0"
                 max="10"
@@ -339,10 +366,11 @@ const TestEventSetupPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={emceesId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Emcees
               </label>
               <input
+                id={emceesId}
                 type="number"
                 min="0"
                 max="10"
@@ -352,10 +380,11 @@ const TestEventSetupPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={adminsId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Additional Admins
               </label>
               <input
+                id={adminsId}
                 type="number"
                 min="0"
                 max="5"
@@ -368,10 +397,11 @@ const TestEventSetupPage: React.FC = () => {
 
           {/* Password */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={defaultPasswordId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Default Password (leave blank for auto-generated)
             </label>
             <input
+              id={defaultPasswordId}
               type="text"
               value={config.defaultPassword}
               onChange={(e) => updateConfig('defaultPassword', e.target.value)}
@@ -385,21 +415,23 @@ const TestEventSetupPage: React.FC = () => {
           <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-center mb-3">
               <input
+                id={createNewTenantId}
                 type="checkbox"
                 checked={config.createNewTenant}
                 onChange={(e) => updateConfig('createNewTenant', e.target.checked)}
                 className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
               />
-              <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor={createNewTenantId} className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Create New Tenant for this test event
               </label>
             </div>
             {config.createNewTenant && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor={tenantNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Tenant Name (leave blank for auto-generated)
                 </label>
                 <input
+                  id={tenantNameId}
                   type="text"
                   value={config.tenantName}
                   onChange={(e) => updateConfig('tenantName', e.target.value)}
@@ -417,23 +449,25 @@ const TestEventSetupPage: React.FC = () => {
           <div className="mb-6 space-y-3">
             <div className="flex items-center">
               <input
+                id={assignJudgesId}
                 type="checkbox"
                 checked={config.assignJudgesToCategories}
                 onChange={(e) => updateConfig('assignJudgesToCategories', e.target.checked)}
                 className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
               />
-              <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <label htmlFor={assignJudgesId} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 Automatically assign judges to contests (and all their categories)
               </label>
             </div>
             <div className="flex items-center">
               <input
+                id={assignContestantsId}
                 type="checkbox"
                 checked={config.assignContestantsToCategories}
                 onChange={(e) => updateConfig('assignContestantsToCategories', e.target.checked)}
                 className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
               />
-              <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <label htmlFor={assignContestantsId} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 Automatically assign contestants to categories
               </label>
             </div>

@@ -21,6 +21,7 @@ import { env } from '../config/env';
 import { getRequestContext } from '../middleware/correlationId';
 import { createTenantPrismaClient } from '../middleware/tenantMiddleware';
 import { createLogger } from '../utils/logger';
+import { resolveDefaultTenantId } from '../utils/defaultTenantResolver';
 
 const logger = createLogger('AuthService');
 
@@ -366,15 +367,18 @@ export class AuthService {
     // If not found in specified tenant, try to find user by email in any active tenant
     // This enables automatic tenant discovery based on email
     if (!user) {
-      // First, check if we're using the default tenant
-      const defaultTenant = await authPrisma.tenant.findUnique({
-        where: { slug: 'default' },
-        select: { id: true }
-      });
+      let defaultTenantId: string | null = null;
+      try {
+        defaultTenantId = await resolveDefaultTenantId(authPrisma);
+      } catch (error) {
+        logger.warn('Unable to resolve configured default tenant during login discovery', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
-      // Only do cross-tenant search if we're logging in from default tenant context
-      // This prevents cross-tenant authentication when accessing tenant-specific URLs
-      if (defaultTenant && tenantId === defaultTenant.id) {
+      // Only do cross-tenant search if we're logging in from configured default tenant context.
+      // This prevents cross-tenant authentication when accessing tenant-specific URLs.
+      if (defaultTenantId && tenantId === defaultTenantId) {
         const candidates = await authPrisma.user.findMany({
           where: {
             email,

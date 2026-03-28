@@ -50,8 +50,10 @@ export class BulkOperationService {
       return { mode: 'tenant', tenantId: contextTenantId };
     }
 
-    Logger.warn('Bulk operation running without explicit scope or request tenant context; defaulting to global scope');
-    return { mode: 'global' };
+    Logger.error('Bulk operation rejected: missing explicit scope outside request context');
+    throw new Error(
+      'Bulk operation scope is required when no request tenant context is available. Pass an explicit tenant or global scope.'
+    );
   }
 
   private applyScopeToWhere(where: Record<string, unknown>, scope: BulkOperationScope): Record<string, unknown> {

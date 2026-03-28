@@ -18,9 +18,11 @@ import {
   TrophyIcon,
   UserIcon,
   UsersIcon,
-  CalculatorIcon
+  CalculatorIcon,
+  BeakerIcon
 } from '@heroicons/react/24/outline'
 import { compareText, stableSort } from '../utils/listOrdering'
+import { PAGE_ACCESS_BY_ID, PAGE_ACCESS_BY_PATH } from './pageAccessPolicy'
 
 export type NavIcon = ComponentType<{ className?: string }>
 
@@ -157,11 +159,25 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
       { id: 'custom-fields', name: 'Custom Fields', href: '/custom-fields', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'files', name: 'File Management', href: '/files', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'mfa', name: 'Multi-Factor Auth', href: '/mfa', icon: ShieldCheckIcon, roles: ADMIN_ROLES },
+      {
+        id: 'uat-ids',
+        name: 'UAT IDs',
+        href: '/uat-ids',
+        icon: BeakerIcon,
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'],
+        description: 'View tenant-scoped UAT identifiers without access to host-level test execution',
+        keywords: ['uat', 'ids', 'manual testing', 'scenario'],
+      },
     ],
   },
 ]
 
 const PRIMARY_DASHBOARD_ITEM_ID = 'dashboard'
+
+const resolvePolicyRoles = (item: AppNavItem): string[] => {
+  const policy = PAGE_ACCESS_BY_ID.get(item.id) || PAGE_ACCESS_BY_PATH.get(item.href)
+  return policy ? [...policy.baseRoles] : item.roles
+}
 
 const sortItemsByName = (items: AppNavItem[]): AppNavItem[] =>
   stableSort(items, (a, b) => compareText(a.name, b.name))
@@ -179,7 +195,15 @@ const sortNavigationSectionItems = (section: AppNavSection): AppNavItem[] => {
   return [...dashboardItems, ...nonDashboardItems]
 }
 
-export const NAV_SECTIONS: AppNavSection[] = NAV_SECTIONS_UNSORTED.map((section) => ({
-  ...section,
-  items: sortNavigationSectionItems(section),
-}))
+export const NAV_SECTIONS: AppNavSection[] = NAV_SECTIONS_UNSORTED.map((section) => {
+  const items = sortNavigationSectionItems(section).map((item) => ({
+    ...item,
+    roles: resolvePolicyRoles(item),
+  }))
+
+  return {
+    ...section,
+    roles: Array.from(new Set(items.flatMap((item) => item.roles))),
+    items,
+  }
+})

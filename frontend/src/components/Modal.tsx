@@ -91,7 +91,7 @@ export const Modal: React.FC<ModalProps> = ({
     if (!isOpen || !modalRef.current) return
 
     const focusableElements = modalRef.current.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      'button:not([data-modal-overlay="true"]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     )
 
     const firstElement = focusableElements[0] as HTMLElement
@@ -190,13 +190,18 @@ export const Modal: React.FC<ModalProps> = ({
     <div
       ref={modalRef}
       className="modal-mobile z-50"
-      onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
     >
       {/* Overlay */}
-      <div className="modal-overlay fade-in" />
+      <button
+        type="button"
+        data-modal-overlay="true"
+        className="modal-overlay fade-in cursor-default"
+        aria-label={closeOnOverlayClick ? 'Close modal' : 'Modal overlay'}
+        onClick={handleOverlayClick}
+      />
 
       {/* Content */}
       <div

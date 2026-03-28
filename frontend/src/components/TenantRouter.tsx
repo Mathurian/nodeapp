@@ -58,6 +58,7 @@ const RateLimitConfigPage = lazyWithRetry(() => import('../pages/RateLimitConfig
 const ActivityLogPage = lazyWithRetry(() => import('../pages/ActivityLogPage'), 'ActivityLogPage')
 const LoginLocationsPage = lazyWithRetry(() => import('../pages/LoginLocationsPage'), 'LoginLocationsPage')
 const TestRunnerPage = lazyWithRetry(() => import('../pages/TestRunnerPage'), 'TestRunnerPage')
+const UatIdsPage = lazyWithRetry(() => import('../pages/UatIdsPage'), 'UatIdsPage')
 const AuditorPage = lazyWithRetry(() => import('../pages/AuditorPage'), 'AuditorPage')
 const AuditorPendingAuditsPage = lazyWithRetry(() => import('../pages/AuditorPendingAuditsPage'), 'AuditorPendingAuditsPage')
 const AuditorScoreVerificationPage = lazyWithRetry(() => import('../pages/AuditorScoreVerificationPage'), 'AuditorScoreVerificationPage')
@@ -227,7 +228,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
             <Route path="/tenants" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TenantManagementPage /></ProtectedRoute>} />
             <Route path="/mfa" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><MFASettingsPage /></ProtectedRoute>} />
-            <Route path="/database" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
+            <Route path="/database" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><DatabaseBrowserPage /></ProtectedRoute>} />
             <Route path="/cache" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><CacheManagementPage /></ProtectedRoute>} />
             <Route path="/archive" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ArchivePage /></ProtectedRoute>} />
             <Route path="/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
@@ -242,10 +243,11 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/send-email" element={<AliasRedirect targetPath="/bulk-operations" />} />
             <Route path="/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
             <Route path="/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
-            <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
+            <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
+            <Route path="/uat-ids" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><UatIdsPage /></ProtectedRoute>} />
             <Route path="/test-runner" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><TestRunnerPage /></ProtectedRoute>} />
             <Route path="/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
             <Route path="/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
@@ -291,7 +293,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/custom-fields" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CustomFieldsPage /></ProtectedRoute>} />
             <Route path="/:slug/tenants" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TenantManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/mfa" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><MFASettingsPage /></ProtectedRoute>} />
-            <Route path="/:slug/database" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DatabaseBrowserPage /></ProtectedRoute>} />
+            <Route path="/:slug/database" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><DatabaseBrowserPage /></ProtectedRoute>} />
             <Route path="/:slug/cache" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><CacheManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/archive" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ArchivePage /></ProtectedRoute>} />
             <Route path="/:slug/deductions" element={<ProtectedRoute requiredRole={DEDUCTION_ROLES}><DeductionsPage /></ProtectedRoute>} />
@@ -304,10 +306,11 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/send-email" element={<AliasRedirect targetPath="/bulk-operations" />} />
             <Route path="/:slug/category-types" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoryTypesPage /></ProtectedRoute>} />
             <Route path="/:slug/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
-            <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
+            <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/:slug/bios" element={<BiosPage />} />
             <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/:slug/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
+            <Route path="/:slug/uat-ids" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><UatIdsPage /></ProtectedRoute>} />
             <Route path="/:slug/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />
             <Route path="/:slug/score-governance" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']}><ScoreGovernancePage /></ProtectedRoute>} />
             <Route path="/:slug/governance" element={<AliasRedirect targetPath="/score-governance" />} />

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, useId } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -107,6 +107,7 @@ const UserForm: React.FC<UserFormProps> = ({
   onSubmit,
   onClose,
 }) => {
+  const idBase = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bioFileInputRef = useRef<HTMLInputElement>(null)
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>(
@@ -264,7 +265,7 @@ const UserForm: React.FC<UserFormProps> = ({
   /**
    * Render custom field input based on field type
    */
-  const renderCustomFieldInput = (field: CustomField) => {
+  const renderCustomFieldInput = (field: CustomField, inputId: string) => {
     const value = customFieldValues[field.key] || ''
     const onChange = (newValue: unknown) => {
       setCustomFieldValues(prev => ({
@@ -282,6 +283,7 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'URL':
         return (
           <input
+            id={inputId}
             type={field.type === 'EMAIL' ? 'email' : field.type === 'PHONE' ? 'tel' : field.type === 'URL' ? 'url' : 'text'}
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
@@ -293,6 +295,7 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'NUMBER':
         return (
           <input
+            id={inputId}
             type="number"
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
@@ -304,6 +307,7 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'DATE':
         return (
           <input
+            id={inputId}
             type="date"
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
@@ -314,6 +318,7 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'TEXT_AREA':
         return (
           <textarea
+            id={inputId}
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
@@ -325,6 +330,7 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'SELECT':
         return (
           <select
+            id={inputId}
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
@@ -341,19 +347,21 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'BOOLEAN':
         return (
           <input
+            id={inputId}
             type="checkbox"
             checked={value === true || value === 'true'}
             onChange={(e) => onChange(e.target.checked)}
             className="h-4 w-4 text-blue-600 rounded"
           />
         )
-      case 'MULTI_SELECT':
+      case 'MULTI_SELECT': {
         const multiValues = Array.isArray(value) ? value : []
         return (
           <div className="space-y-2">
             {Array.isArray(field.options) && field.options.map((option) => (
               <label key={option} className="flex items-center gap-2">
                 <input
+                  id={`${inputId}-${option}`}
                   type="checkbox"
                   checked={multiValues.includes(option)}
                   onChange={(e) => {
@@ -370,9 +378,11 @@ const UserForm: React.FC<UserFormProps> = ({
             ))}
           </div>
         )
+      }
       default:
         return (
           <input
+            id={inputId}
             type="text"
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
@@ -404,10 +414,11 @@ const UserForm: React.FC<UserFormProps> = ({
         <form onSubmit={rhfHandleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-name`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <input
+                id={`${idBase}-name`}
                 type="text"
                 {...register('name')}
                 className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
@@ -416,10 +427,11 @@ const UserForm: React.FC<UserFormProps> = ({
               {errors.name && <p className="mt-1 text-xs text-red-600" role="alert">{errors.name.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-preferred-name`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Preferred Name
               </label>
               <input
+                id={`${idBase}-preferred-name`}
                 type="text"
                 {...register('preferredName')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -428,10 +440,11 @@ const UserForm: React.FC<UserFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={`${idBase}-email`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Email <span className="text-red-500">*</span>
             </label>
             <input
+              id={`${idBase}-email`}
               type="email"
               {...register('email')}
               className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
@@ -441,11 +454,12 @@ const UserForm: React.FC<UserFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={`${idBase}-password`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Password {!editingUser && <span className="text-red-500">*</span>}
               {editingUser && <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">(leave blank to keep current)</span>}
             </label>
             <input
+              id={`${idBase}-password`}
               type="password"
               {...register('password')}
               className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
@@ -457,10 +471,11 @@ const UserForm: React.FC<UserFormProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-role`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Role <span className="text-red-500">*</span>
               </label>
               <select
+                id={`${idBase}-role`}
                 {...register('role')}
                 className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
                 aria-invalid={errors.role ? 'true' : undefined}
@@ -474,10 +489,11 @@ const UserForm: React.FC<UserFormProps> = ({
               {errors.role && <p className="mt-1 text-xs text-red-600" role="alert">{errors.role.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-gender`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Gender
               </label>
               <input
+                id={`${idBase}-gender`}
                 type="text"
                 {...register('gender')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -489,10 +505,11 @@ const UserForm: React.FC<UserFormProps> = ({
           {/* Contestant Number — only shown for CONTESTANT role */}
           {watchedRole === 'CONTESTANT' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-contestant-number`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contestant Number
               </label>
               <input
+                id={`${idBase}-contestant-number`}
                 type="number"
                 {...register('contestantNumber')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -504,10 +521,11 @@ const UserForm: React.FC<UserFormProps> = ({
 
           {watchedRole === 'BOARD' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-board-role`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Board Role
               </label>
               <input
+                id={`${idBase}-board-role`}
                 type="text"
                 {...register('boardRole')}
                 className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${errors.boardRole ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
@@ -520,10 +538,11 @@ const UserForm: React.FC<UserFormProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-pronouns`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Pronouns
               </label>
               <input
+                id={`${idBase}-pronouns`}
                 type="text"
                 {...register('pronouns')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -531,10 +550,11 @@ const UserForm: React.FC<UserFormProps> = ({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={`${idBase}-phone`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Phone
               </label>
               <input
+                id={`${idBase}-phone`}
                 type="tel"
                 {...register('phone')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -543,10 +563,11 @@ const UserForm: React.FC<UserFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={`${idBase}-bio`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Bio
             </label>
             <textarea
+              id={`${idBase}-bio`}
               {...register('bio')}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -556,7 +577,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
           {/* Profile Picture Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={`${idBase}-profile-picture`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Profile Picture
             </label>
             {/* Show upload progress when uploading */}
@@ -592,6 +613,7 @@ const UserForm: React.FC<UserFormProps> = ({
                 )}
                 <div className="flex-1">
                   <input
+                    id={`${idBase}-profile-picture`}
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
@@ -618,7 +640,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
           {/* Bio File Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor={`${idBase}-bio-file`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Bio File (Optional)
             </label>
             {/* Show upload progress when uploading */}
@@ -651,6 +673,7 @@ const UserForm: React.FC<UserFormProps> = ({
                 )}
                 <div className="flex-1">
                   <input
+                    id={`${idBase}-bio-file`}
                     ref={bioFileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
@@ -684,19 +707,39 @@ const UserForm: React.FC<UserFormProps> = ({
                   {customFields.length}
                 </span>
               </h3>
+              {loadingCustomFields && (
+                <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Loading custom field definitions...</p>
+              )}
               <div className="space-y-4">
                 {customFields.map((field) => (
                   <div key={field.id}>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      {field.label}
-                      {field.required && <span className="text-red-500 ml-1">*</span>}
-                      {field.type && (
-                        <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                          {field.type}
-                        </span>
-                      )}
-                    </label>
-                    {renderCustomFieldInput(field)}
+                    {field.type === 'MULTI_SELECT' ? (
+                      <fieldset>
+                        <legend className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          {field.type && (
+                            <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                              {field.type}
+                            </span>
+                          )}
+                        </legend>
+                        {renderCustomFieldInput(field, `${idBase}-custom-${field.id}`)}
+                      </fieldset>
+                    ) : (
+                      <>
+                        <label htmlFor={`${idBase}-custom-${field.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          {field.type && (
+                            <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                              {field.type}
+                            </span>
+                          )}
+                        </label>
+                        {renderCustomFieldInput(field, `${idBase}-custom-${field.id}`)}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

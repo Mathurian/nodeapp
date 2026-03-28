@@ -271,8 +271,11 @@ export class BoardController {
 
       const { type } = req.body;
 
-      log.warn('Generate report - not fully implemented', { type });
-      res.status(501).json({ error: 'Report generation to be implemented in ReportGenerationService' });
+      log.warn('Generate report rejected: endpoint not supported', { type });
+      res.status(409).json({
+        error: 'Board-specific report generation is not currently supported',
+        message: 'Use the main reports workflow to generate report artifacts.',
+      });
     } catch (error) {
       log.error('Generate report error', error);
       return next(error);

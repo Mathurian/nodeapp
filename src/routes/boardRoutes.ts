@@ -9,7 +9,6 @@ import {
   createEmceeScript,
   updateEmceeScript,
   deleteEmceeScript,
-  generateReport,
   getScoreRemovalRequests,
   approveScoreRemoval,
   rejectScoreRemoval
@@ -82,9 +81,6 @@ router.get('/emcee-scripts', getEmceeScripts)
 router.post('/emcee-scripts', logActivity('CREATE_EMCEE_SCRIPT', 'EMCEE_SCRIPT'), createEmceeScript)
 router.put('/emcee-scripts/:id', logActivity('UPDATE_EMCEE_SCRIPT', 'EMCEE_SCRIPT'), updateEmceeScript)
 router.delete('/emcee-scripts/:id', logActivity('DELETE_EMCEE_SCRIPT', 'EMCEE_SCRIPT'), deleteEmceeScript)
-
-// Report generation
-router.post('/reports', logActivity('GENERATE_REPORT', 'REPORT'), generateReport)
 
 // Score removal requests (legacy)
 router.get('/score-removal-requests-old', getScoreRemovalRequests)

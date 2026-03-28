@@ -153,11 +153,12 @@ export class WorkflowService {
   }
 
   private static async getStepMap(templateId: string, tenantId: string, client?: PrismaClient): Promise<Map<string, WorkflowStep>> {
-    const db = client || prisma;
-    const steps = await db.workflowStep.findMany({
-      where: { templateId, tenantId },
-      orderBy: { stepOrder: 'asc' },
-    });
+    const steps = await this.withOptionalTenantDbContext(tenantId, client, async db =>
+      db.workflowStep.findMany({
+        where: { templateId, tenantId },
+        orderBy: { stepOrder: 'asc' },
+      })
+    );
     return new Map(steps.map((step) => [step.id, step]));
   }
 
@@ -182,43 +183,50 @@ export class WorkflowService {
     context: { source: string; templateId?: string; eventType?: string },
     client?: PrismaClient
   ): Promise<boolean> {
-    const db = client || prisma;
-    const contest = await db.contest.findFirst({
-      where: { id: contestId, tenantId },
-      select: {
-        id: true,
-        name: true,
-        winnersPublished: true,
-        categories: {
-          select: {
-            id: true,
-            name: true,
-            categoryCertifications: {
-              where: { role: 'BOARD', tenantId },
-              select: { id: true },
+    const publishedContest = await this.withOptionalTenantDbContext(tenantId, client, async db => {
+      const contest = await db.contest.findFirst({
+        where: { id: contestId, tenantId },
+        select: {
+          id: true,
+          name: true,
+          winnersPublished: true,
+          categories: {
+            select: {
+              id: true,
+              name: true,
+              categoryCertifications: {
+                where: { role: 'BOARD', tenantId },
+                select: { id: true },
+              },
             },
           },
         },
-      },
+      });
+
+      if (!contest || contest.winnersPublished || contest.categories.length === 0) return null;
+
+      const missingApprovals = contest.categories.filter((category) => category.categoryCertifications.length === 0);
+      if (missingApprovals.length > 0) return null;
+
+      await db.contest.update({
+        where: { id: contestId },
+        data: {
+          winnersPublished: true,
+          publishedAt: new Date(),
+          publishedBy: 'workflow-system',
+        },
+      });
+
+      return {
+        name: contest.name,
+      };
     });
 
-    if (!contest || contest.winnersPublished || contest.categories.length === 0) return false;
-
-    const missingApprovals = contest.categories.filter((category) => category.categoryCertifications.length === 0);
-    if (missingApprovals.length > 0) return false;
-
-    await db.contest.update({
-      where: { id: contestId },
-      data: {
-        winnersPublished: true,
-        publishedAt: new Date(),
-        publishedBy: 'workflow-system',
-      },
-    });
+    if (!publishedContest) return false;
 
     logger.info('Workflow auto-published winners', {
       contestId,
-      contestName: contest.name,
+      contestName: publishedContest.name,
       tenantId,
       templateId: context.templateId,
       source: context.source,
@@ -382,18 +390,19 @@ export class WorkflowService {
    */
   static async getTemplate(id: string, tenantId: string, client?: PrismaClient): Promise<WorkflowTemplateView | null> {
     try {
-      const db = client || prisma;
-      const template = await db.workflowTemplate.findFirst({
-        where: { id, tenantId }
+      return this.withOptionalTenantDbContext(tenantId, client, async db => {
+        const template = await db.workflowTemplate.findFirst({
+          where: { id, tenantId }
+        });
+        if (!template) {
+          return null;
+        }
+        const steps = await db.workflowStep.findMany({
+          where: { templateId: id, tenantId },
+          orderBy: { stepOrder: 'asc' },
+        });
+        return this.mapTemplate(template, steps);
       });
-      if (!template) {
-        return null;
-      }
-      const steps = await db.workflowStep.findMany({
-        where: { templateId: id, tenantId },
-        orderBy: { stepOrder: 'asc' },
-      });
-      return this.mapTemplate(template, steps);
     } catch (error) {
       logger.error('Error getting workflow template:', error);
       throw error;
@@ -830,31 +839,32 @@ export class WorkflowService {
    */
   static async getInstance(id: string, tenantId: string, client?: PrismaClient): Promise<WorkflowInstanceView> {
     try {
-      const db = client || prisma;
-      const instance = await db.workflowInstance.findFirst({
-        where: { id, tenantId }
+      return this.withOptionalTenantDbContext(tenantId, client, async db => {
+        const instance = await db.workflowInstance.findFirst({
+          where: { id, tenantId }
+        });
+        if (!instance) {
+          throw new Error(`Workflow instance ${id} not found`);
+        }
+
+        const [currentStep, steps] = await Promise.all([
+          instance.currentStepId
+            ? db.workflowStep.findFirst({
+                where: { id: instance.currentStepId, tenantId },
+              })
+            : null,
+          db.workflowStepExecution.findMany({
+            where: { instanceId: id, tenantId },
+            orderBy: { startedAt: 'asc' },
+          }),
+        ]);
+
+        return {
+          ...instance,
+          currentStep,
+          steps,
+        };
       });
-      if (!instance) {
-        throw new Error(`Workflow instance ${id} not found`);
-      }
-
-      const [currentStep, steps] = await Promise.all([
-        instance.currentStepId
-          ? db.workflowStep.findFirst({
-              where: { id: instance.currentStepId, tenantId },
-            })
-          : null,
-        db.workflowStepExecution.findMany({
-          where: { instanceId: id, tenantId },
-          orderBy: { startedAt: 'asc' },
-        }),
-      ]);
-
-      return {
-        ...instance,
-        currentStep,
-        steps,
-      };
     } catch (error) {
       logger.error('Error getting workflow instance:', error);
       throw error;
@@ -871,11 +881,12 @@ export class WorkflowService {
     client?: PrismaClient
   ): Promise<Prisma.WorkflowInstanceGetPayload<{}>[]> {
     try {
-      const db = client || prisma;
-      return await db.workflowInstance.findMany({
-        where: { tenantId, entityType, entityId },
-        orderBy: { startedAt: 'desc' }
-      });
+      return await this.withOptionalTenantDbContext(tenantId, client, async db =>
+        db.workflowInstance.findMany({
+          where: { tenantId, entityType, entityId },
+          orderBy: { startedAt: 'desc' }
+        })
+      );
     } catch (error) {
       logger.error('Error listing workflow instances:', error);
       throw error;

@@ -48,12 +48,12 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'permissions', path: '/permissions', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], resource: 'permissions', allowCrudReadOverride: true },
   { id: 'permissions-audit-logs', path: '/permissions/audit-logs', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], resource: 'permissions', allowCrudReadOverride: true },
 
-  { id: 'database', path: '/database', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
+  { id: 'database', path: '/database', baseRoles: ['SUPER_ADMIN'], hardProtected: true },
   { id: 'cache', path: '/cache', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'logs', path: '/logs', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'activity', path: '/activity', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'login-locations', path: '/login-locations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], resource: 'activity-logs', allowCrudReadOverride: true },
-  { id: 'performance', path: '/performance', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
+  { id: 'performance', path: '/performance', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], hardProtected: true },
   { id: 'backups', path: '/backups', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], hardProtected: true },
   { id: 'disaster-recovery', path: '/disaster-recovery', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'data-wipe', path: '/data-wipe', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
@@ -78,8 +78,9 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'board-score-removal', path: '/board/score-removal', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'scores', allowCrudReadOverride: true },
 
   { id: 'field-visibility', path: '/field-visibility', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
-  { id: 'test-event-setup', path: '/test-event-setup', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'events', allowCrudReadOverride: true },
+  { id: 'test-event-setup', path: '/test-event-setup', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'rate-limit-configs', path: '/rate-limit-configs', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
+  { id: 'uat-ids', path: '/uat-ids', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], hardProtected: true },
   { id: 'test-runner', path: '/test-runner', baseRoles: ['SUPER_ADMIN'], hardProtected: true }
 ]
 

@@ -7,6 +7,7 @@ import express, { Router } from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import {
   getAllPermissions,
+  getPermissionAuditLogs,
   getPermissionStats,
   updatePermission,
   warmCache,
@@ -37,6 +38,7 @@ router.use(authenticateToken);
  *         description: List of permissions
  */
 router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getAllPermissions);
+router.get('/audit-logs', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPermissionAuditLogs);
 
 /**
  * @swagger

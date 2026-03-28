@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
+import { testRunnerAPI } from '../services/api';
 import {
   PlayIcon,
   BeakerIcon,
@@ -38,33 +38,19 @@ const TestRunnerPage: React.FC = () => {
   const [testPattern, setTestPattern] = useState<string>('');
   const [selectedRun, setSelectedRun] = useState<TestRun | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const testPatternInputId = 'test-runner-pattern';
 
-  // Check permissions - only SUPER_ADMIN and ADMIN can access
-  const canAccessTests = ['SUPER_ADMIN', 'ADMIN'].includes(user?.role || '');
-
-  if (!canAccessTests) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 dark:bg-red-900 border border-red-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
-            Access Denied
-          </h2>
-          <p className="text-red-800 dark:text-red-200">
-            You do not have permission to access the test runner. This feature is restricted to administrators.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const canAccessTests = user?.role === 'SUPER_ADMIN';
 
   // Fetch available test files
   const { data: testFiles = [], isLoading: filesLoading } = useQuery<TestFile[]>(
-    'test-files',
-    async () => {
-      const response = await api.get('/test-runner/files');
+      'test-files',
+      async () => {
+      const response = await testRunnerAPI.getFiles();
       return response.data.data || [];
     },
     {
+      enabled: canAccessTests,
       retry: 1,
       onError: (err) => console.error('Test files fetch failed:', err),
     }
@@ -72,12 +58,13 @@ const TestRunnerPage: React.FC = () => {
 
   // Fetch test runs
   const { data: testRuns = [], refetch: refetchRuns } = useQuery<TestRun[]>(
-    'test-runs',
-    async () => {
-      const response = await api.get('/test-runner/runs');
+      'test-runs',
+      async () => {
+      const response = await testRunnerAPI.getRuns();
       return response.data.data || [];
     },
     {
+      enabled: canAccessTests,
       refetchInterval: autoRefresh ? 3000 : false, // Auto-refresh every 3 seconds
       retry: 1,
       onError: (err) => console.error('Test runs fetch failed:', err),
@@ -87,13 +74,11 @@ const TestRunnerPage: React.FC = () => {
   // Start test run mutation
   const startTestMutation = useMutation(
     async (data: { testFile: string; testPattern?: string }) => {
-      const response = await api.post('/test-runner/run', data, {
-        timeout: 30000, // 30 second timeout for test starts
-      });
+      const response = await testRunnerAPI.startRun(data);
       return response.data;
     },
     {
-      onSuccess: (data) => {
+      onSuccess: () => {
         queryClient.invalidateQueries('test-runs');
         // Auto-select the new run
         setTimeout(() => {
@@ -109,7 +94,7 @@ const TestRunnerPage: React.FC = () => {
   // Delete test run mutation
   const deleteTestMutation = useMutation(
     async (runId: string) => {
-      await api.delete(`/test-runner/run/${runId}`);
+      await testRunnerAPI.deleteRun(runId);
     },
     {
       onSuccess: () => {
@@ -128,7 +113,7 @@ const TestRunnerPage: React.FC = () => {
   // Bulk cleanup mutation
   const bulkCleanupMutation = useMutation(
     async () => {
-      await api.delete('/test-runner/runs/cleanup');
+      await testRunnerAPI.cleanupRuns();
     },
     {
       onSuccess: () => {
@@ -185,9 +170,9 @@ const TestRunnerPage: React.FC = () => {
 
   const handleViewRun = async (runId: string) => {
     try {
-      const response = await api.get(`/test-runner/run/${runId}`);
+      const response = await testRunnerAPI.getRun(runId);
       setSelectedRun(response.data.data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to fetch test run details');
     }
   };
@@ -231,6 +216,21 @@ const TestRunnerPage: React.FC = () => {
         return <span className={`${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200`}>Unknown</span>;
     }
   };
+
+  if (!canAccessTests) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 dark:bg-red-900 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-red-800 dark:text-red-200">
+            Host-level test execution is restricted to super administrators. Use the separate UAT IDs page for tenant-scoped manual validation identifiers.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cgr-page-container p-6 space-y-6">
@@ -337,10 +337,11 @@ const TestRunnerPage: React.FC = () => {
 
             {/* Test Pattern */}
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={testPatternInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Test Pattern (optional)
               </label>
               <input
+                id={testPatternInputId}
                 type="text"
                 value={testPattern}
                 onChange={(e) => setTestPattern(e.target.value)}
@@ -438,7 +439,8 @@ const TestRunnerPage: React.FC = () => {
               </p>
             ) : (
               testRuns.map((run) => (
-                <div
+                <button
+                  type="button"
                   key={run.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                     selectedRun?.id === run.id
@@ -455,6 +457,7 @@ const TestRunnerPage: React.FC = () => {
                       </span>
                     </div>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteTestMutation.mutate(run.id);
@@ -474,7 +477,7 @@ const TestRunnerPage: React.FC = () => {
                       Pattern: {run.testPattern}
                     </div>
                   )}
-                </div>
+                </button>
               ))
             )}
           </div>

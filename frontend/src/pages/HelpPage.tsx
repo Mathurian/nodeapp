@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import { extractTenantSlugFromPath } from '../utils/routeSegments'
-import axios from 'axios'
 import toast from 'react-hot-toast'
 import { ResponsiveTable } from '../components/ui'
 import {
@@ -25,16 +24,42 @@ import {
 } from '@heroicons/react/24/outline'
 
 interface DocItem {
+  id: string
   title: string
-  path: string
+  routePath: string
   description: string
-  requiredRole?: string[]
+  order: number
 }
 
 interface DocSection {
+  id: string
   title: string
   icon: React.ComponentType<any>
   docs: DocItem[]
+}
+
+interface DocsApiSection {
+  id: string
+  title: string
+  order: number
+}
+
+interface DocsApiItem {
+  path: string
+  title: string
+  description: string
+  sectionId: string
+  sectionTitle: string
+  sectionOrder: number
+  order: number
+}
+
+const SECTION_ICONS: Record<string, React.ComponentType<any>> = {
+  'getting-started': RocketLaunchIcon,
+  'technical-reference': CodeBracketIcon,
+  'security-deployment': ShieldCheckIcon,
+  operations: WrenchScrewdriverIcon,
+  'administration-advanced': BookOpenIcon,
 }
 
 const HelpPage: React.FC = () => {
@@ -53,141 +78,39 @@ const HelpPage: React.FC = () => {
     if (typeof window === 'undefined') return true
     return window.matchMedia('(min-width: 1024px)').matches
   })
+  const [docSections, setDocSections] = useState<DocSection[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
-  const [attemptedDoc, setAttemptedDoc] = useState<DocItem | null>(null)
   const [appName, setAppName] = useState<string>(DEFAULT_APP_BASELINE.appName)
 
-  // Documentation structure - ALL docs always visible
-  const docSections: DocSection[] = [
-    {
-      title: 'Getting Started',
-      icon: RocketLaunchIcon,
-      docs: [
-        {
-          title: 'System Architecture',
-          path: '01-ARCHITECTURE',
-          description: 'Overview of the application architecture'
-        },
-        {
-          title: 'Getting Started',
-          path: '02-GETTING-STARTED',
-          description: 'Quick start guide for new users'
-        },
-        {
-          title: 'Features Overview',
-          path: '03-FEATURES',
-          description: 'Comprehensive overview of all features'
-        },
-      ]
-    },
-    {
-      title: 'Technical Reference',
-      icon: CodeBracketIcon,
-      docs: [
-        {
-          title: 'API Reference',
-          path: '04-API-REFERENCE',
-          description: 'Complete API documentation'
-        },
-        {
-          title: 'Database Schema',
-          path: '05-DATABASE',
-          description: 'Database structure and relationships'
-        },
-        {
-          title: 'Frontend Guide',
-          path: '06-FRONTEND',
-          description: 'Frontend architecture and development'
-        },
-      ]
-    },
-    {
-      title: 'Security & Deployment',
-      icon: ShieldCheckIcon,
-      docs: [
-        {
-          title: 'Security Guide',
-          path: '07-SECURITY',
-          description: 'Security features and best practices'
-        },
-        {
-          title: 'Deployment Guide',
-          path: '08-DEPLOYMENT',
-          description: 'Production deployment instructions',
-          requiredRole: ['ADMIN', 'SUPER_ADMIN']
-        },
-        {
-          title: 'Development Setup',
-          path: '09-DEVELOPMENT',
-          description: 'Local development environment setup',
-          requiredRole: ['ADMIN', 'SUPER_ADMIN']
-        },
-      ]
-    },
-    {
-      title: 'Operations',
-      icon: WrenchScrewdriverIcon,
-      docs: [
-        {
-          title: 'Troubleshooting',
-          path: '10-TROUBLESHOOTING',
-          description: 'Common issues and solutions'
-        },
-        {
-          title: 'Disaster Recovery',
-          path: '11-DISASTER-RECOVERY',
-          description: 'Backup and restore procedures',
-          requiredRole: ['ADMIN', 'SUPER_ADMIN']
-        },
-        {
-          title: 'Admin Guide',
-          path: '13-ADMIN-GUIDE',
-          description: 'System administration and monitoring',
-          requiredRole: ['ADMIN', 'SUPER_ADMIN']
-        },
-      ]
-    },
-  ]
-
-  // Check if user has required role
-  const hasRequiredRole = (requiredRole?: string[]): boolean => {
-    if (!requiredRole || requiredRole.length === 0) return true
-    if (!user) return false
-    return requiredRole.includes(user.role)
-  }
-
-  // Check if doc is locked
-  const isDocLocked = (doc: DocItem): boolean => {
-    return !hasRequiredRole(doc.requiredRole)
-  }
-
   // Load documentation content
-  const loadDoc = async (path: string, doc?: DocItem) => {
-    // Check if locked
-    if (doc && isDocLocked(doc)) {
-      if (user) {
-        toast.error(`"${doc.title}" requires ${doc.requiredRole?.join(' or ')} access.`)
-        return
-      }
-      setAttemptedDoc(doc)
-      setShowLoginModal(true)
-      return
-    }
-
+  const loadDoc = async (path: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/docs/${path}.md`, {
+      const response = await fetch(`/api/docs/${path}`, {
         credentials: 'include',
       })
 
       if (!response.ok) {
-        throw new Error('Documentation not found')
+        if (response.status === 401) {
+          setShowLoginModal(true)
+          throw new Error('Sign in required to access this documentation')
+        }
+
+        if (response.status === 403) {
+          throw new Error('You do not have access to this documentation')
+        }
+
+        if (response.status === 404) {
+          throw new Error('Documentation not found')
+        }
+
+        throw new Error('Failed to load documentation')
       }
 
       const data = await response.json()
@@ -208,20 +131,10 @@ const HelpPage: React.FC = () => {
 
   // Handle doc selection
   const selectDoc = (doc: DocItem) => {
-    if (isDocLocked(doc)) {
-      if (user) {
-        toast.error(`"${doc.title}" requires ${doc.requiredRole?.join(' or ')} access.`)
-        return
-      }
-      setAttemptedDoc(doc)
-      setShowLoginModal(true)
-      return
-    }
-
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setSidebarOpen(false)
     }
-    navigate(`${helpBasePath}/${doc.path}`)
+    navigate(`${helpBasePath}/${doc.routePath}`)
   }
 
   // Handle login
@@ -242,12 +155,6 @@ const HelpPage: React.FC = () => {
       setShowLoginModal(false)
       setLoginEmail('')
       setLoginPassword('')
-
-      // Load the attempted doc if available
-      if (attemptedDoc) {
-        navigate(`${helpBasePath}/${attemptedDoc.path}`)
-        setAttemptedDoc(null)
-      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Login failed')
     } finally {
@@ -282,6 +189,65 @@ const HelpPage: React.FC = () => {
     loadAppName()
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+
+    const loadDocsNavigation = async () => {
+      try {
+        const response = await fetch('/api/docs', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to load documentation index')
+        }
+
+        const payload = await response.json()
+        const docs = (payload.data?.flat || []) as DocsApiItem[]
+        const sections = (payload.data?.sections || []) as DocsApiSection[]
+        const docsBySection = new Map<string, DocItem[]>()
+
+        docs.forEach((doc) => {
+          const routePath = doc.path.replace(/\.md$/i, '')
+          const sectionDocs = docsBySection.get(doc.sectionId) || []
+          sectionDocs.push({
+            id: doc.path,
+            title: doc.title,
+            routePath,
+            description: doc.description,
+            order: doc.order,
+          })
+          docsBySection.set(doc.sectionId, sectionDocs)
+        })
+
+        const nextSections = sections
+          .sort((a, b) => a.order - b.order)
+          .map((section) => ({
+            id: section.id,
+            title: section.title,
+            icon: SECTION_ICONS[section.id] || BookOpenIcon,
+            docs: (docsBySection.get(section.id) || []).sort((a, b) => a.order - b.order),
+          }))
+          .filter((section) => section.docs.length > 0)
+
+        if (!cancelled) {
+          setDocSections(nextSections)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load documentation navigation:', err)
+          setDocSections([])
+        }
+      }
+    }
+
+    loadDocsNavigation()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
   // Scroll to hash when content changes or hash changes
   useEffect(() => {
     const hash = location.hash
@@ -301,7 +267,6 @@ const HelpPage: React.FC = () => {
     if (docPath) {
       loadDoc(docPath)
     } else {
-      // Default public content for non-authenticated users
       setContent(`# Welcome to ${appName} Documentation
 
 ## Getting Help
@@ -309,19 +274,13 @@ const HelpPage: React.FC = () => {
 This documentation provides comprehensive information about the ${appName} event management system. Select a topic from the sidebar to learn more.
 
 ${!user ? `
-### 🔓 Public Documentation
+### Public Documentation
 
-You can access the following without logging in:
-- **Getting Started**: Learn the basics of the system
-- **Features Overview**: Understand what ${appName} can do
-- **Troubleshooting**: Common issues and solutions
-- **Security Guide**: Best practices and security features
+The sidebar shows every document currently published for public access.
 
-### 🔒 Administrator Documentation
+### Administrator Documentation
 
-Some advanced documentation requires administrator access. Topics marked with a lock icon 🔒 require you to log in with an admin account.
-
-You can log in directly on this page by clicking any locked topic.
+Additional operational and administration guides become available after signing in with an authorized account.
 ` : ''}
 
 ## Quick Troubleshooting
@@ -357,7 +316,7 @@ You can log in directly on this page by clicking any locked topic.
 ${user ? `
 ### Signed in as ${user.email}
 
-You now have access to all documentation for your role (${user.role}).
+The sidebar now reflects the documentation available for your role (${user.role}).
 ` : ''}`)
     }
   }, [docPath, user, appName])
@@ -378,7 +337,6 @@ You now have access to all documentation for your role (${user.role}).
               <button
                 onClick={() => {
                   setShowLoginModal(false)
-                  setAttemptedDoc(null)
                 }}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
@@ -386,20 +344,8 @@ You now have access to all documentation for your role (${user.role}).
               </button>
             </div>
 
-            {attemptedDoc && (
-              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-sm text-blue-900 dark:text-blue-300">
-                  <strong>{attemptedDoc.title}</strong> requires{' '}
-                  {attemptedDoc.requiredRole?.join(' or ')} access.
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                  {attemptedDoc.description}
-                </p>
-              </div>
-            )}
-
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-              Sign in with your administrator account to access this documentation.
+              Sign in with an authorized account to access restricted documentation.
             </p>
 
             <form onSubmit={handleLogin} className="space-y-4">
@@ -443,7 +389,6 @@ You now have access to all documentation for your role (${user.role}).
                   type="button"
                   onClick={() => {
                     setShowLoginModal(false)
-                    setAttemptedDoc(null)
                   }}
                   className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
@@ -512,9 +457,9 @@ You now have access to all documentation for your role (${user.role}).
             </button>
           </div>
 
-          {/* Documentation Sections - ALWAYS SHOW ALL */}
+          {/* Documentation Sections */}
           <nav className="p-4 space-y-6">
-            {docSections.map((section, sectionIdx) => {
+            {docSections.map((section) => {
               const Icon = section.icon
               const filteredDocs = section.docs.filter(doc =>
                 !searchQuery ||
@@ -525,7 +470,7 @@ You now have access to all documentation for your role (${user.role}).
               if (filteredDocs.length === 0 && searchQuery) return null
 
               return (
-                <div key={sectionIdx}>
+                <div key={section.id}>
                   <div className="flex items-center mb-3">
                     <Icon className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-2" />
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
@@ -533,29 +478,21 @@ You now have access to all documentation for your role (${user.role}).
                     </h3>
                   </div>
                   <ul className="space-y-1">
-                    {filteredDocs.map((doc, docIdx) => {
-                      const locked = isDocLocked(doc)
+                    {filteredDocs.map((doc) => {
                       return (
-                        <li key={docIdx}>
+                        <li key={doc.id}>
                           <button
                             onClick={() => selectDoc(doc)}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
-                              docPath === doc.path
+                              docPath === doc.routePath || docPath === `${doc.routePath}.md`
                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                : locked
-                                ? 'text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                             }`}
                           >
-                            <div className="flex-1 min-w-0 flex items-start gap-2">
-                              {locked && (
-                                <LockClosedIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-400" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium truncate">{doc.title}</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                  {doc.description}
-                                </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{doc.title}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                {doc.description}
                               </div>
                             </div>
                             <ChevronRightIcon className="h-4 w-4 ml-2 flex-shrink-0" />
@@ -573,10 +510,10 @@ You now have access to all documentation for your role (${user.role}).
           {!user && (
             <div className="p-4 m-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-sm text-blue-900 dark:text-blue-300 mb-2 font-medium">
-                🔒 Administrator Access
+                Administrator Documentation
               </p>
               <p className="text-xs text-blue-800 dark:text-blue-400 mb-3">
-                Some documentation requires admin access. Click any locked topic to sign in.
+                Sign in to view operational and administration guides that are not published publicly.
               </p>
             </div>
           )}

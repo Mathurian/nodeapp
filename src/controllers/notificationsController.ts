@@ -3,6 +3,9 @@ import { container } from '../config/container';
 import { NotificationService } from '../services/NotificationService';
 import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('notificationsController');
 
 export class NotificationsController {
   private notificationService: NotificationService;
@@ -34,10 +37,10 @@ export class NotificationsController {
         return;
       }
 
-      // id from params not currently used
-      // NotificationService doesn't have getById, we can use the repository directly or return error
-      // For now, return a not implemented error
-      return res.status(501).json({ error: 'Not implemented' });
+      return res.status(410).json({
+        error: 'Notification detail endpoint is not available',
+        message: 'Use the list notifications endpoint to retrieve notification data.',
+      });
     } catch (error) {
       return next(error);
     }
@@ -67,9 +70,10 @@ export class NotificationsController {
         return;
       }
 
-      // id from params not currently used
-      // NotificationService doesn't have update method
-      return res.status(501).json({ error: 'Not implemented' });
+      return res.status(410).json({
+        error: 'Notification update endpoint is not available',
+        message: 'Notifications can be marked as read or deleted, but not updated in place.',
+      });
     } catch (error) {
       return next(error);
     }
@@ -228,7 +232,7 @@ export class NotificationsController {
         usersByTenant.get(userTenantId)!.push(user.id);
       }
 
-      console.log('[NOTIFICATIONS] Sending notification to users across tenants:', {
+      logger.info('Sending notification across tenant groups', {
         totalUsers: users.length,
         tenantsCount: usersByTenant.size,
         senderRole,
@@ -250,7 +254,11 @@ export class NotificationsController {
         count += tenantCount;
       }
 
-      console.log('[NOTIFICATIONS] Notification sent, count:', count);
+      logger.info('Notification broadcast completed', {
+        recipientCount: users.length,
+        deliveredCount: count,
+        senderRole,
+      });
 
       return sendSuccess(res, { count, recipientCount: users.length }, 'Notifications sent successfully');
     } catch (error) {
