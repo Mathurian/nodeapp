@@ -24,6 +24,32 @@ Update these files before execution:
 - `data/admins.csv`
 - `data/live_ids.csv`
 
+
+## Why are there multiple CSV files?
+
+They serve **different concerns** and are intentionally separate:
+
+- `judges.csv`, `tally.csv`, `auditors.csv`, `board.csv`, `admins.csv` = **who is logged in** (authentication identity per virtual user thread).
+- `live_ids.csv` = **what record is being acted on** (target category/contestant/score/judge IDs in business workflows).
+
+This is normal in load tests because one authenticated user may act on many different records over time, and many users may concurrently touch overlapping sets of records.
+
+### Example
+
+- A thread logs in as `judge1@example.com` from `judges.csv`.
+- That thread iterates across many rows in `live_ids.csv` and submits/updates different scores.
+- A tally/auditor/board thread (different credentials file) can use the same `live_ids.csv` rows to certify/verify/approve those records.
+
+So this is **not duplicate data in different formats**; it is identity-vs-target separation.
+
+### Could we collapse into one CSV?
+
+Yes, but it makes role orchestration harder and less realistic. Keeping identity and target data separate lets you:
+
+- scale each role independently (thread counts per role),
+- reuse the same live event target set across roles,
+- and refresh targets (`live_ids.csv`) without rotating account credentials.
+
 ## What is `live_ids.csv`?
 
 `live_ids.csv` is the **live event entity map** used by JMeter threads for high-concurrency operations.
