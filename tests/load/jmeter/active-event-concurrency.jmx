@@ -223,7 +223,7 @@
         <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Judge: Submit Scores (70%)">
           <intProp name="ThroughputController.style">1</intProp>
           <boolProp name="ThroughputController.perThread">false</boolProp>
-          <floatProp name="ThroughputController.percentThroughput">70.0</floatProp>
+          <stringProp name="ThroughputController.percentThroughput">70.0</stringProp>
           <intProp name="ThroughputController.maxThroughput">1</intProp>
         </ThroughputController>
         <hashTree>
@@ -260,7 +260,7 @@
         <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Judge: Commentary (20%)">
           <intProp name="ThroughputController.style">1</intProp>
           <boolProp name="ThroughputController.perThread">false</boolProp>
-          <floatProp name="ThroughputController.percentThroughput">20.0</floatProp>
+          <stringProp name="ThroughputController.percentThroughput">20.0</stringProp>
           <intProp name="ThroughputController.maxThroughput">1</intProp>
         </ThroughputController>
         <hashTree>
@@ -297,7 +297,7 @@
         <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Judge: Update Existing Score (10%)">
           <intProp name="ThroughputController.style">1</intProp>
           <boolProp name="ThroughputController.perThread">false</boolProp>
-          <floatProp name="ThroughputController.percentThroughput">10.0</floatProp>
+          <stringProp name="ThroughputController.percentThroughput">10.0</stringProp>
           <intProp name="ThroughputController.maxThroughput">1</intProp>
         </ThroughputController>
         <hashTree>
