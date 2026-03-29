@@ -136,7 +136,7 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
   }
 
   const updateFavicon = (faviconPath?: string | null) => {
-    const targetHref = faviconPath || '/favicon.ico'
+    const targetHref = faviconPath || '/favicon.svg'
     const faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
     if (faviconLink) {
       faviconLink.href = targetHref

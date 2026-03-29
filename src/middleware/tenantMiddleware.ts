@@ -79,6 +79,11 @@ type TokenTenantPayload = {
   role?: string;
 };
 
+type TenantResolution = {
+  tenantIdOrSlug: string | null;
+  identificationMethod: string;
+};
+
 /**
  * Tenant identification strategies
  */
@@ -207,6 +212,115 @@ export class TenantIdentifier {
   }
 }
 
+const normalizeTenantApiPath = (pathValue: string): string =>
+  pathValue.startsWith('/v1/') ? pathValue.slice(3) : pathValue;
+
+const isPublicTenantBootstrapPath = (pathValue: string): boolean => {
+  const normalizedPath = normalizeTenantApiPath(pathValue);
+
+  return (
+    normalizedPath === '/csrf-token' ||
+    normalizedPath === '/settings/app-name' ||
+    normalizedPath === '/settings/public' ||
+    normalizedPath === '/settings/theme' ||
+    normalizedPath === '/settings/pwa-manifest' ||
+    normalizedPath.startsWith('/tenants/slug/') ||
+    normalizedPath.startsWith('/tenants/check/')
+  );
+};
+
+const clearStaleAccessToken = (req: Request, res: Response): void => {
+  if (req.cookies?.['access_token']) {
+    delete req.cookies['access_token'];
+  }
+
+  res.clearCookie('access_token', {
+    httpOnly: true,
+    secure: env.isProduction(),
+    sameSite: 'lax',
+    path: '/',
+  });
+};
+
+const resolveDefaultTenantIdentifier = async (): Promise<TenantResolution> => {
+  const segregationConfig = getTenantSegregationConfig();
+  const defaultTenantIdFilters = segregationConfig.defaultTenantIds.map((id) => ({ id }));
+  const defaultTenantSlugFilters = segregationConfig.defaultTenantSlugs.map((slug) => ({ slug }));
+  const defaultTenant = await prisma.tenant.findFirst({
+    where: {
+      OR: [...defaultTenantIdFilters, ...defaultTenantSlugFilters],
+      isActive: true,
+    },
+  });
+
+  if (!defaultTenant) {
+    return { tenantIdOrSlug: null, identificationMethod: 'unknown' };
+  }
+
+  return {
+    tenantIdOrSlug: defaultTenant.id,
+    identificationMethod: 'default_fallback',
+  };
+};
+
+const resolveTenantWithoutToken = async (
+  req: Request,
+  headerTenant: string | null
+): Promise<TenantResolution> => {
+  if (headerTenant) {
+    logger.debug(`Tenant identified from header: ${headerTenant}`, { path: req.path });
+    return {
+      tenantIdOrSlug: headerTenant,
+      identificationMethod: 'header',
+    };
+  }
+
+  const subdomainTenant = TenantIdentifier.fromSubdomain(req);
+  if (subdomainTenant) {
+    return {
+      tenantIdOrSlug: subdomainTenant,
+      identificationMethod: 'subdomain',
+    };
+  }
+
+  const customDomain = TenantIdentifier.fromCustomDomain(req);
+  if (customDomain) {
+    const tenant = await prisma.tenant.findFirst({
+      where: { domain: customDomain, isActive: true },
+    });
+    if (tenant) {
+      return {
+        tenantIdOrSlug: tenant.id,
+        identificationMethod: 'custom_domain',
+      };
+    }
+  }
+
+  const queryTenant = TenantIdentifier.fromQuery(req);
+  if (queryTenant) {
+    return {
+      tenantIdOrSlug: queryTenant,
+      identificationMethod: 'query',
+    };
+  }
+
+  return resolveDefaultTenantIdentifier();
+};
+
+const findTenantByIdentifier = async (tenantIdOrSlug: string) => {
+  let tenant = await prisma.tenant.findUnique({
+    where: { id: tenantIdOrSlug },
+  });
+
+  if (!tenant) {
+    tenant = await prisma.tenant.findUnique({
+      where: { slug: tenantIdOrSlug },
+    });
+  }
+
+  return tenant;
+};
+
 /**
  * Main tenant middleware
  */
@@ -218,6 +332,7 @@ export async function tenantMiddleware(
   try {
     let tenantIdOrSlug: string | null = null;
     let identificationMethod: string = 'unknown';
+    let staleTokenCleared = false;
 
     const tokenPayload = TenantIdentifier.fromTokenPayload(req);
     const tokenTenant = tokenPayload?.tenantId || null;
@@ -240,98 +355,35 @@ export async function tenantMiddleware(
         hasHeaderTenant: !!headerTenant,
         superAdminOverride: identificationMethod === 'header_superadmin_override'
       });
-    } else if (headerTenant) {
-      // 2) Header (only when unauthenticated)
-      tenantIdOrSlug = headerTenant;
-      identificationMethod = 'header';
-      logger.debug(`Tenant identified from header: ${tenantIdOrSlug}`, { path: req.path });
     } else if (req.cookies?.['access_token']) {
       // Log when token extraction fails
       logger.warn(`Failed to extract tenant from JWT token`, {
         path: req.path,
         method: req.method,
-        hasToken: true
+        hasToken: true,
       });
     }
 
-    // 3. Subdomain (for web access)
     if (!tenantIdOrSlug) {
-      tenantIdOrSlug = TenantIdentifier.fromSubdomain(req);
-      if (tenantIdOrSlug) {
-        identificationMethod = 'subdomain';
-      }
-    }
+      const fallbackResolution = await resolveTenantWithoutToken(req, headerTenant);
+      tenantIdOrSlug = fallbackResolution.tenantIdOrSlug;
+      identificationMethod = fallbackResolution.identificationMethod;
 
-    // 4. Custom domain (for branded access)
-    if (!tenantIdOrSlug) {
-      const customDomain = TenantIdentifier.fromCustomDomain(req);
-      if (customDomain) {
-        // Check if this domain belongs to a tenant
-        const tenant = await prisma.tenant.findFirst({
-          where: { domain: customDomain, isActive: true },
-        });
-        if (tenant) {
-          tenantIdOrSlug = tenant.id;
-          identificationMethod = 'custom_domain';
-        }
-      }
-    }
-
-    // 5. Query parameter (development only)
-    if (!tenantIdOrSlug) {
-      tenantIdOrSlug = TenantIdentifier.fromQuery(req);
-      if (tenantIdOrSlug) {
-        identificationMethod = 'query';
-      }
-    }
-
-    // 6. Default tenant fallback
-    // If no tenant could be identified, fall back to the default tenant
-    // This enables login from neutral URLs (no subdomain/header) while still
-    // supporting cross-tenant user lookup in AuthService
-    if (!tenantIdOrSlug) {
-      const segregationConfig = getTenantSegregationConfig();
-      const defaultTenantIdFilters = segregationConfig.defaultTenantIds.map((id) => ({ id }));
-      const defaultTenantSlugFilters = segregationConfig.defaultTenantSlugs.map((slug) => ({ slug }));
-      const defaultTenant = await prisma.tenant.findFirst({
-        where: {
-          OR: [...defaultTenantIdFilters, ...defaultTenantSlugFilters],
-          isActive: true
-        }
-      });
-
-      if (defaultTenant) {
-        tenantIdOrSlug = defaultTenant.id;
-        identificationMethod = 'default_fallback';
-        logger.info(`Falling back to default tenant: ${defaultTenant.slug}`, {
+      if (identificationMethod === 'default_fallback' && tenantIdOrSlug) {
+        logger.info(`Falling back to default tenant: ${tenantIdOrSlug}`, {
           path: req.path,
           method: req.method,
-          host: req.get('host')
+          host: req.get('host'),
         });
       }
     }
 
     // 7. Public endpoints that don't require tenant identification
     if (!tenantIdOrSlug) {
-      // Define explicitly public endpoints
-      const publicEndpoints = [
-        '/api/csrf-token',
-        '/api/v1/csrf-token',
-        '/api/tenants/slug/',
-        '/api/tenants/check/',
-        '/health',
-        '/metrics',
-        '/api-docs'
-      ];
-
-      const isPublicEndpoint = publicEndpoints.some(endpoint =>
-        req.path.startsWith(endpoint)
-      );
-
-      if (isPublicEndpoint) {
+      if (isPublicTenantBootstrapPath(req.path)) {
         logger.debug('Public endpoint accessed without tenant', {
           path: req.path,
-          method: req.method
+          method: req.method,
         });
         return next();
       }
@@ -362,22 +414,38 @@ export async function tenantMiddleware(
     }
 
     // Fetch tenant from database
-    let tenant;
+    let tenant = await findTenantByIdentifier(tenantIdOrSlug);
 
-    // Try finding by ID first
-    tenant = await prisma.tenant.findUnique({
-      where: { id: tenantIdOrSlug },
-    });
-
-    // If not found, try finding by slug
-    if (!tenant) {
-      tenant = await prisma.tenant.findUnique({
-        where: { slug: tenantIdOrSlug },
+    if (!tenant && identificationMethod === 'token') {
+      logger.warn('Clearing stale access token because tenant no longer exists', {
+        path: req.path,
+        method: req.method,
+        tenantId: tenantIdOrSlug,
       });
+
+      clearStaleAccessToken(req, res);
+      staleTokenCleared = true;
+
+      const fallbackResolution = await resolveTenantWithoutToken(req, headerTenant);
+      tenantIdOrSlug = fallbackResolution.tenantIdOrSlug;
+      identificationMethod = fallbackResolution.identificationMethod;
+
+      if (tenantIdOrSlug) {
+        tenant = await findTenantByIdentifier(tenantIdOrSlug);
+      }
     }
 
     // If tenant not found, return 404
     if (!tenant) {
+      if (isPublicTenantBootstrapPath(req.path)) {
+        logger.debug('Proceeding without tenant context on public bootstrap endpoint', {
+          path: req.path,
+          method: req.method,
+          tenantIdentifier: tenantIdOrSlug,
+        });
+        return next();
+      }
+
       logger.warn(`Tenant not found: ${tenantIdOrSlug}`);
       res.status(404).json({
         error: 'Tenant not found',
@@ -389,7 +457,7 @@ export async function tenantMiddleware(
 
     // Trust boundary enforcement:
     // Non-superadmin authenticated requests must always resolve to their token tenant.
-    if (tokenTenant && tokenRole !== 'SUPER_ADMIN') {
+    if (tokenTenant && tokenRole !== 'SUPER_ADMIN' && !staleTokenCleared) {
       const matchesTokenTenant = tenant.id === tokenTenant || tenant.slug === tokenTenant;
       if (!matchesTokenTenant) {
         recordTenantSegregationViolation(

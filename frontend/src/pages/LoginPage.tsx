@@ -191,7 +191,7 @@ const LoginPage: React.FC = () => {
   // Update document title and favicon
   useEffect(() => {
     document.title = formatDocumentTitle(`${settings.appName} - Sign In`)
-    const targetFavicon = settings.faviconPath || '/favicon.ico'
+    const targetFavicon = settings.faviconPath || '/favicon.svg'
     const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
     if (favicon) {
       favicon.href = targetFavicon

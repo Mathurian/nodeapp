@@ -107,7 +107,7 @@ const PublicLandingPage: React.FC = () => {
 
   useEffect(() => {
     document.title = formatDocumentTitle(appName)
-    const targetFavicon = faviconPath || '/favicon.ico'
+    const targetFavicon = faviconPath || '/favicon.svg'
     const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
     if (favicon) {
       favicon.href = targetFavicon

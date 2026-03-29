@@ -218,6 +218,12 @@ app.get('/health', async (_req: Request, res: Response) => {
 app.get('/api/csrf-token', publicEndpointLimiter, getCsrfToken);
 app.get('/api/v1/csrf-token', publicEndpointLimiter, getCsrfToken);
 
+// Some browsers still request /favicon.ico even when the app declares an SVG favicon.
+// Redirecting avoids noisy 404s on public pages while keeping the SVG as the source of truth.
+app.get('/favicon.ico', (_req: Request, res: Response) => {
+  res.redirect(302, '/favicon.svg');
+});
+
 /**
  * API Documentation (Swagger UI)
  * Accessible at /api-docs
