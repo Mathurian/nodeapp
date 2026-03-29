@@ -12,12 +12,17 @@ interface DateFilterControlsProps {
   onFilterChange: (filters: DateFilters) => void
   onClear: () => void
   filters: DateFilters
+  sortOptions?: Array<{
+    value: string
+    label: string
+  }>
 }
 
 const DateFilterControls: React.FC<DateFilterControlsProps> = ({
   onFilterChange,
   onClear,
   filters,
+  sortOptions,
 }) => {
   const createdAfterId = 'date-filter-created-after'
   const createdBeforeId = 'date-filter-created-before'
@@ -43,6 +48,12 @@ const DateFilterControls: React.FC<DateFilterControlsProps> = ({
       sortDirection: filters.sortDirection === 'asc' ? 'desc' : 'asc',
     })
   }
+
+  const resolvedSortOptions = sortOptions || [
+    { value: 'createdAt', label: 'Created Date' },
+    { value: 'updatedAt', label: 'Updated Date' },
+    { value: 'name', label: 'Name' },
+  ]
 
   const hasActiveFilters = filters.createdAfter || filters.createdBefore || filters.sortBy
 
@@ -89,9 +100,11 @@ const DateFilterControls: React.FC<DateFilterControlsProps> = ({
           className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Default</option>
-          <option value="createdAt">Created Date</option>
-          <option value="updatedAt">Updated Date</option>
-          <option value="name">Name</option>
+          {resolvedSortOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 

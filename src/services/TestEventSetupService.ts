@@ -63,6 +63,15 @@ export class TestEventSetupService extends BaseService {
     super();
   }
 
+  private resolveAssignedByUserId(
+    requestingUserId: string,
+    requestingTenantId: string,
+    targetTenantId: string,
+    tenantScopedFallbackUserId: string
+  ): string {
+    return requestingTenantId === targetTenantId ? requestingUserId : tenantScopedFallbackUserId;
+  }
+
   /**
    * Generate a random password
    */
@@ -123,51 +132,9 @@ export class TestEventSetupService extends BaseService {
       contestScoringTypes = []
     } = config;
 
-    let { tenantId = userTenantId } = config;
-
-    // Handle tenant creation
-    let createdTenant: any = null;
-    let tenantCreatedNew = false;
-
-    if (createNewTenant) {
-      // Generate tenant name if not provided
-      const generatedTenantName = tenantName || `Test Tenant ${Date.now()}`;
-      const tenantSlug = this.generateSlug(generatedTenantName);
-
-      // Check if slug already exists
-      const existingTenant = await this.prisma.tenant.findUnique({
-        where: { slug: tenantSlug }
-      });
-
-      if (existingTenant) {
-        // Use existing tenant if slug matches
-        tenantId = existingTenant.id;
-        createdTenant = existingTenant;
-        tenantCreatedNew = false;
-      } else {
-        // Create new tenant with internal plan (high rate limits for testing)
-        createdTenant = await this.prisma.tenant.create({
-          data: {
-            name: generatedTenantName,
-            slug: tenantSlug,
-            isActive: true,
-            scoringType: tenantScoringType,
-            planType: 'internal'  // Use internal plan to avoid rate limiting during testing
-          }
-        });
-        tenantId = createdTenant.id;
-        tenantCreatedNew = true;
-      }
-    } else {
-      // Get existing tenant info for result
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId }
-      });
-      if (tenant) {
-        createdTenant = tenant;
-        tenantCreatedNew = false;
-      }
-    }
+    const requestedTenantId = config.tenantId || userTenantId;
+    const generatedTenantName = tenantName || `Test Tenant ${Date.now()}`;
+    const generatedTenantSlug = this.generateSlug(generatedTenantName);
 
     // Validate config
     if (contestCount < 1 || contestCount > 10) {
@@ -204,14 +171,70 @@ export class TestEventSetupService extends BaseService {
       admins: 0
     };
 
-    // Get tenant slug for email domain
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { slug: true }
-    });
-    const emailDomain = tenant?.slug || 'test';
+    const result: {
+      eventId: string;
+      eventName: string;
+      tenant: {
+        id: string;
+        name: string;
+        slug: string;
+      };
+      tenantCreatedNew: boolean;
+    } = await this.prisma.$transaction(async (tx) => {
+      let targetTenant:
+        | {
+            id: string;
+            name: string;
+            slug: string;
+          }
+        | null = null;
+      let tenantCreatedNew = false;
 
-    const result: any = await this.prisma.$transaction(async (tx) => {
+      if (createNewTenant) {
+        targetTenant = await tx.tenant.findUnique({
+          where: { slug: generatedTenantSlug },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        });
+
+        if (!targetTenant) {
+          targetTenant = await tx.tenant.create({
+            data: {
+              name: generatedTenantName,
+              slug: generatedTenantSlug,
+              isActive: true,
+              scoringType: tenantScoringType,
+              planType: 'internal',
+            },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          });
+          tenantCreatedNew = true;
+        }
+      } else {
+        targetTenant = await tx.tenant.findUnique({
+          where: { id: requestedTenantId },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        });
+      }
+
+      if (!targetTenant) {
+        throw this.createNotFoundError('Tenant not found');
+      }
+
+      const tenantId = targetTenant.id;
+      const emailDomain = targetTenant.slug || 'test';
+
       // Create event
       const event = await tx.event.create({
         data: {
@@ -260,7 +283,7 @@ export class TestEventSetupService extends BaseService {
             userId: user.id,
             role: 'EMCEE',
             eventId: event.id,
-            assignedBy: userId,
+            assignedBy: this.resolveAssignedByUserId(userId, userTenantId, tenantId, user.id),
             isActive: true
           }
         });
@@ -335,7 +358,7 @@ export class TestEventSetupService extends BaseService {
               role: 'TALLY_MASTER',
               contestId: contest.id,
               eventId: event.id,
-              assignedBy: userId,
+              assignedBy: this.resolveAssignedByUserId(userId, userTenantId, tenantId, user.id),
               isActive: true
             }
           });
@@ -364,14 +387,14 @@ export class TestEventSetupService extends BaseService {
               role: 'AUDITOR',
               contestId: contest.id,
               eventId: event.id,
-              assignedBy: userId,
+              assignedBy: this.resolveAssignedByUserId(userId, userTenantId, tenantId, user.id),
               isActive: true
             }
           });
         }
 
         // Create judges for this contest (not per category)
-        const contestJudges = [];
+        const contestJudges: Array<{ id: string; assignedByUserId: string }> = [];
         for (let j = 0; j < judgesPerCategory; j++) {
           const judgeNum = (c * judgesPerCategory) + j + 1;
           const judge = await tx.judge.create({
@@ -403,7 +426,10 @@ export class TestEventSetupService extends BaseService {
           });
 
           // Add to contest judges array for later assignment to categories
-          contestJudges.push(judge);
+          contestJudges.push({
+            id: judge.id,
+            assignedByUserId: judgeUser.id,
+          });
 
           // Create contest-level judge assignment
           await tx.contestJudge.create({
@@ -473,7 +499,12 @@ export class TestEventSetupService extends BaseService {
                   eventId: event.id,
                   priority: 0,
                   status: 'ACTIVE',
-                  assignedBy: userId,
+                  assignedBy: this.resolveAssignedByUserId(
+                    userId,
+                    userTenantId,
+                    tenantId,
+                    judge.assignedByUserId
+                  ),
                   assignedAt: new Date()
                 }
               });
@@ -537,7 +568,9 @@ export class TestEventSetupService extends BaseService {
 
       return {
         eventId: event.id,
-        eventName: event.name
+        eventName: event.name,
+        tenant: targetTenant,
+        tenantCreatedNew
       };
     });
 
@@ -548,12 +581,12 @@ export class TestEventSetupService extends BaseService {
       eventName: result.eventName,
       message: `Test event "${result.eventName}" created successfully`,
       generatedPassword,
-      tenant: createdTenant ? {
-        id: createdTenant.id,
-        name: createdTenant.name,
-        slug: createdTenant.slug,
-        createdNew: tenantCreatedNew
-      } : undefined,
+      tenant: {
+        id: result.tenant.id,
+        name: result.tenant.name,
+        slug: result.tenant.slug,
+        createdNew: result.tenantCreatedNew
+      },
       counts
     };
   }
@@ -663,4 +696,3 @@ export class TestEventSetupService extends BaseService {
     };
   }
 }
-

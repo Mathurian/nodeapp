@@ -123,7 +123,15 @@ api.interceptors.response.use(
 )
 
 export const eventsAPI = {
-  getAll: (params?: { archived?: boolean; search?: string; createdAfter?: string; createdBefore?: string; sortBy?: string; sortDirection?: 'asc' | 'desc' }) =>
+  getAll: (params?: {
+    archived?: boolean;
+    search?: string;
+    createdAfter?: string;
+    createdBefore?: string;
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+    tenantId?: string;
+  }) =>
     api.get('/events', { params }),
   getById: (id: string) => api.get(`/events/${id}`),
   create: (data: any) => api.post('/events', data),
@@ -610,8 +618,26 @@ export const notificationPreferencesAPI = {
 }
 
 export const tenantsAPI = {
-  getAll: (params?: { page?: number; limit?: number; status?: string; planType?: string }) =>
-    api.get('/tenants', { params }),
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    take?: number;
+    skip?: number;
+    status?: string;
+    isActive?: boolean;
+    planType?: string;
+    search?: string;
+  }) => {
+    const normalizedParams = params
+      ? {
+          ...params,
+          take: params.take ?? params.limit,
+          skip: params.skip ?? (params.page && params.limit ? (params.page - 1) * params.limit : undefined),
+        }
+      : undefined
+
+    return api.get('/tenants', { params: normalizedParams })
+  },
   getById: (id: string) => api.get(`/tenants/${id}`),
   getCurrent: () => api.get('/tenants/current'),
   create: (data: any) => api.post('/tenants', data),

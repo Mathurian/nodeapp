@@ -58,7 +58,7 @@ export class EventsController {
    */
   getAllEvents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { archived, search, createdAfter, createdBefore, sortBy, sortDirection } = req.query;
+      const { archived, search, createdAfter, createdBefore, sortBy, sortDirection, tenantId } = req.query;
 
       const filters: {
         archived?: boolean;
@@ -91,7 +91,11 @@ export class EventsController {
 
       // CRITICAL: Add tenant filtering for non-SUPER_ADMIN users
       const isSuperAdmin = (req as any).isSuperAdmin;
-      const tenantId = (req as any).tenantId || (req as any).user?.tenantId;
+      const requestTenantId = (req as any).tenantId || (req as any).user?.tenantId;
+
+      if (tenantId && typeof tenantId === 'string' && isSuperAdmin) {
+        filters.tenantId = tenantId;
+      }
 
       // For SUPER_ADMIN, use req.prisma which bypasses tenant filtering
       let events;
@@ -115,18 +119,84 @@ export class EventsController {
         if (filters.createdBefore) {
           whereClause.createdAt = { ...(whereClause.createdAt || {}), lte: filters.createdBefore };
         }
+        if (filters.tenantId) {
+          whereClause.tenantId = filters.tenantId;
+        }
 
-        events = await prisma.event.findMany({
+        const resolvedSortDirection = filters.sortDirection || 'desc';
+        const orderBy =
+          filters.sortBy && filters.sortBy !== 'tenantName'
+            ? { [filters.sortBy]: resolvedSortDirection }
+            : { startDate: 'desc' as const };
+
+        const rawEvents = await prisma.event.findMany({
           where: whereClause,
-          orderBy: filters.sortBy ? { [filters.sortBy]: filters.sortDirection || 'desc' } : { startDate: 'desc' },
+          orderBy,
           include: {
-            contests: true
+            contests: true,
           }
         });
+
+        const tenantIds = Array.from(
+          new Set(
+            rawEvents
+              .map((event: { tenantId?: string }) => event.tenantId)
+              .filter((value: string | undefined): value is string => typeof value === 'string' && value.length > 0)
+          )
+        );
+        const tenants = tenantIds.length > 0
+          ? await prisma.tenant.findMany({
+              where: { id: { in: tenantIds } },
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            })
+          : [];
+        const tenantMap = new Map(tenants.map((tenant: { id: string; name: string; slug: string }) => [tenant.id, tenant]));
+
+        events = rawEvents.map((event: { tenantId?: string }) => ({
+          ...event,
+          tenant: event.tenantId ? tenantMap.get(event.tenantId) || null : null,
+        }));
+
+        if (filters.sortBy === 'tenantName') {
+          events.sort((left: any, right: any) => {
+            const leftTenantName = String(left.tenant?.name || '').toLocaleLowerCase();
+            const rightTenantName = String(right.tenant?.name || '').toLocaleLowerCase();
+            const tenantCompare = resolvedSortDirection === 'asc'
+              ? leftTenantName.localeCompare(rightTenantName, undefined, { numeric: true, sensitivity: 'base' })
+              : rightTenantName.localeCompare(leftTenantName, undefined, { numeric: true, sensitivity: 'base' });
+
+            if (tenantCompare !== 0) {
+              return tenantCompare;
+            }
+
+            const leftStart = new Date(left.startDate).getTime();
+            const rightStart = new Date(right.startDate).getTime();
+            if (leftStart !== rightStart) {
+              return rightStart - leftStart;
+            }
+
+            const nameCompare = String(left.name || '').localeCompare(String(right.name || ''), undefined, {
+              sensitivity: 'base',
+              numeric: true,
+            });
+            if (nameCompare !== 0) {
+              return nameCompare;
+            }
+
+            return String(left.id || '').localeCompare(String(right.id || ''), undefined, {
+              sensitivity: 'base',
+              numeric: true,
+            });
+          });
+        }
       } else {
         // Non-SUPER_ADMIN: use service with tenant filtering
-        if (tenantId) {
-          filters.tenantId = tenantId;
+        if (requestTenantId) {
+          filters.tenantId = requestTenantId;
         }
         events = await this.eventService.getAllEvents(filters);
       }

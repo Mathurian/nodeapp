@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
-import { eventsAPI } from '../services/api'
+import { eventsAPI, tenantsAPI } from '../services/api'
 import {
   CalendarIcon,
   PlusIcon,
@@ -27,6 +27,7 @@ import { safeFormatDate } from '../utils/dateUtils'
 
 interface Event {
   id: string
+  tenantId?: string
   name: string
   description: string | null
   startDate: string
@@ -41,9 +42,20 @@ interface Event {
   requireAllAuditorCertifiers?: boolean | null
   createdAt: string
   updatedAt: string
+  tenant?: {
+    id: string
+    name: string
+    slug: string
+  }
   _count?: {
     contests: number
   }
+}
+
+interface TenantOption {
+  id: string
+  name: string
+  slug: string
 }
 
 interface EventFormData {
@@ -83,6 +95,7 @@ const EventsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -104,6 +117,7 @@ const EventsPage: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
+  const [selectedTenantId, setSelectedTenantId] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [dateFilters, setDateFilters] = useState<DateFilters>({
@@ -117,6 +131,15 @@ const EventsPage: React.FC = () => {
   // Check permissions
   const canManageEvents = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
 
+  const eventSortOptions = isSuperAdmin
+    ? [
+        { value: 'createdAt', label: 'Created Date' },
+        { value: 'updatedAt', label: 'Updated Date' },
+        { value: 'name', label: 'Name' },
+        { value: 'tenantName', label: 'Tenant' },
+      ]
+    : undefined
+
   // Debug logging
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -124,9 +147,22 @@ const EventsPage: React.FC = () => {
     }
   }, [user?.role, canManageEvents])
 
+  const { data: tenants = [] } = useQuery<TenantOption[]>(
+    ['events-tenants'],
+    async () => {
+      const response = await tenantsAPI.getAll({ take: 200 })
+      return response.data?.tenants || []
+    },
+    {
+      enabled: isSuperAdmin,
+      retry: 1,
+      onError: (err) => console.error('Tenants fetch failed:', err),
+    }
+  )
+
   // Fetch events
   const { data: events = [], isLoading, error } = useQuery<Event[]>(
-    ['events', dateFilters],
+    ['events', dateFilters, selectedTenantId, isSuperAdmin],
     async () => {
       const params: any = {}
 
@@ -142,6 +178,9 @@ const EventsPage: React.FC = () => {
       }
       if (dateFilters.sortDirection) {
         params.sortDirection = dateFilters.sortDirection
+      }
+      if (isSuperAdmin && selectedTenantId) {
+        params.tenantId = selectedTenantId
       }
 
       const response = await eventsAPI.getAll(params)
@@ -334,6 +373,12 @@ const EventsPage: React.FC = () => {
     return matchesSearch && matchesArchived
   }) : []
 
+  const getTenantDisplayName = (event: Event) => {
+    if (event.tenant?.name) return event.tenant.name
+    if (!event.tenantId) return null
+    return tenants.find((tenant) => tenant.id === event.tenantId)?.name || null
+  }
+
   if (error) {
     return (
       <div className="cgr-page-container">
@@ -386,6 +431,25 @@ const EventsPage: React.FC = () => {
               />
             </div>
 
+            {isSuperAdmin && (
+              <div className="md:w-72">
+                <label htmlFor="events-tenant-filter" className="sr-only">Filter by tenant</label>
+                <select
+                  id="events-tenant-filter"
+                  value={selectedTenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All tenants</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Show Archived Toggle */}
             <button
               onClick={() => setShowArchived(!showArchived)}
@@ -405,7 +469,11 @@ const EventsPage: React.FC = () => {
             <DateFilterControls
               filters={dateFilters}
               onFilterChange={setDateFilters}
-              onClear={() => setDateFilters({ sortDirection: 'asc' })}
+              onClear={() => {
+                setDateFilters({ sortDirection: 'asc' })
+                setSelectedTenantId('')
+              }}
+              sortOptions={eventSortOptions}
             />
           </div>
         </Card>
@@ -433,6 +501,11 @@ const EventsPage: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                       {event.name}
                     </h3>
+                    {isSuperAdmin && getTenantDisplayName(event) && (
+                      <p className="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-300 mt-1">
+                        {getTenantDisplayName(event)}
+                      </p>
+                    )}
                     {event.location && (
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{event.location}</p>
                     )}
