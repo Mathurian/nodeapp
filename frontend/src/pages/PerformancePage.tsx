@@ -9,6 +9,7 @@ import {
   CircleStackIcon,
   CpuChipIcon,
   ServerStackIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline'
 import { Card, PageHeader } from '../components/ui'
 
@@ -32,11 +33,25 @@ interface PerformanceMetrics {
     activeConnections: number
     slowQueries: number
     averageQueryTime: number
+    scope: 'global' | 'tenant'
+    activeConnectionsScope: 'global'
   }
   requests: {
+    scope: 'global' | 'tenant'
     totalRequests: number
     averageResponseTime: number
     errorRate: number
+  }
+  activity: {
+    scope: 'global' | 'tenant'
+    tenantId: string | null
+    liveUsers: number
+    liveUsersByRole: Array<{ role: string; count: number }>
+    liveWindowMinutes: number
+    recentUsers24h: number
+    recentUsers24hByRole: Array<{ role: string; count: number }>
+    recentWindowHours: number
+    recentWindowField: string
   }
 }
 
@@ -44,6 +59,11 @@ interface SlowQuery {
   query: string
   duration: number
   timestamp: string
+}
+
+interface PrometheusGraphQuery {
+  expr: string
+  legend?: string
 }
 
 const formatSlowEndpointTimestamp = (timestamp: string): string => {
@@ -80,12 +100,41 @@ const resolveMonitoringOrigin = (): string => {
   return origin
 }
 
+const resolveGrafanaDashboardPath = (host: string): string => {
+  const runtimeEnvironment = detectRuntimeEnvironment(host)
+
+  if (runtimeEnvironment === 'dev') {
+    return '/monitoring/grafana/d/event-manager-monitoring-dev/event-manager-monitoring-dev'
+  }
+
+  return '/monitoring/grafana/d/event-manager-monitoring-prod/event-manager-monitoring-prod'
+}
+
+const buildPrometheusGraphUrl = (
+  monitoringOrigin: string,
+  queries: PrometheusGraphQuery[],
+): string => {
+  if (queries.length === 0) {
+    return new URL('/monitoring/prometheus/', monitoringOrigin).toString()
+  }
+
+  const params = new URLSearchParams()
+  queries.forEach((query, index) => {
+    params.set(`g${index}.expr`, query.expr)
+    params.set(`g${index}.tab`, '0')
+    if (query.legend) {
+      params.set(`g${index}.display_mode`, 'lines')
+    }
+  })
+
+  return new URL(`/monitoring/prometheus/graph?${params.toString()}`, monitoringOrigin).toString()
+}
+
 const PerformancePage: React.FC = () => {
   const { user } = useAuth()
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const canAccessMonitoring = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(user?.role || '')
   const tenantId = user?.tenantId || ''
-  const tenantSlug = user?.tenant?.slug || ''
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null)
   const [slowQueries, setSlowQueries] = useState<SlowQuery[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,6 +151,7 @@ const PerformancePage: React.FC = () => {
       setLoading(true)
       const dashboardRes = await api.get('/performance/dashboard')
       const dashboard = dashboardRes.data?.data || dashboardRes.data
+      setError(null)
 
       // Map dashboard response to expected metrics format
       setMetrics({
@@ -122,13 +172,31 @@ const PerformancePage: React.FC = () => {
         },
         database: {
           activeConnections: dashboard.database?.activeConnections || 0,
-          slowQueries: 0, // Not tracked as a list
-          averageQueryTime: dashboard.performance?.averageResponseTime || 0,
+          slowQueries: Number(dashboard.database?.slowQueries || 0),
+          averageQueryTime: Number(dashboard.database?.averageQueryTime || 0),
+          scope: dashboard.database?.scope === 'tenant' ? 'tenant' : 'global',
+          activeConnectionsScope: 'global',
         },
         requests: {
-          totalRequests: dashboard.performance?.totalRequests || 0,
-          averageResponseTime: dashboard.performance?.averageResponseTime || 0,
-          errorRate: parseFloat(dashboard.performance?.errorRate || '0'),
+          scope: dashboard.performance?.scope === 'tenant' ? 'tenant' : 'global',
+          totalRequests: Number(dashboard.performance?.totalRequests || 0),
+          averageResponseTime: Number(dashboard.performance?.averageResponseTime || 0),
+          errorRate: Number(dashboard.performance?.errorRate || 0),
+        },
+        activity: {
+          scope: dashboard.activity?.scope === 'tenant' ? 'tenant' : 'global',
+          tenantId: dashboard.activity?.tenantId || null,
+          liveUsers: Number(dashboard.activity?.liveUsers || 0),
+          liveUsersByRole: Array.isArray(dashboard.activity?.liveUsersByRole)
+            ? dashboard.activity.liveUsersByRole
+            : [],
+          liveWindowMinutes: Number(dashboard.activity?.liveWindowMinutes || 15),
+          recentUsers24h: Number(dashboard.activity?.recentUsers24h || 0),
+          recentUsers24hByRole: Array.isArray(dashboard.activity?.recentUsers24hByRole)
+            ? dashboard.activity.recentUsers24hByRole
+            : [],
+          recentWindowHours: Number(dashboard.activity?.recentWindowHours || 24),
+          recentWindowField: dashboard.activity?.recentWindowField || 'lastLoginAt',
         },
       })
 
@@ -138,7 +206,7 @@ const PerformancePage: React.FC = () => {
         slowEndpoints.map((ep: any) => ({
           query: ep.endpoint,
           duration: ep._avg?.responseTime || 0,
-          timestamp: new Date().toISOString(),
+          timestamp: dashboard.timestamp || new Date().toISOString(),
         }))
       )
     } catch (err: any) {
@@ -155,23 +223,35 @@ const PerformancePage: React.FC = () => {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
   }
 
-  const grafanaParams = new URLSearchParams()
-  if (!isSuperAdmin) {
-    if (tenantId) grafanaParams.set('var-tenantId', tenantId)
-    if (tenantSlug) grafanaParams.set('var-tenantSlug', tenantSlug)
-  }
   const monitoringOrigin = resolveMonitoringOrigin()
-  const grafanaPath = grafanaParams.toString()
-    ? `/monitoring/grafana/?${grafanaParams.toString()}`
-    : '/monitoring/grafana/'
-  const tenantScopedGrafanaUrl = new URL(grafanaPath, monitoringOrigin).toString()
-  const tenantScopedPrometheusExpression = !isSuperAdmin && tenantId
-    ? `sum by (route, method) (rate(http_requests_total{tenantId="${tenantId}"}[5m]))`
-    : ''
-  const prometheusPath = tenantScopedPrometheusExpression
-    ? `/monitoring/prometheus/graph?g0.expr=${encodeURIComponent(tenantScopedPrometheusExpression)}&g0.tab=0`
-    : '/monitoring/prometheus/'
-  const tenantScopedPrometheusUrl = new URL(prometheusPath, monitoringOrigin).toString()
+  const grafanaBasePath = resolveGrafanaDashboardPath(
+    typeof window !== 'undefined' ? window.location.hostname : 'conmgr.com',
+  )
+  const tenantScopedGrafanaUrl = new URL(grafanaBasePath, monitoringOrigin).toString()
+  const prometheusQueries: PrometheusGraphQuery[] = !isSuperAdmin && tenantId
+    ? [
+        { expr: `sum(active_user_sessions_total{tenant_id="${tenantId}"})` },
+        { expr: `sum(users_recent_24h_total{tenant_id="${tenantId}"})` },
+        { expr: `sum by (method, route) (rate(http_requests_total{tenant_id="${tenantId}"}[5m]))` },
+        { expr: `sum by (error_type) (rate(http_request_errors_total{tenant_id="${tenantId}"}[5m]))` },
+        {
+          expr: `histogram_quantile(0.95, sum by (le, operation, table) (rate(database_query_duration_seconds_bucket{tenant_id="${tenantId}"}[5m])))`,
+        },
+        { expr: `sum(rate(cache_hits_total{tenant_id="${tenantId}"}[5m]))` },
+        { expr: `sum(rate(cache_misses_total{tenant_id="${tenantId}"}[5m]))` },
+      ]
+    : [
+        { expr: 'sum(active_user_sessions_global_total)' },
+        { expr: 'sum(users_recent_24h_total)' },
+        { expr: 'sum by (method, route) (rate(http_requests_total[5m]))' },
+        { expr: 'sum by (error_type) (rate(http_request_errors_total[5m]))' },
+        {
+          expr: 'histogram_quantile(0.95, sum by (le, operation, table) (rate(database_query_duration_seconds_bucket[5m])))',
+        },
+        { expr: 'sum(rate(cache_hits_total[5m]))' },
+        { expr: 'sum(rate(cache_misses_total[5m]))' },
+      ]
+  const tenantScopedPrometheusUrl = buildPrometheusGraphUrl(monitoringOrigin, prometheusQueries)
 
   if (!canAccessMonitoring) {
     return (
@@ -192,8 +272,14 @@ const PerformancePage: React.FC = () => {
     <div className="cgr-page-container">
         <PageHeader
           title="Performance Metrics"
-          subtitle="Monitor system performance and identify bottlenecks"
+          subtitle="Monitor system performance, active users, and identify bottlenecks"
         />
+
+        {loading && !metrics && (
+          <Card className="mb-6 p-6 text-center text-gray-600 dark:text-gray-300">
+            Loading monitoring metrics...
+          </Card>
+        )}
 
         {error && (
           <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
@@ -279,6 +365,7 @@ const PerformancePage: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
                   {metrics.requests.totalRequests.toLocaleString()} total requests
+                  {metrics.requests.scope === 'tenant' ? ' for this tenant' : ' across all tenants'}
                 </p>
               </div>
 
@@ -293,8 +380,84 @@ const PerformancePage: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
-                  {metrics.database.activeConnections} DB connections
+                  {metrics.database.activeConnections} DB connections (global)
                 </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <UsersIcon className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Live Active Users</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {metrics.activity.liveUsers}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-300">
+                  {metrics.activity.scope === 'tenant' ? 'Current tenant' : 'All tenants'} within the last{' '}
+                  {metrics.activity.liveWindowMinutes} minutes
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <ClockIcon className="h-10 w-10 text-violet-600 dark:text-violet-400" />
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Recently Active Users</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {metrics.activity.recentUsers24h}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-300">
+                  {metrics.activity.scope === 'tenant' ? 'Current tenant' : 'All tenants'} with a{' '}
+                  {metrics.activity.recentWindowField} in the last {metrics.activity.recentWindowHours} hours
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 lg:col-span-1">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    User Activity by Role
+                  </h2>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                    {metrics.activity.scope === 'tenant' ? 'Tenant View' : 'Global View'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {metrics.activity.liveUsersByRole.length === 0 && metrics.activity.recentUsers24hByRole.length === 0 ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      No active user data available yet.
+                    </p>
+                  ) : (
+                    Array.from(
+                      new Set([
+                        ...metrics.activity.liveUsersByRole.map((entry) => entry.role),
+                        ...metrics.activity.recentUsers24hByRole.map((entry) => entry.role),
+                      ]),
+                    ).map((role) => {
+                      const liveCount =
+                        metrics.activity.liveUsersByRole.find((entry) => entry.role === role)?.count || 0
+                      const recentCount =
+                        metrics.activity.recentUsers24hByRole.find((entry) => entry.role === role)?.count || 0
+
+                      return (
+                        <div
+                          key={role}
+                          className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2 text-sm dark:bg-gray-900"
+                        >
+                          <span className="font-medium text-gray-700 dark:text-gray-200">{role}</span>
+                          <span className="text-gray-600 dark:text-gray-300">
+                            Live {liveCount} · 24h {recentCount}
+                          </span>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
               </div>
             </div>
 
@@ -314,6 +477,9 @@ const PerformancePage: React.FC = () => {
                         {metrics.database.activeConnections}
                       </span>
                     </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Global database connection count
+                    </p>
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
@@ -324,6 +490,9 @@ const PerformancePage: React.FC = () => {
                         {metrics.database.slowQueries}
                       </span>
                     </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {metrics.database.scope === 'tenant' ? 'Tenant-scoped query latency' : 'All query latency'}
+                    </p>
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
@@ -382,7 +551,7 @@ const PerformancePage: React.FC = () => {
                 Monitoring Dashboards
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                Access Grafana and Prometheus from inside the app. Non-super-admin links include tenant context when dashboards support tenant variables.
+                Access Grafana and Prometheus from inside the app. Grafana now resolves tenant names for display while enforcing tenant viewers to their own tenant scope. System load and database connection panels remain global.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a

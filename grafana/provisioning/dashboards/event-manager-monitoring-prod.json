@@ -1,0 +1,275 @@
+{
+  "title": "Event Manager Monitoring (Prod)",
+  "uid": "event-manager-monitoring-prod",
+  "tags": [
+    "event-manager",
+    "performance",
+    "activity",
+    "prod"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "tenantId",
+        "label": "Tenant",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "event-manager-sql-prod"
+        },
+        "query": {
+          "query": "SELECT t.tenant_name AS __text, t.tenant_id AS __value FROM grafana_tenants t JOIN grafana_user_tenant_scope scope ON scope.user_email = lower('${__user.email}') WHERE scope.is_active = true AND (scope.is_super_admin OR t.tenant_id = scope.tenant_id) ORDER BY t.tenant_name",
+          "refId": "tenantIdQuery"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "sort": 1,
+        "refresh": 1,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "effectiveTenantFilter",
+        "label": "Effective Tenant Filter",
+        "type": "query",
+        "hide": 2,
+        "skipUrlSync": true,
+        "datasource": {
+          "type": "postgres",
+          "uid": "event-manager-sql-prod"
+        },
+        "query": {
+          "query": "SELECT CASE WHEN EXISTS (SELECT 1 FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true AND scope.is_super_admin = true) THEN CASE WHEN '${tenantId}' = '.*' THEN '.*' ELSE '${tenantId}' END ELSE (SELECT scope.tenant_id FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true LIMIT 1) END AS __value",
+          "refId": "effectiveTenantFilterQuery"
+        },
+        "refresh": 1,
+        "current": {
+          "selected": true,
+          "text": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum by (method, route) (rate(http_requests_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "{{method}} {{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP Request Duration (p95)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{tenant_id=~\"$effectiveTenantFilter\"}[5m])))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Live Active Users",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(active_user_sessions_total{tenant_id=~\"$effectiveTenantFilter\"})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Recently Active Users (24h)",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(users_recent_24h_total{tenant_id=~\"$effectiveTenantFilter\"})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Live Active Users by Role",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (role) (active_user_sessions_by_role_total{tenant_id=~\"$effectiveTenantFilter\"})",
+          "legendFormat": "{{role}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Recently Active Users by Role (24h)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "sum by (role) (users_recent_24h_by_role_total{tenant_id=~\"$effectiveTenantFilter\"})",
+          "legendFormat": "{{role}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "sum by (error_type) (rate(http_request_errors_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "{{error_type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Active Connections",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "active_connections",
+          "legendFormat": "Connections",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Database Query Duration",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, operation, table) (rate(database_query_duration_seconds_bucket{tenant_id=~\"$effectiveTenantFilter\"}[5m])))",
+          "legendFormat": "{{operation}} {{table}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Cache Performance",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(cache_hits_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "Hits",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(cache_misses_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "Misses",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  }
+}

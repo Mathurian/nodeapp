@@ -93,7 +93,7 @@ NODE
 
 echo "Staging release: $REL"
 
-sudo install -d -m 755 "$REL" "$REL/frontend" "$REL/src/templates" "$REL/config" "$REL/scripts"
+sudo install -d -m 755 "$REL" "$REL/frontend" "$REL/src/templates" "$REL/config" "$REL/scripts" "$REL/grafana"
 
 sudo rsync -a --delete "$APP_ROOT/dist/" "$REL/dist/"
 sudo install -d -m 755 "$REL/dist/templates/print"
@@ -102,6 +102,7 @@ copy_pwa_compat_assets_from_previous_release "$PREVIOUS_FRONTEND_DIST" "$REL/fro
 sudo rsync -a --delete "$APP_ROOT/prisma/" "$REL/prisma/"
 sudo rsync -a --delete "$APP_ROOT/docs/" "$REL/docs/"
 sudo rsync -a --delete "$APP_ROOT/config/" "$REL/config/"
+sudo rsync -a --delete "$APP_ROOT/grafana/" "$REL/grafana/"
 sudo rsync -a --delete "$APP_ROOT/scripts/" "$REL/scripts/"
 sudo rsync -a --delete "$APP_ROOT/src/templates/email/" "$REL/src/templates/email/"
 sudo rsync -a --delete "$APP_ROOT/src/templates/print/" "$REL/dist/templates/print/"
@@ -111,6 +112,8 @@ sudo cp "$APP_ROOT/package.json" "$APP_ROOT/package-lock.json" "$REL/"
 # source workspace permissions are more restrictive.
 sudo find "$REL/config" -type d -exec chmod 755 {} +
 sudo find "$REL/config" -type f -exec chmod 644 {} +
+sudo find "$REL/grafana" -type d -exec chmod 755 {} +
+sudo find "$REL/grafana" -type f -exec chmod 644 {} +
 
 echo "Installing runtime dependencies..."
 (

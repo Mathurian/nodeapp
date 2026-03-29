@@ -117,6 +117,9 @@ systemctl enable prometheus || true
 systemctl enable grafana-server || true
 systemctl restart prometheus || true
 systemctl restart grafana-server || true
+if [ -f "$APP_ROOT/scripts/monitoring/reconcile-grafana-dashboard-permissions.sh" ]; then
+    bash "$APP_ROOT/scripts/monitoring/reconcile-grafana-dashboard-permissions.sh" || true
+fi
 
 echo ""
 echo "Installation complete!"
@@ -129,4 +132,3 @@ echo "Access Grafana at: http://conmgr.com/monitoring/grafana/"
 echo "Access Prometheus at: http://conmgr.com/monitoring/prometheus/"
 echo ""
 echo "Default Grafana credentials: admin/admin (change on first login)"
-

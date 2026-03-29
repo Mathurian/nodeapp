@@ -4,6 +4,26 @@
  * Will be replaced with Redis in Phase 5 for distributed caching
  */
 
+import { container } from 'tsyringe';
+import { getRequestContext } from '../middleware/correlationId';
+import { MetricsService } from '../services/MetricsService';
+
+let metricsService: MetricsService | null = null;
+
+const resolveMetricsService = (): MetricsService | null => {
+  if (metricsService) {
+    return metricsService;
+  }
+
+  try {
+    metricsService = container.resolve(MetricsService);
+  } catch (_error) {
+    metricsService = null;
+  }
+
+  return metricsService;
+};
+
 class InMemoryCache {
   private cache: Map<string, unknown>;
   private ttlMap: Map<string, number>;
@@ -17,15 +37,24 @@ class InMemoryCache {
    * Get a value from cache
    */
   get(key: string): unknown {
+    const tenantId = getRequestContext()?.tenantId;
     // Check if key exists and hasn't expired
     const ttl = this.ttlMap.get(key);
     if (ttl && Date.now() > ttl) {
       // Expired - remove and return null
       this.delete(key);
+      resolveMetricsService()?.recordCacheMiss(key, tenantId);
       return null;
     }
 
-    return this.cache.get(key) || null;
+    const value = this.cache.get(key) || null;
+    if (value === null) {
+      resolveMetricsService()?.recordCacheMiss(key, tenantId);
+    } else {
+      resolveMetricsService()?.recordCacheHit(key, tenantId);
+    }
+
+    return value;
   }
 
   /**

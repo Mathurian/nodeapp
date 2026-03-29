@@ -8,6 +8,8 @@ NGINX_ENABLED="${NGINX_ENABLED:-/etc/nginx/sites-enabled/event-manager}"
 NGINX_AVAILABLE="${NGINX_AVAILABLE:-/etc/nginx/sites-available/event-manager}"
 ENV_FILE="${ENV_FILE:-/etc/event-manager/event-manager.env}"
 RETAIN_RELEASES="${RETAIN_RELEASES:-10}"
+GRAFANA_PROVISIONING_DIR="${GRAFANA_PROVISIONING_DIR:-/etc/grafana/provisioning}"
+GRAFANA_SERVICE_NAME="${GRAFANA_SERVICE_NAME:-grafana-server}"
 
 if [ "${1:-}" = "" ]; then
   echo "Usage: sudo $0 <release-timestamp>"
@@ -158,6 +160,22 @@ normalize_nginx_api_docs_location "$NGINX_AVAILABLE"
 normalize_nginx_monitoring_locations "$NGINX_ENABLED"
 normalize_nginx_monitoring_locations "$NGINX_AVAILABLE"
 
+sync_grafana_provisioning() {
+  local source_dir="$CURRENT_LINK/grafana/provisioning"
+  [ -d "$source_dir" ] || return 0
+  [ -d "$GRAFANA_PROVISIONING_DIR" ] || return 0
+
+  sudo rsync -a --delete "$source_dir/" "$GRAFANA_PROVISIONING_DIR/"
+  sudo chown -R grafana:grafana "$GRAFANA_PROVISIONING_DIR"
+}
+
+reconcile_grafana_permissions() {
+  local reconcile_script="$CURRENT_LINK/scripts/monitoring/reconcile-grafana-dashboard-permissions.sh"
+  [ -f "$reconcile_script" ] || return 0
+
+  sudo bash "$reconcile_script"
+}
+
 if [ -d /etc/nginx/backup-sites-enabled ]; then
   for f in /etc/nginx/sites-enabled/*.bak-*; do
     [ -e "$f" ] || continue
@@ -167,6 +185,11 @@ fi
 
 sudo systemctl daemon-reload
 sudo systemctl restart "$SERVICE_NAME"
+sync_grafana_provisioning
+if systemctl list-unit-files "$GRAFANA_SERVICE_NAME" >/dev/null 2>&1; then
+  sudo systemctl restart "$GRAFANA_SERVICE_NAME"
+  reconcile_grafana_permissions
+fi
 sudo nginx -t
 sudo systemctl reload nginx
 prune_old_releases

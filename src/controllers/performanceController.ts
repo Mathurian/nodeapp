@@ -139,7 +139,8 @@ export class PerformanceController {
    */
   getMonitoringDashboard = async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      const dashboard = await this.performanceService.getMonitoringDashboard();
+      const tenantScopeId = _req.isSuperAdmin ? undefined : _req.tenantId;
+      const dashboard = await this.performanceService.getMonitoringDashboard(tenantScopeId);
       return sendSuccess(res, dashboard);
     } catch (error) {
       return next(error);

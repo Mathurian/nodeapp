@@ -4,9 +4,27 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { container } from 'tsyringe';
+import { getRequestContext } from './correlationId';
+import { MetricsService } from '../services/MetricsService';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('query-monitoring');
+let metricsService: MetricsService | null = null;
+
+const resolveMetricsService = (): MetricsService | null => {
+  if (metricsService) {
+    return metricsService;
+  }
+
+  try {
+    metricsService = container.resolve(MetricsService);
+  } catch (_error) {
+    metricsService = null;
+  }
+
+  return metricsService;
+};
 
 /**
  * Slow query threshold in milliseconds
@@ -25,6 +43,16 @@ export function setupQueryMonitoring(prisma: PrismaClient): void {
     try {
       const result = await next(params);
       const duration = Date.now() - startTime;
+      const requestContext = getRequestContext();
+      const table = params.model || 'raw';
+      const operation = params.action || 'unknown';
+
+      resolveMetricsService()?.recordDatabaseQuery(
+        operation,
+        table,
+        duration,
+        requestContext?.tenantId
+      );
 
       // Log slow queries
       if (duration > SLOW_QUERY_THRESHOLD) {
@@ -49,6 +77,14 @@ export function setupQueryMonitoring(prisma: PrismaClient): void {
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const requestContext = getRequestContext();
+
+      resolveMetricsService()?.recordDatabaseQuery(
+        params.action || 'error',
+        params.model || 'raw',
+        duration,
+        requestContext?.tenantId
+      );
       
       logger.error('Query error', {
         model: params.model,

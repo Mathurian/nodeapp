@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useCa
 import { io, Socket } from 'socket.io-client'
 import { useAuth } from './AuthContext'
 
+const PRESENCE_HEARTBEAT_MS = 60_000
+
 interface ActiveUser {
   id: string
   name: string
@@ -198,6 +200,22 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       }
     }
   }, [user])
+
+  useEffect(() => {
+    if (!socket || !isConnected || !user) {
+      return
+    }
+
+    socket.emit('presence:heartbeat')
+
+    const heartbeatInterval = window.setInterval(() => {
+      socket.emit('presence:heartbeat')
+    }, PRESENCE_HEARTBEAT_MS)
+
+    return () => {
+      window.clearInterval(heartbeatInterval)
+    }
+  }, [socket, isConnected, user])
 
   const emit = useCallback((event: string, data?: any) => {
     if (socket && isConnected) {

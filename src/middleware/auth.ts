@@ -4,6 +4,7 @@ import { User } from '@prisma/client';
 import { isAdmin, hasPermissionAsync } from './permissions';
 import { jwtSecret } from '../utils/config';
 import prisma from '../config/database';
+import { container } from '../config/container';
 import { userCache } from '../utils/cache';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
@@ -11,6 +12,7 @@ import { createTenantPrismaClient } from './tenantMiddleware';
 import { updateRequestContext } from './correlationId';
 import { evaluateDefaultTenantAccess } from '../utils/tenantSegregationPolicy';
 import { recordTenantSegregationViolation } from '../utils/tenantSegregationMetrics';
+import { ActiveSessionTracker } from '../services/ActiveSessionTracker';
 
 const logger = createLogger('auth');
 
@@ -377,6 +379,21 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         email: user.email,
         role: user.role,
         fromCache
+      });
+    }
+
+    try {
+      const sessionTracker = container.resolve(ActiveSessionTracker);
+      sessionTracker.trackActivity(
+        user.id,
+        req.tenantId || user.tenantId,
+        userRole,
+        req.get('User-Agent') || undefined,
+      );
+    } catch (trackerError) {
+      logger.warn('authenticateToken: failed to update active session presence', {
+        error: trackerError instanceof Error ? trackerError.message : String(trackerError),
+        userId: user.id,
       });
     }
 

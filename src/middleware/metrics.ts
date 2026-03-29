@@ -43,11 +43,18 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
   // Record response finish
   res.on('finish', () => {
     const duration = Date.now() - startTime;
+    const finalContext = getRequestContext();
+    const tenantId =
+      req.tenantId ||
+      req.user?.tenantId ||
+      finalContext?.tenantId;
+
     metricsService!.recordHttpRequest(
       req.method,
       req.route?.path || req.path,
       res.statusCode,
-      duration
+      duration,
+      tenantId
     );
 
     // Record errors
@@ -56,7 +63,8 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
       metricsService!.recordHttpError(
         req.method,
         req.route?.path || req.path,
-        errorType
+        errorType,
+        tenantId
       );
     }
   });
@@ -84,4 +92,3 @@ export const metricsEndpoint = async (_req: Request, res: Response): Promise<voi
 };
 
 export default { initMetrics, metricsMiddleware, metricsEndpoint };
-

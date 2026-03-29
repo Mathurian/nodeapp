@@ -1,0 +1,32 @@
+apiVersion: 1
+
+datasources:
+  - name: EventManagerSQL-Prod
+    uid: event-manager-sql-prod
+    type: postgres
+    access: proxy
+    url: ${GF_EVENT_MANAGER_SQL_HOST}:${GF_EVENT_MANAGER_SQL_PORT}
+    user: ${GF_EVENT_MANAGER_SQL_USER}
+    database: ${GF_EVENT_MANAGER_SQL_PROD_DB}
+    editable: false
+    secureJsonData:
+      password: ${GF_EVENT_MANAGER_SQL_PASSWORD}
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+
+  - name: EventManagerSQL-Dev
+    uid: event-manager-sql-dev
+    type: postgres
+    access: proxy
+    url: ${GF_EVENT_MANAGER_SQL_HOST}:${GF_EVENT_MANAGER_SQL_PORT}
+    user: ${GF_EVENT_MANAGER_SQL_USER}
+    database: ${GF_EVENT_MANAGER_SQL_DEV_DB}
+    editable: false
+    secureJsonData:
+      password: ${GF_EVENT_MANAGER_SQL_PASSWORD}
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false

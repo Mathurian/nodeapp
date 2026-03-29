@@ -54,6 +54,11 @@ export class MetricsService {
   private statusResetInterval: NodeJS.Timeout | null = null;
   private readonly STATUS_RESET_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+  private normalizeTenantLabel(tenantId?: string): string {
+    const normalized = tenantId?.trim();
+    return normalized ? normalized : 'global';
+  }
+
   constructor() {
     // Create a Registry to register the metrics
     this.register = new Registry();
@@ -66,7 +71,7 @@ export class MetricsService {
     this.httpRequestDuration = new Histogram({
       name: 'http_request_duration_seconds',
       help: 'Duration of HTTP requests in seconds',
-      labelNames: ['method', 'route', 'status_code'],
+      labelNames: ['method', 'route', 'status_code', 'tenant_id'],
       buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10],
       registers: [this.register],
     });
@@ -75,7 +80,7 @@ export class MetricsService {
     this.httpRequestTotal = new Counter({
       name: 'http_requests_total',
       help: 'Total number of HTTP requests',
-      labelNames: ['method', 'route', 'status_code'],
+      labelNames: ['method', 'route', 'status_code', 'tenant_id'],
       registers: [this.register],
     });
 
@@ -83,7 +88,7 @@ export class MetricsService {
     this.httpRequestErrors = new Counter({
       name: 'http_request_errors_total',
       help: 'Total number of HTTP request errors',
-      labelNames: ['method', 'route', 'error_type'],
+      labelNames: ['method', 'route', 'error_type', 'tenant_id'],
       registers: [this.register],
     });
 
@@ -98,7 +103,7 @@ export class MetricsService {
     this.databaseQueryDuration = new Histogram({
       name: 'database_query_duration_seconds',
       help: 'Duration of database queries in seconds',
-      labelNames: ['operation', 'table'],
+      labelNames: ['operation', 'table', 'tenant_id'],
       buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
       registers: [this.register],
     });
@@ -107,7 +112,7 @@ export class MetricsService {
     this.cacheHitRate = new Counter({
       name: 'cache_hits_total',
       help: 'Total number of cache hits',
-      labelNames: ['cache_key'],
+      labelNames: ['cache_key', 'tenant_id'],
       registers: [this.register],
     });
 
@@ -115,7 +120,7 @@ export class MetricsService {
     this.cacheMissRate = new Counter({
       name: 'cache_misses_total',
       help: 'Total number of cache misses',
-      labelNames: ['cache_key'],
+      labelNames: ['cache_key', 'tenant_id'],
       registers: [this.register],
     });
 
@@ -359,11 +364,18 @@ export class MetricsService {
   /**
    * Record HTTP request metrics
    */
-  recordHttpRequest(method: string, route: string, statusCode: number, duration: number): void {
+  recordHttpRequest(
+    method: string,
+    route: string,
+    statusCode: number,
+    duration: number,
+    tenantId?: string
+  ): void {
     const labels = {
       method: method.toUpperCase(),
       route: this.normalizeRoute(route),
       status_code: statusCode.toString(),
+      tenant_id: this.normalizeTenantLabel(tenantId),
     };
 
     this.httpRequestDuration.observe(labels, duration / 1000); // Convert to seconds
@@ -373,20 +385,21 @@ export class MetricsService {
   /**
    * Record HTTP error
    */
-  recordHttpError(method: string, route: string, errorType: string): void {
+  recordHttpError(method: string, route: string, errorType: string, tenantId?: string): void {
     this.httpRequestErrors.inc({
       method: method.toUpperCase(),
       route: this.normalizeRoute(route),
       error_type: errorType,
+      tenant_id: this.normalizeTenantLabel(tenantId),
     });
   }
 
   /**
    * Record database query duration
    */
-  recordDatabaseQuery(operation: string, table: string, duration: number): void {
+  recordDatabaseQuery(operation: string, table: string, duration: number, tenantId?: string): void {
     this.databaseQueryDuration.observe(
-      { operation, table },
+      { operation, table, tenant_id: this.normalizeTenantLabel(tenantId) },
       duration / 1000 // Convert to seconds
     );
   }
@@ -394,15 +407,21 @@ export class MetricsService {
   /**
    * Record cache hit
    */
-  recordCacheHit(cacheKey: string): void {
-    this.cacheHitRate.inc({ cache_key: cacheKey });
+  recordCacheHit(cacheKey: string, tenantId?: string): void {
+    this.cacheHitRate.inc({
+      cache_key: cacheKey,
+      tenant_id: this.normalizeTenantLabel(tenantId),
+    });
   }
 
   /**
    * Record cache miss
    */
-  recordCacheMiss(cacheKey: string): void {
-    this.cacheMissRate.inc({ cache_key: cacheKey });
+  recordCacheMiss(cacheKey: string, tenantId?: string): void {
+    this.cacheMissRate.inc({
+      cache_key: cacheKey,
+      tenant_id: this.normalizeTenantLabel(tenantId),
+    });
   }
 
   /**

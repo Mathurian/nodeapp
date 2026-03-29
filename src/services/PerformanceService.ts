@@ -11,6 +11,7 @@ import { createLogger } from '../utils/logger';
 import { CircuitBreakerRegistry } from '../utils/circuitBreaker';
 import { MetricsService } from './MetricsService';
 import { cache } from '../utils/cache';
+import { ActiveSessionTracker } from './ActiveSessionTracker';
 
 const logger = createLogger('PerformanceService');
 
@@ -64,9 +65,201 @@ export interface HealthCheckResult {
 export class PerformanceService extends BaseService {
   constructor(
     @inject('PrismaClient') private prisma: PrismaClient,
-    @inject(MetricsService) private metricsService: MetricsService
+    @inject(MetricsService) private metricsService: MetricsService,
+    @inject(ActiveSessionTracker) private activeSessionTracker: ActiveSessionTracker
   ) {
     super();
+  }
+
+  private async getUserActivityMetrics(tenantId?: string) {
+    const liveSnapshot = await this.activeSessionTracker.getPresenceSnapshot(tenantId);
+    const recentThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const recentUsersWhere: Prisma.UserWhereInput = {
+      isActive: true,
+      lastLoginAt: {
+        gte: recentThreshold,
+      },
+      ...(tenantId ? { tenantId } : {}),
+    };
+
+    const [recentUsers24h, recentUsers24hByRoleGroups] = await Promise.all([
+      this.prisma.user.count({
+        where: recentUsersWhere,
+      }),
+      this.prisma.user.groupBy({
+        by: ['role'],
+        where: recentUsersWhere,
+        _count: true,
+      }),
+    ]);
+
+    const recentUsers24hByRole = recentUsers24hByRoleGroups
+      .map((group) => ({ role: group.role, count: group._count }))
+      .sort((left, right) => right.count - left.count || left.role.localeCompare(right.role));
+
+    return {
+      scope: tenantId ? 'tenant' : 'global',
+      tenantId: tenantId || null,
+      liveUsers: liveSnapshot.liveUsers,
+      liveUsersByRole: liveSnapshot.liveUsersByRole,
+      liveWindowMinutes: this.activeSessionTracker.getLiveWindowMinutes(),
+      recentUsers24h,
+      recentUsers24hByRole,
+      recentWindowHours: 24,
+      recentWindowField: 'lastLoginAt',
+    };
+  }
+
+  private getTenantLabel(tenantId?: string): string | undefined {
+    const normalized = tenantId?.trim();
+    return normalized ? normalized : undefined;
+  }
+
+  private metricValueNumber(value: unknown): number {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'bigint') return Number(value);
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }
+
+  private findMetricFamily(metrics: Array<{ name?: string }>, name: string) {
+    return metrics.find((metric) => metric.name === name) as
+      | {
+          name?: string;
+          values?: Array<{
+            metricName?: string;
+            labels?: Record<string, string>;
+            value?: unknown;
+          }>;
+        }
+      | undefined;
+  }
+
+  private matchesTenant(labels: Record<string, string> | undefined, tenantLabel?: string): boolean {
+    if (!tenantLabel) {
+      return true;
+    }
+
+    return labels?.['tenant_id'] === tenantLabel;
+  }
+
+  private getScopedRequestMetrics(
+    metrics: Array<{ name?: string; values?: Array<{ metricName?: string; labels?: Record<string, string>; value?: unknown }> }>,
+    tenantId?: string
+  ) {
+    const tenantLabel = this.getTenantLabel(tenantId);
+    const requestTotalMetric = this.findMetricFamily(metrics, 'http_requests_total');
+    const requestDurationMetric = this.findMetricFamily(metrics, 'http_request_duration_seconds');
+    const requestErrorMetric = this.findMetricFamily(metrics, 'http_request_errors_total');
+
+    const totalRequests = (requestTotalMetric?.values || [])
+      .filter((entry) => this.matchesTenant(entry.labels, tenantLabel))
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    const totalDurationSeconds = (requestDurationMetric?.values || [])
+      .filter(
+        (entry) =>
+          entry.metricName === 'http_request_duration_seconds_sum' &&
+          this.matchesTenant(entry.labels, tenantLabel)
+      )
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    const totalDurationCount = (requestDurationMetric?.values || [])
+      .filter(
+        (entry) =>
+          entry.metricName === 'http_request_duration_seconds_count' &&
+          this.matchesTenant(entry.labels, tenantLabel)
+      )
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    const errorRequests = (requestErrorMetric?.values || [])
+      .filter((entry) => this.matchesTenant(entry.labels, tenantLabel))
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    const routes = new Map<string, { totalDuration: number; totalCount: number }>();
+    for (const entry of requestDurationMetric?.values || []) {
+      if (!this.matchesTenant(entry.labels, tenantLabel)) {
+        continue;
+      }
+
+      const route = entry.labels?.['route'];
+      if (!route) {
+        continue;
+      }
+
+      const current = routes.get(route) || { totalDuration: 0, totalCount: 0 };
+      if (entry.metricName === 'http_request_duration_seconds_sum') {
+        current.totalDuration += this.metricValueNumber(entry.value);
+      } else if (entry.metricName === 'http_request_duration_seconds_count') {
+        current.totalCount += this.metricValueNumber(entry.value);
+      }
+      routes.set(route, current);
+    }
+
+    const slowEndpoints = Array.from(routes.entries())
+      .filter(([, aggregate]) => aggregate.totalCount > 0)
+      .map(([endpoint, aggregate]) => ({
+        endpoint,
+        _avg: {
+          responseTime: (aggregate.totalDuration / aggregate.totalCount) * 1000,
+        },
+        _count: {
+          id: aggregate.totalCount,
+        },
+      }))
+      .sort((left, right) => right._avg.responseTime - left._avg.responseTime)
+      .slice(0, 5);
+
+    return {
+      scope: tenantLabel ? 'tenant' : 'global',
+      totalRequests,
+      averageResponseTime: totalDurationCount > 0 ? (totalDurationSeconds / totalDurationCount) * 1000 : 0,
+      errorRate: totalRequests > 0 ? (errorRequests / totalRequests) * 100 : 0,
+      slowEndpoints,
+    };
+  }
+
+  private getScopedDatabaseMetrics(
+    metrics: Array<{ name?: string; values?: Array<{ metricName?: string; labels?: Record<string, string>; value?: unknown }> }>,
+    tenantId?: string
+  ) {
+    const tenantLabel = this.getTenantLabel(tenantId);
+    const dbMetric = this.findMetricFamily(metrics, 'database_query_duration_seconds');
+
+    const totalDurationSeconds = (dbMetric?.values || [])
+      .filter(
+        (entry) =>
+          entry.metricName === 'database_query_duration_seconds_sum' &&
+          this.matchesTenant(entry.labels, tenantLabel)
+      )
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    const totalCount = (dbMetric?.values || [])
+      .filter(
+        (entry) =>
+          entry.metricName === 'database_query_duration_seconds_count' &&
+          this.matchesTenant(entry.labels, tenantLabel)
+      )
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    const underOrEqualOneSecond = (dbMetric?.values || [])
+      .filter(
+        (entry) =>
+          entry.metricName === 'database_query_duration_seconds_bucket' &&
+          entry.labels?.['le'] === '1' &&
+          this.matchesTenant(entry.labels, tenantLabel)
+      )
+      .reduce((sum, entry) => sum + this.metricValueNumber(entry.value), 0);
+
+    return {
+      scope: tenantLabel ? 'tenant' : 'global',
+      averageQueryTime: totalCount > 0 ? (totalDurationSeconds / totalCount) * 1000 : 0,
+      slowQueries: Math.max(0, totalCount - underOrEqualOneSecond),
+    };
   }
 
   /**
@@ -463,7 +656,7 @@ export class PerformanceService extends BaseService {
    * S4-4: Get comprehensive monitoring dashboard
    * Aggregates circuit breaker stats, metrics, health, and performance data
    */
-  async getMonitoringDashboard() {
+  async getMonitoringDashboard(tenantId?: string) {
     try {
       // 1. Get circuit breaker statistics
       const circuitBreakerStats = CircuitBreakerRegistry.getAllStats();
@@ -480,9 +673,6 @@ export class PerformanceService extends BaseService {
       // 5. Get cache statistics
       const cacheStats = cache.getStats();
 
-      // 6. Get recent performance statistics
-      const performanceStats = await this.getPerformanceStats({ timeRange: '1h' });
-
       // 7. Get database connection info
       const dbConnectionCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT count(*) as count FROM pg_stat_activity WHERE state = 'active'
@@ -491,6 +681,10 @@ export class PerformanceService extends BaseService {
       const dbIdleConnectionCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT count(*) as count FROM pg_stat_activity WHERE state = 'idle'
       `;
+
+      const userActivity = await this.getUserActivityMetrics(tenantId);
+      const scopedRequestMetrics = this.getScopedRequestMetrics(prometheusMetrics, tenantId);
+      const scopedDatabaseMetrics = this.getScopedDatabaseMetrics(prometheusMetrics, tenantId);
 
       // Aggregate everything into a comprehensive dashboard
       return {
@@ -540,6 +734,10 @@ export class PerformanceService extends BaseService {
           activeConnections: Number(dbConnectionCount[0]?.count || 0),
           idleConnections: Number(dbIdleConnectionCount[0]?.count || 0),
           totalConnections: Number(dbConnectionCount[0]?.count || 0) + Number(dbIdleConnectionCount[0]?.count || 0),
+          scope: scopedDatabaseMetrics.scope,
+          averageQueryTime: scopedDatabaseMetrics.averageQueryTime,
+          slowQueries: scopedDatabaseMetrics.slowQueries,
+          activeConnectionsScope: 'global',
         },
 
         // Cache metrics
@@ -551,11 +749,14 @@ export class PerformanceService extends BaseService {
 
         // Performance metrics (recent 1 hour)
         performance: {
-          totalRequests: performanceStats.totalRequests,
-          averageResponseTime: performanceStats.averageResponseTime,
-          errorRate: performanceStats.errorRate,
-          slowEndpoints: performanceStats.slowEndpoints.slice(0, 5), // Top 5
+          scope: scopedRequestMetrics.scope,
+          totalRequests: scopedRequestMetrics.totalRequests,
+          averageResponseTime: scopedRequestMetrics.averageResponseTime,
+          errorRate: scopedRequestMetrics.errorRate,
+          slowEndpoints: scopedRequestMetrics.slowEndpoints,
         },
+
+        activity: userActivity,
 
         // Prometheus metrics (as JSON)
         metrics: prometheusMetrics,

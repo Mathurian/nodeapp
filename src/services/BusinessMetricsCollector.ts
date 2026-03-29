@@ -9,6 +9,18 @@ import { Gauge } from 'prom-client';
 import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 
+const USER_ROLES = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'ORGANIZER',
+  'BOARD',
+  'JUDGE',
+  'CONTESTANT',
+  'EMCEE',
+  'TALLY_MASTER',
+  'AUDITOR',
+] as const;
+
 @injectable()
 export class BusinessMetricsCollector {
   private log = createLogger('business-metrics');
@@ -25,6 +37,8 @@ export class BusinessMetricsCollector {
   private totalScores: Gauge<string>;
   private scoresLast24h: Gauge<string>;
   private activeUsers: Gauge<string>;
+  private recentUsers24h: Gauge<string>;
+  private recentUsers24hByRole: Gauge<string>;
   private usersByRole: Gauge<string>;
   private eventsByStatus: Gauge<string>;
   private contestsByEvent: Gauge<string>;
@@ -101,6 +115,20 @@ export class BusinessMetricsCollector {
       name: 'users_active_total',
       help: 'Total number of active (non-deleted) users',
       labelNames: ['tenant_id'],
+      registers: [this.registry],
+    });
+
+    this.recentUsers24h = new Gauge({
+      name: 'users_recent_24h_total',
+      help: 'Number of users with a recorded login in the last 24 hours',
+      labelNames: ['tenant_id'],
+      registers: [this.registry],
+    });
+
+    this.recentUsers24hByRole = new Gauge({
+      name: 'users_recent_24h_by_role_total',
+      help: 'Number of users by role with a recorded login in the last 24 hours',
+      labelNames: ['tenant_id', 'role'],
       registers: [this.registry],
     });
 
@@ -291,15 +319,15 @@ export class BusinessMetricsCollector {
       this.totalScores.set(labels, scoresCount);
 
       // Scores in last 24 hours
-      const yesterday = new Date();
-      yesterday.setHours(yesterday.getHours() - 24);
+      const recentThreshold = new Date();
+      recentThreshold.setHours(recentThreshold.getHours() - 24);
       const recentScoresCount = await this.prisma.score.count({
         where: {
           judge: {
             tenantId,
           },
           createdAt: {
-            gte: yesterday,
+            gte: recentThreshold,
           },
         },
       });
@@ -313,6 +341,17 @@ export class BusinessMetricsCollector {
         },
       });
       this.activeUsers.set(labels, activeUsersCount);
+
+      const recentUsers24hCount = await this.prisma.user.count({
+        where: {
+          tenantId,
+          isActive: true,
+          lastLoginAt: {
+            gte: recentThreshold,
+          },
+        },
+      });
+      this.recentUsers24h.set(labels, recentUsers24hCount);
 
       // Users by role
       const usersByRole = await this.prisma.user.groupBy({
@@ -330,6 +369,28 @@ export class BusinessMetricsCollector {
           group._count
         );
       });
+
+      for (const role of USER_ROLES) {
+        const groupCount = usersByRole.find((group) => group.role === role)?._count || 0;
+        this.usersByRole.set({ tenant_id: tenantId, role }, groupCount);
+      }
+
+      const recentUsersByRole = await this.prisma.user.groupBy({
+        by: ['role'],
+        where: {
+          tenantId,
+          isActive: true,
+          lastLoginAt: {
+            gte: recentThreshold,
+          },
+        },
+        _count: true,
+      });
+
+      for (const role of USER_ROLES) {
+        const groupCount = recentUsersByRole.find((group) => group.role === role)?._count || 0;
+        this.recentUsers24hByRole.set({ tenant_id: tenantId, role }, groupCount);
+      }
 
       // Events by status (using archived field as proxy for status)
       const archivedEvents = await this.prisma.event.count({

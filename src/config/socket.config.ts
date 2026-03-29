@@ -7,6 +7,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io'
 import { isAllowedOrigin } from './express.config'
 import { container } from 'tsyringe'
 import { NotificationService } from '../services/NotificationService'
+import { ActiveSessionTracker } from '../services/ActiveSessionTracker'
 import * as jwt from 'jsonwebtoken'
 import { env } from './env';
 import { createLogger } from '../utils/logger';
@@ -81,9 +82,14 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
     }
 
     try {
-      const decoded = jwt.verify(token, env.get('JWT_SECRET')) as { userId: string; tenantId: string }
+      const decoded = jwt.verify(token, env.get('JWT_SECRET')) as {
+        userId: string
+        tenantId: string
+        role?: string
+      }
       ;(socket as any).userId = decoded.userId
       ;(socket as any).tenantId = decoded.tenantId
+      ;(socket as any).userRole = String(decoded.role || '').toUpperCase()
       next()
     } catch (error) {
       next(new Error('Authentication error: Invalid token'))
@@ -93,7 +99,15 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
   io.on('connection', (socket: Socket) => {
     const userId = (socket as any).userId
     const tenantId = (socket as any).tenantId
+    const userRole = (socket as any).userRole
     logger.info(`Client connected: ${socket.id}`, { userId })
+
+    try {
+      const sessionTracker = container.resolve(ActiveSessionTracker)
+      sessionTracker.trackActivity(userId, tenantId, userRole)
+    } catch (error) {
+      logger.warn('Failed to record socket presence on connect', { error, userId, tenantId })
+    }
 
     // Automatically join user-specific room
     if (userId) {
@@ -107,6 +121,15 @@ export const configureSocketHandlers = (io: SocketIOServer): void => {
 
     socket.on('error', (error: Error) => {
       logger.error(`Socket error for ${socket.id}`, { error })
+    })
+
+    socket.on('presence:heartbeat', () => {
+      try {
+        const sessionTracker = container.resolve(ActiveSessionTracker)
+        sessionTracker.trackActivity(userId, tenantId, userRole)
+      } catch (error) {
+        logger.warn('Failed to record socket heartbeat presence', { error, userId, tenantId })
+      }
     })
 
     // Room management (legacy support)

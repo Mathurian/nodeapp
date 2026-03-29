@@ -1,20 +1,42 @@
 {
   "dashboard": {
     "title": "Event Manager Performance Dashboard",
-    "tags": ["event-manager", "performance"],
+    "tags": ["event-manager", "performance", "activity"],
     "timezone": "browser",
-    "schemaVersion": 27,
-    "version": 1,
+    "schemaVersion": 39,
+    "version": 2,
     "refresh": "30s",
+    "templating": {
+      "list": [
+        {
+          "name": "tenantId",
+          "type": "query",
+          "label": "Tenant",
+          "datasource": "Prometheus",
+          "query": {
+            "query": "label_values(users_active_total, tenant_id)",
+            "refId": "tenantIdQuery"
+          },
+          "includeAll": true,
+          "allValue": ".*",
+          "multi": false,
+          "current": {
+            "selected": true,
+            "text": "All",
+            "value": ".*"
+          }
+        }
+      ]
+    },
     "panels": [
       {
         "id": 1,
         "title": "HTTP Request Rate",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
-            "expr": "rate(http_requests_total[5m])",
+            "expr": "sum by (method, route) (rate(http_requests_total{tenant_id=~\"$tenantId\"}[5m]))",
             "legendFormat": "{{method}} {{route}}",
             "refId": "A"
           }
@@ -23,11 +45,11 @@
       {
         "id": 2,
         "title": "HTTP Request Duration (p95)",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{tenant_id=~\"$tenantId\"}[5m])))",
             "legendFormat": "p95",
             "refId": "A"
           }
@@ -35,22 +57,92 @@
       },
       {
         "id": 3,
-        "title": "Error Rate",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "title": "Live Active Users",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
         "targets": [
           {
-            "expr": "rate(http_request_errors_total[5m])",
+            "expr": "sum(active_user_sessions_total{tenant_id=~\"$tenantId\"})",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "horizontal",
+          "textMode": "auto",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Recently Active Users (24h)",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(users_recent_24h_total{tenant_id=~\"$tenantId\"})",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "horizontal",
+          "textMode": "auto",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Live Active Users by Role",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum by (role) (active_user_sessions_by_role_total{tenant_id=~\"$tenantId\"})",
+            "legendFormat": "{{role}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Recently Active Users by Role (24h)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "sum by (role) (users_recent_24h_by_role_total{tenant_id=~\"$tenantId\"})",
+            "legendFormat": "{{role}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Error Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(http_request_errors_total{tenant_id=~\"$tenantId\"}[5m]))",
             "legendFormat": "{{error_type}}",
             "refId": "A"
           }
         ]
       },
       {
-        "id": 4,
+        "id": 8,
         "title": "Active Connections",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
         "targets": [
           {
             "expr": "active_connections",
@@ -60,31 +152,31 @@
         ]
       },
       {
-        "id": 5,
+        "id": 9,
         "title": "Database Query Duration",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, sum by (le, operation, table) (rate(database_query_duration_seconds_bucket{tenant_id=~\"$tenantId\"}[5m])))",
             "legendFormat": "{{operation}} {{table}}",
             "refId": "A"
           }
         ]
       },
       {
-        "id": 6,
+        "id": 10,
         "title": "Cache Performance",
-        "type": "graph",
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
         "targets": [
           {
-            "expr": "rate(cache_hits_total[5m])",
+            "expr": "sum(rate(cache_hits_total{tenant_id=~\"$tenantId\"}[5m]))",
             "legendFormat": "Hits",
             "refId": "A"
           },
           {
-            "expr": "rate(cache_misses_total[5m])",
+            "expr": "sum(rate(cache_misses_total{tenant_id=~\"$tenantId\"}[5m]))",
             "legendFormat": "Misses",
             "refId": "B"
           }
@@ -97,4 +189,3 @@
     }
   }
 }
-
