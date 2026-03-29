@@ -48,13 +48,18 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
       req.tenantId ||
       req.user?.tenantId ||
       finalContext?.tenantId;
+    const tenantMetadata = {
+      tenantName: req.tenant?.name || finalContext?.tenantName,
+      tenantSlug: req.tenant?.slug || finalContext?.tenantSlug,
+    };
 
     metricsService!.recordHttpRequest(
       req.method,
       req.route?.path || req.path,
       res.statusCode,
       duration,
-      tenantId
+      tenantId,
+      tenantMetadata,
     );
 
     // Record errors
@@ -64,7 +69,8 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
         req.method,
         req.route?.path || req.path,
         errorType,
-        tenantId
+        tenantId,
+        tenantMetadata,
       );
     }
   });

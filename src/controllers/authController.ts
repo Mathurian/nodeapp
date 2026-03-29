@@ -104,7 +104,10 @@ export class AuthController {
       }
 
       // Track active session
-      this.sessionTracker.trackLogin(result.user.id, tenantId, result.user.role, userAgent);
+      this.sessionTracker.trackLogin(result.user.id, tenantId, result.user.role, userAgent, {
+        tenantName: result.user.tenant?.name,
+        tenantSlug: result.user.tenant?.slug,
+      });
 
       // Set token as httpOnly cookie instead of returning it
       res.cookie('access_token', result.token, {
@@ -589,7 +592,10 @@ export class AuthController {
       // Track active session after full authentication completion
       const sessionTenantId = result.user.tenantId || req.tenantId;
       if (sessionTenantId) {
-        this.sessionTracker.trackLogin(result.user.id, sessionTenantId, result.user.role, userAgent);
+        this.sessionTracker.trackLogin(result.user.id, sessionTenantId, result.user.role, userAgent, {
+          tenantName: result.user.tenant?.name,
+          tenantSlug: result.user.tenant?.slug,
+        });
       } else {
         log.warn('Skipping MFA session tracking: missing tenant context', { userId: result.user.id });
       }

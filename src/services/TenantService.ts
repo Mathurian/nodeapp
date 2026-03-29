@@ -6,7 +6,7 @@
  */
 
 import prisma from '../config/database';
-import { Prisma, PrismaClient, UserRole, Tenant } from '@prisma/client';
+import { Prisma, PrismaClient, UserRole, Tenant, ScoringType } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
@@ -21,6 +21,7 @@ export interface CreateTenantInput {
   slug: string;
   domain?: string;
   planType?: 'free' | 'basic' | 'professional' | 'pro' | 'enterprise' | 'internal';
+  scoringType?: ScoringType;
   maxUsers?: number;
   maxEvents?: number;
   maxStorage?: bigint;
@@ -37,6 +38,7 @@ export interface UpdateTenantInput {
   slug?: string;
   domain?: string;
   isActive?: boolean;
+  scoringType?: ScoringType;
   planType?: string; // free, basic, professional, enterprise
   subscriptionStatus?: string; // active, trial, suspended, cancelled
   subscriptionEndsAt?: Date;
@@ -98,6 +100,20 @@ export class TenantService {
     return undefined;
   }
 
+  private static normalizeScoringType(value: unknown): ScoringType | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (value === ScoringType.STRAIGHT || value === ScoringType.OLYMPIC) {
+      return value;
+    }
+
+    const normalized = String(value).trim().toUpperCase();
+    if (normalized === ScoringType.STRAIGHT || normalized === ScoringType.OLYMPIC) {
+      return normalized as ScoringType;
+    }
+
+    return undefined;
+  }
+
   private static buildInviteRegistrationToken(payload: { userId: string; tenantId: string; email: string }): string {
     return jwt.sign(
       {
@@ -123,6 +139,7 @@ export class TenantService {
         const adminEmail = (input.adminEmail || '').trim().toLowerCase();
         const adminPassword = input.adminPassword || '';
         const domain = TenantService.normalizeOptionalString(input.domain);
+        const scoringType = TenantService.normalizeScoringType(input.scoringType) || ScoringType.STRAIGHT;
         const maxUsers = TenantService.normalizeOptionalInt(input.maxUsers);
         const maxEvents = TenantService.normalizeOptionalInt(input.maxEvents);
         const maxStorage = TenantService.normalizeOptionalBigInt(input.maxStorage);
@@ -171,6 +188,7 @@ export class TenantService {
             name,
             slug,
             domain,
+            scoringType,
             planType,
             subscriptionStatus: 'trial',
             subscriptionEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
@@ -313,6 +331,13 @@ export class TenantService {
       if (normalizedSlug !== undefined) updateData.slug = normalizedSlug;
       if (normalizedDomain !== undefined) updateData.domain = normalizedDomain;
       if (input.isActive !== undefined) updateData.isActive = Boolean(input.isActive);
+      if (input.scoringType !== undefined) {
+        const normalizedScoringType = this.normalizeScoringType(input.scoringType);
+        if (!normalizedScoringType) {
+          throw new Error('Invalid scoring type');
+        }
+        updateData.scoringType = normalizedScoringType;
+      }
       if (input.planType !== undefined) updateData.planType = String(input.planType);
       if (input.subscriptionStatus !== undefined) updateData.subscriptionStatus = String(input.subscriptionStatus);
       if (input.subscriptionEndsAt !== undefined) {

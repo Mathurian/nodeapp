@@ -21,10 +21,8 @@
           "type": "postgres",
           "uid": "event-manager-sql-prod"
         },
-        "query": {
-          "query": "SELECT t.tenant_name AS __text, t.tenant_id AS __value FROM grafana_tenants t JOIN grafana_user_tenant_scope scope ON scope.user_email = lower('${__user.email}') WHERE scope.is_active = true AND (scope.is_super_admin OR t.tenant_id = scope.tenant_id) ORDER BY t.tenant_name",
-          "refId": "tenantIdQuery"
-        },
+        "definition": "SELECT t.tenant_name AS __text, t.tenant_id AS __value FROM grafana_tenants t JOIN grafana_user_tenant_scope scope ON scope.user_email = lower('${__user.email}') WHERE scope.is_active = true AND (scope.is_super_admin OR t.tenant_id = scope.tenant_id) ORDER BY t.tenant_name",
+        "query": "SELECT t.tenant_name AS __text, t.tenant_id AS __value FROM grafana_tenants t JOIN grafana_user_tenant_scope scope ON scope.user_email = lower('${__user.email}') WHERE scope.is_active = true AND (scope.is_super_admin OR t.tenant_id = scope.tenant_id) ORDER BY t.tenant_name",
         "includeAll": true,
         "allValue": ".*",
         "multi": false,
@@ -46,10 +44,27 @@
           "type": "postgres",
           "uid": "event-manager-sql-prod"
         },
-        "query": {
-          "query": "SELECT CASE WHEN EXISTS (SELECT 1 FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true AND scope.is_super_admin = true) THEN CASE WHEN '${tenantId}' = '.*' THEN '.*' ELSE '${tenantId}' END ELSE (SELECT scope.tenant_id FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true LIMIT 1) END AS __value",
-          "refId": "effectiveTenantFilterQuery"
+        "definition": "SELECT CASE WHEN EXISTS (SELECT 1 FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true AND scope.is_super_admin = true) THEN CASE WHEN '${tenantId}' = '.*' THEN '.*' ELSE '${tenantId}' END ELSE (SELECT scope.tenant_id FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true LIMIT 1) END AS __value",
+        "query": "SELECT CASE WHEN EXISTS (SELECT 1 FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true AND scope.is_super_admin = true) THEN CASE WHEN '${tenantId}' = '.*' THEN '.*' ELSE '${tenantId}' END ELSE (SELECT scope.tenant_id FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true LIMIT 1) END AS __value",
+        "refresh": 1,
+        "current": {
+          "selected": true,
+          "text": "",
+          "value": ""
+        }
+      },
+      {
+        "name": "effectiveTenantNameFilter",
+        "label": "Effective Tenant Name Filter",
+        "type": "query",
+        "hide": 2,
+        "skipUrlSync": true,
+        "datasource": {
+          "type": "postgres",
+          "uid": "event-manager-sql-prod"
         },
+        "definition": "SELECT CASE WHEN EXISTS (SELECT 1 FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true AND scope.is_super_admin = true) THEN CASE WHEN '${tenantId}' = '.*' THEN '.*' ELSE (SELECT regexp_replace(t.tenant_name, '([\\\\.\\^\\$\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|])', '\\\\\\\\\\1', 'g') FROM grafana_tenants t WHERE t.tenant_id = '${tenantId}' LIMIT 1) END ELSE (SELECT regexp_replace(t.tenant_name, '([\\\\.\\^\\$\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|])', '\\\\\\\\\\1', 'g') FROM grafana_user_tenant_scope scope JOIN grafana_tenants t ON t.tenant_id = scope.tenant_id WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true LIMIT 1) END AS __value",
+        "query": "SELECT CASE WHEN EXISTS (SELECT 1 FROM grafana_user_tenant_scope scope WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true AND scope.is_super_admin = true) THEN CASE WHEN '${tenantId}' = '.*' THEN '.*' ELSE (SELECT regexp_replace(t.tenant_name, '([\\\\.\\^\\$\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|])', '\\\\\\\\\\1', 'g') FROM grafana_tenants t WHERE t.tenant_id = '${tenantId}' LIMIT 1) END ELSE (SELECT regexp_replace(t.tenant_name, '([\\\\.\\^\\$\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|])', '\\\\\\\\\\1', 'g') FROM grafana_user_tenant_scope scope JOIN grafana_tenants t ON t.tenant_id = scope.tenant_id WHERE scope.user_email = lower('${__user.email}') AND scope.is_active = true LIMIT 1) END AS __value",
         "refresh": 1,
         "current": {
           "selected": true,
@@ -72,8 +87,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (method, route) (rate(http_requests_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
-          "legendFormat": "{{method}} {{route}}",
+          "expr": "sum by (tenant_name, method, route) (rate(http_requests_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "{{tenant_name}} {{method}} {{route}}",
           "refId": "A"
         }
       ]
@@ -90,8 +105,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{tenant_id=~\"$effectiveTenantFilter\"}[5m])))",
-          "legendFormat": "p95",
+          "expr": "histogram_quantile(0.95, sum by (le, tenant_name) (rate(http_request_duration_seconds_bucket{tenant_id=~\"$effectiveTenantFilter\"}[5m])))",
+          "legendFormat": "{{tenant_name}} p95",
           "refId": "A"
         }
       ]
@@ -166,8 +181,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (role) (active_user_sessions_by_role_total{tenant_id=~\"$effectiveTenantFilter\"})",
-          "legendFormat": "{{role}}",
+          "expr": "sum by (tenant_name, role) (active_user_sessions_by_role_total{tenant_id=~\"$effectiveTenantFilter\"})",
+          "legendFormat": "{{tenant_name}} {{role}}",
           "refId": "A"
         }
       ]
@@ -184,8 +199,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (role) (users_recent_24h_by_role_total{tenant_id=~\"$effectiveTenantFilter\"})",
-          "legendFormat": "{{role}}",
+          "expr": "sum by (tenant_name, role) (users_recent_24h_by_role_total{tenant_id=~\"$effectiveTenantFilter\"})",
+          "legendFormat": "{{tenant_name}} {{role}}",
           "refId": "A"
         }
       ]
@@ -202,8 +217,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (error_type) (rate(http_request_errors_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
-          "legendFormat": "{{error_type}}",
+          "expr": "sum by (tenant_name, error_type) (rate(http_request_errors_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "{{tenant_name}} {{error_type}}",
           "refId": "A"
         }
       ]
@@ -238,8 +253,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, operation, table) (rate(database_query_duration_seconds_bucket{tenant_id=~\"$effectiveTenantFilter\"}[5m])))",
-          "legendFormat": "{{operation}} {{table}}",
+          "expr": "histogram_quantile(0.95, sum by (le, tenant_name, operation, table) (rate(database_query_duration_seconds_bucket{tenant_id=~\"$effectiveTenantFilter\"}[5m])))",
+          "legendFormat": "{{tenant_name}} {{operation}} {{table}}",
           "refId": "A"
         }
       ]
@@ -256,13 +271,13 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(cache_hits_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
-          "legendFormat": "Hits",
+          "expr": "sum by (tenant_name) (rate(cache_hits_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "{{tenant_name}} Hits",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(cache_misses_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
-          "legendFormat": "Misses",
+          "expr": "sum by (tenant_name) (rate(cache_misses_total{tenant_id=~\"$effectiveTenantFilter\"}[5m]))",
+          "legendFormat": "{{tenant_name}} Misses",
           "refId": "B"
         }
       ]

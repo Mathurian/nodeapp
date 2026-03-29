@@ -286,6 +286,10 @@ const SettingsPage: React.FC = () => {
 
   // Legacy alias for backward compatibility
   const getGlobalParam = getSettingsParam
+  const effectiveScoringTenantId = selectedTenantId || (!editingGlobal ? user?.tenantId || null : null)
+  const effectiveScoringTenantName = selectedTenantId
+    ? (tenants.find((tenant) => tenant.id === selectedTenantId)?.name || 'Selected Tenant')
+    : 'Current Tenant'
 
   // Form state for different setting categories
   const [generalFormData, setGeneralFormData] = useState<GeneralSettings>({
@@ -882,14 +886,14 @@ const SettingsPage: React.FC = () => {
   )
 
   // Fetch current tenant's scoring type
-  const { data: tenantScoringType, isLoading: scoringTypeLoading } = useQuery<any>(
-    ['tenant-scoring-type', selectedTenantId],
+  const { isLoading: scoringTypeLoading } = useQuery<any>(
+    ['tenant-scoring-type', effectiveScoringTenantId],
     async () => {
-      const response = await api.get('/tenants/current')
-      return response.data
+      const response = await api.get(`/tenants/${effectiveScoringTenantId}`)
+      return response.data.tenant || response.data
     },
     {
-      enabled: isAdmin,
+      enabled: isAdmin && Boolean(effectiveScoringTenantId),
       onSuccess: (data) => {
         if (data && data.scoringType) {
           setScoringType(data.scoringType)
@@ -1243,17 +1247,21 @@ const SettingsPage: React.FC = () => {
 
   const updateScoringTypeMutation = useMutation(
     async (newScoringType: 'STRAIGHT' | 'OLYMPIC') => {
-      const response = await api.put('/tenants/current', { scoringType: newScoringType })
+      if (!effectiveScoringTenantId) {
+        throw new Error('Select a tenant before updating the scoring type.')
+      }
+
+      const response = await api.put(`/tenants/${effectiveScoringTenantId}`, { scoringType: newScoringType })
       return response.data
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries(['tenant-scoring-type', selectedTenantId])
+        queryClient.invalidateQueries(['tenant-scoring-type', effectiveScoringTenantId])
         setMessage({ type: 'success', text: 'Scoring type updated successfully!' })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
-        setMessage({ type: 'error', text: `Error: ${error.message}` })
+        setMessage({ type: 'error', text: `Error: ${error?.response?.data?.error || error?.response?.data?.message || error.message}` })
         setTimeout(() => setMessage(null), 5000)
       },
     }
@@ -1840,50 +1848,61 @@ const SettingsPage: React.FC = () => {
 
               {expandedSections.includes('scoring') && (
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Default Scoring Type
-                      </label>
-                      <select
-                        value={scoringType}
-                        onChange={(e) => setScoringType(e.target.value as 'STRAIGHT' | 'OLYMPIC')}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
-                        <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
-                      </select>
-                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        <strong>Straight Scoring:</strong> Calculates the average of all judge scores.
-                      </p>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        <strong>Olympic Scoring:</strong> Drops the highest and lowest scores, then averages the remaining scores. Requires a minimum of 3 judges per contest.
-                      </p>
-                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                        This tenant-level setting can be overridden at the event or contest level.
-                      </p>
+                  {!effectiveScoringTenantId ? (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                      Tenant scoring type is not a global setting. Select a tenant to edit its default scoring model.
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Default Scoring Type
+                          </label>
+                          <select
+                            value={scoringType}
+                            onChange={(e) => setScoringType(e.target.value as 'STRAIGHT' | 'OLYMPIC')}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="STRAIGHT">Straight Scoring (Average all scores)</option>
+                            <option value="OLYMPIC">Olympic Scoring (Drop high & low, requires 3+ judges)</option>
+                          </select>
+                          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            <strong>Straight Scoring:</strong> Calculates the average of all judge scores.
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <strong>Olympic Scoring:</strong> Drops the highest and lowest scores, then averages the remaining scores. Requires a minimum of 3 judges per contest.
+                          </p>
+                          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                            This tenant-level setting can be overridden at the event or contest level.
+                          </p>
+                          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                            Editing scoring for: <strong>{effectiveScoringTenantName}</strong>
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={() => handleSaveSection('scoring')}
-                      disabled={updateScoringTypeMutation.isLoading}
-                      className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
-                    >
-                      {updateScoringTypeMutation.isLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <CheckIcon className="h-5 w-5 mr-2" />
-                          Save Changes
-                        </>
-                      )}
-                    </button>
-                  </div>
+                      <div className="mt-6 flex justify-end">
+                        <button
+                          onClick={() => handleSaveSection('scoring')}
+                          disabled={updateScoringTypeMutation.isLoading}
+                          className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                        >
+                          {updateScoringTypeMutation.isLoading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckIcon className="h-5 w-5 mr-2" />
+                              Save Changes
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

@@ -10,6 +10,7 @@
 import { injectable, inject } from 'tsyringe';
 import type { Redis } from 'ioredis';
 import { Gauge } from 'prom-client';
+import { PrismaClient } from '@prisma/client';
 import { MetricsService } from './MetricsService';
 import { createLogger } from '../utils/logger';
 import { getCacheService } from './RedisCacheService';
@@ -18,6 +19,8 @@ import { env } from '../config/env';
 interface SessionInfo {
   userId: string;
   tenantId: string;
+  tenantName?: string;
+  tenantSlug?: string;
   role: string;
   loginTime: number;
   lastActivity: number;
@@ -77,20 +80,23 @@ export class ActiveSessionTracker {
   // Throttle Redis writes from repeated requests for the same user.
   private readonly WRITE_THROTTLE_MS = 30 * 1000;
 
-  constructor(@inject(MetricsService) private readonly metricsService: MetricsService) {
+  constructor(
+    @inject(MetricsService) private readonly metricsService: MetricsService,
+    @inject('PrismaClient') private readonly prisma: PrismaClient,
+  ) {
     const registry = this.metricsService.getRegistry();
 
     this.activeSessionsGauge = new Gauge({
       name: 'active_user_sessions_total',
       help: 'Number of currently active users by tenant within the live activity window',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [registry],
     });
 
     this.activeSessionsByRoleGauge = new Gauge({
       name: 'active_user_sessions_by_role_total',
       help: 'Number of currently active users by tenant and role within the live activity window',
-      labelNames: ['tenant_id', 'role'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'role'],
       registers: [registry],
     });
 
@@ -129,10 +135,18 @@ export class ActiveSessionTracker {
     }
   }
 
-  trackLogin(userId: string, tenantId: string, role: string, userAgent?: string): void {
+  trackLogin(
+    userId: string,
+    tenantId: string,
+    role: string,
+    userAgent?: string,
+    tenantMetadata?: { tenantName?: string; tenantSlug?: string },
+  ): void {
     const sessionInfo: SessionInfo = {
       userId,
       tenantId,
+      tenantName: tenantMetadata?.tenantName,
+      tenantSlug: tenantMetadata?.tenantSlug,
       role: this.normalizeRole(role),
       loginTime: Date.now(),
       lastActivity: Date.now(),
@@ -146,12 +160,20 @@ export class ActiveSessionTracker {
     void this.removePresence(userId);
   }
 
-  trackActivity(userId: string, tenantId: string, role: string, userAgent?: string): void {
+  trackActivity(
+    userId: string,
+    tenantId: string,
+    role: string,
+    userAgent?: string,
+    tenantMetadata?: { tenantName?: string; tenantSlug?: string },
+  ): void {
     const existing = this.sessions.get(userId);
     const now = Date.now();
     const sessionInfo: SessionInfo = {
       userId,
       tenantId,
+      tenantName: tenantMetadata?.tenantName || existing?.tenantName,
+      tenantSlug: tenantMetadata?.tenantSlug || existing?.tenantSlug,
       role: this.normalizeRole(role),
       loginTime: existing?.loginTime || now,
       lastActivity: now,
@@ -227,6 +249,7 @@ export class ActiveSessionTracker {
     options: { forceWrite: boolean; refreshMetrics: boolean },
   ): Promise<void> {
     this.sessions.set(session.userId, session);
+    this.metricsService.registerTenantMetadata(session.tenantId, session.tenantName, session.tenantSlug);
 
     const client = this.getRedisClient();
     if (!client) {
@@ -429,6 +452,8 @@ export class ActiveSessionTracker {
   private refreshFallbackMetrics(): void {
     const globalSnapshot = this.getFallbackPresenceSnapshot();
     this.activeSessionsGlobalGauge.set(globalSnapshot.liveUsers);
+    this.activeSessionsGauge.reset();
+    this.activeSessionsByRoleGauge.reset();
 
     const tenants = new Set<string>();
     for (const session of this.sessions.values()) {
@@ -437,31 +462,90 @@ export class ActiveSessionTracker {
 
     for (const tenantId of tenants) {
       const snapshot = this.getFallbackPresenceSnapshot(tenantId);
-      this.activeSessionsGauge.set({ tenant_id: tenantId }, snapshot.liveUsers);
+      const tenantMetadata = Array.from(this.sessions.values()).find((session) => session.tenantId === tenantId);
+      const tenantLabels = this.metricsService.getTenantMetricLabels(tenantId, {
+        tenantName: tenantMetadata?.tenantName,
+        tenantSlug: tenantMetadata?.tenantSlug,
+      });
+      this.activeSessionsGauge.set(tenantLabels, snapshot.liveUsers);
 
       for (const role of USER_ROLES) {
         const currentRoleCount =
           snapshot.liveUsersByRole.find((entry) => entry.role === role)?.count || 0;
-        this.activeSessionsByRoleGauge.set({ tenant_id: tenantId, role }, currentRoleCount);
+        this.activeSessionsByRoleGauge.set({ ...tenantLabels, role }, currentRoleCount);
       }
     }
+  }
+
+  private async resolveTenantLabelsFromRedis(
+    client: Redis,
+    tenantId: string,
+  ): Promise<Record<string, string> | null> {
+    const userIds = await client.zrevrangebyscore(
+      this.tenantKey(tenantId),
+      '+inf',
+      this.getCutoffTimestamp(),
+      'LIMIT',
+      0,
+      1,
+    );
+
+    const activeUserId = userIds[0];
+    if (activeUserId) {
+      const serializedSession = await client.get(this.userSessionKey(activeUserId));
+      if (serializedSession) {
+        const session = JSON.parse(serializedSession) as SessionInfo;
+        return this.metricsService.getTenantMetricLabels(tenantId, {
+          tenantName: session.tenantName,
+          tenantSlug: session.tenantSlug,
+        });
+      }
+    }
+
+    const tenantRecord = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, slug: true },
+    });
+
+    if (!tenantRecord) {
+      return null;
+    }
+
+    return this.metricsService.getTenantMetricLabels(tenantId, {
+      tenantName: tenantRecord.name,
+      tenantSlug: tenantRecord.slug,
+    });
   }
 
   private async refreshRedisMetrics(client: Redis): Promise<void> {
     try {
       const globalSnapshot = await this.getRedisPresenceSnapshot(client);
       this.activeSessionsGlobalGauge.set(globalSnapshot.liveUsers);
+      this.activeSessionsGauge.reset();
+      this.activeSessionsByRoleGauge.reset();
 
       const tenantIds = await client.smembers(ALL_TENANTS_KEY);
       await Promise.all(
         tenantIds.map(async (tenantId) => {
           const snapshot = await this.getRedisPresenceSnapshot(client, tenantId);
-          this.activeSessionsGauge.set({ tenant_id: tenantId }, snapshot.liveUsers);
+          const tenantLabels = await this.resolveTenantLabelsFromRedis(client, tenantId);
+          if (!tenantLabels) {
+            if (snapshot.liveUsers === 0) {
+              await client
+                .multi()
+                .srem(ALL_TENANTS_KEY, tenantId)
+                .del(this.tenantRolesKey(tenantId))
+                .exec();
+            }
+            return;
+          }
+
+          this.activeSessionsGauge.set(tenantLabels, snapshot.liveUsers);
 
           for (const role of USER_ROLES) {
             const currentRoleCount =
               snapshot.liveUsersByRole.find((entry) => entry.role === role)?.count || 0;
-            this.activeSessionsByRoleGauge.set({ tenant_id: tenantId, role }, currentRoleCount);
+            this.activeSessionsByRoleGauge.set({ ...tenantLabels, role }, currentRoleCount);
           }
         }),
       );

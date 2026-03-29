@@ -8,6 +8,7 @@ import { injectable, inject } from 'tsyringe';
 import { Gauge } from 'prom-client';
 import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
+import { MetricsService } from './MetricsService';
 
 const USER_ROLES = [
   'SUPER_ADMIN',
@@ -50,7 +51,8 @@ export class BusinessMetricsCollector {
 
   constructor(
     @inject('PrismaClient') prisma: PrismaClient,
-    @inject('MetricsRegistry') private registry: any
+    @inject('MetricsRegistry') private registry: any,
+    @inject(MetricsService) private metricsService: MetricsService,
   ) {
     this.prisma = prisma;
     this.log.info(`Registry injected: ${!!registry}, type: ${typeof registry}`);
@@ -65,105 +67,105 @@ export class BusinessMetricsCollector {
     this.activeEvents = new Gauge({
       name: 'events_active_total',
       help: 'Total number of active (non-deleted) events',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.activeContests = new Gauge({
       name: 'contests_active_total',
       help: 'Total number of active (non-deleted) contests',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.totalContestants = new Gauge({
       name: 'contestants_total',
       help: 'Total number of contestants',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.totalJudges = new Gauge({
       name: 'judges_total',
       help: 'Total number of judges',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.assignedJudges = new Gauge({
       name: 'judges_assigned_total',
       help: 'Number of judges with category assignments',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.totalScores = new Gauge({
       name: 'scores_total',
       help: 'Total number of scores submitted',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.scoresLast24h = new Gauge({
       name: 'scores_last_24h_total',
       help: 'Number of scores submitted in last 24 hours',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.activeUsers = new Gauge({
       name: 'users_active_total',
       help: 'Total number of active (non-deleted) users',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.recentUsers24h = new Gauge({
       name: 'users_recent_24h_total',
       help: 'Number of users with a recorded login in the last 24 hours',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.recentUsers24hByRole = new Gauge({
       name: 'users_recent_24h_by_role_total',
       help: 'Number of users by role with a recorded login in the last 24 hours',
-      labelNames: ['tenant_id', 'role'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'role'],
       registers: [this.registry],
     });
 
     this.usersByRole = new Gauge({
       name: 'users_by_role_total',
       help: 'Number of users by role',
-      labelNames: ['tenant_id', 'role'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'role'],
       registers: [this.registry],
     });
 
     this.eventsByStatus = new Gauge({
       name: 'events_by_status_total',
       help: 'Number of events by status',
-      labelNames: ['tenant_id', 'status'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'status'],
       registers: [this.registry],
     });
 
     this.contestsByEvent = new Gauge({
       name: 'contests_per_event_avg',
       help: 'Average number of contests per event',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.categoriesByContest = new Gauge({
       name: 'categories_per_contest_avg',
       help: 'Average number of categories per contest',
-      labelNames: ['tenant_id'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.registry],
     });
 
     this.pendingCertifications = new Gauge({
       name: 'certifications_pending_total',
       help: 'Number of pending certifications',
-      labelNames: ['tenant_id', 'type'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'type'],
       registers: [this.registry],
     });
 
@@ -177,14 +179,14 @@ export class BusinessMetricsCollector {
     this.eventsByScoringType = new Gauge({
       name: 'events_by_scoring_type_total',
       help: 'Number of events by scoring type (including inherited from tenant)',
-      labelNames: ['tenant_id', 'scoring_type'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'scoring_type'],
       registers: [this.registry],
     });
 
     this.contestsByScoringType = new Gauge({
       name: 'contests_by_scoring_type_total',
       help: 'Number of contests by scoring type (including inherited from event/tenant)',
-      labelNames: ['tenant_id', 'scoring_type'],
+      labelNames: ['tenant_id', 'tenant_name', 'tenant_slug', 'scoring_type'],
       registers: [this.registry],
     });
 
@@ -238,14 +240,28 @@ export class BusinessMetricsCollector {
       // Collect metrics for each tenant
       const tenants = await this.prisma.tenant.findMany({
         where: { isActive: true },
-        select: { id: true, slug: true },
+        select: { id: true, slug: true, name: true, scoringType: true },
       });
 
       this.activeTenants.set(tenants.length);
+      this.tenantsByScoringType.reset();
+
+      const tenantCountsByScoringType = new Map<string, number>();
+      for (const tenant of tenants) {
+        this.metricsService.registerTenantMetadata(tenant.id, tenant.name, tenant.slug);
+        tenantCountsByScoringType.set(
+          tenant.scoringType,
+          (tenantCountsByScoringType.get(tenant.scoringType) || 0) + 1,
+        );
+      }
+
+      for (const [scoringType, count] of tenantCountsByScoringType.entries()) {
+        this.tenantsByScoringType.set({ scoring_type: scoringType }, count);
+      }
 
       // Collect per-tenant metrics in parallel
       await Promise.all(
-        tenants.map(tenant => this.collectTenantMetrics(tenant.id))
+        tenants.map((tenant) => this.collectTenantMetrics(tenant))
       );
 
       const duration = Date.now() - startTime;
@@ -259,8 +275,17 @@ export class BusinessMetricsCollector {
   /**
    * Collect metrics for a specific tenant
    */
-  private async collectTenantMetrics(tenantId: string): Promise<void> {
-    const labels = { tenant_id: tenantId };
+  private async collectTenantMetrics(tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    scoringType: string;
+  }): Promise<void> {
+    const tenantId = tenant.id;
+    const labels = this.metricsService.getTenantMetricLabels(tenant.id, {
+      tenantName: tenant.name,
+      tenantSlug: tenant.slug,
+    });
 
     try {
       // Active events (non-deleted)
@@ -365,14 +390,14 @@ export class BusinessMetricsCollector {
 
       usersByRole.forEach(group => {
         this.usersByRole.set(
-          { tenant_id: tenantId, role: group.role },
+          { ...labels, role: group.role },
           group._count
         );
       });
 
       for (const role of USER_ROLES) {
         const groupCount = usersByRole.find((group) => group.role === role)?._count || 0;
-        this.usersByRole.set({ tenant_id: tenantId, role }, groupCount);
+        this.usersByRole.set({ ...labels, role }, groupCount);
       }
 
       const recentUsersByRole = await this.prisma.user.groupBy({
@@ -389,7 +414,7 @@ export class BusinessMetricsCollector {
 
       for (const role of USER_ROLES) {
         const groupCount = recentUsersByRole.find((group) => group.role === role)?._count || 0;
-        this.recentUsers24hByRole.set({ tenant_id: tenantId, role }, groupCount);
+        this.recentUsers24hByRole.set({ ...labels, role }, groupCount);
       }
 
       // Events by status (using archived field as proxy for status)
@@ -401,11 +426,11 @@ export class BusinessMetricsCollector {
       });
 
       this.eventsByStatus.set(
-        { tenant_id: tenantId, status: 'active' },
+        { ...labels, status: 'active' },
         activeNonArchivedEvents
       );
       this.eventsByStatus.set(
-        { tenant_id: tenantId, status: 'archived' },
+        { ...labels, status: 'archived' },
         archivedEvents
       );
 
@@ -443,21 +468,9 @@ export class BusinessMetricsCollector {
       });
 
       this.pendingCertifications.set(
-        { tenant_id: tenantId, type: 'judge' },
+        { ...labels, type: 'judge' },
         pendingJudgeCerts
       );
-
-      // Scoring type metrics
-      // Get tenant scoring type
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { scoringType: true },
-      });
-
-      if (tenant) {
-        // Count this tenant by its scoring type
-        this.tenantsByScoringType.inc({ scoring_type: tenant.scoringType });
-      }
 
       // Count events by effective scoring type
       // Events with explicit scoringType
@@ -474,7 +487,7 @@ export class BusinessMetricsCollector {
       eventsWithExplicitType.forEach(group => {
         if (group.scoringType) {
           this.eventsByScoringType.set(
-            { tenant_id: tenantId, scoring_type: group.scoringType },
+            { ...labels, scoring_type: group.scoringType },
             group._count
           );
         }
@@ -489,13 +502,13 @@ export class BusinessMetricsCollector {
         },
       });
 
-      if (eventsInheritingCount > 0 && tenant) {
+      if (eventsInheritingCount > 0) {
         // These events inherit tenant's scoring type
         const existingCount = eventsWithExplicitType.find(
           g => g.scoringType === tenant.scoringType
         )?._count || 0;
         this.eventsByScoringType.set(
-          { tenant_id: tenantId, scoring_type: tenant.scoringType },
+          { ...labels, scoring_type: tenant.scoringType },
           existingCount + eventsInheritingCount
         );
       }
@@ -516,7 +529,7 @@ export class BusinessMetricsCollector {
       contestsWithExplicitType.forEach(group => {
         if (group.scoringType) {
           this.contestsByScoringType.set(
-            { tenant_id: tenantId, scoring_type: group.scoringType },
+            { ...labels, scoring_type: group.scoringType },
             group._count
           );
         }
@@ -542,7 +555,7 @@ export class BusinessMetricsCollector {
       // Group inherited contests by effective scoring type
       const inheritedCounts: { [key: string]: number } = {};
       contestsInheriting.forEach(contest => {
-        const effectiveType = contest.event.scoringType || tenant?.scoringType || 'STRAIGHT';
+        const effectiveType = contest.event.scoringType || tenant.scoringType || 'STRAIGHT';
         inheritedCounts[effectiveType] = (inheritedCounts[effectiveType] || 0) + 1;
       });
 
@@ -552,7 +565,7 @@ export class BusinessMetricsCollector {
           g => g.scoringType === scoringType
         )?._count || 0;
         this.contestsByScoringType.set(
-          { tenant_id: tenantId, scoring_type: scoringType },
+          { ...labels, scoring_type: scoringType },
           existingCount + count
         );
       });

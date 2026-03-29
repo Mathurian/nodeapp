@@ -7,6 +7,18 @@ import { injectable } from 'tsyringe';
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
 import { createLogger } from '../utils/logger';
 
+interface TenantMetricMetadata {
+  tenantName?: string | null;
+  tenantSlug?: string | null;
+}
+
+interface TenantMetricLabels {
+  [key: string]: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_slug: string;
+}
+
 @injectable()
 export class MetricsService {
   private register: Registry;
@@ -53,10 +65,53 @@ export class MetricsService {
   private testCompletionTimes: Map<string, number> = new Map();
   private statusResetInterval: NodeJS.Timeout | null = null;
   private readonly STATUS_RESET_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly tenantMetadata = new Map<string, { tenantName: string; tenantSlug: string }>();
 
   private normalizeTenantLabel(tenantId?: string): string {
     const normalized = tenantId?.trim();
     return normalized ? normalized : 'global';
+  }
+
+  private normalizeTenantDisplayLabel(value: string | null | undefined, fallback: string): string {
+    const normalized = value?.trim();
+    return normalized ? normalized : fallback;
+  }
+
+  registerTenantMetadata(tenantId?: string, tenantName?: string | null, tenantSlug?: string | null): void {
+    const normalizedTenantId = this.normalizeTenantLabel(tenantId);
+    if (!normalizedTenantId || normalizedTenantId === 'global') {
+      return;
+    }
+
+    const normalizedTenantName = this.normalizeTenantDisplayLabel(tenantName, normalizedTenantId);
+    const normalizedTenantSlug = this.normalizeTenantDisplayLabel(tenantSlug, normalizedTenantId);
+    this.tenantMetadata.set(normalizedTenantId, {
+      tenantName: normalizedTenantName,
+      tenantSlug: normalizedTenantSlug,
+    });
+  }
+
+  getTenantMetricLabels(tenantId?: string, metadata?: TenantMetricMetadata): TenantMetricLabels {
+    const normalizedTenantId = this.normalizeTenantLabel(tenantId);
+
+    if (normalizedTenantId === 'global') {
+      return {
+        tenant_id: 'global',
+        tenant_name: 'Global',
+        tenant_slug: 'global',
+      };
+    }
+
+    if (metadata?.tenantName || metadata?.tenantSlug) {
+      this.registerTenantMetadata(normalizedTenantId, metadata.tenantName, metadata.tenantSlug);
+    }
+
+    const cached = this.tenantMetadata.get(normalizedTenantId);
+    return {
+      tenant_id: normalizedTenantId,
+      tenant_name: this.normalizeTenantDisplayLabel(metadata?.tenantName, cached?.tenantName || normalizedTenantId),
+      tenant_slug: this.normalizeTenantDisplayLabel(metadata?.tenantSlug, cached?.tenantSlug || normalizedTenantId),
+    };
   }
 
   constructor() {
@@ -71,7 +126,7 @@ export class MetricsService {
     this.httpRequestDuration = new Histogram({
       name: 'http_request_duration_seconds',
       help: 'Duration of HTTP requests in seconds',
-      labelNames: ['method', 'route', 'status_code', 'tenant_id'],
+      labelNames: ['method', 'route', 'status_code', 'tenant_id', 'tenant_name', 'tenant_slug'],
       buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10],
       registers: [this.register],
     });
@@ -80,7 +135,7 @@ export class MetricsService {
     this.httpRequestTotal = new Counter({
       name: 'http_requests_total',
       help: 'Total number of HTTP requests',
-      labelNames: ['method', 'route', 'status_code', 'tenant_id'],
+      labelNames: ['method', 'route', 'status_code', 'tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.register],
     });
 
@@ -88,7 +143,7 @@ export class MetricsService {
     this.httpRequestErrors = new Counter({
       name: 'http_request_errors_total',
       help: 'Total number of HTTP request errors',
-      labelNames: ['method', 'route', 'error_type', 'tenant_id'],
+      labelNames: ['method', 'route', 'error_type', 'tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.register],
     });
 
@@ -103,7 +158,7 @@ export class MetricsService {
     this.databaseQueryDuration = new Histogram({
       name: 'database_query_duration_seconds',
       help: 'Duration of database queries in seconds',
-      labelNames: ['operation', 'table', 'tenant_id'],
+      labelNames: ['operation', 'table', 'tenant_id', 'tenant_name', 'tenant_slug'],
       buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
       registers: [this.register],
     });
@@ -112,7 +167,7 @@ export class MetricsService {
     this.cacheHitRate = new Counter({
       name: 'cache_hits_total',
       help: 'Total number of cache hits',
-      labelNames: ['cache_key', 'tenant_id'],
+      labelNames: ['cache_key', 'tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.register],
     });
 
@@ -120,7 +175,7 @@ export class MetricsService {
     this.cacheMissRate = new Counter({
       name: 'cache_misses_total',
       help: 'Total number of cache misses',
-      labelNames: ['cache_key', 'tenant_id'],
+      labelNames: ['cache_key', 'tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.register],
     });
 
@@ -152,7 +207,7 @@ export class MetricsService {
     this.softDeleteOperations = new Counter({
       name: 'soft_delete_operations_total',
       help: 'Total number of soft delete operations',
-      labelNames: ['model', 'tenant_id'],
+      labelNames: ['model', 'tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.register],
     });
 
@@ -160,7 +215,7 @@ export class MetricsService {
     this.softDeleteRestores = new Counter({
       name: 'soft_delete_restores_total',
       help: 'Total number of soft delete restore operations',
-      labelNames: ['model', 'tenant_id'],
+      labelNames: ['model', 'tenant_id', 'tenant_name', 'tenant_slug'],
       registers: [this.register],
     });
 
@@ -369,13 +424,15 @@ export class MetricsService {
     route: string,
     statusCode: number,
     duration: number,
-    tenantId?: string
+    tenantId?: string,
+    tenantMetadata?: TenantMetricMetadata,
   ): void {
+    const tenantLabels = this.getTenantMetricLabels(tenantId, tenantMetadata);
     const labels = {
       method: method.toUpperCase(),
       route: this.normalizeRoute(route),
       status_code: statusCode.toString(),
-      tenant_id: this.normalizeTenantLabel(tenantId),
+      ...tenantLabels,
     };
 
     this.httpRequestDuration.observe(labels, duration / 1000); // Convert to seconds
@@ -385,21 +442,33 @@ export class MetricsService {
   /**
    * Record HTTP error
    */
-  recordHttpError(method: string, route: string, errorType: string, tenantId?: string): void {
+  recordHttpError(
+    method: string,
+    route: string,
+    errorType: string,
+    tenantId?: string,
+    tenantMetadata?: TenantMetricMetadata,
+  ): void {
     this.httpRequestErrors.inc({
       method: method.toUpperCase(),
       route: this.normalizeRoute(route),
       error_type: errorType,
-      tenant_id: this.normalizeTenantLabel(tenantId),
+      ...this.getTenantMetricLabels(tenantId, tenantMetadata),
     });
   }
 
   /**
    * Record database query duration
    */
-  recordDatabaseQuery(operation: string, table: string, duration: number, tenantId?: string): void {
+  recordDatabaseQuery(
+    operation: string,
+    table: string,
+    duration: number,
+    tenantId?: string,
+    tenantMetadata?: TenantMetricMetadata,
+  ): void {
     this.databaseQueryDuration.observe(
-      { operation, table, tenant_id: this.normalizeTenantLabel(tenantId) },
+      { operation, table, ...this.getTenantMetricLabels(tenantId, tenantMetadata) },
       duration / 1000 // Convert to seconds
     );
   }
@@ -407,20 +476,20 @@ export class MetricsService {
   /**
    * Record cache hit
    */
-  recordCacheHit(cacheKey: string, tenantId?: string): void {
+  recordCacheHit(cacheKey: string, tenantId?: string, tenantMetadata?: TenantMetricMetadata): void {
     this.cacheHitRate.inc({
       cache_key: cacheKey,
-      tenant_id: this.normalizeTenantLabel(tenantId),
+      ...this.getTenantMetricLabels(tenantId, tenantMetadata),
     });
   }
 
   /**
    * Record cache miss
    */
-  recordCacheMiss(cacheKey: string, tenantId?: string): void {
+  recordCacheMiss(cacheKey: string, tenantId?: string, tenantMetadata?: TenantMetricMetadata): void {
     this.cacheMissRate.inc({
       cache_key: cacheKey,
-      tenant_id: this.normalizeTenantLabel(tenantId),
+      ...this.getTenantMetricLabels(tenantId, tenantMetadata),
     });
   }
 
@@ -506,20 +575,20 @@ export class MetricsService {
   /**
    * S4-4: Record soft delete operation
    */
-  recordSoftDelete(model: string, tenantId?: string): void {
+  recordSoftDelete(model: string, tenantId?: string, tenantMetadata?: TenantMetricMetadata): void {
     this.softDeleteOperations.inc({
       model,
-      tenant_id: tenantId || 'unknown',
+      ...this.getTenantMetricLabels(tenantId, tenantMetadata),
     });
   }
 
   /**
    * S4-4: Record soft delete restore operation
    */
-  recordSoftDeleteRestore(model: string, tenantId?: string): void {
+  recordSoftDeleteRestore(model: string, tenantId?: string, tenantMetadata?: TenantMetricMetadata): void {
     this.softDeleteRestores.inc({
       model,
-      tenant_id: tenantId || 'unknown',
+      ...this.getTenantMetricLabels(tenantId, tenantMetadata),
     });
   }
 

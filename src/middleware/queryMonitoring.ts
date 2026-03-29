@@ -51,7 +51,11 @@ export function setupQueryMonitoring(prisma: PrismaClient): void {
         operation,
         table,
         duration,
-        requestContext?.tenantId
+        requestContext?.tenantId,
+        {
+          tenantName: requestContext?.tenantName,
+          tenantSlug: requestContext?.tenantSlug,
+        }
       );
 
       // Log slow queries
@@ -83,7 +87,11 @@ export function setupQueryMonitoring(prisma: PrismaClient): void {
         params.action || 'error',
         params.model || 'raw',
         duration,
-        requestContext?.tenantId
+        requestContext?.tenantId,
+        {
+          tenantName: requestContext?.tenantName,
+          tenantSlug: requestContext?.tenantSlug,
+        }
       );
       
       logger.error('Query error', {

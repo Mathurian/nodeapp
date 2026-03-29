@@ -37,21 +37,26 @@ class InMemoryCache {
    * Get a value from cache
    */
   get(key: string): unknown {
-    const tenantId = getRequestContext()?.tenantId;
+    const requestContext = getRequestContext();
+    const tenantId = requestContext?.tenantId;
+    const tenantMetadata = {
+      tenantName: requestContext?.tenantName,
+      tenantSlug: requestContext?.tenantSlug,
+    };
     // Check if key exists and hasn't expired
     const ttl = this.ttlMap.get(key);
     if (ttl && Date.now() > ttl) {
       // Expired - remove and return null
       this.delete(key);
-      resolveMetricsService()?.recordCacheMiss(key, tenantId);
+      resolveMetricsService()?.recordCacheMiss(key, tenantId, tenantMetadata);
       return null;
     }
 
     const value = this.cache.get(key) || null;
     if (value === null) {
-      resolveMetricsService()?.recordCacheMiss(key, tenantId);
+      resolveMetricsService()?.recordCacheMiss(key, tenantId, tenantMetadata);
     } else {
-      resolveMetricsService()?.recordCacheHit(key, tenantId);
+      resolveMetricsService()?.recordCacheHit(key, tenantId, tenantMetadata);
     }
 
     return value;

@@ -15,6 +15,7 @@ import { ConfirmModal } from '../components/ui'
 
 interface TestEventConfig {
   eventName: string
+  eventScoringType: 'STRAIGHT' | 'OLYMPIC' | null
   contestCount: number
   contestNames: string[]
   categoriesPerContest: number
@@ -31,6 +32,7 @@ interface TestEventConfig {
   defaultPassword: string
   createNewTenant: boolean
   tenantName: string
+  tenantScoringType: 'STRAIGHT' | 'OLYMPIC'
 }
 
 interface TestEventResult {
@@ -64,6 +66,7 @@ const TestEventSetupPage: React.FC = () => {
 
   const [config, setConfig] = useState<TestEventConfig>({
     eventName: `Test Event ${new Date().toLocaleDateString()}`,
+    eventScoringType: null,
     contestCount: 2,
     contestNames: [],
     categoriesPerContest: 3,
@@ -80,6 +83,7 @@ const TestEventSetupPage: React.FC = () => {
     defaultPassword: '',
     createNewTenant: false,
     tenantName: '',
+    tenantScoringType: 'STRAIGHT',
   })
 
   const [result, setResult] = useState<TestEventResult | null>(null)
@@ -167,6 +171,8 @@ const TestEventSetupPage: React.FC = () => {
   const defaultPasswordId = `${idBase}-default-password`
   const createNewTenantId = `${idBase}-create-new-tenant`
   const tenantNameId = `${idBase}-tenant-name`
+  const tenantScoringTypeId = `${idBase}-tenant-scoring-type`
+  const eventScoringTypeId = `${idBase}-event-scoring-type`
   const assignJudgesId = `${idBase}-assign-judges`
   const assignContestantsId = `${idBase}-assign-contestants`
 
@@ -426,23 +432,62 @@ const TestEventSetupPage: React.FC = () => {
               </label>
             </div>
             {config.createNewTenant && (
-              <div>
-                <label htmlFor={tenantNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Tenant Name (leave blank for auto-generated)
-                </label>
-                <input
-                  id={tenantNameId}
-                  type="text"
-                  value={config.tenantName}
-                  onChange={(e) => updateConfig('tenantName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="e.g., 'My Test Org' (will auto-generate slug)"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  A unique slug will be auto-generated from the name for URL routing
-                </p>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor={tenantNameId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tenant Name (leave blank for auto-generated)
+                  </label>
+                  <input
+                    id={tenantNameId}
+                    type="text"
+                    value={config.tenantName}
+                    onChange={(e) => updateConfig('tenantName', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="e.g., 'My Test Org' (will auto-generate slug)"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    A unique slug will be auto-generated from the name for URL routing
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor={tenantScoringTypeId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tenant Default Scoring Type
+                  </label>
+                  <select
+                    id={tenantScoringTypeId}
+                    value={config.tenantScoringType}
+                    onChange={(e) => updateConfig('tenantScoringType', e.target.value as 'STRAIGHT' | 'OLYMPIC')}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="STRAIGHT">Straight Scoring</option>
+                    <option value="OLYMPIC">Olympic Scoring</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    New tenants inherit this as their default scoring model unless an event or contest overrides it.
+                  </p>
+                </div>
               </div>
             )}
+
+            <div className="mt-4">
+              <label htmlFor={eventScoringTypeId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Event Scoring Type
+              </label>
+              <select
+                id={eventScoringTypeId}
+                value={config.eventScoringType ?? ''}
+                onChange={(e) => updateConfig('eventScoringType', e.target.value === '' ? null : e.target.value as 'STRAIGHT' | 'OLYMPIC')}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">Inherit tenant default</option>
+                <option value="STRAIGHT">Straight Scoring</option>
+                <option value="OLYMPIC">Olympic Scoring</option>
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Leave this on inherit to use the tenant scoring type. Set an override if this specific event should score differently.
+              </p>
+            </div>
           </div>
 
           {/* Checkboxes */}

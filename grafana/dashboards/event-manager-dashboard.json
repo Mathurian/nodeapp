@@ -14,7 +14,7 @@
           "label": "Tenant",
           "datasource": "Prometheus",
           "query": {
-            "query": "label_values(users_active_total, tenant_id)",
+            "query": "label_values(users_active_total, tenant_name)",
             "refId": "tenantIdQuery"
           },
           "includeAll": true,
@@ -36,8 +36,8 @@
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
-            "expr": "sum by (method, route) (rate(http_requests_total{tenant_id=~\"$tenantId\"}[5m]))",
-            "legendFormat": "{{method}} {{route}}",
+            "expr": "sum by (tenant_name, method, route) (rate(http_requests_total{tenant_name=~\"$tenantId\"}[5m]))",
+            "legendFormat": "{{tenant_name}} {{method}} {{route}}",
             "refId": "A"
           }
         ]
@@ -49,8 +49,8 @@
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{tenant_id=~\"$tenantId\"}[5m])))",
-            "legendFormat": "p95",
+            "expr": "histogram_quantile(0.95, sum by (le, tenant_name) (rate(http_request_duration_seconds_bucket{tenant_name=~\"$tenantId\"}[5m])))",
+            "legendFormat": "{{tenant_name}} p95",
             "refId": "A"
           }
         ]
@@ -62,7 +62,7 @@
         "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
         "targets": [
           {
-            "expr": "sum(active_user_sessions_total{tenant_id=~\"$tenantId\"})",
+            "expr": "sum(active_user_sessions_total{tenant_name=~\"$tenantId\"})",
             "refId": "A"
           }
         ],
@@ -84,7 +84,7 @@
         "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
         "targets": [
           {
-            "expr": "sum(users_recent_24h_total{tenant_id=~\"$tenantId\"})",
+            "expr": "sum(users_recent_24h_total{tenant_name=~\"$tenantId\"})",
             "refId": "A"
           }
         ],
@@ -106,8 +106,8 @@
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
         "targets": [
           {
-            "expr": "sum by (role) (active_user_sessions_by_role_total{tenant_id=~\"$tenantId\"})",
-            "legendFormat": "{{role}}",
+            "expr": "sum by (tenant_name, role) (active_user_sessions_by_role_total{tenant_name=~\"$tenantId\"})",
+            "legendFormat": "{{tenant_name}} {{role}}",
             "refId": "A"
           }
         ]
@@ -119,8 +119,8 @@
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
         "targets": [
           {
-            "expr": "sum by (role) (users_recent_24h_by_role_total{tenant_id=~\"$tenantId\"})",
-            "legendFormat": "{{role}}",
+            "expr": "sum by (tenant_name, role) (users_recent_24h_by_role_total{tenant_name=~\"$tenantId\"})",
+            "legendFormat": "{{tenant_name}} {{role}}",
             "refId": "A"
           }
         ]
@@ -132,8 +132,8 @@
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
         "targets": [
           {
-            "expr": "sum by (error_type) (rate(http_request_errors_total{tenant_id=~\"$tenantId\"}[5m]))",
-            "legendFormat": "{{error_type}}",
+            "expr": "sum by (tenant_name, error_type) (rate(http_request_errors_total{tenant_name=~\"$tenantId\"}[5m]))",
+            "legendFormat": "{{tenant_name}} {{error_type}}",
             "refId": "A"
           }
         ]
@@ -158,8 +158,8 @@
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum by (le, operation, table) (rate(database_query_duration_seconds_bucket{tenant_id=~\"$tenantId\"}[5m])))",
-            "legendFormat": "{{operation}} {{table}}",
+            "expr": "histogram_quantile(0.95, sum by (le, tenant_name, operation, table) (rate(database_query_duration_seconds_bucket{tenant_name=~\"$tenantId\"}[5m])))",
+            "legendFormat": "{{tenant_name}} {{operation}} {{table}}",
             "refId": "A"
           }
         ]
@@ -171,13 +171,13 @@
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
         "targets": [
           {
-            "expr": "sum(rate(cache_hits_total{tenant_id=~\"$tenantId\"}[5m]))",
-            "legendFormat": "Hits",
+            "expr": "sum by (tenant_name) (rate(cache_hits_total{tenant_name=~\"$tenantId\"}[5m]))",
+            "legendFormat": "{{tenant_name}} Hits",
             "refId": "A"
           },
           {
-            "expr": "sum(rate(cache_misses_total{tenant_id=~\"$tenantId\"}[5m]))",
-            "legendFormat": "Misses",
+            "expr": "sum by (tenant_name) (rate(cache_misses_total{tenant_name=~\"$tenantId\"}[5m]))",
+            "legendFormat": "{{tenant_name}} Misses",
             "refId": "B"
           }
         ]

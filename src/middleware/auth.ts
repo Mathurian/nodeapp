@@ -360,6 +360,8 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     updateRequestContext({
       userId: user.id,
       tenantId: req.tenantId || user.tenantId,
+      tenantName: (req as any).tenant?.name,
+      tenantSlug: (req as any).tenant?.slug,
       isSuperAdmin: (req as any).isSuperAdmin,
       requestPrisma: (req as any).prisma,
       userEmail: user.email,
@@ -389,6 +391,10 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         req.tenantId || user.tenantId,
         userRole,
         req.get('User-Agent') || undefined,
+        {
+          tenantName: (req as any).tenant?.name,
+          tenantSlug: (req as any).tenant?.slug,
+        },
       );
     } catch (trackerError) {
       logger.warn('authenticateToken: failed to update active session presence', {
