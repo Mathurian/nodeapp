@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenant } from '../contexts/TenantContext'
 import { useSystemSettings } from '../contexts/SystemSettingsContext'
 import { settingsAPI, backupAPI } from '../services/api'
 import api from '../services/api'
@@ -241,6 +243,9 @@ const GOOGLE_DRIVE_OAUTH_RETURN_URL_SESSION_KEY = 'google-drive-oauth-return-url
 
 const SettingsPage: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const { slug: routeTenantSlug } = useParams<{ slug?: string }>()
+  const { tenant: routedTenant } = useTenant()
   const { refreshSettings } = useSystemSettings()
   const queryClient = useQueryClient()
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -282,6 +287,31 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const routeScopedTenant = useMemo(() => {
+    if (!routeTenantSlug) return null
+
+    const tenantFromList = tenants.find((tenant) => tenant.slug === routeTenantSlug)
+    if (tenantFromList) return tenantFromList
+
+    if (routedTenant?.id && routedTenant?.slug === routeTenantSlug) {
+      return {
+        id: routedTenant.id,
+        name: routedTenant.name,
+        slug: routedTenant.slug,
+      }
+    }
+
+    return null
+  }, [routeTenantSlug, routedTenant, tenants])
+
+  useEffect(() => {
+    if (!isSuperAdmin) return
+    if (!routeScopedTenant?.id) return
+
+    setEditingGlobal(false)
+    setSelectedTenantId((current) => (current === routeScopedTenant.id ? current : routeScopedTenant.id))
+  }, [isSuperAdmin, routeScopedTenant?.id])
+
   // Helper to get query param for tenant-aware API calls
   const getSettingsParam = () => {
     if (!isSuperAdmin) return ''
@@ -296,6 +326,17 @@ const SettingsPage: React.FC = () => {
   const effectiveScoringTenantName = selectedTenantId
     ? (tenants.find((tenant) => tenant.id === selectedTenantId)?.name || 'Selected Tenant')
     : 'Current Tenant'
+
+  const navigateToTenantSettings = (tenantSlug?: string | null) => {
+    const normalizedSlug = String(tenantSlug || '').trim()
+    if (normalizedSlug) {
+      navigate(`/${normalizedSlug}/settings`)
+      return
+    }
+
+    const homeTenantSlug = String(user?.tenant?.slug || '').trim()
+    navigate(homeTenantSlug ? `/${homeTenantSlug}/settings` : '/settings')
+  }
 
   // Form state for different setting categories
   const [generalFormData, setGeneralFormData] = useState<GeneralSettings>({
@@ -1673,8 +1714,19 @@ const SettingsPage: React.FC = () => {
                   value={selectedTenantId || ''}
                   onChange={(e) => {
                     const value = e.target.value
+                    const selectedTenant = tenants.find((tenant) => tenant.id === value)
+
                     setSelectedTenantId(value || null)
-                    if (value) setEditingGlobal(false) // Disable global when selecting a tenant
+                    setEditingGlobal(false)
+
+                    if (selectedTenant?.slug) {
+                      navigateToTenantSettings(selectedTenant.slug)
+                      return
+                    }
+
+                    if (!value) {
+                      navigateToTenantSettings(user?.tenant?.slug || routeTenantSlug || null)
+                    }
                   }}
                   disabled={editingGlobal}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors border-2 ${
@@ -1683,7 +1735,12 @@ const SettingsPage: React.FC = () => {
                       : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                   } ${editingGlobal ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <option value="">My Tenant (Default)</option>
+                  <option value="">My Tenant</option>
+                  {routeScopedTenant && !tenants.some((tenant) => tenant.id === routeScopedTenant.id) && (
+                    <option value={routeScopedTenant.id}>
+                      {routeScopedTenant.name} ({routeScopedTenant.slug})
+                    </option>
+                  )}
                   {tenants.map((tenant) => (
                     <option key={tenant.id} value={tenant.id}>
                       {tenant.name} ({tenant.slug})

@@ -58,8 +58,9 @@ export class SettingsController {
     if (this.isSuperAdmin(req) && queryTenantId && typeof queryTenantId === 'string') {
       return queryTenantId;
     }
-    // Use user's tenantId or request tenantId
-    return req.user?.tenantId || req.tenantId || null;
+    // Default to the request tenant context so slug/subdomain-scoped admin pages
+    // act on the viewed tenant instead of the operator's home tenant.
+    return req.tenantId || req.user?.tenantId || null;
   }
 
   private getTenantIdForRead(req: TenantRequest): string | null {
@@ -72,8 +73,9 @@ export class SettingsController {
     if (this.isSuperAdmin(req) && queryTenantId && typeof queryTenantId === 'string') {
       return queryTenantId;
     }
-    // For read operations, use the tenant context from user or request
-    return req.user?.tenantId || req.tenantId || null;
+    // Default to the request tenant context so slug/subdomain-scoped admin pages
+    // reflect the viewed tenant instead of the operator's home tenant.
+    return req.tenantId || req.user?.tenantId || null;
   }
 
   private inferManifestIconType(iconPath: string): string {
