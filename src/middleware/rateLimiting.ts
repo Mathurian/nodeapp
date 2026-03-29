@@ -28,6 +28,13 @@ const isBootstrapPath = (path: string): boolean => {
   );
 };
 
+const isMonitoringAuthProxyPath = (path: string): boolean => {
+  return (
+    path === '/v1/monitoring/grafana/auth-proxy' ||
+    path === '/monitoring/grafana/auth-proxy'
+  );
+};
+
 // General API rate limiter
 const generalLimiter = isTestEnv ? noopLimiter : rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -38,6 +45,7 @@ const generalLimiter = isTestEnv ? noopLimiter : rateLimit({
     req.path === '/health' ||
     isLocalhost(req) ||
     isBootstrapPath(req.path) ||
+    isMonitoringAuthProxyPath(req.path) ||
     req.path.startsWith('/v1/test-runner') // Test runner and UAT ID routes have dedicated auth checks
 })
 
