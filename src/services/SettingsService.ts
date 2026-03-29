@@ -12,6 +12,12 @@ import { promisify } from 'util';
 import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import { env } from '../config/env';
+import {
+  normalizePublicLandingContent,
+  parsePublicLandingContentSetting,
+  PublicLandingContent,
+  PUBLIC_LANDING_CONTENT_SETTING_KEY,
+} from '../utils/publicLandingContent';
 
 // Prisma payload types
 type SystemSettingFull = Prisma.SystemSettingGetPayload<object>;
@@ -24,6 +30,7 @@ export interface PublicSettings {
   logoPath: string | null;
   faviconPath: string | null;
   contactEmail: string | null;
+  landingPage: PublicLandingContent;
 }
 
 export interface AppNameSettings {
@@ -604,7 +611,32 @@ export class SettingsService extends BaseService {
       logoPath: map['theme_logoPath'] || null,
       faviconPath: map['theme_faviconPath'] || null,
       contactEmail: map['footer_contactEmail'] || null,
+      landingPage: await this.getPublicLandingContent(tenantId),
     };
+  }
+
+  async getPublicLandingContent(tenantId?: string | null): Promise<PublicLandingContent> {
+    const raw = await this.getSettingWithFallback(PUBLIC_LANDING_CONTENT_SETTING_KEY, tenantId);
+    return parsePublicLandingContentSetting(raw);
+  }
+
+  async updatePublicLandingContent(
+    content: unknown,
+    userId: string,
+    tenantId?: string | null
+  ): Promise<PublicLandingContent> {
+    const normalized = normalizePublicLandingContent(content);
+
+    await this.setSettingForTenant(
+      PUBLIC_LANDING_CONTENT_SETTING_KEY,
+      JSON.stringify(normalized),
+      tenantId ?? null,
+      'branding',
+      'Structured public landing page content',
+      userId
+    );
+
+    return normalized;
   }
 
   /**

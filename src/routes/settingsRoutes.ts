@@ -29,6 +29,8 @@ import {
   updatePasswordPolicy,
   getThemeSettings,
   updateThemeSettings,
+  getPublicLandingContent,
+  updatePublicLandingContent,
   uploadThemeLogo,
   uploadThemeFavicon,
   getContestantVisibilitySettings,
@@ -195,6 +197,8 @@ router.put('/jwt-config', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOA
 
 // Theme configuration routes - GET is public (for login page), PUT requires auth
 router.put('/theme', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_THEME_SETTINGS', 'SETTINGS'), updateThemeSettings)
+router.get('/public-content', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsRead, getPublicLandingContent)
+router.put('/public-content', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_PUBLIC_LANDING_CONTENT', 'SETTINGS'), updatePublicLandingContent)
 router.post('/theme/logo', 
   requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
   requireSettingsWrite,

@@ -6,6 +6,12 @@ import { settingsAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import { formatDocumentTitle } from '../utils/documentTitle'
 import {
+  clonePublicLandingContent,
+  normalizePublicLandingContent,
+  type PublicLandingContent,
+  type PublicLandingFeatureIcon,
+} from '../types/publicLandingContent'
+import {
   CalendarIcon,
   TrophyIcon,
   ChartBarIcon,
@@ -37,6 +43,83 @@ interface FeatureProps {
   description: string
 }
 
+const getFeatureIcon = (icon: PublicLandingFeatureIcon): React.ElementType => {
+  switch (icon) {
+    case 'calendar':
+      return CalendarIcon
+    case 'trophy':
+      return TrophyIcon
+    case 'chart':
+      return ChartBarIcon
+    case 'shield':
+      return ShieldCheckIcon
+    case 'users':
+      return UsersIcon
+    case 'document':
+      return DocumentCheckIcon
+    case 'sparkles':
+    default:
+      return SparklesIcon
+  }
+}
+
+const isExternalHref = (href: string): boolean => /^(https?:|mailto:|tel:)/i.test(href)
+
+const buildTenantAwareHref = (href: string, basePath: string): string => {
+  if (!href.startsWith('/')) return href
+  if (!basePath) return href
+  if (href === '/') return basePath
+  if (href === basePath || href.startsWith(`${basePath}/`)) return href
+  return `${basePath}${href}`
+}
+
+const isAllowedInvitationHref = (href: string): boolean =>
+  href.startsWith('/') || /^(https?:|mailto:|tel:)/i.test(href)
+
+const renderInlineLinkedText = (text: string, basePath: string): React.ReactNode[] => {
+  const parts: React.ReactNode[] = []
+  const pattern = /\[([^\]]+)\]\(([^)]+)\)|((?:https?:\/\/|mailto:|tel:)[^\s]+)/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+
+    const markdownLabel = match[1]
+    const markdownHref = match[2]
+    const plainHref = match[3]
+    const rawHref = markdownHref || plainHref || ''
+
+    if (!rawHref || !isAllowedInvitationHref(rawHref)) {
+      parts.push(match[0])
+    } else {
+      const resolvedHref = buildTenantAwareHref(rawHref, basePath)
+      const isHttpLink = /^https?:\/\//i.test(resolvedHref)
+      parts.push(
+        <a
+          key={`inline-link-${match.index}`}
+          href={resolvedHref}
+          className="font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+          target={isHttpLink ? '_blank' : undefined}
+          rel={isHttpLink ? 'noreferrer' : undefined}
+        >
+          {markdownLabel || plainHref}
+        </a>
+      )
+    }
+
+    lastIndex = pattern.lastIndex
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
+  }
+
+  return parts
+}
+
 const Feature: React.FC<FeatureProps> = ({ icon: Icon, title, description }) => (
   <motion.div
     whileHover={{ y: -4 }}
@@ -53,6 +136,43 @@ const Feature: React.FC<FeatureProps> = ({ icon: Icon, title, description }) => 
   </motion.div>
 )
 
+interface LandingActionLinkProps {
+  href: string
+  basePath: string
+  className: string
+  children: React.ReactNode
+}
+
+const LandingActionLink: React.FC<LandingActionLinkProps> = ({
+  href,
+  basePath,
+  className,
+  children,
+}) => {
+  const resolvedHref = buildTenantAwareHref(href, basePath)
+  const isHttpLink = /^https?:\/\//i.test(resolvedHref)
+  const isExternal = isExternalHref(resolvedHref)
+
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (/^(mailto:|tel:)/i.test(resolvedHref)) {
+      event.preventDefault()
+      window.location.href = resolvedHref
+    }
+  }
+
+  return (
+    <a
+      href={resolvedHref}
+      onClick={handleClick}
+      className={`${className} inline-flex items-center justify-center cursor-pointer`}
+      target={isExternal && isHttpLink ? '_blank' : undefined}
+      rel={isExternal && isHttpLink ? 'noreferrer' : undefined}
+    >
+      {children}
+    </a>
+  )
+}
+
 const PublicLandingPage: React.FC = () => {
   const { user } = useAuth()
   const { slug } = useParams<{ slug?: string }>()
@@ -62,6 +182,8 @@ const PublicLandingPage: React.FC = () => {
   const [appDescription, setAppDescription] = React.useState(DEFAULT_APP_BASELINE.appDescription)
   const [logoPath, setLogoPath] = React.useState<string | null>(null)
   const [faviconPath, setFaviconPath] = React.useState<string | null>(null)
+  const [contactEmail, setContactEmail] = React.useState<string | null>(DEFAULT_APP_BASELINE.contactEmail)
+  const [landingPage, setLandingPage] = React.useState<PublicLandingContent>(clonePublicLandingContent())
 
   const basePath = useMemo(() => (slug ? `/${slug}` : ''), [slug])
 
@@ -83,14 +205,8 @@ const PublicLandingPage: React.FC = () => {
         setAppDescription(data.appDescription || DEFAULT_APP_BASELINE.appDescription)
         setLogoPath(data.logoPath || null)
         setFaviconPath(data.faviconPath || null)
-        const themeResponse = await settingsAPI.getThemeSettings(undefined, slug || undefined)
-        const themeData = themeResponse.data?.data || themeResponse.data || {}
-        if (!isCurrent) return
-        setAppName(themeData.app_name || themeData.appName || data.appName || DEFAULT_APP_BASELINE.appName)
-        setAppSubtitle(themeData.app_subtitle || themeData.appSubtitle || data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle)
-        setAppDescription(themeData.app_description || themeData.appDescription || data.appDescription || DEFAULT_APP_BASELINE.appDescription)
-        setLogoPath(themeData.theme_logoPath || themeData.logoPath || data.logoPath || null)
-        setFaviconPath(themeData.theme_faviconPath || themeData.faviconPath || data.faviconPath || null)
+        setContactEmail(data.contactEmail || DEFAULT_APP_BASELINE.contactEmail)
+        setLandingPage(normalizePublicLandingContent(data.landingPage))
       } catch {
         if (!isCurrent) return
         setAppName(DEFAULT_APP_BASELINE.appName)
@@ -98,6 +214,8 @@ const PublicLandingPage: React.FC = () => {
         setAppDescription(DEFAULT_APP_BASELINE.appDescription)
         setLogoPath(null)
         setFaviconPath(null)
+        setContactEmail(DEFAULT_APP_BASELINE.contactEmail)
+        setLandingPage(clonePublicLandingContent())
       }
     })()
     return () => {
@@ -119,38 +237,11 @@ const PublicLandingPage: React.FC = () => {
     document.head.appendChild(icon)
   }, [appName, faviconPath])
 
-  const features: FeatureProps[] = [
-    {
-      icon: CalendarIcon,
-      title: 'Event Management',
-      description: 'Create, organize, and manage events with intuitive tools designed for contest organizers.',
-    },
-    {
-      icon: TrophyIcon,
-      title: 'Scoring & Results',
-      description: 'Real-time scoring, automated calculations, and instant result publication for participants.',
-    },
-    {
-      icon: DocumentCheckIcon,
-      title: 'Certifications',
-      description: 'Generate and distribute professional certificates with customizable templates and verification.',
-    },
-    {
-      icon: ChartBarIcon,
-      title: 'Reporting & Analytics',
-      description: 'Comprehensive reports and insights to track performance and make data-driven decisions.',
-    },
-    {
-      icon: UsersIcon,
-      title: 'Role-Based Access',
-      description: 'Secure multi-user system with tailored dashboards for organizers, auditors, and participants.',
-    },
-    {
-      icon: ShieldCheckIcon,
-      title: 'Secure & Reliable',
-      description: 'Enterprise-grade security with audit trails, backups, and disaster recovery capabilities.',
-    },
-  ]
+  const features: FeatureProps[] = landingPage.featureSection.items.map((feature) => ({
+    icon: getFeatureIcon(feature.icon),
+    title: feature.title,
+    description: feature.description,
+  }))
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -207,58 +298,96 @@ const PublicLandingPage: React.FC = () => {
       </nav>
 
       <main>
+      {landingPage.announcement.enabled && landingPage.announcement.text && (
+        <section
+          className="border-b"
+          style={{
+            backgroundColor: landingPage.announcement.backgroundColor,
+            color: landingPage.announcement.textColor,
+            borderColor: `${landingPage.announcement.textColor}22`,
+          }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <p
+              className="text-sm font-medium text-center"
+              style={{ color: landingPage.announcement.textColor }}
+            >
+              {landingPage.announcement.text}
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-100/50 via-transparent to-indigo-100/50 dark:from-blue-900/20 dark:via-transparent dark:to-indigo-900/20" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-32 lg:pb-40">
+      <section className="relative isolate overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-100/50 via-transparent to-indigo-100/50 dark:from-blue-900/20 dark:via-transparent dark:to-indigo-900/20"
+        />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-32 lg:pb-40">
           <motion.div
             initial="hidden"
             animate="visible"
             variants={containerVariants}
             className="text-center max-w-4xl mx-auto"
           >
-            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium mb-8">
-              <SparklesIcon className="w-4 h-4" />
-              <span>Event Management Simplified</span>
-            </motion.div>
+            {landingPage.hero.badge && (
+              <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium mb-8">
+                <SparklesIcon className="w-4 h-4" />
+                <span>{landingPage.hero.badge}</span>
+              </motion.div>
+            )}
             
             <motion.h1
               variants={itemVariants}
               className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-6"
             >
-              Manage Events, Scoring &{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-                Certifications
-              </span>{' '}
-              in One Place
+              {landingPage.hero.title}{' '}
+              {landingPage.hero.highlight ? (
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                  {landingPage.hero.highlight}
+                </span>
+              ) : null}
             </motion.h1>
             
             <motion.p
               variants={itemVariants}
               className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed"
             >
-              {appDescription}
+              {landingPage.hero.description || appDescription}
             </motion.p>
             
             <motion.div
               variants={itemVariants}
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
-              <Link
-                to={`${basePath}/login`}
+              <LandingActionLink
+                href={landingPage.hero.primaryCtaUrl}
+                basePath={basePath}
                 className="group w-full sm:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-700/25 hover:shadow-blue-700/40"
               >
-                Log In to Your Account
+                {landingPage.hero.primaryCtaLabel}
                 <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </LandingActionLink>
+              {landingPage.hero.secondaryCtaLabel && landingPage.hero.secondaryCtaUrl && (
+                <LandingActionLink
+                  href={landingPage.hero.secondaryCtaUrl}
+                  basePath={basePath}
+                  className="w-full sm:w-auto px-8 py-4 bg-white/90 dark:bg-gray-900/80 text-gray-900 dark:text-white font-semibold rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-900 transition-colors"
+                >
+                  {landingPage.hero.secondaryCtaLabel}
+                </LandingActionLink>
+              )}
             </motion.div>
 
-            <motion.p
-              variants={itemVariants}
-              className="mt-6 text-sm text-gray-500 dark:text-gray-500"
-            >
-              New accounts require an invitation from an organizer or admin
-            </motion.p>
+            {landingPage.hero.invitationNote && (
+              <motion.p
+                variants={itemVariants}
+                className="mt-6 text-sm text-gray-500 dark:text-gray-500"
+              >
+                {renderInlineLinkedText(landingPage.hero.invitationNote, basePath)}
+              </motion.p>
+            )}
             {appSubtitle && (
               <motion.p
                 variants={itemVariants}
@@ -271,11 +400,18 @@ const PublicLandingPage: React.FC = () => {
         </div>
 
         {/* Decorative elements */}
-        <div className="absolute top-1/4 left-10 w-72 h-72 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-10 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/4 left-10 w-72 h-72 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-1/4 right-10 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl"
+        />
       </section>
 
       {/* Features Section */}
+      {landingPage.featureSection.enabled && (
       <section className="py-24 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -286,11 +422,10 @@ const PublicLandingPage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Everything You Need to Run Successful Events
+              {landingPage.featureSection.title}
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Powerful features designed to handle every aspect of event management, 
-              from planning to post-event reporting.
+              {landingPage.featureSection.subtitle}
             </p>
           </motion.div>
 
@@ -309,8 +444,10 @@ const PublicLandingPage: React.FC = () => {
           </motion.div>
         </div>
       </section>
+      )}
 
       {/* CTA Section */}
+      {landingPage.ctaSection.enabled && (
       <section className="py-24 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
@@ -320,23 +457,33 @@ const PublicLandingPage: React.FC = () => {
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Ready to Streamline Your Events?
+              {landingPage.ctaSection.title}
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-              {appName} provides practical tools for scoring, certifications, and event administration.
-              Sign in or contact your administrator for access.
+              {landingPage.ctaSection.description}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                to={`${basePath}/login`}
+              <LandingActionLink
+                href={landingPage.ctaSection.primaryCtaUrl}
+                basePath={basePath}
                 className="w-full sm:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-blue-700/25"
               >
-                Sign In
-              </Link>
+                {landingPage.ctaSection.primaryCtaLabel}
+              </LandingActionLink>
+              {landingPage.ctaSection.secondaryCtaLabel && landingPage.ctaSection.secondaryCtaUrl && (
+                <LandingActionLink
+                  href={landingPage.ctaSection.secondaryCtaUrl}
+                  basePath={basePath}
+                  className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-semibold rounded-xl border border-gray-200 dark:border-gray-700 transition-colors hover:bg-gray-50 dark:hover:bg-gray-950"
+                >
+                  {landingPage.ctaSection.secondaryCtaLabel}
+                </LandingActionLink>
+              )}
             </div>
           </motion.div>
         </div>
       </section>
+      )}
       </main>
 
       {/* Footer */}
@@ -369,6 +516,21 @@ const PublicLandingPage: React.FC = () => {
               </Link>
             </div>
           </div>
+          {(landingPage.footer.tagline || contactEmail) && (
+            <div className="mt-4 border-t border-gray-200 dark:border-gray-800 pt-4 flex flex-col md:flex-row items-center justify-between gap-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center md:text-left">
+                {landingPage.footer.tagline}
+              </p>
+              {contactEmail && (
+                <a
+                  href={`mailto:${contactEmail}`}
+                  className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200"
+                >
+                  {contactEmail}
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </footer>
     </div>

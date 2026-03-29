@@ -4,6 +4,11 @@ import { SettingsService } from '../services/SettingsService';
 import { createTenantPrismaClient } from '../middleware/tenantMiddleware';
 import { successResponse } from '../utils/responseHelpers';
 import { logger } from '../utils/logger';
+import {
+  parsePublicLandingContentSetting,
+  PublicLandingContent,
+  PUBLIC_LANDING_CONTENT_SETTING_KEY,
+} from '../utils/publicLandingContent';
 
 // Type for tenant-aware request - uses intersection instead of extends
 type TenantRequest = Request & {
@@ -139,6 +144,7 @@ export class SettingsController {
     logoPath: string | null;
     faviconPath: string | null;
     contactEmail: string | null;
+    landingPage: PublicLandingContent;
   }> {
     const keys = [
       'app_name',
@@ -165,7 +171,16 @@ export class SettingsController {
       logoPath: map['theme_logoPath'] || null,
       faviconPath: map['theme_faviconPath'] || null,
       contactEmail: map['footer_contactEmail'] || null,
+      landingPage: await this.getPublicLandingContentUnscoped(tenantId),
     };
+  }
+
+  private async getPublicLandingContentUnscoped(tenantId: string): Promise<PublicLandingContent> {
+    const raw = await this.getSettingWithFallbackUnscoped(
+      PUBLIC_LANDING_CONTENT_SETTING_KEY,
+      tenantId
+    );
+    return parsePublicLandingContentSetting(raw);
   }
 
   private async getThemeSettingsUnscoped(tenantId: string): Promise<Record<string, string>> {
@@ -1007,6 +1022,45 @@ export class SettingsController {
     }
   };
 
+  getPublicLandingContent = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const landingPage = await this.settingsService.getPublicLandingContent(tenantId);
+      successResponse(res, landingPage, 'Public landing content retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  updatePublicLandingContent = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
+      const landingPage = await this.settingsService.updatePublicLandingContent(
+        req.body,
+        userId,
+        tenantId
+      );
+
+      successResponse(
+        res,
+        { landingPage, scope: tenantId ? 'tenant' : 'global' },
+        'Public landing content updated successfully'
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   /**
    * Upload theme logo (tenant-aware)
    */
@@ -1315,6 +1369,8 @@ export const getJWTConfig = controller.getJWTConfig;
 export const updateJWTConfig = controller.updateJWTConfig;
 export const getThemeSettings = controller.getThemeSettings;
 export const updateThemeSettings = controller.updateThemeSettings;
+export const getPublicLandingContent = controller.getPublicLandingContent;
+export const updatePublicLandingContent = controller.updatePublicLandingContent;
 export const uploadThemeLogo = controller.uploadThemeLogo;
 export const uploadThemeFavicon = controller.uploadThemeFavicon;
 export const getDatabaseConnectionInfo = controller.getDatabaseConnectionInfo;

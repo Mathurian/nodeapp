@@ -2,6 +2,7 @@ import axios from 'axios'
 import { classifyNetworkError } from './networkErrorClassifier'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from './idempotency'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
+import type { PublicLandingContent } from '../types/publicLandingContent'
 
 /**
  * API Version Configuration
@@ -409,6 +410,7 @@ export const settingsAPI = {
     }
     return publicApi.get('/settings/theme');
   },
+  getPublicLandingContent: (scopeQuery: string = '') => api.get(`/settings/public-content${scopeQuery}`),
   getAppName: () => publicApi.get('/settings/app-name'),
   update: (data: Record<string, any>) => api.put('/settings', data),
   updateSettings: (data: any) => api.put('/settings', data),
@@ -443,6 +445,8 @@ export const settingsAPI = {
   updateJWTConfig: (config: any) => api.put('/settings/jwt-config', config),
   // Theme settings
   updateThemeSettings: (settings: any) => api.put('/settings/theme', settings),
+  updatePublicLandingContent: (content: PublicLandingContent, scopeQuery: string = '') =>
+    api.put(`/settings/public-content${scopeQuery}`, content),
   uploadThemeLogo: (file: File) => {
     const formData = new FormData()
     formData.append('logo', file)

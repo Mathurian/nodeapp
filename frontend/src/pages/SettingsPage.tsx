@@ -7,6 +7,12 @@ import api from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import { isStandaloneAppContext } from '../utils/fileViewer'
 import {
+  clonePublicLandingContent,
+  normalizePublicLandingContent,
+  PUBLIC_LANDING_ICON_OPTIONS,
+  type PublicLandingContent,
+} from '../types/publicLandingContent'
+import {
   Cog6ToothIcon,
   CheckIcon,
   XMarkIcon,
@@ -326,6 +332,9 @@ const SettingsPage: React.FC = () => {
     app_name: DEFAULT_APP_BASELINE.appName,
     app_subtitle: '',
   })
+  const [publicLandingFormData, setPublicLandingFormData] = useState<PublicLandingContent>(
+    clonePublicLandingContent()
+  )
 
   const [securityFormData, setSecurityFormData] = useState<SecuritySettings>({
     security_maxLoginAttempts: '5',
@@ -443,6 +452,7 @@ const SettingsPage: React.FC = () => {
       queryClient.invalidateQueries(['general-settings'])
       queryClient.invalidateQueries(['email-settings'])
       queryClient.invalidateQueries(['theme-settings-full'])
+      queryClient.invalidateQueries(['public-landing-content'])
       queryClient.invalidateQueries(['security-settings'])
       queryClient.invalidateQueries(['contestant-visibility-settings'])
       queryClient.invalidateQueries(['password-policy'])
@@ -519,6 +529,20 @@ const SettingsPage: React.FC = () => {
             app_subtitle: data.app_subtitle || data.appSubtitle || '',
           })
         }
+      },
+    }
+  )
+
+  const { isLoading: publicLandingContentLoading } = useQuery<any>(
+    ['public-landing-content', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await settingsAPI.getPublicLandingContent(getGlobalParam())
+      return response.data.data || response.data
+    },
+    {
+      enabled: isAdmin,
+      onSuccess: (data) => {
+        setPublicLandingFormData(normalizePublicLandingContent(data))
       },
     }
   )
@@ -960,6 +984,27 @@ const SettingsPage: React.FC = () => {
     }
   )
 
+  const updatePublicLandingMutation = useMutation(
+    async (data: PublicLandingContent) => {
+      const response = await settingsAPI.updatePublicLandingContent(data, getGlobalParam())
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['public-landing-content', editingGlobal, selectedTenantId])
+        setMessage({
+          type: 'success',
+          text: `Public landing page content updated successfully!${editingGlobal ? ' (Global)' : ''}`,
+        })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Error: ${error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
   const updateSecurityMutation = useMutation(
     async (data: SecuritySettings) => {
       const response = await api.put(`/settings/security${getGlobalParam()}`, data)
@@ -1367,6 +1412,22 @@ const SettingsPage: React.FC = () => {
     }
   }
 
+  const updatePublicLandingFeature = (
+    index: number,
+    field: 'icon' | 'title' | 'description',
+    value: string
+  ) => {
+    setPublicLandingFormData((prev) => ({
+      ...prev,
+      featureSection: {
+        ...prev.featureSection,
+        items: prev.featureSection.items.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, [field]: value } : item
+        ),
+      },
+    }))
+  }
+
   const mfaProviderSet = new Set(
     (securityFormData.security_mfaProviders || 'TOTP')
       .split(',')
@@ -1504,6 +1565,9 @@ const SettingsPage: React.FC = () => {
         break
       case 'theme':
         updateThemeMutation.mutate(themeFormData)
+        break
+      case 'public-landing':
+        updatePublicLandingMutation.mutate(publicLandingFormData)
         break
       case 'security':
         updateSecurityMutation.mutate(securityFormData)
@@ -3160,6 +3224,755 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
                     >
                       {updateThemeMutation.isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="h-5 w-5 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Public Landing Page Settings */}
+            <div className="cgr-surface overflow-hidden rounded-lg">
+              <button
+                onClick={() => toggleSection('public-landing')}
+                className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center">
+                  <GlobeAltIcon className="h-6 w-6 mr-3 text-sky-600 dark:text-sky-400" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Public Landing Page
+                  </h2>
+                </div>
+                {expandedSections.includes('public-landing') ? (
+                  <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                )}
+              </button>
+
+              {expandedSections.includes('public-landing') && (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                  {publicLandingContentLoading ? (
+                    <div className="py-8 text-sm text-gray-500 dark:text-gray-400">
+                      Loading public landing page content...
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          Tenant-aware public content
+                        </p>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          Relative URLs such as <code>/login</code> are automatically prefixed for slug-based
+                          tenant pages. External links should use <code>https://</code>, <code>mailto:</code>,
+                          or <code>tel:</code>.
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                          CTA URL examples: <code>/login</code>, <code>https://example.com</code>,{' '}
+                          <code>mailto:team@example.com</code>.
+                        </p>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          Invitation note examples: <code>https://example.com/support</code> or{' '}
+                          <code>[Contact us](mailto:team@example.com)</code>.
+                        </p>
+                        <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Fields marked <span className="text-red-500">*</span> are required.
+                        </p>
+                      </div>
+
+                      <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <summary className="cursor-pointer list-none p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Announcement Banner
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Show a narrow banner above the hero section.
+                            </p>
+                          </div>
+                          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Expand
+                          </span>
+                        </summary>
+                        <div className="px-4 pb-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between py-2">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                Enable Announcement
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={publicLandingFormData.announcement.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  announcement: {
+                                    ...prev.announcement,
+                                    enabled: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Announcement Text
+                            </label>
+                            <input
+                              type="text"
+                              value={publicLandingFormData.announcement.text}
+                              required={publicLandingFormData.announcement.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  announcement: {
+                                    ...prev.announcement,
+                                    text: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Registration closes April 15"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Banner Background Color
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="color"
+                                  value={publicLandingFormData.announcement.backgroundColor}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      announcement: {
+                                        ...prev.announcement,
+                                        backgroundColor: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="h-10 w-16 rounded cursor-pointer"
+                                />
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.announcement.backgroundColor}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      announcement: {
+                                        ...prev.announcement,
+                                        backgroundColor: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Banner Text Color
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="color"
+                                  value={publicLandingFormData.announcement.textColor}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      announcement: {
+                                        ...prev.announcement,
+                                        textColor: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="h-10 w-16 rounded cursor-pointer"
+                                />
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.announcement.textColor}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      announcement: {
+                                        ...prev.announcement,
+                                        textColor: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <summary className="cursor-pointer list-none p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Hero Section
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Main headline, supporting copy, CTA buttons, and invitation note.
+                            </p>
+                          </div>
+                          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Expand
+                          </span>
+                        </summary>
+                        <div className="px-4 pb-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Hero Badge
+                              </label>
+                              <input
+                                type="text"
+                                value={publicLandingFormData.hero.badge}
+                                onChange={(e) =>
+                                  setPublicLandingFormData((prev) => ({
+                                    ...prev,
+                                    hero: { ...prev.hero, badge: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                              <span>Hero Highlight</span>
+                                <Tooltip
+                                  content={
+                                    <span>
+                                      This is the emphasized word or short phrase rendered in the gradient
+                                      style inside the hero headline.
+                                    </span>
+                                  }
+                                  position="right"
+                                  className="max-w-sm"
+                                >
+                                  <span className="inline-flex text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                    <QuestionMarkCircleIcon className="h-4 w-4" />
+                                  </span>
+                                </Tooltip>
+                              </label>
+                              <input
+                                type="text"
+                                value={publicLandingFormData.hero.highlight}
+                                onChange={(e) =>
+                                  setPublicLandingFormData((prev) => ({
+                                    ...prev,
+                                    hero: { ...prev.hero, highlight: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                              <span>Hero Title <span className="text-red-500">*</span></span>
+                              <Tooltip
+                                content={
+                                  <span>
+                                    This is the first part of the main hero headline. It appears directly
+                                    before the highlighted text on the public page.
+                                  </span>
+                                }
+                                position="right"
+                                className="max-w-sm"
+                              >
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                  <QuestionMarkCircleIcon className="h-4 w-4" />
+                                </span>
+                              </Tooltip>
+                            </label>
+                            <input
+                              type="text"
+                              value={publicLandingFormData.hero.title}
+                              required
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  hero: { ...prev.hero, title: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Hero Description <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={publicLandingFormData.hero.description}
+                              required
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  hero: { ...prev.hero, description: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Hero Primary CTA Label <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.hero.primaryCtaLabel}
+                                  required
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      hero: { ...prev.hero, primaryCtaLabel: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Hero Primary CTA URL <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.hero.primaryCtaUrl}
+                                  required
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      hero: { ...prev.hero, primaryCtaUrl: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Use a relative path like <code>/login</code>, or an external link such as <code>https://example.com</code> or <code>mailto:team@example.com</code>.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Hero Secondary CTA Label
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.hero.secondaryCtaLabel}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      hero: { ...prev.hero, secondaryCtaLabel: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Hero Secondary CTA URL
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.hero.secondaryCtaUrl}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      hero: { ...prev.hero, secondaryCtaUrl: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Optional. Supports the same formats as the primary CTA URL.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Invitation Note
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={publicLandingFormData.hero.invitationNote}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  hero: { ...prev.hero, invitationNote: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              Supports plain <code>https://</code>, <code>mailto:</code>, and <code>tel:</code> links,
+                              or markdown-style links like <code>[Contact us](mailto:team@example.com)</code>.
+                            </p>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <summary className="cursor-pointer list-none p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Feature Section
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Show three configurable feature cards on the public page.
+                            </p>
+                          </div>
+                          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Expand
+                          </span>
+                        </summary>
+                        <div className="px-4 pb-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between py-2">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                Enable Feature Section
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={publicLandingFormData.featureSection.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  featureSection: {
+                                    ...prev.featureSection,
+                                    enabled: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Feature Section Title <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={publicLandingFormData.featureSection.title}
+                              required={publicLandingFormData.featureSection.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  featureSection: { ...prev.featureSection, title: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Feature Section Subtitle <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={publicLandingFormData.featureSection.subtitle}
+                              required={publicLandingFormData.featureSection.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  featureSection: { ...prev.featureSection, subtitle: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                            {publicLandingFormData.featureSection.items.map((item, index) => (
+                              <div
+                                key={`feature-item-${index}`}
+                                className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3 bg-gray-50 dark:bg-gray-700/40"
+                              >
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  Feature Card {index + 1}
+                                </p>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Icon
+                                  </label>
+                                  <select
+                                    value={item.icon}
+                                    onChange={(e) =>
+                                      updatePublicLandingFeature(index, 'icon', e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    {PUBLIC_LANDING_ICON_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Title <span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    required={publicLandingFormData.featureSection.enabled}
+                                    onChange={(e) =>
+                                      updatePublicLandingFeature(index, 'title', e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Description <span className="text-red-500">*</span>
+                                  </label>
+                                  <textarea
+                                    rows={3}
+                                    value={item.description}
+                                    required={publicLandingFormData.featureSection.enabled}
+                                    onChange={(e) =>
+                                      updatePublicLandingFeature(index, 'description', e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <summary className="cursor-pointer list-none p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Bottom CTA Section
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Optional call-to-action block near the bottom of the landing page.
+                            </p>
+                          </div>
+                          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Expand
+                          </span>
+                        </summary>
+                        <div className="px-4 pb-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between py-2">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                Enable CTA Section
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={publicLandingFormData.ctaSection.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  ctaSection: {
+                                    ...prev.ctaSection,
+                                    enabled: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              CTA Section Title <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={publicLandingFormData.ctaSection.title}
+                              required={publicLandingFormData.ctaSection.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  ctaSection: { ...prev.ctaSection, title: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              CTA Section Description <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={publicLandingFormData.ctaSection.description}
+                              required={publicLandingFormData.ctaSection.enabled}
+                              onChange={(e) =>
+                                setPublicLandingFormData((prev) => ({
+                                  ...prev,
+                                  ctaSection: { ...prev.ctaSection, description: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  CTA Primary Label <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.ctaSection.primaryCtaLabel}
+                                  required={publicLandingFormData.ctaSection.enabled}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      ctaSection: {
+                                        ...prev.ctaSection,
+                                        primaryCtaLabel: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  CTA Primary URL <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.ctaSection.primaryCtaUrl}
+                                  required={publicLandingFormData.ctaSection.enabled}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      ctaSection: {
+                                        ...prev.ctaSection,
+                                        primaryCtaUrl: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Use a relative path like <code>/login</code>, or an external link such as <code>https://example.com</code> or <code>mailto:team@example.com</code>.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  CTA Secondary Label
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.ctaSection.secondaryCtaLabel}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      ctaSection: {
+                                        ...prev.ctaSection,
+                                        secondaryCtaLabel: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  CTA Secondary URL
+                                </label>
+                                <input
+                                  type="text"
+                                  value={publicLandingFormData.ctaSection.secondaryCtaUrl}
+                                  onChange={(e) =>
+                                    setPublicLandingFormData((prev) => ({
+                                      ...prev,
+                                      ctaSection: {
+                                        ...prev.ctaSection,
+                                        secondaryCtaUrl: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Optional. Supports the same formats as the primary CTA URL.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <summary className="cursor-pointer list-none p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Footer
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Short closing tagline shown above the public contact email.
+                            </p>
+                          </div>
+                          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Expand
+                          </span>
+                        </summary>
+                        <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                            Footer Tagline
+                          </label>
+                          <input
+                            type="text"
+                            value={publicLandingFormData.footer.tagline}
+                            onChange={(e) =>
+                              setPublicLandingFormData((prev) => ({
+                                ...prev,
+                                footer: { ...prev.footer, tagline: e.target.value },
+                              }))
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </details>
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => handleSaveSection('public-landing')}
+                      disabled={publicLandingContentLoading || updatePublicLandingMutation.isLoading}
+                      className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                    >
+                      {updatePublicLandingMutation.isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Saving...
