@@ -168,6 +168,15 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
         description: 'View tenant-scoped UAT identifiers without access to host-level test execution',
         keywords: ['uat', 'ids', 'manual testing', 'scenario'],
       },
+      {
+        id: 'test-event-setup',
+        name: 'Test Event Setup',
+        href: '/test-event-setup',
+        icon: BeakerIcon,
+        roles: ['SUPER_ADMIN', 'ADMIN'],
+        description: 'Create demo or sample tenants and test event data',
+        keywords: ['demo tenant', 'sample tenant', 'test event', 'seed data'],
+      },
     ],
   },
 ]
