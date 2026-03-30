@@ -127,7 +127,7 @@
     "tsyringe": "^4.10.0",
     "uuid": "^9.0.1",
     "web-push": "^3.6.7",
-    "winston": "^3.11.0"
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
