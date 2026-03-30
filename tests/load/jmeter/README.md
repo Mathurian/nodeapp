@@ -151,7 +151,7 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 - Session bootstrap now runs once per virtual user. Repeating CSRF fetch + login inside the main loop will turn the public/auth rate limiters into the dominant bottleneck and will mostly measure edge protection, not the target business workflow.
 - Write requests include the required `x-idempotency-key` header using JMeter's `${__UUID()}` function.
 - Score submission includes `criterionId` from `live_ids.csv` and uses a conservative score of `1` to avoid fixture-dependent max-score noise.
-- Judge commentary and score-update samplers now prefer the score ID returned by that thread's preceding submit response, falling back to `live_ids.csv` only when no ID is returned.
+- Judge commentary and score-update samplers now use only the score ID returned by that thread's preceding submit response. If submit does not return an ID, those follow-on samplers are skipped rather than falling back to a shared `live_ids.csv` score.
 - Auditor verification uses the current API contract: `verified`, `comments`, and `issues`.
 - Auditor final certification submit uses the current API contract: `confirmation1` and `confirmation2`.
 - Auditor final certification is gated by the status endpoint so JMeter only submits when `readyForFinalCertification=true`.
@@ -166,9 +166,10 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
   - Usually indicates stale or malformed fixture data.
   - Commentary requests now require `score_id`, `criterion_id`, `contestant_id`, and `comment`.
   - Auditor final certification will also return `400` if the category has not reached `readyForFinalCertification=true` yet.
+- `403`:
+  - Usually indicates the authenticated role is not allowed to perform the action on the supplied row.
+  - The most common case during judge load is a thread trying to update a score owned by a different judge.
+  - The included plan now avoids most of that noise by skipping judge commentary/update when the thread did not receive a fresh score ID from its own submit response.
 - `404`:
   - Usually means the request is pointed at the wrong tenant or placeholder fixture data.
   - `Tenant not found` specifically means the `X-Tenant-Slug` value does not exist in the target environment.
-- `403`:
-  - Usually indicates the authenticated role is not allowed to perform the action on the supplied row.
-  - The most common case is judge traffic using a `score_id` or category assignment that belongs to a different judge.

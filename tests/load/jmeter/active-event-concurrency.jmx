@@ -271,14 +271,17 @@
               <stringProp name="JSONPostProcessor.referenceNames">judge_score_id</stringProp>
               <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.id</stringProp>
               <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
-              <stringProp name="JSONPostProcessor.defaultValues">${score_id}</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues"></stringProp>
             </JSONPostProcessor>
             <hashTree/>
           </hashTree>
         </hashTree>
 
-        <GenericController guiclass="LogicControllerGui" testclass="GenericController" testname="Judge: Commentary">
-        </GenericController>
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Judge Has Fresh Score ID - Commentary">
+          <stringProp name="IfController.condition">${__groovy((vars.get('judge_score_id') ?: '').trim().length() &gt; 0)}</stringProp>
+          <boolProp name="IfController.evaluateAll">false</boolProp>
+          <boolProp name="IfController.useExpression">true</boolProp>
+        </IfController>
         <hashTree>
           <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Create Commentary">
             <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
@@ -310,8 +313,11 @@
           </hashTree>
         </hashTree>
 
-        <GenericController guiclass="LogicControllerGui" testclass="GenericController" testname="Judge: Update Existing Score">
-        </GenericController>
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Judge Has Fresh Score ID - Update">
+          <stringProp name="IfController.condition">${__groovy((vars.get('judge_score_id') ?: '').trim().length() &gt; 0)}</stringProp>
+          <boolProp name="IfController.evaluateAll">false</boolProp>
+          <boolProp name="IfController.useExpression">true</boolProp>
+        </IfController>
         <hashTree>
           <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Update Score">
             <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
