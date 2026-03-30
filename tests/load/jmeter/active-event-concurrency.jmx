@@ -246,7 +246,7 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{"score":${__Random(70,100)},"comments":"Judge load test ${__time(YMDHMS)}"}</stringProp>
+                  <stringProp name="Argument.value">{"criteriaId":"${criterion_id}","score":1,"comments":"Judge load test ${__time(YMDHMS)}"}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
@@ -260,8 +260,8 @@
           <hashTree>
             <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Idempotency Header - Submit Score">
               <collectionProp name="HeaderManager.headers">
-                <elementProp name="Idempotency-Key" elementType="Header">
-                  <stringProp name="Header.name">Idempotency-Key</stringProp>
+                <elementProp name="x-idempotency-key" elementType="Header">
+                  <stringProp name="Header.name">x-idempotency-key</stringProp>
                   <stringProp name="Header.value">${__UUID()}</stringProp>
                 </elementProp>
               </collectionProp>
@@ -293,8 +293,8 @@
           <hashTree>
             <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Idempotency Header - Commentary">
               <collectionProp name="HeaderManager.headers">
-                <elementProp name="Idempotency-Key" elementType="Header">
-                  <stringProp name="Header.name">Idempotency-Key</stringProp>
+                <elementProp name="x-idempotency-key" elementType="Header">
+                  <stringProp name="Header.name">x-idempotency-key</stringProp>
                   <stringProp name="Header.value">${__UUID()}</stringProp>
                 </elementProp>
               </collectionProp>
@@ -312,7 +312,7 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{"score":${__Random(70,100)},"comments":"Updated under load ${__time(YMDHMS)}"}</stringProp>
+                  <stringProp name="Argument.value">{"score":1,"comments":"Updated under load ${__time(YMDHMS)}"}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
@@ -326,8 +326,8 @@
           <hashTree>
             <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Idempotency Header - Update Score">
               <collectionProp name="HeaderManager.headers">
-                <elementProp name="Idempotency-Key" elementType="Header">
-                  <stringProp name="Header.name">Idempotency-Key</stringProp>
+                <elementProp name="x-idempotency-key" elementType="Header">
+                  <stringProp name="Header.name">x-idempotency-key</stringProp>
                   <stringProp name="Header.value">${__UUID()}</stringProp>
                 </elementProp>
               </collectionProp>
@@ -569,7 +569,7 @@
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Verify Score">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"status":"VERIFIED","notes":"Verified under load ${__time(YMDHMS)}"}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"verified":true,"comments":"Verified under load ${__time(YMDHMS)}","issues":""}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
           <stringProp name="HTTPSampler.path">${apiPrefix}/auditor/verify-score/${score_id}</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
@@ -579,7 +579,7 @@
         <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Submit Final Certification">
           <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"notes":"Final certification load run ${__time(YMDHMS)}"}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{"confirmation1":true,"confirmation2":true}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
           <stringProp name="HTTPSampler.path">${apiPrefix}/auditor/category/${category_id}/final-certification/submit</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp>
           <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>

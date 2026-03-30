@@ -143,7 +143,10 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 - Authentication in this plan is cookie-based (`access_token` cookie from `/auth/login`) using JMeter `HTTP Cookie Manager`; it does not require Bearer token headers.
 - The plan fetches CSRF token from `${apiPrefix}/csrf-token` and sends it as `X-CSRF-Token` on mutating requests.
 - Session bootstrap now runs once per virtual user. Repeating CSRF fetch + login inside the main loop will turn the public/auth rate limiters into the dominant bottleneck and will mostly measure edge protection, not the target business workflow.
-- Write requests include `Idempotency-Key` headers using JMeter's `${__UUID()}` function.
+- Write requests include the required `x-idempotency-key` header using JMeter's `${__UUID()}` function.
+- Score submission includes `criterionId` from `live_ids.csv` and uses a conservative score of `1` to avoid fixture-dependent max-score noise.
+- Auditor verification uses the current API contract: `verified`, `comments`, and `issues`.
+- Auditor final certification submit uses the current API contract: `confirmation1` and `confirmation2`.
 
 ## Interpreting failures
 
