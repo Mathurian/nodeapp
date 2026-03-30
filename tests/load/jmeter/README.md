@@ -57,7 +57,7 @@ Yes, but it makes role orchestration harder and less realistic. Keeping identity
 The JMeter plan reads these columns on each loop:
 
 ```csv
-category_id,contestant_id,score_id,judge_id
+category_id,contestant_id,score_id,judge_id,criterion_id
 ```
 
 ### Column meanings
@@ -66,6 +66,7 @@ category_id,contestant_id,score_id,judge_id
 - `contestant_id`: Contestant in that category.
 - `score_id`: Existing score row to update/verify.
 - `judge_id`: Judge tied to certification endpoints.
+- `criterion_id`: Criterion attached to the score/commentary row.
 
 ### Where should this data come from?
 
@@ -86,7 +87,8 @@ SELECT
   s."categoryId"   AS category_id,
   s."contestantId" AS contestant_id,
   s.id              AS score_id,
-  s."judgeId"      AS judge_id
+  s."judgeId"      AS judge_id,
+  s."criterionId"  AS criterion_id
 FROM scores s
 JOIN categories c ON c.id = s."categoryId"
 WHERE s."tenantId" = '<TENANT_ID>'
@@ -101,15 +103,16 @@ Export that result to CSV and save it to `tests/load/jmeter/data/live_ids.csv`.
 - Keep all IDs from **one tenant** only.
 - Prefer IDs from the **active event window** (the event/contests you are simulating).
 - Provide enough unique rows for your concurrency level (at least 10x thread count is a good baseline).
-- Ensure `score_id` is valid for the given `(category_id, contestant_id, judge_id)` pair.
+- Ensure `score_id` is valid for the given `(category_id, contestant_id, judge_id, criterion_id)` tuple.
+- For judge write paths, ensure each row's `judge_id` belongs to the authenticated judge account that will consume that row. If it does not, score updates will correctly return `403`.
 - Avoid placeholder IDs (`cat-1`, `score-1`) outside local smoke checks.
 
 ### Minimal example (shape only)
 
 ```csv
-category_id,contestant_id,score_id,judge_id
-cm2abc123...,cm2con456...,cm2sc789...,cm2jd111...
-cm2abc124...,cm2con457...,cm2sc790...,cm2jd222...
+category_id,contestant_id,score_id,judge_id,criterion_id
+cm2abc123...,cm2con456...,cm2sc789...,cm2jd111...,cm2crit999...
+cm2abc124...,cm2con457...,cm2sc790...,cm2jd222...,cm2crit998...
 ```
 
 ## Run examples
@@ -139,4 +142,17 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 - Test plan sends `X-Tenant-Slug` for multi-tenant routing.
 - Authentication in this plan is cookie-based (`access_token` cookie from `/auth/login`) using JMeter `HTTP Cookie Manager`; it does not require Bearer token headers.
 - The plan fetches CSRF token from `${apiPrefix}/csrf-token` and sends it as `X-CSRF-Token` on mutating requests.
+- Session bootstrap now runs once per virtual user. Repeating CSRF fetch + login inside the main loop will turn the public/auth rate limiters into the dominant bottleneck and will mostly measure edge protection, not the target business workflow.
 - Write requests include `Idempotency-Key` headers using JMeter's `${__UUID()}` function.
+
+## Interpreting failures
+
+- `429`:
+  - Expected if you intentionally run through the public hostname at a rate above the configured IP/user/tenant limits.
+  - Unexpected noise if it comes mainly from `${apiPrefix}/csrf-token` or repeated login calls. The included plan now avoids that by bootstrapping the session once per virtual user.
+- `400`:
+  - Usually indicates stale or malformed fixture data.
+  - Commentary requests now require `score_id`, `criterion_id`, `contestant_id`, and `comment`.
+- `403`:
+  - Usually indicates the authenticated role is not allowed to perform the action on the supplied row.
+  - The most common case is judge traffic using a `score_id` or category assignment that belongs to a different judge.

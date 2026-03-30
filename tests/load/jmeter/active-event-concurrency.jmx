@@ -89,8 +89,8 @@
 
       <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP Cookie Manager">
         <collectionProp name="CookieManager.cookies"/>
-        <boolProp name="CookieManager.clearEachIteration">true</boolProp>
-        <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
+        <boolProp name="CookieManager.clearEachIteration">false</boolProp>
+        <boolProp name="CookieManager.controlledByThreadGroup">true</boolProp>
       </CookieManager>
       <hashTree/>
 
@@ -135,7 +135,7 @@
           <boolProp name="recycle">true</boolProp>
           <stringProp name="shareMode">shareMode.all</stringProp>
           <boolProp name="stopThread">false</boolProp>
-          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
+          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id,criterion_id</stringProp>
         </CSVDataSet>
         <hashTree/>
 
@@ -157,6 +157,8 @@
         </HeaderManager>
         <hashTree/>
 
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="Judge Session Bootstrap"/>
+        <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Judge)">
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
@@ -206,6 +208,7 @@
           </JSONPostProcessor>
           <hashTree/>
         </hashTree>
+        </hashTree>
 
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Judge Auth Header">
           <collectionProp name="HeaderManager.headers">
@@ -243,7 +246,7 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{"score":${__Random(70,100)},"comment":"Judge load test ${__time(YMDHMS)}"}</stringProp>
+                  <stringProp name="Argument.value">{"score":${__Random(70,100)},"comments":"Judge load test ${__time(YMDHMS)}"}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
@@ -276,7 +279,7 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{"categoryId":"${category_id}","contestantId":"${contestant_id}","comment":"Live commentary ${__time(YMDHMS)}"}</stringProp>
+                  <stringProp name="Argument.value">{"scoreId":"${score_id}","criterionId":"${criterion_id}","contestantId":"${contestant_id}","comment":"Live commentary ${__time(YMDHMS)}"}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
@@ -309,7 +312,7 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{"score":${__Random(70,100)},"comment":"Updated under load ${__time(YMDHMS)}"}</stringProp>
+                  <stringProp name="Argument.value">{"score":${__Random(70,100)},"comments":"Updated under load ${__time(YMDHMS)}"}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
@@ -368,7 +371,7 @@
           <boolProp name="ignoreFirstLine">true</boolProp>
           <boolProp name="recycle">true</boolProp>
           <stringProp name="shareMode">shareMode.all</stringProp>
-          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
+          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id,criterion_id</stringProp>
         </CSVDataSet>
         <hashTree/>
                 <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Tally)">
@@ -379,6 +382,8 @@
           </collectionProp>
         </HeaderManager>
         <hashTree/>
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="Tally Session Bootstrap"/>
+        <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Tally)">
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
@@ -422,6 +427,7 @@
             <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor>
           <hashTree/>
+        </hashTree>
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Tally Auth Header">
           <collectionProp name="HeaderManager.headers">
@@ -494,7 +500,7 @@
           <boolProp name="ignoreFirstLine">true</boolProp>
           <boolProp name="recycle">true</boolProp>
           <stringProp name="shareMode">shareMode.all</stringProp>
-          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
+          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id,criterion_id</stringProp>
         </CSVDataSet>
         <hashTree/>
                 <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Auditor)">
@@ -505,6 +511,8 @@
           </collectionProp>
         </HeaderManager>
         <hashTree/>
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="Auditor Session Bootstrap"/>
+        <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Auditor)">
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
@@ -540,6 +548,7 @@
             <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor>
           <hashTree/>
+        </hashTree>
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auditor Auth Header">
           <collectionProp name="HeaderManager.headers">
@@ -608,7 +617,7 @@
           <boolProp name="ignoreFirstLine">true</boolProp>
           <boolProp name="recycle">true</boolProp>
           <stringProp name="shareMode">shareMode.all</stringProp>
-          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id</stringProp>
+          <stringProp name="variableNames">category_id,contestant_id,score_id,judge_id,criterion_id</stringProp>
         </CSVDataSet>
         <hashTree/>
                 <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Common Headers (Board)">
@@ -619,6 +628,8 @@
           </collectionProp>
         </HeaderManager>
         <hashTree/>
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="Board Session Bootstrap"/>
+        <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Board)">
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
@@ -654,6 +665,7 @@
             <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor>
           <hashTree/>
+        </hashTree>
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Board Auth Header">
           <collectionProp name="HeaderManager.headers">
@@ -714,6 +726,8 @@
           </collectionProp>
         </HeaderManager>
         <hashTree/>
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="Admin Session Bootstrap"/>
+        <hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get CSRF Token (Admin)">
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
@@ -749,6 +763,7 @@
             <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor>
           <hashTree/>
+        </hashTree>
         </hashTree>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Admin Auth Header">
           <collectionProp name="HeaderManager.headers">
