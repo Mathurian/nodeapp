@@ -71,7 +71,7 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.932.0",
-    "@azure/storage-blob": "^12.29.1",
+    "@azure/storage-blob": "^12.31.0",
     "@google-cloud/storage": "^7.17.3",
     "@prisma/client": "^5.19.1",
     "@sentry/node": "^10.25.0",
