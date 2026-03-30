@@ -132,7 +132,7 @@
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@types/bcrypt": "^6.0.0",
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
