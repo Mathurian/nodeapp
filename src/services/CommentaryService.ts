@@ -100,30 +100,47 @@ export class CommentaryService extends BaseService {
       throw this.notFoundError('Score', data.scoreId);
     }
 
-    return await withMutationTimeoutTx(
-      async (tx) =>
-        await tx.scoreComment.create({
-          data: {
-            tenantId: score.tenantId,
-            scoreId: data.scoreId,
-            criterionId: data.criterionId,
-            contestantId: data.contestantId,
-            judgeId: data.judgeId,
-            comment: data.comment,
-            isPrivate: data.isPrivate || false
-          },
-          include: {
-            judge: {
-              select: {
-                name: true,
-                email: true
+    try {
+      return await withMutationTimeoutTx(
+        async (tx) =>
+          await tx.scoreComment.create({
+            data: {
+              tenantId: score.tenantId,
+              scoreId: data.scoreId,
+              criterionId: data.criterionId,
+              contestantId: data.contestantId,
+              judgeId: data.judgeId,
+              comment: data.comment,
+              isPrivate: data.isPrivate || false
+            },
+            include: {
+              judge: {
+                select: {
+                  name: true,
+                  email: true
+                }
               }
             }
-          }
-        }),
-      timeoutMs,
-      this.prisma,
-    );
+          }),
+        timeoutMs,
+        this.prisma,
+      );
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === 'P2002') {
+        throw this.conflictError('Commentary already exists for this score, criterion, contestant, and judge');
+      }
+      if (code === 'P2003') {
+        throw this.badRequestError('Commentary references an invalid score, criterion, contestant, or judge');
+      }
+      this.handleError(error, {
+        method: 'create',
+        scoreId: data.scoreId,
+        criterionId: data.criterionId,
+        contestantId: data.contestantId,
+        judgeId: data.judgeId,
+      });
+    }
   }
 
   async getCommentsForScore(scoreId: string, userRole: string): Promise<ScoreCommentWithDetails[]> {

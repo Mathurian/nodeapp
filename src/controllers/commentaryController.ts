@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CommentaryService } from '../services/CommentaryService';
-import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
+import { sendSuccess, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 import {
   getOfflineWriteTimeoutMs,
@@ -23,6 +23,11 @@ export class CommentaryController {
       }
 
       const { scoreId, criterionId, contestantId, comment, isPrivate } = req.body;
+      const judgeId = req.user.judgeId || req.user.judge?.id;
+      if (!judgeId) {
+        sendForbidden(res, 'User must be assigned as a judge to create commentary');
+        return;
+      }
       const timeoutMs = getOfflineWriteTimeoutMs(
         matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
       );
@@ -30,9 +35,9 @@ export class CommentaryController {
         scoreId,
         criterionId,
         contestantId,
-        judgeId: req.user.id,
+        judgeId,
         comment,
-        isPrivate
+        isPrivate,
       }, timeoutMs);
       return sendSuccess(res, scoreComment, 'Comment created', 201);
     } catch (error) {

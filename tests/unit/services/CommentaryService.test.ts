@@ -7,7 +7,7 @@ import 'reflect-metadata';
 import { CommentaryService } from '../../../src/services/CommentaryService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
-import { NotFoundError, ForbiddenError, BadRequestError } from '../../../src/services/BaseService';
+import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../../src/services/BaseService';
 
 describe('CommentaryService', () => {
   let service: CommentaryService;
@@ -15,6 +15,10 @@ describe('CommentaryService', () => {
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
+    mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+      return await callback(mockPrisma as any);
+    });
+    mockPrisma.$executeRawUnsafe.mockResolvedValue(0 as any);
     service = new CommentaryService(mockPrisma as any);
     jest.clearAllMocks();
   });
@@ -150,6 +154,13 @@ describe('CommentaryService', () => {
 
       await expect(service.create(invalidData)).rejects.toThrow(BadRequestError);
       expect(mockPrisma.scoreComment.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictError when commentary already exists for the tuple', async () => {
+      mockPrisma.score.findUnique.mockResolvedValue({ id: 'score1', tenantId: 'tenant1' } as any);
+      mockPrisma.scoreComment.create.mockRejectedValue({ code: 'P2002' } as any);
+
+      await expect(service.create(validCommentData)).rejects.toThrow(ConflictError);
     });
   });
 

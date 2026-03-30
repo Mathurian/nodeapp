@@ -6,7 +6,7 @@ import 'reflect-metadata';
 import { Request, Response, NextFunction } from 'express';
 import { CommentaryController } from '../../../src/controllers/commentaryController';
 import { CommentaryService } from '../../../src/services/CommentaryService';
-import { sendSuccess } from '../../../src/utils/responseHelpers';
+import { sendForbidden, sendSuccess } from '../../../src/utils/responseHelpers';
 import { container } from 'tsyringe';
 
 jest.mock('../../../src/utils/responseHelpers');
@@ -41,7 +41,10 @@ describe('CommentaryController', () => {
     mockReq = {
       params: {},
       body: {},
-      user: { id: 'user-1', role: 'JUDGE' },
+      method: 'POST',
+      originalUrl: '/commentary',
+      path: '/commentary',
+      user: { id: 'user-1', role: 'JUDGE', judgeId: 'judge-1' },
     } as any;
 
     mockRes = {
@@ -66,15 +69,36 @@ describe('CommentaryController', () => {
 
       await controller.createComment(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.create).toHaveBeenCalledWith({
+      expect(mockService.create).toHaveBeenCalledWith(
+        {
+          scoreId: 'score-1',
+          criterionId: 'crit-1',
+          contestantId: 'cont-1',
+          judgeId: 'judge-1',
+          comment: 'Great performance',
+          isPrivate: false
+        },
+        expect.any(Number),
+      );
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockComment, 'Comment created', 201);
+    });
+
+    it('should reject commentary creation when the user has no judge assignment', async () => {
+      mockReq.body = {
         scoreId: 'score-1',
         criterionId: 'crit-1',
         contestantId: 'cont-1',
-        judgeId: 'user-1',
         comment: 'Great performance',
-        isPrivate: false
-      });
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockComment, 'Comment created', 201);
+      };
+      mockReq.user = { id: 'admin-1', role: 'ADMIN' } as any;
+
+      await controller.createComment(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockService.create).not.toHaveBeenCalled();
+      expect(sendForbidden).toHaveBeenCalledWith(
+        mockRes,
+        'User must be assigned as a judge to create commentary'
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -162,6 +186,9 @@ describe('CommentaryController', () => {
   describe('updateComment', () => {
     it('should update comment successfully', async () => {
       mockReq.params = { id: 'comment-1' };
+      mockReq.method = 'PUT';
+      mockReq.originalUrl = '/commentary/comment-1';
+      mockReq.path = '/commentary/comment-1';
       mockReq.body = { comment: 'Updated feedback', isPrivate: true };
       const mockUpdated = { id: 'comment-1', comment: 'Updated feedback', isPrivate: true };
       mockService.update.mockResolvedValue(mockUpdated as any);
@@ -172,13 +199,17 @@ describe('CommentaryController', () => {
         'comment-1',
         { comment: 'Updated feedback', isPrivate: true },
         'user-1',
-        'JUDGE'
+        'JUDGE',
+        expect.any(Number),
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockUpdated, 'Comment updated');
     });
 
     it('should pass user ID and role for authorization', async () => {
       mockReq.params = { id: 'comment-1' };
+      mockReq.method = 'PUT';
+      mockReq.originalUrl = '/commentary/comment-1';
+      mockReq.path = '/commentary/comment-1';
       mockReq.body = { comment: 'Update' };
       mockReq.user = { id: 'admin-1', role: 'ADMIN' };
       mockService.update.mockResolvedValue({ id: 'comment-1' } as any);
@@ -189,12 +220,16 @@ describe('CommentaryController', () => {
         'comment-1',
         expect.anything(),
         'admin-1',
-        'ADMIN'
+        'ADMIN',
+        expect.any(Number),
       );
     });
 
     it('should call next with error when service throws', async () => {
       mockReq.params = { id: 'comment-1' };
+      mockReq.method = 'PUT';
+      mockReq.originalUrl = '/commentary/comment-1';
+      mockReq.path = '/commentary/comment-1';
       mockReq.body = { comment: 'Update' };
       const error = new Error('Update failed');
       mockService.update.mockRejectedValue(error);
@@ -208,26 +243,45 @@ describe('CommentaryController', () => {
   describe('deleteComment', () => {
     it('should delete comment successfully', async () => {
       mockReq.params = { id: 'comment-1' };
+      mockReq.method = 'DELETE';
+      mockReq.originalUrl = '/commentary/comment-1';
+      mockReq.path = '/commentary/comment-1';
       mockService.delete.mockResolvedValue(undefined);
 
       await controller.deleteComment(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.delete).toHaveBeenCalledWith('comment-1', 'user-1', 'JUDGE');
+      expect(mockService.delete).toHaveBeenCalledWith(
+        'comment-1',
+        'user-1',
+        'JUDGE',
+        expect.any(Number),
+      );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, null, 'Comment deleted');
     });
 
     it('should pass user ID and role for authorization', async () => {
       mockReq.params = { id: 'comment-1' };
+      mockReq.method = 'DELETE';
+      mockReq.originalUrl = '/commentary/comment-1';
+      mockReq.path = '/commentary/comment-1';
       mockReq.user = { id: 'board-1', role: 'BOARD_MEMBER' };
       mockService.delete.mockResolvedValue(undefined);
 
       await controller.deleteComment(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.delete).toHaveBeenCalledWith('comment-1', 'board-1', 'BOARD_MEMBER');
+      expect(mockService.delete).toHaveBeenCalledWith(
+        'comment-1',
+        'board-1',
+        'BOARD_MEMBER',
+        expect.any(Number),
+      );
     });
 
     it('should call next with error when service throws', async () => {
       mockReq.params = { id: 'comment-1' };
+      mockReq.method = 'DELETE';
+      mockReq.originalUrl = '/commentary/comment-1';
+      mockReq.path = '/commentary/comment-1';
       const error = new Error('Delete failed');
       mockService.delete.mockRejectedValue(error);
 
