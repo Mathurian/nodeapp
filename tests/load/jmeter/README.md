@@ -24,6 +24,8 @@ Update these files before execution:
 - `data/admins.csv`
 - `data/live_ids.csv`
 
+The checked-in CSV rows are placeholders only. They are intentionally non-runnable and must be replaced with real tenant-scoped data before any meaningful load run.
+
 
 ## Why are there multiple CSV files?
 
@@ -70,7 +72,9 @@ category_id,contestant_id,score_id,judge_id,criterion_id
 
 ### Where should this data come from?
 
-Use data from the **same tenant and event** you are load-testing (staging/UAT clone, not production).
+Use data from the **same tenant and event** you are load-testing.
+
+Prefer staging/UAT clone data. If you intentionally run against production, every CSV value and the `tenantSlug` JMX variable must come from that exact prod tenant and active event window.
 
 Good sources:
 
@@ -123,6 +127,8 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 
 Override runtime values by editing **User Defined Variables** inside the JMX (`protocol`, `host`, `port`, `apiPrefix`, `tenantSlug`, thread counts, ramp, duration).
 
+The checked-in JMX now defaults `tenantSlug` to `REQUIRED_TENANT_SLUG`. Set it explicitly before any real run.
+
 Example production-like values:
 
 - `protocol=https`
@@ -147,6 +153,7 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 - Score submission includes `criterionId` from `live_ids.csv` and uses a conservative score of `1` to avoid fixture-dependent max-score noise.
 - Auditor verification uses the current API contract: `verified`, `comments`, and `issues`.
 - Auditor final certification submit uses the current API contract: `confirmation1` and `confirmation2`.
+- Checked-in CSV files are examples of required shape only; they do not represent valid accounts, tenants, or record IDs in any deployed environment.
 
 ## Interpreting failures
 
@@ -156,6 +163,9 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 - `400`:
   - Usually indicates stale or malformed fixture data.
   - Commentary requests now require `score_id`, `criterion_id`, `contestant_id`, and `comment`.
+- `404`:
+  - Usually means the request is pointed at the wrong tenant or placeholder fixture data.
+  - `Tenant not found` specifically means the `X-Tenant-Slug` value does not exist in the target environment.
 - `403`:
   - Usually indicates the authenticated role is not allowed to perform the action on the supplied row.
   - The most common case is judge traffic using a `score_id` or category assignment that belongs to a different judge.

@@ -113,26 +113,60 @@ describe('CategoryCertificationController', () => {
   });
 
   describe('certifyContestant', () => {
-    it('should certify contestant successfully', async () => {
-      mockReq.body = { contestantId: 'cont-1', categoryId: 'cat-1' };
-      const mockCertification = {
-        id: 'cert-1',
-        judgeId: 'judge-1',
-        categoryId: 'cat-1',
-        contestantId: 'cont-1',
-      };
-      mockPrisma.judgeContestantCertification.create.mockResolvedValue(mockCertification as any);
+    it('should certify contestant successfully from route params', async () => {
+      mockReq.params = { contestantId: 'cont-1', categoryId: 'cat-1' };
+      mockPrisma.score.updateMany.mockResolvedValue({ count: 2 } as any);
 
       await controller.certifyContestant(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.judgeContestantCertification.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          judgeId: 'judge-1',
-          categoryId: 'cat-1',
+      expect(mockPrisma.score.updateMany).toHaveBeenCalledWith({
+        where: {
           contestantId: 'cont-1',
+          categoryId: 'cat-1',
+          isCertified: false,
+        },
+        data: expect.objectContaining({
+          isCertified: true,
+          certifiedBy: 'user-1',
         }),
       });
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockCertification, 'Contestant certified successfully', 201);
+      expect(sendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({
+          contestantId: 'cont-1',
+          categoryId: 'cat-1',
+          certifiedCount: 2,
+        }),
+        'Certified 2 scores for contestant in category'
+      );
+    });
+
+    it('should certify contestant successfully', async () => {
+      mockReq.body = { contestantId: 'cont-1', categoryId: 'cat-1' };
+      mockPrisma.score.updateMany.mockResolvedValue({ count: 3 } as any);
+
+      await controller.certifyContestant(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.score.updateMany).toHaveBeenCalledWith({
+        where: {
+          contestantId: 'cont-1',
+          categoryId: 'cat-1',
+          isCertified: false,
+        },
+        data: expect.objectContaining({
+          isCertified: true,
+          certifiedBy: 'user-1',
+        }),
+      });
+      expect(sendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({
+          contestantId: 'cont-1',
+          categoryId: 'cat-1',
+          certifiedCount: 3,
+        }),
+        'Certified 3 scores for contestant in category'
+      );
     });
 
     it('should return 400 when contestantId missing', async () => {
@@ -154,7 +188,7 @@ describe('CategoryCertificationController', () => {
     it('should call next with error when prisma throws', async () => {
       mockReq.body = { contestantId: 'cont-1', categoryId: 'cat-1' };
       const error = new Error('Database error');
-      mockPrisma.judgeContestantCertification.create.mockRejectedValue(error);
+      mockPrisma.score.updateMany.mockRejectedValue(error);
 
       await controller.certifyContestant(mockReq as Request, mockRes as Response, mockNext);
 

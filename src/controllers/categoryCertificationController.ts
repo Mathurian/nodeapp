@@ -62,18 +62,27 @@ export class CategoryCertificationController {
         return sendBadRequest(res, 'contestantId and categoryId are required');
       }
 
-      // Create certification record
-      const certification = await this.prisma.judgeContestantCertification.create({
-        data: {
-          judgeId: req.user?.judgeId || '',
-          categoryId,
+      // Certify all scores for this contestant in this category.
+      // This route is used by tally/auditor roles, so it must not write to
+      // the judge-only contestant certification table.
+      const result = await this.prisma.score.updateMany({
+        where: {
           contestantId,
+          categoryId,
+          isCertified: false
+        },
+        data: {
+          isCertified: true,
           certifiedAt: new Date(),
-          tenantId: req.user.tenantId
+          certifiedBy: req.user?.id || null
         }
       });
 
-      return sendSuccess(res, certification, 'Contestant certified successfully', 201);
+      return sendSuccess(res, {
+        contestantId,
+        categoryId,
+        certifiedCount: result.count
+      }, `Certified ${result.count} scores for contestant in category`);
     } catch (error) {
       return next(error);
     }

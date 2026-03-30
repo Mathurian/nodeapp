@@ -1,2 +1,2 @@
 email,password
-auditor1@example.com,SecurePass123!
+replace-auditor-1@example.invalid,REPLACE_WITH_REAL_PASSWORD
