@@ -5,6 +5,8 @@
 
 import { EventService } from '../../../src/services/EventService';
 import { EventRepository } from '../../../src/repositories/EventRepository';
+import { ContestRepository } from '../../../src/repositories/ContestRepository';
+import { CategoryRepository } from '../../../src/repositories/CategoryRepository';
 import { CacheService } from '../../../src/services/CacheService';
 import { RestrictionService } from '../../../src/services/RestrictionService';
 import { MetricsService } from '../../../src/services/MetricsService';
@@ -13,6 +15,8 @@ import { NotFoundError, ValidationError } from '../../../src/services/BaseServic
 describe('EventService', () => {
   let eventService: EventService;
   let mockEventRepo: jest.Mocked<EventRepository>;
+  let mockContestRepo: jest.Mocked<ContestRepository>;
+  let mockCategoryRepo: jest.Mocked<CategoryRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
   let mockRestrictionService: jest.Mocked<RestrictionService>;
   let mockMetricsService: jest.Mocked<MetricsService>;
@@ -20,6 +24,7 @@ describe('EventService', () => {
   beforeEach(() => {
     mockEventRepo = {
       findById: jest.fn(),
+      findByIdScoped: jest.fn(),
       findAll: jest.fn(),
       findUpcomingEvents: jest.fn(),
       findOngoingEvents: jest.fn(),
@@ -36,6 +41,16 @@ describe('EventService', () => {
       delete: jest.fn(),
       archiveEvent: jest.fn(),
       unarchiveEvent: jest.fn(),
+    } as any;
+
+    mockContestRepo = {
+      softDeleteByEventId: jest.fn(),
+      restoreByEventIdAndDeletedAt: jest.fn(),
+    } as any;
+
+    mockCategoryRepo = {
+      softDeleteByEventId: jest.fn(),
+      restoreByEventIdAndDeletedAt: jest.fn(),
     } as any;
 
     mockCacheService = {
@@ -61,7 +76,14 @@ describe('EventService', () => {
       recordSoftDeleteRestore: jest.fn(),
     } as any;
 
-    eventService = new EventService(mockEventRepo, mockCacheService, mockRestrictionService, mockMetricsService);
+    eventService = new EventService(
+      mockEventRepo,
+      mockContestRepo,
+      mockCategoryRepo,
+      mockCacheService,
+      mockRestrictionService,
+      mockMetricsService
+    );
   });
 
   afterEach(() => {
@@ -159,8 +181,8 @@ describe('EventService', () => {
       const result = await eventService.getEventById('1');
 
       expect(result).toEqual(cachedEvent);
-      expect(mockCacheService.get).toHaveBeenCalledWith('event:1');
-      expect(mockEventRepo.findById).not.toHaveBeenCalled();
+      expect(mockCacheService.get).toHaveBeenCalledWith('event:tenant:1');
+      expect(mockEventRepo.findByIdScoped).not.toHaveBeenCalled();
     });
 
     it('should fetch from database and cache if not cached', async () => {
@@ -171,18 +193,18 @@ describe('EventService', () => {
         endDate: new Date(),
       };
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findById.mockResolvedValue(dbEvent as any);
+      mockEventRepo.findByIdScoped.mockResolvedValue(dbEvent as any);
 
       const result = await eventService.getEventById('1');
 
       expect(result).toEqual(dbEvent);
-      expect(mockEventRepo.findById).toHaveBeenCalledWith('1');
-      expect(mockCacheService.set).toHaveBeenCalledWith('event:1', dbEvent, 3600);
+      expect(mockEventRepo.findByIdScoped).toHaveBeenCalledWith('1', undefined, false);
+      expect(mockCacheService.set).toHaveBeenCalledWith('event:tenant:1', dbEvent, 3600);
     });
 
     it('should throw NotFoundError if event not found', async () => {
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findById.mockResolvedValue(null);
+      mockEventRepo.findByIdScoped.mockResolvedValue(null);
 
       await expect(eventService.getEventById('invalid')).rejects.toThrow(NotFoundError);
     });
@@ -201,7 +223,7 @@ describe('EventService', () => {
       const result = await eventService.getEventWithDetails('1');
 
       expect(result).toEqual(cachedEvent);
-      expect(mockCacheService.get).toHaveBeenCalledWith('event:details:1');
+      expect(mockCacheService.get).toHaveBeenCalledWith('event:details:tenant:1');
     });
 
     it('should fetch from database and cache if not cached', async () => {
@@ -217,7 +239,7 @@ describe('EventService', () => {
       const result = await eventService.getEventWithDetails('1');
 
       expect(result).toEqual(dbEvent);
-      expect(mockCacheService.set).toHaveBeenCalledWith('event:details:1', dbEvent, 1800);
+      expect(mockCacheService.set).toHaveBeenCalledWith('event:details:tenant:1', dbEvent, 1800);
     });
 
     it('should throw NotFoundError if not found', async () => {
@@ -358,7 +380,7 @@ describe('EventService', () => {
       const result = await eventService.updateEvent('1', updateData);
 
       expect(result).toEqual(updatedEvent);
-      expect(mockCacheService.del).toHaveBeenCalledWith('event:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('event:*:1');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('events:list:*');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('events:stats:*');
     });
@@ -406,7 +428,7 @@ describe('EventService', () => {
 
       expect(result).toEqual(archivedEvent);
       expect(mockEventRepo.archiveEvent).toHaveBeenCalledWith('1');
-      expect(mockCacheService.del).toHaveBeenCalledWith('event:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('event:*:1');
     });
   });
 
@@ -419,12 +441,12 @@ describe('EventService', () => {
 
       expect(result).toEqual(unarchivedEvent);
       expect(mockEventRepo.unarchiveEvent).toHaveBeenCalledWith('1');
-      expect(mockCacheService.del).toHaveBeenCalledWith('event:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('event:*:1');
     });
   });
 
   describe('deleteEvent', () => {
-    it('should soft delete event and invalidate cache', async () => {
+    it('should soft delete event, cascade to descendants, and invalidate cache', async () => {
       const existingEvent = {
         id: '1',
         name: 'Event',
@@ -433,18 +455,24 @@ describe('EventService', () => {
         endDate: new Date(),
       };
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findById.mockResolvedValue(existingEvent as any);
+      mockEventRepo.findByIdScoped.mockResolvedValue(existingEvent as any);
       mockEventRepo.update.mockResolvedValue(existingEvent as any);
 
       await eventService.deleteEvent('1');
 
+      const deletedAt = mockEventRepo.update.mock.calls[0]?.[1]?.deletedAt as Date;
       expect(mockEventRepo.update).toHaveBeenCalledWith('1', expect.objectContaining({
-        deletedAt: expect.any(Date),
+        deletedAt,
         deletedBy: null,
       }));
+      expect(mockContestRepo.softDeleteByEventId).toHaveBeenCalledWith('1', deletedAt, null);
+      expect(mockCategoryRepo.softDeleteByEventId).toHaveBeenCalledWith('1', deletedAt, null);
       expect(mockMetricsService.recordSoftDelete).toHaveBeenCalledWith('Event', 'tenant-1');
-      expect(mockCacheService.del).toHaveBeenCalledWith('event:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('event:*:1');
+      expect(mockCacheService.del).toHaveBeenCalledWith('contests:event:1');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('events:list:*');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('contests:*');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
 
     it('should throw error if event not found', async () => {
@@ -452,6 +480,34 @@ describe('EventService', () => {
       mockEventRepo.findById.mockResolvedValue(null);
 
       await expect(eventService.deleteEvent('invalid')).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('restoreEvent', () => {
+    it('should restore event and cascade restore matching descendants', async () => {
+      const deletedAt = new Date('2026-01-01T12:00:00Z');
+      const deletedEvent = {
+        id: '1',
+        name: 'Deleted Event',
+        tenantId: 'tenant-1',
+        deletedAt,
+      };
+      const restoredEvent = {
+        ...deletedEvent,
+        deletedAt: null,
+        deletedBy: null,
+      };
+      mockEventRepo.findByIdScoped.mockResolvedValue(deletedEvent as any);
+      mockEventRepo.update.mockResolvedValue(restoredEvent as any);
+
+      const result = await eventService.restoreEvent('1');
+
+      expect(result).toEqual(restoredEvent);
+      expect(mockContestRepo.restoreByEventIdAndDeletedAt).toHaveBeenCalledWith('1', deletedAt);
+      expect(mockCategoryRepo.restoreByEventIdAndDeletedAt).toHaveBeenCalledWith('1', deletedAt);
+      expect(mockMetricsService.recordSoftDeleteRestore).toHaveBeenCalledWith('Event', 'tenant-1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('contests:*');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
   });
 
@@ -470,7 +526,7 @@ describe('EventService', () => {
       const result = await eventService.getEventStats('1');
 
       expect(result).toEqual(stats);
-      expect(mockCacheService.set).toHaveBeenCalledWith('events:stats:1', stats, 300);
+      expect(mockCacheService.set).toHaveBeenCalledWith('events:stats:tenant:1', stats, 300);
     });
 
     it('should return cached stats', async () => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { api, assignmentsAPI, tenantsAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
@@ -145,6 +146,7 @@ const getAssignmentLevel = (a: { eventId?: string; contestId?: string; categoryI
 const AssignmentsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const location = useLocation()
 
   const [activeTab, setActiveTab] = useState<TabType>('judges')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
@@ -174,6 +176,38 @@ const AssignmentsPage: React.FC = () => {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const policyTenantId = isSuperAdmin ? selectedTenantId : undefined
   const isPolicyContextReady = !isSuperAdmin || !!policyTenantId
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const eventId = params.get('eventId') || ''
+    const contestId = params.get('contestId') || ''
+    const categoryId = params.get('categoryId') || ''
+    const tab = params.get('tab') as TabType | null
+
+    if (tab && ['judges', 'contestants', 'tally-masters', 'auditors'].includes(tab)) {
+      setActiveTab(tab)
+    }
+
+    if (contestId) {
+      setFilterContestId(contestId)
+    }
+    if (categoryId) {
+      setFilterCategoryId(categoryId)
+    }
+    if (eventId) {
+      setPolicyEventId(eventId)
+    }
+
+    if (eventId || contestId || categoryId) {
+      setFormData((prev) => ({
+        ...prev,
+        eventId,
+        contestId,
+        categoryId,
+        assignmentLevel: categoryId ? 'category' : contestId ? 'contest' : 'event',
+      }))
+    }
+  }, [location.search])
 
   const parsePolicyLimit = (value: string): number | null => {
     const normalized = value.trim()

@@ -197,4 +197,60 @@ export class CategoryRepository extends BaseRepository<Category> {
       ],
     }, options);
   }
+
+  async softDeleteByContestId(contestId: string, deletedAt: Date, deletedBy?: string | null): Promise<number> {
+    return this.updateMany(
+      {
+        contestId,
+        deletedAt: null,
+      },
+      {
+        deletedAt,
+        deletedBy: deletedBy || null,
+      }
+    );
+  }
+
+  async restoreByContestIdAndDeletedAt(contestId: string, deletedAt: Date): Promise<number> {
+    return this.updateMany(
+      {
+        contestId,
+        deletedAt,
+      },
+      {
+        deletedAt: null,
+        deletedBy: null,
+      }
+    );
+  }
+
+  async softDeleteByEventId(eventId: string, deletedAt: Date, deletedBy?: string | null): Promise<number> {
+    return this.updateMany(
+      {
+        deletedAt: null,
+        contest: {
+          eventId,
+        },
+      },
+      {
+        deletedAt,
+        deletedBy: deletedBy || null,
+      }
+    );
+  }
+
+  async restoreByEventIdAndDeletedAt(eventId: string, deletedAt: Date): Promise<number> {
+    return this.updateMany(
+      {
+        deletedAt,
+        contest: {
+          eventId,
+        },
+      },
+      {
+        deletedAt: null,
+        deletedBy: null,
+      }
+    );
+  }
 }

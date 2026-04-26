@@ -10,14 +10,29 @@ This folder contains a JMeter test plan to simulate a live event where multiple 
 
 ## Files
 
-- `active-event-concurrency.jmx` — primary JMeter test plan.
+- `workflow-simulation.jmx` — workflow-oriented active-event plan with realistic concurrency defaults.
+- `stress-concurrency.jmx` — stress-oriented plan for saturation, contention, and protection behavior.
+- `active-event-concurrency.jmx` — legacy mixed plan kept for reference while the split is rolled out.
 - `data/*.csv` — role datasets and runtime IDs.
+- `TESTING-STRATEGY.md` — policy for separating workflow simulation from stress testing.
+- `validate-fixtures.js` — preflight validator for the CSV files referenced by a JMX plan.
+
+## Strategy First
+
+Before changing thread counts or interpreting failures, read [TESTING-STRATEGY.md](/srv/event-manager/dev/tests/load/jmeter/TESTING-STRATEGY.md).
+
+The short version:
+
+- workflow simulation and stress testing are separate test types,
+- they require different fixtures and different pass/fail criteria,
+- and `429`/conflict-heavy runs should not be used as the primary signal for workflow correctness.
 
 ## Required CSV data
 
 Update these files before execution:
 
 - `data/judges.csv`
+- `data/judge_create_targets.csv`
 - `data/tally.csv`
 - `data/auditors.csv`
 - `data/board.csv`
@@ -121,8 +136,16 @@ cm2abc124...,cm2con457...,cm2sc790...,cm2jd222...,cm2crit998...
 
 ## Run examples
 
+Run the validator before every meaningful JMeter execution:
+
 ```bash
-jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter/results.jtl
+node tests/load/jmeter/validate-fixtures.js --plan tests/load/jmeter/workflow-simulation.jmx
+```
+
+For stress runs:
+
+```bash
+node tests/load/jmeter/validate-fixtures.js --plan tests/load/jmeter/stress-concurrency.jmx --mode stress
 ```
 
 Override runtime values by editing **User Defined Variables** inside the JMX (`protocol`, `host`, `port`, `apiPrefix`, `tenantSlug`, thread counts, ramp, duration).
@@ -136,10 +159,16 @@ Example production-like values:
 - `port=443`
 - `tenantSlug=okckw`
 
-Then run:
+Then run the workflow plan:
 
 ```bash
-jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter/results.jtl
+jmeter -n -t tests/load/jmeter/workflow-simulation.jmx -l tests/load/jmeter/workflow-results.jtl
+```
+
+Run the stress plan separately:
+
+```bash
+jmeter -n -t tests/load/jmeter/stress-concurrency.jmx -l tests/load/jmeter/stress-results.jtl
 ```
 
 ## Notes
@@ -150,11 +179,13 @@ jmeter -n -t tests/load/jmeter/active-event-concurrency.jmx -l tests/load/jmeter
 - The plan fetches CSRF token from `${apiPrefix}/csrf-token` and sends it as `X-CSRF-Token` on mutating requests.
 - Session bootstrap now runs once per virtual user. Repeating CSRF fetch + login inside the main loop will turn the public/auth rate limiters into the dominant bottleneck and will mostly measure edge protection, not the target business workflow.
 - Write requests include the required `x-idempotency-key` header using JMeter's `${__UUID()}` function.
-- Score submission includes `criterionId` from `live_ids.csv` and uses a conservative score of `1` to avoid fixture-dependent max-score noise.
-- Judge commentary and score-update samplers now use only the score ID returned by that thread's preceding submit response. If submit does not return an ID, those follow-on samplers are skipped rather than falling back to a shared `live_ids.csv` score.
+- `workflow-simulation.jmx` reads judge score-creation targets from `judge_create_targets.csv` so the judge workflow does not collide with pre-existing score rows.
+- `workflow-simulation.jmx` uses `live_ids.csv` only for downstream tally, auditor, and board flows.
+- Judge commentary and score-update samplers use only the score ID returned by that thread's preceding submit response. If submit does not return an ID, those follow-on samplers are skipped rather than falling back to a shared `live_ids.csv` score.
 - Auditor verification uses the current API contract: `verified`, `comments`, and `issues`.
 - Auditor final certification submit uses the current API contract: `confirmation1` and `confirmation2`.
 - Auditor final certification is gated by the status endpoint so JMeter only submits when `readyForFinalCertification=true`.
+- `workflow-simulation.jmx` also gates board submission on `canCertify=true`.
 - Checked-in CSV files are examples of required shape only; they do not represent valid accounts, tenants, or record IDs in any deployed environment.
 
 ## Interpreting failures

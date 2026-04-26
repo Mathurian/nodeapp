@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
-import { categoriesAPI, contestsAPI } from '../services/api'
+import { api, categoriesAPI, contestsAPI } from '../services/api'
 import {
   ListBulletIcon,
   PlusIcon,
@@ -16,14 +16,20 @@ import {
   XMarkIcon,
   CheckIcon,
   TrophyIcon,
+  DocumentDuplicateIcon,
+  BookmarkSquareIcon,
+  ArrowDownTrayIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
+import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
 
 interface Contest {
   id: string
   name: string
   eventId: string
+  tenantId?: string
   event?: {
     id: string
     name: string
@@ -35,6 +41,7 @@ interface Category {
   name: string
   description: string | null
   contestId: string
+  tenantId?: string
   scoreCap: number | null
   timeLimit: number | null
   contestantMin: number | null
@@ -72,6 +79,12 @@ interface CriterionDraft {
   maxScore: string
 }
 
+interface CategoryTemplateOption {
+  id: string
+  name: string
+  description?: string | null
+}
+
 const categoryFormSchema = z.object({
   contestId: z.string().min(1, 'Please select a contest'),
   name: z.string().min(1, 'Category name is required').max(200, 'Name must be less than 200 characters'),
@@ -98,6 +111,7 @@ const toOptionalString = (value: string): string | undefined => {
 const CategoriesPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { contestId, slug } = useParams<{ contestId?: string; slug?: string }>()
 
   const form = useForm<CategoryFormValues>({
@@ -114,6 +128,18 @@ const CategoriesPage: React.FC = () => {
   const [existingCriteria, setExistingCriteria] = useState<CriterionDraft[]>([])
   const [criteriaLoading, setCriteriaLoading] = useState(false)
   const [formSubmitting, setFormSubmitting] = useState(false)
+  const [postCloneNotice, setPostCloneNotice] = useState<string | null>(null)
+  const [cloneSource, setCloneSource] = useState<Category | null>(null)
+  const [cloneTargetContestId, setCloneTargetContestId] = useState('')
+  const [cloneName, setCloneName] = useState('')
+  const [cloneIncludeCriteria, setCloneIncludeCriteria] = useState(true)
+  const [templateSource, setTemplateSource] = useState<Category | null>(null)
+  const [templateName, setTemplateName] = useState('')
+  const [templateDescription, setTemplateDescription] = useState('')
+  const [importMode, setImportMode] = useState<'category' | 'template'>('category')
+  const [importSourceCategoryId, setImportSourceCategoryId] = useState('')
+  const [importTemplateId, setImportTemplateId] = useState('')
+  const [showImportCriteriaModal, setShowImportCriteriaModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; category: Category | null }>({
     isOpen: false,
     category: null,
@@ -133,6 +159,12 @@ const CategoriesPage: React.FC = () => {
     }
   }, [user?.role, canManageCategories])
 
+  const fetchTemplates = async (): Promise<CategoryTemplateOption[]> => {
+    const response = await api.get('/templates')
+    const payload = response.data?.data || response.data
+    return Array.isArray(payload) ? payload : []
+  }
+
   // Fetch contests for dropdowns
   const { data: contests, error: contestsError } = useQuery<Contest[]>(
     'contests',
@@ -146,6 +178,29 @@ const CategoriesPage: React.FC = () => {
       onError: (err) => console.error('Fetch contests failed:', err),
     }
   )
+
+  const currentEditingContest = editingCategory
+    ? contests?.find((contest) => contest.id === editingCategory.contestId)
+    : null
+
+  const cloneTargetContests = useMemo(() => {
+    if (!Array.isArray(contests) || contests.length === 0) {
+      return [] as Contest[]
+    }
+    if (!cloneSource) {
+      return contests
+    }
+
+    const sourceTenantId =
+      cloneSource.tenantId ||
+      contests.find((contest) => contest.id === cloneSource.contestId)?.tenantId
+
+    if (!sourceTenantId) {
+      return contests.filter((contest) => contest.id === cloneSource.contestId)
+    }
+
+    return contests.filter((contest) => contest.tenantId === sourceTenantId)
+  }, [cloneSource, contests])
 
   // Get parent contest for breadcrumb when accessed via /contests/:contestId/categories
   const parentContest = contestId ? contests?.find(c => c.id === contestId) : null
@@ -184,6 +239,14 @@ const CategoriesPage: React.FC = () => {
       refetchInterval: 30000,
       retry: 1,
       onError: (err) => console.error('Fetch categories failed:', err),
+    }
+  )
+
+  const { data: categoryTemplates = [] } = useQuery<CategoryTemplateOption[]>(
+    ['category-templates'],
+    async () => {
+      const response = await fetchTemplates()
+      return response
     }
   )
 
@@ -238,6 +301,47 @@ const CategoriesPage: React.FC = () => {
     }
   )
 
+  const cloneMutation = useMutation(
+    async (payload: { id: string; targetContestId: string; name?: string; includeCriteria: boolean }) => {
+      const response = await categoriesAPI.clone(payload.id, {
+        targetContestId: payload.targetContestId,
+        name: toOptionalString(payload.name || ''),
+        includeCriteria: payload.includeCriteria,
+      })
+      return response.data?.data || response.data
+    }
+  )
+
+  const createTemplateMutation = useMutation(
+    async (payload: { categoryId: string; name: string; description?: string }) => {
+      const response = await categoriesAPI.createTemplateFromCategory(payload.categoryId, {
+        name: payload.name,
+        description: toOptionalString(payload.description || ''),
+      })
+      return response.data?.data || response.data
+    }
+  )
+
+  const importCriteriaMutation = useMutation(
+    async (payload: { categoryId: string; sourceCategoryId?: string; templateId?: string }) => {
+      const response = await categoriesAPI.importCriteria(payload.categoryId, payload)
+      return response.data?.data || response.data
+    }
+  )
+
+  const refreshCriteria = async (categoryId: string) => {
+    const response = await categoriesAPI.getCriteria(categoryId)
+    const unwrapped = response.data?.data || response.data
+    const criteriaList = Array.isArray(unwrapped) ? unwrapped : []
+    const mapped = criteriaList.map((criterion: any) => ({
+      id: criterion.id,
+      name: criterion.name || '',
+      maxScore: criterion.maxScore?.toString() || '',
+    }))
+    setExistingCriteria(mapped)
+    setCriterionDrafts(mapped.length > 0 ? mapped : [{ name: '', maxScore: '' }])
+  }
+
   const resetForm = () => {
     reset({
       contestId: contestId || '',
@@ -253,6 +357,7 @@ const CategoriesPage: React.FC = () => {
     setExistingCriteria([])
     setCriteriaLoading(false)
     setFormSubmitting(false)
+    setPostCloneNotice(null)
     setIsFormOpen(false)
   }
 
@@ -277,16 +382,7 @@ const CategoriesPage: React.FC = () => {
     setCriteriaLoading(true)
 
     try {
-      const response = await categoriesAPI.getCriteria(category.id)
-      const unwrapped = response.data?.data || response.data
-      const criteriaList = Array.isArray(unwrapped) ? unwrapped : []
-      const mapped = criteriaList.map((criterion: any) => ({
-        id: criterion.id,
-        name: criterion.name || '',
-        maxScore: criterion.maxScore?.toString() || '',
-      }))
-      setExistingCriteria(mapped)
-      setCriterionDrafts(mapped.length > 0 ? mapped : [{ name: '', maxScore: '' }])
+      await refreshCriteria(category.id)
     } catch (error) {
       toast.error('Failed to load category criteria')
       setExistingCriteria([])
@@ -298,6 +394,45 @@ const CategoriesPage: React.FC = () => {
 
   const handleDelete = (category: Category) => {
     setConfirmDelete({ isOpen: true, category })
+  }
+
+  const openCloneModal = (category: Category) => {
+    setCloneSource(category)
+    setCloneTargetContestId(category.contestId)
+    setCloneName(`${category.name} (Copy)`)
+    setCloneIncludeCriteria(true)
+  }
+
+  const closeCloneModal = () => {
+    setCloneSource(null)
+    setCloneTargetContestId('')
+    setCloneName('')
+    setCloneIncludeCriteria(true)
+  }
+
+  const openTemplateModal = (category: Category) => {
+    setTemplateSource(category)
+    setTemplateName(`${category.name} Template`)
+    setTemplateDescription(category.description || '')
+  }
+
+  const closeTemplateModal = () => {
+    setTemplateSource(null)
+    setTemplateName('')
+    setTemplateDescription('')
+  }
+
+  const openImportCriteriaModal = () => {
+    setImportMode('category')
+    setImportSourceCategoryId('')
+    setImportTemplateId('')
+    setShowImportCriteriaModal(true)
+  }
+
+  const closeImportCriteriaModal = () => {
+    setShowImportCriteriaModal(false)
+    setImportSourceCategoryId('')
+    setImportTemplateId('')
   }
 
   const executeDelete = () => {
@@ -379,6 +514,85 @@ const CategoriesPage: React.FC = () => {
       toast.error(`Error saving category: ${errorMessage}`)
     } finally {
       setFormSubmitting(false)
+    }
+  }
+
+  const handleCloneCategory = async () => {
+    if (!cloneSource || !cloneTargetContestId) {
+      toast.error('Please select a target contest')
+      return
+    }
+
+    if (!cloneTargetContests.some((contest) => contest.id === cloneTargetContestId)) {
+      toast.error('Select a target contest from the same tenant as the source category')
+      return
+    }
+
+    try {
+      const cloned = await cloneMutation.mutateAsync({
+        id: cloneSource.id,
+        targetContestId: cloneTargetContestId,
+        name: cloneName,
+        includeCriteria: cloneIncludeCriteria,
+      })
+      queryClient.invalidateQueries('categories')
+      queryClient.invalidateQueries('contests')
+      closeCloneModal()
+      setPostCloneNotice('Clone created. Review category details, criteria, and assignments before use.')
+      await handleEdit(cloned as Category)
+      toast.success('Category cloned successfully!')
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to clone category'
+      toast.error(errorMessage)
+    }
+  }
+
+  const handleCreateTemplate = async () => {
+    if (!templateSource || !templateName.trim()) {
+      toast.error('Template name is required')
+      return
+    }
+
+    try {
+      await createTemplateMutation.mutateAsync({
+        categoryId: templateSource.id,
+        name: templateName.trim(),
+        description: templateDescription,
+      })
+      closeTemplateModal()
+      toast.success('Template created from category')
+      queryClient.invalidateQueries('category-templates')
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create template'
+      toast.error(errorMessage)
+    }
+  }
+
+  const handleImportCriteria = async () => {
+    if (!editingCategory) return
+
+    try {
+      if (importMode === 'category' && !importSourceCategoryId) {
+        toast.error('Select a source category')
+        return
+      }
+      if (importMode === 'template' && !importTemplateId) {
+        toast.error('Select a template')
+        return
+      }
+
+      await importCriteriaMutation.mutateAsync({
+        categoryId: editingCategory.id,
+        sourceCategoryId: importMode === 'category' ? importSourceCategoryId : undefined,
+        templateId: importMode === 'template' ? importTemplateId : undefined,
+      })
+
+      await refreshCriteria(editingCategory.id)
+      closeImportCriteriaModal()
+      toast.success('Criteria imported successfully')
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to import criteria'
+      toast.error(errorMessage)
     }
   }
 
@@ -552,6 +766,27 @@ const CategoriesPage: React.FC = () => {
                       Edit
                     </button>
                     <button
+                      onClick={() => openCloneModal(category)}
+                      className="w-full sm:flex-1 px-3 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-600 flex items-center justify-center text-sm"
+                    >
+                      <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
+                      Clone
+                    </button>
+                    <button
+                      onClick={() => openTemplateModal(category)}
+                      className="w-full sm:flex-1 px-3 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-md hover:bg-emerald-700 dark:hover:bg-emerald-600 flex items-center justify-center text-sm"
+                    >
+                      <BookmarkSquareIcon className="h-4 w-4 mr-1" />
+                      Save Template
+                    </button>
+                    <button
+                      onClick={() => navigate(`/assignments?contestId=${category.contestId}&categoryId=${category.id}`)}
+                      className="w-full sm:flex-1 px-3 py-2 bg-slate-700 dark:bg-slate-600 text-white rounded-md hover:bg-slate-800 dark:hover:bg-slate-500 flex items-center justify-center text-sm"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-1" />
+                      Assign
+                    </button>
+                    <button
                       onClick={() => handleDelete(category)}
                       className="w-full sm:flex-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                     >
@@ -593,6 +828,24 @@ const CategoriesPage: React.FC = () => {
                 </div>
 
                 <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
+                {postCloneNotice && editingCategory && (
+                  <div className="rounded-md border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 dark:border-indigo-800 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-indigo-900 dark:text-indigo-100">Cloned Category Ready</p>
+                        <p className="text-sm text-indigo-700 dark:text-indigo-200">{postCloneNotice}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/assignments?contestId=${editingCategory.contestId}&categoryId=${editingCategory.id}`)}
+                        className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 whitespace-nowrap"
+                      >
+                        Open Assignments
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Contest Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -704,13 +957,25 @@ const CategoriesPage: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Criteria
                     </label>
-                    <button
-                      type="button"
-                      onClick={addCriterionRow}
-                      className="px-2 py-1 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600"
-                    >
-                      Add Criterion
-                    </button>
+                    <div className="flex gap-2">
+                      {editingCategory && (
+                        <button
+                          type="button"
+                          onClick={openImportCriteriaModal}
+                          className="px-2 py-1 text-sm bg-emerald-600 dark:bg-emerald-500 text-white rounded-md hover:bg-emerald-700 dark:hover:bg-emerald-600"
+                        >
+                          <ArrowDownTrayIcon className="h-4 w-4 inline mr-1" />
+                          Import
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={addCriterionRow}
+                        className="px-2 py-1 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600"
+                      >
+                        Add Criterion
+                      </button>
+                    </div>
                   </div>
                   {criteriaLoading ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400">Loading criteria...</p>
@@ -747,6 +1012,16 @@ const CategoriesPage: React.FC = () => {
                   )}
                 </div>
 
+                {editingCategory && (
+                  <ScopedRoleAssignmentsPanel
+                    eventId={currentEditingContest?.eventId}
+                    contestId={editingCategory.contestId}
+                    categoryId={editingCategory.id}
+                    title="Scoped Role Assignments"
+                    compact
+                  />
+                )}
+
                   {/* Form Actions */}
                 <div className="cgr-form-actions">
                     <button
@@ -775,6 +1050,204 @@ const CategoriesPage: React.FC = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {cloneSource && (
+          <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
+            <div className="flex min-h-full items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-lg p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Clone Category</h3>
+                  <button onClick={closeCloneModal} className="text-gray-500 hover:text-gray-700">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Create a new editable copy of <span className="font-medium">{cloneSource.name}</span>. Source assignments, scores, and certifications will not be copied.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Contest</label>
+                  <select
+                    value={cloneTargetContestId}
+                    onChange={(e) => setCloneTargetContestId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select contest...</option>
+                    {cloneTargetContests.map((contest) => (
+                      <option key={contest.id} value={contest.id}>
+                        {contest.name}
+                      </option>
+                    ))}
+                  </select>
+                  {cloneSource && cloneTargetContests.length > 0 && cloneTargetContests.length !== (contests?.length || 0) && (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Only contests from the same tenant as the source category are available.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
+                  <input
+                    type="text"
+                    value={cloneName}
+                    onChange={(e) => setCloneName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={cloneIncludeCriteria}
+                    onChange={(e) => setCloneIncludeCriteria(e.target.checked)}
+                  />
+                  Copy criteria into the clone
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloneCategory}
+                    disabled={cloneMutation.isLoading}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-70"
+                  >
+                    {cloneMutation.isLoading ? 'Cloning...' : 'Create Clone'}
+                  </button>
+                  <button type="button" onClick={closeCloneModal} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {templateSource && (
+          <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
+            <div className="flex min-h-full items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-lg p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Save Category as Template</h3>
+                  <button onClick={closeTemplateModal} className="text-gray-500 hover:text-gray-700">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Save <span className="font-medium">{templateSource.name}</span> and its criteria as a reusable template.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template Name</label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                  <textarea
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCreateTemplate}
+                    disabled={createTemplateMutation.isLoading}
+                    className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-70"
+                  >
+                    {createTemplateMutation.isLoading ? 'Saving...' : 'Save Template'}
+                  </button>
+                  <button type="button" onClick={closeTemplateModal} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showImportCriteriaModal && editingCategory && (
+          <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
+            <div className="flex min-h-full items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-lg p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Import Criteria</h3>
+                  <button onClick={closeImportCriteriaModal} className="text-gray-500 hover:text-gray-700">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('category')}
+                    className={`flex-1 px-3 py-2 rounded-md ${importMode === 'category' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                  >
+                    From Category
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode('template')}
+                    className={`flex-1 px-3 py-2 rounded-md ${importMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                  >
+                    From Template
+                  </button>
+                </div>
+
+                {importMode === 'category' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source Category</label>
+                    <select
+                      value={importSourceCategoryId}
+                      onChange={(e) => setImportSourceCategoryId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select category...</option>
+                      {categories
+                        .filter((category) => category.id !== editingCategory.id)
+                        .map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template</label>
+                    <select
+                      value={importTemplateId}
+                      onChange={(e) => setImportTemplateId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select template...</option>
+                      {categoryTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleImportCriteria}
+                    disabled={importCriteriaMutation.isLoading}
+                    className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-70"
+                  >
+                    {importCriteriaMutation.isLoading ? 'Importing...' : 'Append Criteria'}
+                  </button>
+                  <button type="button" onClick={closeImportCriteriaModal} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md">
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>

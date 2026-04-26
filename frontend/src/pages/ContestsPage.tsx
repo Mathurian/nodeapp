@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient, UseQueryResult } from 'react-query'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -20,14 +20,18 @@ import {
   CalendarIcon,
   ListBulletIcon,
   ExclamationTriangleIcon,
+  DocumentDuplicateIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
+import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
 
 interface Event {
   id: string
   name: string
+  tenantId?: string
 }
 
 interface Contest {
@@ -35,6 +39,7 @@ interface Contest {
   name: string
   description: string | null
   eventId: string
+  tenantId?: string
   archived: boolean
   isLocked: boolean
   scoringType: 'STRAIGHT' | 'OLYMPIC' | null
@@ -76,6 +81,11 @@ interface OlympicScoringValidation {
   canMigrateToStraight: boolean
 }
 
+interface ClonedContestSummary extends Contest {
+  copiedCategoriesCount?: number
+  copiedCriteriaCount?: number
+}
+
 const ContestsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -102,6 +112,12 @@ const ContestsPage: React.FC = () => {
     contest: null,
   })
   const [minimumWinningScoreInput, setMinimumWinningScoreInput] = useState<string>('')
+  const [cloneSource, setCloneSource] = useState<Contest | null>(null)
+  const [cloneTargetEventId, setCloneTargetEventId] = useState('')
+  const [cloneName, setCloneName] = useState('')
+  const [cloneIncludeCategories, setCloneIncludeCategories] = useState(true)
+  const [cloneIncludeCriteria, setCloneIncludeCriteria] = useState(true)
+  const [postCloneContest, setPostCloneContest] = useState<ClonedContestSummary | null>(null)
 
   // Check permissions
   const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
@@ -307,6 +323,18 @@ const ContestsPage: React.FC = () => {
     }
   )
 
+  const cloneMutation = useMutation(
+    async (payload: { id: string; targetEventId: string; name?: string; includeCategories: boolean; includeCriteria: boolean }) => {
+      const response = await contestsAPI.clone(payload.id, {
+        targetEventId: payload.targetEventId,
+        name: payload.name?.trim() || undefined,
+        includeCategories: payload.includeCategories,
+        includeCriteria: payload.includeCriteria,
+      })
+      return response.data?.data || response.data
+    }
+  )
+
   const resetForm = () => {
     reset({ eventId: '', name: '', description: '', scoringType: '' })
     setEditingContest(null)
@@ -336,6 +364,22 @@ const ContestsPage: React.FC = () => {
 
   const handleDelete = (contest: Contest) => {
     setConfirmDelete({ isOpen: true, contest })
+  }
+
+  const openCloneModal = (contest: Contest) => {
+    setCloneSource(contest)
+    setCloneTargetEventId(contest.eventId)
+    setCloneName(`${contest.name} (Copy)`)
+    setCloneIncludeCategories(true)
+    setCloneIncludeCriteria(true)
+  }
+
+  const closeCloneModal = () => {
+    setCloneSource(null)
+    setCloneTargetEventId('')
+    setCloneName('')
+    setCloneIncludeCategories(true)
+    setCloneIncludeCriteria(true)
   }
 
   const handleArchive = (contest: Contest) => {
@@ -384,6 +428,36 @@ const ContestsPage: React.FC = () => {
     })
   }
 
+  const handleCloneContest = async () => {
+    if (!cloneSource || !cloneTargetEventId) {
+      toast.error('Please select a target event')
+      return
+    }
+
+    if (!cloneTargetEvents.some((event) => event.id === cloneTargetEventId)) {
+      toast.error('Select a target event from the same tenant as the source contest')
+      return
+    }
+
+    try {
+      const cloned = await cloneMutation.mutateAsync({
+        id: cloneSource.id,
+        targetEventId: cloneTargetEventId,
+        name: cloneName,
+        includeCategories: cloneIncludeCategories,
+        includeCriteria: cloneIncludeCriteria,
+      })
+      queryClient.invalidateQueries('contests')
+      queryClient.invalidateQueries('categories')
+      closeCloneModal()
+      setPostCloneContest(cloned as ClonedContestSummary)
+      toast.success('Contest cloned successfully!')
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to clone contest'
+      toast.error(errorMessage)
+    }
+  }
+
   // Filter contests
   const filteredContests = Array.isArray(contests) ? contests.filter((contest) => {
     const matchesSearch = contest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -396,6 +470,25 @@ const ContestsPage: React.FC = () => {
 
     return matchesSearch && matchesArchived && matchesEvent
   }) : []
+
+  const cloneTargetEvents = useMemo(() => {
+    if (!Array.isArray(events) || events.length === 0) {
+      return [] as Event[]
+    }
+    if (!cloneSource) {
+      return events
+    }
+
+    const sourceTenantId =
+      cloneSource.tenantId ||
+      events.find((event) => event.id === cloneSource.eventId)?.tenantId
+
+    if (!sourceTenantId) {
+      return events.filter((event) => event.id === cloneSource.eventId)
+    }
+
+    return events.filter((event) => event.tenantId === sourceTenantId)
+  }, [cloneSource, events])
 
   // Handle error states
   if (eventsError) {
@@ -592,6 +685,13 @@ const ContestsPage: React.FC = () => {
                           >
                             <PencilIcon className="h-4 w-4 mr-1" />
                             Edit
+                          </button>
+                          <button
+                            onClick={() => openCloneModal(contest)}
+                            className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-600 flex items-center justify-center text-sm"
+                          >
+                            <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
+                            Clone
                           </button>
                           <button
                             onClick={() => handleArchive(contest)}
@@ -824,6 +924,157 @@ const ContestsPage: React.FC = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {cloneSource && (
+          <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
+            <div className="flex min-h-full items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Clone Contest</h3>
+                  <button onClick={closeCloneModal} className="text-gray-500 hover:text-gray-700">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Create a new editable copy of <span className="font-medium">{cloneSource.name}</span>. Assignments, scores, certifications, and publication state are not copied.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Event</label>
+                  <select
+                    value={cloneTargetEventId}
+                    onChange={(e) => setCloneTargetEventId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select an event...</option>
+                    {cloneTargetEvents.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.name}
+                      </option>
+                    ))}
+                  </select>
+                  {cloneSource && cloneTargetEvents.length > 0 && cloneTargetEvents.length !== (events?.length || 0) && (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Only events from the same tenant as the source contest are available.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
+                  <input
+                    type="text"
+                    value={cloneName}
+                    onChange={(e) => setCloneName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={cloneIncludeCategories}
+                      onChange={(e) => setCloneIncludeCategories(e.target.checked)}
+                    />
+                    Copy categories
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={cloneIncludeCriteria}
+                      onChange={(e) => setCloneIncludeCriteria(e.target.checked)}
+                      disabled={!cloneIncludeCategories}
+                    />
+                    Copy criteria
+                  </label>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloneContest}
+                    disabled={cloneMutation.isLoading}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-70"
+                  >
+                    {cloneMutation.isLoading ? 'Cloning...' : 'Create Clone'}
+                  </button>
+                  <button type="button" onClick={closeCloneModal} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {postCloneContest && (
+          <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
+            <div className="flex min-h-full items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Contest Clone Ready</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Use this flow to review the clone and configure fresh assignments.</p>
+                  </div>
+                  <button onClick={() => setPostCloneContest(null)} className="text-gray-500 hover:text-gray-700">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="p-4 rounded-lg">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Clone Summary</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{postCloneContest.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {postCloneContest.copiedCategoriesCount || 0} categories · {postCloneContest.copiedCriteriaCount || 0} criteria
+                    </p>
+                  </Card>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostCloneContest(null)
+                      handleEdit(postCloneContest)
+                    }}
+                    className="px-4 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-left"
+                  >
+                    <div className="font-semibold">1. Review Contest</div>
+                    <div className="text-sm text-blue-100">Open the cloned contest in edit mode.</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/contests/${postCloneContest.id}/categories`)}
+                    className="px-4 py-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-left"
+                  >
+                    <div className="font-semibold">2. Review Categories</div>
+                    <div className="text-sm text-emerald-100">Adjust copied categories and criteria.</div>
+                  </button>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white">3. Configure Assignments</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Judge, contestant, tally master, and auditor assignments are configured fresh for this contest.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/assignments?eventId=${postCloneContest.eventId}&contestId=${postCloneContest.id}`)}
+                      className="px-3 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                      Open Assignments
+                    </button>
+                  </div>
+                </div>
+
+                <ScopedRoleAssignmentsPanel
+                  eventId={postCloneContest.eventId}
+                  contestId={postCloneContest.id}
+                  title="4. Scoped Role Assignments"
+                />
               </div>
             </div>
           </div>

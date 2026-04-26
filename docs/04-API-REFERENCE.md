@@ -60,6 +60,22 @@ Key endpoints:
 - `/archive`
 - `/assignments`
 
+Structure reuse endpoints:
+
+- `POST /contests/:id/clone`
+- `POST /categories/:id/clone`
+- `POST /categories/:id/criteria/import`
+- `POST /templates/categories/from-category/:id`
+
+Request notes:
+
+- contest clone requires `targetEventId`
+- category clone requires `targetContestId`
+- criteria import accepts exactly one of `sourceCategoryId` or `templateId`
+- clone/import routes are tenant-scoped and do not copy assignments, scores, or certifications
+
+See `docs/15-STRUCTURE-REUSE-GUIDE.md` for the operational workflow.
+
 ### Scoring, Governance, and Certification
 - `/scoring`
 - `/score-governance`

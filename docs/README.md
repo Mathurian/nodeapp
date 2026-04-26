@@ -13,6 +13,8 @@ Welcome to the complete documentation for Event Manager Contest System!
 - **[Getting Started](02-GETTING-STARTED.md)** - Installation and setup
 - **[Architecture Overview](01-ARCHITECTURE.md)** - System design and technology
 - **[API Reference](04-API-REFERENCE.md)** - Complete API documentation
+- **[Contest/Category Copy Plan](CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md)** - Implementation plan for clone/template features
+- **[Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md)** - Admin/operator guide for cloning contests/categories and reusing criteria templates
 
 ## Documentation Files
 
@@ -36,6 +38,8 @@ Welcome to the complete documentation for Event Manager Contest System!
 18. **[Acceptance-Test-Guide-v2.md](testing/Acceptance-Test-Guide-v2.md)** - Human-centric UAT guide
 19. **[Acceptance-Test-Quick-Run.md](testing/Acceptance-Test-Quick-Run.md)** - Human quick smoke checklist
 20. **[E2E-Lifecycle-Track.md](testing/E2E-Lifecycle-Track.md)** - End-to-end lifecycle flow track
+21. **[CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md](CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md)** - Clone/template implementation plan for contests, categories, and criteria
+22. **[15-STRUCTURE-REUSE-GUIDE.md](15-STRUCTURE-REUSE-GUIDE.md)** - Operational usage guide for structure cloning, template reuse, and post-clone assignment setup
 
 ## Documentation Scope
 

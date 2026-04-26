@@ -7,6 +7,7 @@ import { Contest, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
+import { CategoryRepository } from '../repositories/CategoryRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
 import { MetricsService } from './MetricsService';
@@ -101,6 +102,7 @@ export class ContestService extends BaseService {
 
   constructor(
     @inject('ContestRepository') private contestRepo: ContestRepository,
+    @inject('CategoryRepository') private categoryRepo: CategoryRepository,
     @inject('CacheService') private cacheService: CacheService,
     @inject(RestrictionService) private restrictionService: RestrictionService,
     @inject(MetricsService) private metricsService: MetricsService
@@ -127,6 +129,13 @@ export class ContestService extends BaseService {
       await this.cacheService.del(`contests:event:${eventId}`);
     }
     await this.cacheService.invalidatePattern('contests:*');
+  }
+
+  private async invalidateCategoryCaches(contestId?: string): Promise<void> {
+    if (contestId) {
+      await this.cacheService.del(`categories:contest:${contestId}`);
+    }
+    await this.cacheService.invalidatePattern('categories:*');
   }
 
   /**
@@ -383,18 +392,21 @@ export class ContestService extends BaseService {
       }
 
       const contest = await this.getContestById(id);
+      const cascadeDeletedAt = new Date();
 
       // S4-3: Soft delete - update deletedAt and deletedBy fields
       await this.contestRepo.update(id, {
-        deletedAt: new Date(),
+        deletedAt: cascadeDeletedAt,
         deletedBy: deletedBy || null,
       });
+      await this.categoryRepo.softDeleteByContestId(id, cascadeDeletedAt, deletedBy || null);
 
       // S4-4: Record soft delete metrics
       this.metricsService.recordSoftDelete('Contest', contest.tenantId);
 
       // Invalidate caches
       await this.invalidateContestCache(id, contest.eventId);
+      await this.invalidateCategoryCaches(id);
 
       this.logInfo('Contest soft deleted', { contestId: id, deletedBy });
     } catch (error) {
@@ -408,17 +420,28 @@ export class ContestService extends BaseService {
    */
   async restoreContest(id: string): Promise<Contest> {
     try {
+      const contest = await this.contestRepo.findById(id);
+      if (!contest) {
+        throw this.notFoundError('Contest', id);
+      }
+      const cascadeDeletedAt = contest.deletedAt || null;
+
       // S4-3: Restore by clearing deletedAt and deletedBy
       const restoredContest = await this.contestRepo.update(id, {
         deletedAt: null,
         deletedBy: null,
       });
 
+      if (cascadeDeletedAt) {
+        await this.categoryRepo.restoreByContestIdAndDeletedAt(id, cascadeDeletedAt);
+      }
+
       // S4-4: Record soft delete restore metrics
       this.metricsService.recordSoftDeleteRestore('Contest', restoredContest.tenantId);
 
       // Invalidate caches
       await this.invalidateContestCache(id, restoredContest.eventId);
+      await this.invalidateCategoryCaches(id);
 
       this.logInfo('Contest restored', { contestId: id });
       return restoredContest;

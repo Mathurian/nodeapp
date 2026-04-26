@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
-import { getAllContests, getContestById, getContestsByEvent, createContest, updateContest, deleteContest, restoreContest, archiveContest, reactivateContest, getOlympicScoringValidation, getMinimumWinningScore, updateMinimumWinningScore } from '../controllers/contestsController';
+import { getAllContests, getContestById, getContestsByEvent, createContest, updateContest, deleteContest, restoreContest, archiveContest, reactivateContest, getOlympicScoringValidation, getMinimumWinningScore, updateMinimumWinningScore, cloneContest } from '../controllers/contestsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { validate, createContestSchema, updateContestSchema } from '../middleware/validation';
+import { validate, createContestSchema, updateContestSchema, cloneContestSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
@@ -96,6 +96,7 @@ router.get('/:id', getContestById);
  */
 router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createContestSchema), logActivity('CREATE_CONTEST', 'CONTEST'), createContest);
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateContestSchema), logActivity('UPDATE_CONTEST', 'CONTEST'), updateContest);
+router.post('/:id/clone', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(cloneContestSchema), logActivity('CLONE_CONTEST', 'CONTEST'), cloneContest);
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CONTEST', 'CONTEST'), deleteContest);
 // S4-3: Restore soft-deleted contests
 router.post('/:id/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_CONTEST', 'CONTEST'), restoreContest);

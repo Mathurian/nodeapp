@@ -57,6 +57,7 @@ import { UploadService } from '../services/UploadService';
 import { BioService } from '../services/BioService';
 import { RoleAssignmentService } from '../services/RoleAssignmentService';
 import { EventTemplateService } from '../services/EventTemplateService';
+import { StructureCopyService } from '../services/StructureCopyService';
 import { CommentaryService } from '../services/CommentaryService';
 import { ScoreRemovalService } from '../services/ScoreRemovalService';
 import { LogFilesService } from '../services/LogFilesService';
@@ -286,6 +287,7 @@ export function setupContainer(): void {
   container.register(BioService, BioService);
   container.register(RoleAssignmentService, RoleAssignmentService);
   container.register(EventTemplateService, EventTemplateService);
+  container.register(StructureCopyService, StructureCopyService);
   container.register(CommentaryService, CommentaryService);
   container.register(ScoreRemovalService, ScoreRemovalService);
   container.register(LogFilesService, LogFilesService);

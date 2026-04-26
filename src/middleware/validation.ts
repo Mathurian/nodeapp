@@ -342,6 +342,34 @@ export const updateCategorySchema = z.object({
   totalsCertified: z.boolean().optional()
 });
 
+export const cloneContestSchema = z.object({
+  targetEventId: compatIdSchema,
+  name: z.string().trim().min(1).max(200).optional(),
+  includeCategories: z.coerce.boolean().optional().default(true),
+  includeCriteria: z.coerce.boolean().optional().default(true),
+});
+
+export const cloneCategorySchema = z.object({
+  targetContestId: compatIdSchema,
+  name: z.string().trim().min(1).max(200).optional(),
+  includeCriteria: z.coerce.boolean().optional().default(true),
+});
+
+export const importCriteriaSchema = z
+  .object({
+    sourceCategoryId: compatIdSchema.optional(),
+    templateId: compatIdSchema.optional(),
+  })
+  .refine((data) => Number(Boolean(data.sourceCategoryId)) + Number(Boolean(data.templateId)) === 1, {
+    message: 'Exactly one of sourceCategoryId or templateId is required',
+    path: ['sourceCategoryId'],
+  });
+
+export const createTemplateFromCategorySchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(1000).optional(),
+});
+
 /**
  * Notification creation schema
  */

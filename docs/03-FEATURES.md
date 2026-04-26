@@ -200,6 +200,8 @@ Capabilities:
 - Judge assignment
 - Contest-level certifications
 - Contest-specific numbering
+- Clone contest structure into another event
+- Open a post-clone review flow before adding fresh assignments
 
 ### Categories
 
@@ -211,6 +213,8 @@ Capabilities:
 - Time limit for performances
 - Min/max contestants
 - Custom scoring criteria
+- Clone category structure into another contest
+- Import criteria from another category or saved template
 
 ### Scoring Criteria
 
@@ -236,6 +240,13 @@ Capabilities:
 - Quick category setup
 - Standardized scoring
 - Shareable templates
+
+**Current reuse flows**:
+- Save a live category as a template
+- Import template criteria into an existing category
+- Append imported criteria without deleting existing criteria
+
+See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow and guardrails.
 
 ## Contestant Management
 

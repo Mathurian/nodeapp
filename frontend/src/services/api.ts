@@ -158,6 +158,8 @@ export const contestsAPI = {
     }
   },
   update: (id: string, data: any) => api.put(`/contests/${id}`, data),
+  clone: (id: string, data: { targetEventId: string; name?: string; includeCategories?: boolean; includeCriteria?: boolean }) =>
+    api.post(`/contests/${id}/clone`, data),
   archive: (id: string) => api.post(`/contests/${id}/archive`),
   reactivate: (id: string) => api.post(`/contests/${id}/reactivate`),
   delete: (id: string) => api.delete(`/contests/${id}`),
@@ -181,11 +183,17 @@ export const categoriesAPI = {
     }
   },
   update: (id: string, data: any) => api.put(`/categories/${id}`, data),
+  clone: (id: string, data: { targetContestId: string; name?: string; includeCriteria?: boolean }) =>
+    api.post(`/categories/${id}/clone`, data),
   delete: (id: string) => api.delete(`/categories/${id}`),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
+  importCriteria: (categoryId: string, data: { sourceCategoryId?: string; templateId?: string }) =>
+    api.post(`/categories/${categoryId}/criteria/import`, data),
   createCriterion: (categoryId: string, data: { name: string; maxScore: number }) => api.post(`/categories/${categoryId}/criteria`, data),
   updateCriterion: (criterionId: string, data: { name?: string; maxScore?: number }) => api.put(`/categories/criteria/${criterionId}`, data),
   deleteCriterion: (criterionId: string) => api.delete(`/categories/criteria/${criterionId}`),
+  createTemplateFromCategory: (categoryId: string, data: { name: string; description?: string }) =>
+    api.post(`/templates/categories/from-category/${categoryId}`, data),
 }
 
 export const scoringAPI = {
@@ -486,6 +494,15 @@ export const assignmentsAPI = {
     data: { limit: number | null; eventId?: string },
     params?: { tenantId?: string }
   ) => api.put('/assignments/policies/judge-contest-limit', data, { params }),
+}
+
+export const roleAssignmentsAPI = {
+  getAll: (params?: { role?: string; contestId?: string; eventId?: string; categoryId?: string }) =>
+    api.get('/role-assignments', { params }),
+  create: (data: { userId: string; role: string; contestId?: string; eventId?: string; categoryId?: string; notes?: string }) =>
+    api.post('/role-assignments', data),
+  update: (id: string, data: { notes?: string; isActive?: boolean }) => api.put(`/role-assignments/${id}`, data),
+  delete: (id: string) => api.delete(`/role-assignments/${id}`),
 }
 
 export const auditorAPI = {

@@ -27,10 +27,13 @@ Welcome to the Event Manager Contest System comprehensive documentation. This do
 12. **[Workflow Customization](12-WORKFLOW-CUSTOMIZATION.md)** - Customizing certification workflows
 13. **[Administrator Guide](13-ADMIN-GUIDE.md)** - System administration, monitoring, and maintenance
 14. **[Advanced Features](14-ADVANCED-FEATURES.md)** - Feature flags, webhooks, custom fields, and 14 more advanced features
+15. **[Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md)** - How to clone contests/categories, import criteria, save templates, and complete post-clone assignment setup
 
 ### Planning & Operations
 - **[Deployment Guide](operations/DEPLOYMENT-GUIDE.md)** - Full production deployment procedures
 - **[Testing Guide](testing/testing-guide.md)** - Testing infrastructure and coverage targets
+- **[Contest/Category Copy Plan](CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md)** - Implementation plan for clone/template features across contests, categories, and criteria
+- **[Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md)** - Admin/operator workflow guide for structure cloning and template reuse
 
 ### Additional Resources
 - **[CDN Setup](operations/CDN-SETUP.md)** - CDN configuration guide

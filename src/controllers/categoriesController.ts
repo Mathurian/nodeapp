@@ -6,16 +6,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CategoryService } from '../services/CategoryService';
+import { StructureCopyService } from '../services/StructureCopyService';
 import { sendSuccess, sendCreated, sendNoContent, sendError } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { resolveRequestTenantId } from '../utils/tenantContext';
 
 export class CategoriesController {
   private categoryService: CategoryService;
+  private structureCopyService: StructureCopyService;
   private prisma: PrismaClient;
 
   constructor() {
     this.categoryService = container.resolve(CategoryService);
+    this.structureCopyService = container.resolve(StructureCopyService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
@@ -759,6 +762,60 @@ export class CategoriesController {
       return next(error);
     }
   };
+
+  cloneCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Category ID is required', 400);
+      }
+
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
+
+      const { targetContestId, name, includeCriteria } = req.body;
+      const category = await this.structureCopyService.cloneCategory({
+        tenantId,
+        sourceCategoryId: id,
+        targetContestId,
+        name,
+        includeCriteria,
+        actorRole: req.user?.role,
+      });
+
+      return sendCreated(res, category, 'Category cloned successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  importCriteria = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Category ID is required', 400);
+      }
+
+      const tenantId = resolveRequestTenantId(req);
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required', 400);
+      }
+
+      const { sourceCategoryId, templateId } = req.body;
+      const result = await this.structureCopyService.importCriteriaAppend({
+        tenantId,
+        targetCategoryId: id,
+        sourceCategoryId,
+        templateId,
+      });
+
+      return sendCreated(res, result, 'Criteria imported successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Export controller instance and individual methods
@@ -788,3 +845,5 @@ export const bulkDeleteCategories = controller.bulkDeleteCategories;
 export const bulkUpdateCategories = controller.bulkUpdateCategories;
 export const bulkDeleteCriteria = controller.bulkDeleteCriteria;
 export const bulkUpdateCriteria = controller.bulkUpdateCriteria;
+export const cloneCategory = controller.cloneCategory;
+export const importCriteria = controller.importCriteria;

@@ -7,6 +7,8 @@ import { Event, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { EventRepository } from '../repositories/EventRepository';
+import { ContestRepository } from '../repositories/ContestRepository';
+import { CategoryRepository } from '../repositories/CategoryRepository';
 import { CacheService } from './CacheService';
 import { RestrictionService } from './RestrictionService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
@@ -132,6 +134,8 @@ export class EventService extends BaseService {
 
   constructor(
     @inject('EventRepository') private eventRepo: EventRepository,
+    @inject('ContestRepository') private contestRepo: ContestRepository,
+    @inject('CategoryRepository') private categoryRepo: CategoryRepository,
     @inject('CacheService') private cacheService: CacheService,
     @inject(RestrictionService) private restrictionService: RestrictionService,
     @inject(MetricsService) private metricsService: MetricsService
@@ -166,6 +170,14 @@ export class EventService extends BaseService {
     // Invalidate all event list caches
     await this.cacheService.invalidatePattern('events:list:*');
     await this.cacheService.invalidatePattern('events:stats:*');
+  }
+
+  private async invalidateDescendantStructureCaches(eventId?: string): Promise<void> {
+    if (eventId) {
+      await this.cacheService.del(`contests:event:${eventId}`);
+    }
+    await this.cacheService.invalidatePattern('contests:*');
+    await this.cacheService.invalidatePattern('categories:*');
   }
 
   /**
@@ -551,18 +563,22 @@ export class EventService extends BaseService {
 
       // Verify event exists and get tenant for metrics
       const event = await this.getEventById(id, tenantId, isSuperAdmin);
+      const cascadeDeletedAt = new Date();
 
       // S4-3: Soft delete with deletedBy tracking
       await this.eventRepo.update(id, {
-        deletedAt: new Date(),
+        deletedAt: cascadeDeletedAt,
         deletedBy: deletedBy || null,
       });
+      await this.contestRepo.softDeleteByEventId(id, cascadeDeletedAt, deletedBy || null);
+      await this.categoryRepo.softDeleteByEventId(id, cascadeDeletedAt, deletedBy || null);
 
       // S4-4: Record soft delete metrics
       this.metricsService.recordSoftDelete('Event', event.tenantId);
 
       // Invalidate caches
       await this.invalidateEventCache(id);
+      await this.invalidateDescendantStructureCaches(id);
 
       this.logInfo('Event soft deleted', { eventId: id, deletedBy });
     } catch (error) {
@@ -576,20 +592,29 @@ export class EventService extends BaseService {
    */
   async restoreEvent(id: string, tenantId?: string, isSuperAdmin: boolean = false): Promise<Event> {
     try {
-      if (!isSuperAdmin && tenantId) {
-        await this.getEventById(id, tenantId, isSuperAdmin);
+      const event = await this.eventRepo.findByIdScoped(id, tenantId, isSuperAdmin);
+      if (!event) {
+        throw this.notFoundError('Event', id);
       }
+      const cascadeDeletedAt = event.deletedAt || null;
+
       // Update to restore (set deletedAt to null)
       const restoredEvent = await this.eventRepo.update(id, {
         deletedAt: null,
         deletedBy: null,
       });
 
+      if (cascadeDeletedAt) {
+        await this.contestRepo.restoreByEventIdAndDeletedAt(id, cascadeDeletedAt);
+        await this.categoryRepo.restoreByEventIdAndDeletedAt(id, cascadeDeletedAt);
+      }
+
       // S4-4: Record soft delete restore metrics
       this.metricsService.recordSoftDeleteRestore('Event', restoredEvent.tenantId);
 
       // Invalidate caches
       await this.invalidateEventCache(id);
+      await this.invalidateDescendantStructureCaches(id);
 
       this.logInfo('Event restored', { eventId: id });
 

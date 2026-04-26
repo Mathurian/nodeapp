@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
-import { getAllCategories, getCategoryById, getCategoriesByContest, createCategory, updateCategory, deleteCategory, restoreCategory, getCategoryCriteria, createCriterion, updateCriterion, deleteCriterion, updateCategoryWithTimeLimit, bulkDeleteCriteria, bulkUpdateCriteria } from '../controllers/categoriesController';
+import { getAllCategories, getCategoryById, getCategoriesByContest, createCategory, updateCategory, deleteCategory, restoreCategory, getCategoryCriteria, createCriterion, updateCriterion, deleteCriterion, updateCategoryWithTimeLimit, bulkDeleteCriteria, bulkUpdateCriteria, cloneCategory, importCriteria } from '../controllers/categoriesController';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { validate, createCategorySchema, updateCategorySchema } from '../middleware/validation';
+import { validate, createCategorySchema, updateCategorySchema, cloneCategorySchema, importCriteriaSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
@@ -78,6 +78,7 @@ router.post('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZ
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createCategorySchema), logActivity('CREATE_CATEGORY', 'CATEGORY'), createCategory); // Generic POST
 router.get('/:id', getCategoryById);
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateCategorySchema), logActivity('UPDATE_CATEGORY', 'CATEGORY'), updateCategory);
+router.post('/:id/clone', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(cloneCategorySchema), logActivity('CLONE_CATEGORY', 'CATEGORY'), cloneCategory);
 router.put('/:id/time-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CATEGORY_TIME_LIMIT', 'CATEGORY'), updateCategoryWithTimeLimit);
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CATEGORY', 'CATEGORY'), deleteCategory);
 // S4-3: Restore soft-deleted categories
@@ -85,6 +86,7 @@ router.post('/:id/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'B
 
 // Criteria endpoints - read access for all
 router.get('/:categoryId/criteria', getCategoryCriteria);
+router.post('/:id/criteria/import', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(importCriteriaSchema), logActivity('IMPORT_CRITERIA', 'CRITERION'), importCriteria);
 // Bulk operations for criteria
 router.post('/:categoryId/criteria/bulk-delete', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_DELETE_CRITERIA', 'CRITERION'), bulkDeleteCriteria);
 router.post('/:categoryId/criteria/bulk-update', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_UPDATE_CRITERIA', 'CRITERION'), bulkUpdateCriteria);

@@ -323,4 +323,30 @@ export class ContestRepository extends BaseRepository<Contest> {
     const nextNumber = (contest.nextContestantNumber || 1) + 1;
     return this.update(contestId, { nextContestantNumber: nextNumber });
   }
+
+  async softDeleteByEventId(eventId: string, deletedAt: Date, deletedBy?: string | null): Promise<number> {
+    return this.updateMany(
+      {
+        eventId,
+        deletedAt: null,
+      },
+      {
+        deletedAt,
+        deletedBy: deletedBy || null,
+      }
+    );
+  }
+
+  async restoreByEventIdAndDeletedAt(eventId: string, deletedAt: Date): Promise<number> {
+    return this.updateMany(
+      {
+        eventId,
+        deletedAt,
+      },
+      {
+        deletedAt: null,
+        deletedBy: null,
+      }
+    );
+  }
 }

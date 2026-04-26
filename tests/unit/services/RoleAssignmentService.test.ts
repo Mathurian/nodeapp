@@ -23,10 +23,19 @@ describe('RoleAssignmentService', () => {
     it('passes filters through to Prisma', async () => {
       mockPrisma.roleAssignment.findMany.mockResolvedValue([] as any);
 
-      await service.getAll({ role: 'BOARD', contestId: 'contest-1' });
+      await service.getAll({ tenantId: 'tenant-1', role: 'BOARD', contestId: 'contest-1' });
 
       expect(mockPrisma.roleAssignment.findMany).toHaveBeenCalledWith({
-        where: { role: 'BOARD', contestId: 'contest-1' },
+        where: { tenantId: 'tenant-1', role: 'BOARD', contestId: 'contest-1' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
         orderBy: [{ assignedAt: 'desc' }],
       });
     });
@@ -34,6 +43,7 @@ describe('RoleAssignmentService', () => {
 
   describe('create', () => {
     const baseData = {
+      tenantId: 'tenant-1',
       userId: 'user-1',
       role: 'BOARD',
       contestId: 'contest-1',
@@ -41,7 +51,8 @@ describe('RoleAssignmentService', () => {
     };
 
     it('creates a scoped role assignment', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' } as any);
       mockPrisma.roleAssignment.findFirst.mockResolvedValue(null);
       mockPrisma.roleAssignment.create.mockResolvedValue({ id: 'assignment-1' } as any);
 
@@ -49,29 +60,49 @@ describe('RoleAssignmentService', () => {
 
       expect(mockPrisma.roleAssignment.create).toHaveBeenCalledWith({
         data: {
-          tenantId: '',
+          tenantId: 'tenant-1',
           userId: 'user-1',
           role: 'BOARD',
           contestId: 'contest-1',
           eventId: null,
           categoryId: null,
+          notes: null,
           assignedBy: 'admin-1',
         },
       });
     });
 
-    it('rejects missing userId or role', async () => {
+    it('stores notes when provided', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' } as any);
+      mockPrisma.roleAssignment.findFirst.mockResolvedValue(null);
+      mockPrisma.roleAssignment.create.mockResolvedValue({ id: 'assignment-1' } as any);
+
+      await service.create({ ...baseData, notes: '  Assigned during clone review  ' });
+
+      expect(mockPrisma.roleAssignment.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          notes: 'Assigned during clone review',
+        }),
+      });
+    });
+
+    it('rejects missing tenantId, userId, or role', async () => {
+      await expect(service.create({ ...baseData, tenantId: '' })).rejects.toThrow(
+        'tenantId, userId and role are required'
+      );
       await expect(service.create({ ...baseData, userId: '' })).rejects.toThrow(
-        'userId and role are required'
+        'tenantId, userId and role are required'
       );
       await expect(service.create({ ...baseData, role: '' })).rejects.toThrow(
-        'userId and role are required'
+        'tenantId, userId and role are required'
       );
     });
 
     it('rejects missing scope', async () => {
       await expect(
         service.create({
+          tenantId: 'tenant-1',
           userId: 'user-1',
           role: 'BOARD',
           assignedBy: 'admin-1',
@@ -84,30 +115,35 @@ describe('RoleAssignmentService', () => {
     });
 
     it('throws when the user does not exist', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findFirst.mockResolvedValue(null);
 
       await expect(service.create(baseData)).rejects.toThrow(NotFoundError);
     });
 
     it('rejects duplicate active assignments', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' } as any);
       mockPrisma.roleAssignment.findFirst.mockResolvedValue({ id: 'assignment-1' } as any);
 
       await expect(service.create(baseData)).rejects.toThrow('This assignment already exists');
     });
 
     it('supports event and category scoped assignments', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category-1' } as any);
       mockPrisma.roleAssignment.findFirst.mockResolvedValue(null);
       mockPrisma.roleAssignment.create.mockResolvedValue({ id: 'assignment-1' } as any);
 
       await service.create({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         role: 'AUDITOR',
         eventId: 'event-1',
         assignedBy: 'admin-1',
       });
       await service.create({
+        tenantId: 'tenant-1',
         userId: 'user-1',
         role: 'TALLY_MASTER',
         categoryId: 'category-1',
@@ -116,23 +152,25 @@ describe('RoleAssignmentService', () => {
 
       expect(mockPrisma.roleAssignment.create).toHaveBeenNthCalledWith(1, {
         data: {
-          tenantId: '',
+          tenantId: 'tenant-1',
           userId: 'user-1',
           role: 'AUDITOR',
           contestId: null,
           eventId: 'event-1',
           categoryId: null,
+          notes: null,
           assignedBy: 'admin-1',
         },
       });
       expect(mockPrisma.roleAssignment.create).toHaveBeenNthCalledWith(2, {
         data: {
-          tenantId: '',
+          tenantId: 'tenant-1',
           userId: 'user-1',
           role: 'TALLY_MASTER',
           contestId: null,
           eventId: null,
           categoryId: 'category-1',
+          notes: null,
           assignedBy: 'admin-1',
         },
       });
@@ -140,23 +178,23 @@ describe('RoleAssignmentService', () => {
   });
 
   describe('update', () => {
-    it('updates isActive only when provided', async () => {
-      mockPrisma.roleAssignment.findUnique.mockResolvedValue({ id: 'assignment-1' } as any);
+    it('updates notes and isActive within tenant scope', async () => {
+      mockPrisma.roleAssignment.findFirst.mockResolvedValue({ id: 'assignment-1' } as any);
       mockPrisma.roleAssignment.update.mockResolvedValue({ id: 'assignment-1', isActive: false } as any);
 
-      await service.update('assignment-1', { notes: 'ignored', isActive: false });
+      await service.update('assignment-1', { tenantId: 'tenant-1', notes: ' updated ', isActive: false });
 
       expect(mockPrisma.roleAssignment.update).toHaveBeenCalledWith({
         where: { id: 'assignment-1' },
-        data: { isActive: false },
+        data: { notes: 'updated', isActive: false },
       });
     });
 
     it('allows empty updates', async () => {
-      mockPrisma.roleAssignment.findUnique.mockResolvedValue({ id: 'assignment-1' } as any);
+      mockPrisma.roleAssignment.findFirst.mockResolvedValue({ id: 'assignment-1' } as any);
       mockPrisma.roleAssignment.update.mockResolvedValue({ id: 'assignment-1' } as any);
 
-      await service.update('assignment-1', {});
+      await service.update('assignment-1', { tenantId: 'tenant-1' });
 
       expect(mockPrisma.roleAssignment.update).toHaveBeenCalledWith({
         where: { id: 'assignment-1' },
@@ -165,21 +203,21 @@ describe('RoleAssignmentService', () => {
     });
 
     it('throws when updating a missing assignment', async () => {
-      mockPrisma.roleAssignment.findUnique.mockResolvedValue(null);
+      mockPrisma.roleAssignment.findFirst.mockResolvedValue(null);
 
-      await expect(service.update('missing', {})).rejects.toThrow(NotFoundError);
+      await expect(service.update('missing', { tenantId: 'tenant-1' })).rejects.toThrow(NotFoundError);
     });
   });
 
   describe('delete', () => {
     it('deletes an existing assignment', async () => {
-      mockPrisma.roleAssignment.findUnique.mockResolvedValue({ id: 'assignment-1' } as any);
+      mockPrisma.roleAssignment.findFirst.mockResolvedValue({ id: 'assignment-1' } as any);
       mockPrisma.roleAssignment.delete.mockResolvedValue({ id: 'assignment-1' } as any);
 
-      await service.delete('assignment-1');
+      await service.delete('assignment-1', 'tenant-1');
 
-      expect(mockPrisma.roleAssignment.findUnique).toHaveBeenCalledWith({
-        where: { id: 'assignment-1' },
+      expect(mockPrisma.roleAssignment.findFirst).toHaveBeenCalledWith({
+        where: { id: 'assignment-1', tenantId: 'tenant-1' },
       });
       expect(mockPrisma.roleAssignment.delete).toHaveBeenCalledWith({
         where: { id: 'assignment-1' },
@@ -187,9 +225,9 @@ describe('RoleAssignmentService', () => {
     });
 
     it('throws when deleting a missing assignment', async () => {
-      mockPrisma.roleAssignment.findUnique.mockResolvedValue(null);
+      mockPrisma.roleAssignment.findFirst.mockResolvedValue(null);
 
-      await expect(service.delete('missing')).rejects.toThrow(NotFoundError);
+      await expect(service.delete('missing', 'tenant-1')).rejects.toThrow(NotFoundError);
     });
   });
 });

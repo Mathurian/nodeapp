@@ -12,8 +12,12 @@ export class RoleAssignmentController {
 
   getAllRoleAssignments = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.tenantId) {
+        return sendUnauthorized(res);
+      }
       const { role, contestId, eventId, categoryId } = req.query;
       const assignments = await this.roleAssignmentService.getAll({
+        tenantId: req.user.tenantId,
         role: role as string | undefined,
         contestId: contestId as string | undefined,
         eventId: eventId as string | undefined,
@@ -33,6 +37,7 @@ export class RoleAssignmentController {
 
       const { userId, role, contestId, eventId, categoryId, notes } = req.body;
       const assignment = await this.roleAssignmentService.create({
+        tenantId: req.user.tenantId,
         userId,
         role,
         contestId,
@@ -49,9 +54,16 @@ export class RoleAssignmentController {
 
   updateRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.tenantId) {
+        return sendUnauthorized(res);
+      }
       const { id } = req.params;
       const { notes, isActive } = req.body;
-      const assignment = await this.roleAssignmentService.update(id!, { notes, isActive });
+      const assignment = await this.roleAssignmentService.update(id!, {
+        tenantId: req.user.tenantId,
+        notes,
+        isActive,
+      });
       return sendSuccess(res, assignment, 'Role assignment updated');
     } catch (error) {
       return next(error);
@@ -60,8 +72,11 @@ export class RoleAssignmentController {
 
   deleteRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.tenantId) {
+        return sendUnauthorized(res);
+      }
       const { id } = req.params;
-      await this.roleAssignmentService.delete(id!);
+      await this.roleAssignmentService.delete(id!, req.user.tenantId);
       return sendSuccess(res, null, 'Role assignment deleted');
     } catch (error) {
       return next(error);

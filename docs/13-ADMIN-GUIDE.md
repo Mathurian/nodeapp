@@ -214,6 +214,33 @@ These values belong in the managed environment file, not in source control.
 
 ## Common Administrative Tasks
 
+### Reuse contest and category structure
+
+Use the clone/template flows when you need to reuse setup without carrying forward live operational state.
+
+Supported patterns:
+
+- clone a contest into another event
+- clone a category into another contest
+- save a category as a reusable template
+- import criteria from another category or template
+
+Operational rules:
+
+- clones are editable immediately after creation
+- assignments are created fresh after cloning
+- scores, certifications, and audit/governance state are not copied
+- criteria import is append-only
+
+Recommended workflow:
+
+1. create the clone
+2. review the cloned contest or category
+3. open `Assignments` and create fresh operational assignments
+4. add scoped `BOARD`, `TALLY_MASTER`, and `AUDITOR` roles where needed
+
+See `docs/15-STRUCTURE-REUSE-GUIDE.md` for the detailed operator workflow and API summary.
+
 ### Stage and activate a release
 
 ```bash

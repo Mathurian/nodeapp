@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { PrismaClient } from '@prisma/client';
 import { ContestService } from '../services/ContestService';
+import { StructureCopyService } from '../services/StructureCopyService';
 import { sendSuccess, sendCreated, sendNoContent, sendError } from '../utils/responseHelpers';
 import {
   contestUsesOlympicScoring,
@@ -16,10 +17,12 @@ import {
 
 export class ContestsController {
   private contestService: ContestService;
+  private structureCopyService: StructureCopyService;
   private prisma: PrismaClient;
 
   constructor() {
     this.contestService = container.resolve(ContestService);
+    this.structureCopyService = container.resolve(StructureCopyService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
@@ -247,6 +250,35 @@ export class ContestsController {
       });
 
       return sendSuccess(res, contest, 'Contest updated successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  cloneContest = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Contest ID is required', 400);
+      }
+
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendError(res, 'Tenant context is required to clone a contest', 400);
+      }
+
+      const { targetEventId, name, includeCategories, includeCriteria } = req.body;
+      const contest = await this.structureCopyService.cloneContest({
+        tenantId,
+        sourceContestId: id,
+        targetEventId,
+        name,
+        includeCategories,
+        includeCriteria,
+        actorRole: req.user?.role,
+      });
+
+      return sendCreated(res, contest, 'Contest cloned successfully');
     } catch (error) {
       return next(error);
     }
@@ -591,3 +623,4 @@ export const searchContests = controller.searchContests;
 export const getOlympicScoringValidation = controller.getOlympicScoringValidation;
 export const getMinimumWinningScore = controller.getMinimumWinningScore;
 export const updateMinimumWinningScore = controller.updateMinimumWinningScore;
+export const cloneContest = controller.cloneContest;

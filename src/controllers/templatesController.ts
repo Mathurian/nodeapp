@@ -6,13 +6,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { TemplateService } from '../services/TemplateService';
+import { StructureCopyService } from '../services/StructureCopyService';
 import { sendSuccess, sendCreated, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';
 
 export class TemplatesController {
   private templateService: TemplateService;
+  private structureCopyService: StructureCopyService;
 
   constructor() {
     this.templateService = container.resolve(TemplateService);
+    this.structureCopyService = container.resolve(StructureCopyService);
   }
 
   /**
@@ -135,6 +138,27 @@ export class TemplatesController {
       return next(error);
     }
   };
+
+  createTemplateFromCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const id = req.params['id'] as string;
+      const { name, description } = req.body;
+      const template = await this.structureCopyService.createCategoryTemplateFromCategory({
+        tenantId: req.user.tenantId,
+        sourceCategoryId: id,
+        name,
+        description,
+      });
+      sendCreated(res, template, 'Template created from category successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Create instance and export methods
@@ -146,3 +170,4 @@ export const createTemplate = controller.createTemplate;
 export const updateTemplate = controller.updateTemplate;
 export const deleteTemplate = controller.deleteTemplate;
 export const duplicateTemplate = controller.duplicateTemplate;
+export const createTemplateFromCategory = controller.createTemplateFromCategory;

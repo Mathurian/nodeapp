@@ -5,6 +5,7 @@
 
 import { ContestService } from '../../../src/services/ContestService';
 import { ContestRepository } from '../../../src/repositories/ContestRepository';
+import { CategoryRepository } from '../../../src/repositories/CategoryRepository';
 import { CacheService } from '../../../src/services/CacheService';
 import { RestrictionService } from '../../../src/services/RestrictionService';
 import { MetricsService } from '../../../src/services/MetricsService';
@@ -13,6 +14,7 @@ import { NotFoundError, ValidationError } from '../../../src/services/BaseServic
 describe('ContestService', () => {
   let contestService: ContestService;
   let mockContestRepo: jest.Mocked<ContestRepository>;
+  let mockCategoryRepo: jest.Mocked<CategoryRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
   let mockRestrictionService: jest.Mocked<RestrictionService>;
   let mockMetricsService: jest.Mocked<MetricsService>;
@@ -36,6 +38,13 @@ describe('ContestService', () => {
       delete: jest.fn(),
       archiveContest: jest.fn(),
       unarchiveContest: jest.fn(),
+      softDeleteByEventId: jest.fn(),
+      restoreByEventIdAndDeletedAt: jest.fn(),
+    } as any;
+
+    mockCategoryRepo = {
+      softDeleteByContestId: jest.fn(),
+      restoreByContestIdAndDeletedAt: jest.fn(),
     } as any;
 
     mockCacheService = {
@@ -61,7 +70,13 @@ describe('ContestService', () => {
       recordSoftDeleteRestore: jest.fn(),
     } as any;
 
-    contestService = new ContestService(mockContestRepo, mockCacheService, mockRestrictionService, mockMetricsService);
+    contestService = new ContestService(
+      mockContestRepo,
+      mockCategoryRepo,
+      mockCacheService,
+      mockRestrictionService,
+      mockMetricsService
+    );
   });
 
   afterEach(() => {
@@ -288,7 +303,7 @@ describe('ContestService', () => {
   });
 
   describe('deleteContest', () => {
-    it('should soft delete contest and invalidate cache', async () => {
+    it('should soft delete contest, cascade to categories, and invalidate cache', async () => {
       const existingContest = { id: '1', name: 'Contest', eventId: 'event-1', tenantId: 'tenant-1' };
       mockCacheService.get.mockResolvedValue(null);
       mockContestRepo.findById.mockResolvedValue(existingContest as any);
@@ -296,13 +311,17 @@ describe('ContestService', () => {
 
       await contestService.deleteContest('1');
 
+      const deletedAt = mockContestRepo.update.mock.calls[0]?.[1]?.deletedAt as Date;
       expect(mockContestRepo.update).toHaveBeenCalledWith('1', expect.objectContaining({
-        deletedAt: expect.any(Date),
+        deletedAt,
         deletedBy: null,
       }));
+      expect(mockCategoryRepo.softDeleteByContestId).toHaveBeenCalledWith('1', deletedAt, null);
       expect(mockMetricsService.recordSoftDelete).toHaveBeenCalledWith('Contest', 'tenant-1');
       expect(mockCacheService.del).toHaveBeenCalledWith('contest:1');
       expect(mockCacheService.del).toHaveBeenCalledWith('contests:event:event-1');
+      expect(mockCacheService.del).toHaveBeenCalledWith('categories:contest:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
 
     it('should throw error if contest not found', async () => {
@@ -310,6 +329,34 @@ describe('ContestService', () => {
       mockContestRepo.findById.mockResolvedValue(null);
 
       await expect(contestService.deleteContest('invalid')).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('restoreContest', () => {
+    it('should restore contest and cascade restore matching categories', async () => {
+      const deletedAt = new Date('2026-01-01T12:00:00Z');
+      const deletedContest = {
+        id: '1',
+        name: 'Contest',
+        eventId: 'event-1',
+        tenantId: 'tenant-1',
+        deletedAt,
+      };
+      const restoredContest = {
+        ...deletedContest,
+        deletedAt: null,
+        deletedBy: null,
+      };
+      mockContestRepo.findById.mockResolvedValue(deletedContest as any);
+      mockContestRepo.update.mockResolvedValue(restoredContest as any);
+
+      const result = await contestService.restoreContest('1');
+
+      expect(result).toEqual(restoredContest);
+      expect(mockCategoryRepo.restoreByContestIdAndDeletedAt).toHaveBeenCalledWith('1', deletedAt);
+      expect(mockMetricsService.recordSoftDeleteRestore).toHaveBeenCalledWith('Contest', 'tenant-1');
+      expect(mockCacheService.del).toHaveBeenCalledWith('categories:contest:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
   });
 
