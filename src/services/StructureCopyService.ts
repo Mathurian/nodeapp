@@ -36,6 +36,18 @@ interface CreateCategoryTemplateFromCategoryInput {
   description?: string;
 }
 
+interface CreateCategoryFromTemplateInput {
+  tenantId: string;
+  templateId: string;
+  contestId: string;
+  name?: string;
+  description?: string;
+  scoreCap?: number;
+  timeLimit?: number;
+  contestantMin?: number;
+  contestantMax?: number;
+}
+
 @injectable()
 export class StructureCopyService extends BaseService {
   constructor(
@@ -458,6 +470,82 @@ export class StructureCopyService extends BaseService {
       return template;
     } catch (error) {
       return this.handleError(error, { operation: 'createCategoryTemplateFromCategory', input });
+    }
+  }
+
+  async createCategoryFromTemplate(input: CreateCategoryFromTemplateInput) {
+    try {
+      const targetContest = await this.prisma.contest.findFirst({
+        where: {
+          id: input.contestId,
+          tenantId: input.tenantId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+
+      if (!targetContest) {
+        throw this.notFoundError('Contest', input.contestId);
+      }
+
+      const template = await this.prisma.categoryTemplate.findFirst({
+        where: {
+          id: input.templateId,
+          tenantId: input.tenantId,
+        },
+        include: {
+          templateCriteria: {
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          },
+        },
+      });
+
+      if (!template) {
+        throw this.notFoundError('Template', input.templateId);
+      }
+
+      const createdCategory = await this.prisma.$transaction(async (tx) => {
+        const category = await tx.category.create({
+          data: {
+            contestId: targetContest.id,
+            name: input.name?.trim() || template.name,
+            description: input.description?.trim() || template.description || null,
+            scoreCap: input.scoreCap ?? null,
+            timeLimit: input.timeLimit ?? null,
+            contestantMin: input.contestantMin ?? null,
+            contestantMax: input.contestantMax ?? null,
+            tenantId: input.tenantId,
+            totalsCertified: false,
+            boardApproved: false,
+            approvedAt: null,
+            approvedBy: null,
+            deletedAt: null,
+            deletedBy: null,
+          },
+        });
+
+        if (template.templateCriteria.length > 0) {
+          await tx.criterion.createMany({
+            data: template.templateCriteria.map((criterion) => ({
+              categoryId: category.id,
+              name: criterion.name,
+              maxScore: criterion.maxScore,
+              tenantId: input.tenantId,
+            })),
+          });
+        }
+
+        return {
+          ...category,
+          copiedCriteriaCount: template.templateCriteria.length,
+        };
+      });
+
+      await this.invalidateCategoryFamily(createdCategory.id, targetContest.id);
+
+      return createdCategory;
+    } catch (error) {
+      return this.handleError(error, { operation: 'createCategoryFromTemplate', input });
     }
   }
 }

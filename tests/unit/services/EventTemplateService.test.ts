@@ -4,16 +4,19 @@ import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import {
+  CreateContestFromTemplateDto,
   CreateEventFromTemplateDto,
   CreateTemplateDto,
   EventTemplateService,
   UpdateTemplateDto,
 } from '../../../src/services/EventTemplateService';
 import { NotFoundError } from '../../../src/services/BaseService';
+import { CacheService } from '../../../src/services/CacheService';
 
 describe('EventTemplateService', () => {
   let service: EventTemplateService;
   let prismaMock: DeepMockProxy<PrismaClient>;
+  let cacheServiceMock: Pick<CacheService, 'del' | 'invalidatePattern'>;
 
   const TEST_TENANT_ID = 'tenant-1';
   const TEST_USER_ID = 'user-1';
@@ -50,7 +53,11 @@ describe('EventTemplateService', () => {
 
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
-    service = new EventTemplateService(prismaMock as any);
+    cacheServiceMock = {
+      del: jest.fn().mockResolvedValue(undefined),
+      invalidatePattern: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new EventTemplateService(prismaMock as any, cacheServiceMock as CacheService);
   });
 
   afterEach(() => {
@@ -241,33 +248,45 @@ describe('EventTemplateService', () => {
         tenantId: TEST_TENANT_ID,
       };
       prismaMock.eventTemplate.findFirst.mockResolvedValue(buildTemplateRecord() as any);
-      prismaMock.event.create.mockResolvedValue({
-        id: 'event-1',
-        name: input.eventName,
-        description: input.eventDescription,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        createdAt: BASE_TIME,
-      } as any);
-      prismaMock.contest.create.mockResolvedValue({
-        id: 'contest-1',
-        eventId: 'event-1',
-        name: 'Talent',
-        description: 'Talent show',
-        tenantId: TEST_TENANT_ID,
-      } as any);
-      prismaMock.category.create.mockResolvedValue({
-        id: 'category-1',
-        contestId: 'contest-1',
-        name: 'Solo',
-        description: 'Solo division',
-        tenantId: TEST_TENANT_ID,
-      } as any);
-      prismaMock.criterion.createMany.mockResolvedValue({ count: 2 } as any);
+      const tx = {
+        event: {
+          create: jest.fn().mockResolvedValue({
+            id: 'event-1',
+            name: input.eventName,
+            description: input.eventDescription,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            createdAt: BASE_TIME,
+          }),
+        },
+        contest: {
+          create: jest.fn().mockResolvedValue({
+            id: 'contest-1',
+            eventId: 'event-1',
+            name: 'Talent',
+            description: 'Talent show',
+            tenantId: TEST_TENANT_ID,
+            createdAt: BASE_TIME,
+          }),
+        },
+        category: {
+          create: jest.fn().mockResolvedValue({
+            id: 'category-1',
+            contestId: 'contest-1',
+            name: 'Solo',
+            description: 'Solo division',
+            tenantId: TEST_TENANT_ID,
+          }),
+        },
+        criterion: {
+          createMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+      prismaMock.$transaction.mockImplementation(async (callback: any) => callback(tx));
 
       const result = await service.createEventFromTemplate(input);
 
-      expect(prismaMock.event.create).toHaveBeenCalledWith({
+      expect(tx.event.create).toHaveBeenCalledWith({
         data: {
           name: input.eventName,
           description: input.eventDescription,
@@ -276,7 +295,7 @@ describe('EventTemplateService', () => {
           tenantId: TEST_TENANT_ID,
         },
       });
-      expect(prismaMock.contest.create).toHaveBeenCalledWith({
+      expect(tx.contest.create).toHaveBeenCalledWith({
         data: {
           eventId: 'event-1',
           name: 'Talent',
@@ -284,7 +303,7 @@ describe('EventTemplateService', () => {
           tenantId: TEST_TENANT_ID,
         },
       });
-      expect(prismaMock.category.create).toHaveBeenCalledWith({
+      expect(tx.category.create).toHaveBeenCalledWith({
         data: {
           contestId: 'contest-1',
           name: 'Solo',
@@ -296,7 +315,7 @@ describe('EventTemplateService', () => {
           tenantId: TEST_TENANT_ID,
         },
       });
-      expect(prismaMock.criterion.createMany).toHaveBeenCalledWith({
+      expect(tx.criterion.createMany).toHaveBeenCalledWith({
         data: [
           {
             categoryId: 'category-1',
@@ -320,6 +339,8 @@ describe('EventTemplateService', () => {
         endDate: input.endDate,
         createdAt: BASE_TIME,
       });
+      expect(cacheServiceMock.del).toHaveBeenCalledWith('contests:event:event-1');
+      expect(cacheServiceMock.invalidatePattern).toHaveBeenCalledWith('events:*');
     });
 
     it('rejects a missing template id', async () => {
@@ -340,6 +361,65 @@ describe('EventTemplateService', () => {
           tenantId: TEST_TENANT_ID,
         })
       ).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('createContestFromTemplate', () => {
+    it('creates a contest and its category structure from the selected template contest', async () => {
+      const input: CreateContestFromTemplateDto = {
+        templateId: 'template-1',
+        templateContestId: 'contest-template-1',
+        targetEventId: 'event-1',
+        contestName: 'Talent Finals',
+        contestDescription: 'Final round',
+        tenantId: TEST_TENANT_ID,
+      };
+
+      prismaMock.eventTemplate.findFirst.mockResolvedValue(buildTemplateRecord() as any);
+      prismaMock.event.findFirst.mockResolvedValue({ id: 'event-1' } as any);
+      const tx = {
+        contest: {
+          create: jest.fn().mockResolvedValue({
+            id: 'contest-1',
+            eventId: 'event-1',
+            name: 'Talent Finals',
+            description: 'Final round',
+            createdAt: BASE_TIME,
+          }),
+        },
+        category: {
+          create: jest.fn().mockResolvedValue({
+            id: 'category-1',
+          }),
+        },
+        criterion: {
+          createMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+      prismaMock.$transaction.mockImplementation(async (callback: any) => callback(tx));
+
+      const result = await service.createContestFromTemplate(input);
+
+      expect(tx.contest.create).toHaveBeenCalledWith({
+        data: {
+          eventId: 'event-1',
+          name: 'Talent Finals',
+          description: 'Final round',
+          tenantId: TEST_TENANT_ID,
+        },
+      });
+      expect(result).toMatchObject({
+        id: 'contest-1',
+        eventId: 'event-1',
+        name: 'Talent Finals',
+        description: 'Final round',
+        copiedCategoriesCount: 1,
+        copiedCriteriaCount: 2,
+      });
+      expect(cacheServiceMock.del).toHaveBeenCalledWith('contests:event:event-1');
+      expect(cacheServiceMock.del).toHaveBeenCalledWith('contest:contest-1');
+      expect(cacheServiceMock.invalidatePattern).toHaveBeenCalledWith('contests:*');
+      expect(cacheServiceMock.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
   });
 });

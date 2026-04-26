@@ -309,4 +309,81 @@ describe('StructureCopyService', () => {
       });
     });
   });
+
+  describe('createCategoryFromTemplate', () => {
+    it('creates a category and copies template criteria into it', async () => {
+      mockPrisma.contest.findFirst.mockResolvedValue({
+        id: 'contest-target',
+      } as any);
+      mockPrisma.categoryTemplate.findFirst.mockResolvedValue({
+        id: 'template-1',
+        name: 'Interview Template',
+        description: 'Structured interview',
+        templateCriteria: [
+          { id: 'criterion-1', name: 'Clarity', maxScore: 10 },
+          { id: 'criterion-2', name: 'Poise', maxScore: 15 },
+        ],
+      } as any);
+
+      const tx = {
+        category: {
+          create: jest.fn().mockResolvedValue({
+            id: 'category-created',
+            contestId: 'contest-target',
+            name: 'Interview Template',
+            description: 'Structured interview',
+          }),
+        },
+        criterion: {
+          createMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
+
+      const result = await service.createCategoryFromTemplate({
+        tenantId: 'tenant-1',
+        templateId: 'template-1',
+        contestId: 'contest-target',
+      });
+
+      expect(tx.category.create).toHaveBeenCalledWith({
+        data: {
+          contestId: 'contest-target',
+          name: 'Interview Template',
+          description: 'Structured interview',
+          scoreCap: null,
+          timeLimit: null,
+          contestantMin: null,
+          contestantMax: null,
+          tenantId: 'tenant-1',
+          totalsCertified: false,
+          boardApproved: false,
+          approvedAt: null,
+          approvedBy: null,
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+      expect(tx.criterion.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            categoryId: 'category-created',
+            name: 'Clarity',
+            maxScore: 10,
+            tenantId: 'tenant-1',
+          },
+          {
+            categoryId: 'category-created',
+            name: 'Poise',
+            maxScore: 15,
+            tenantId: 'tenant-1',
+          },
+        ],
+      });
+      expect(result).toMatchObject({
+        id: 'category-created',
+        copiedCriteriaCount: 2,
+      });
+    });
+  });
 });

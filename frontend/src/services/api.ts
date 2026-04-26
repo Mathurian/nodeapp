@@ -160,6 +160,8 @@ export const contestsAPI = {
   update: (id: string, data: any) => api.put(`/contests/${id}`, data),
   clone: (id: string, data: { targetEventId: string; name?: string; includeCategories?: boolean; includeCriteria?: boolean }) =>
     api.post(`/contests/${id}/clone`, data),
+  createFromTemplate: (templateId: string, data: { templateContestId: string; targetEventId: string; contestName?: string; contestDescription?: string }) =>
+    api.post(`/event-templates/${templateId}/create-contest`, data),
   archive: (id: string) => api.post(`/contests/${id}/archive`),
   reactivate: (id: string) => api.post(`/contests/${id}/reactivate`),
   delete: (id: string) => api.delete(`/contests/${id}`),
@@ -185,6 +187,15 @@ export const categoriesAPI = {
   update: (id: string, data: any) => api.put(`/categories/${id}`, data),
   clone: (id: string, data: { targetContestId: string; name?: string; includeCriteria?: boolean }) =>
     api.post(`/categories/${id}/clone`, data),
+  createFromTemplate: (templateId: string, data: {
+    contestId: string;
+    name?: string;
+    description?: string;
+    scoreCap?: number;
+    timeLimit?: number;
+    contestantMin?: number;
+    contestantMax?: number;
+  }) => api.post(`/templates/${templateId}/create-category`, data),
   delete: (id: string) => api.delete(`/categories/${id}`),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
   importCriteria: (categoryId: string, data: { sourceCategoryId?: string; templateId?: string }) =>

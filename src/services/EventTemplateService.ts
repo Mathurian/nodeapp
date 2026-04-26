@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, Prisma, EventTemplate, Event, Contest, Category } from '@prisma/client';
+import { CacheService } from './CacheService';
+import { PrismaClient, Prisma, EventTemplate, Event } from '@prisma/client';
 
 // Prisma payload types - Export all for external use
 export type EventTemplateWithCreator = Prisma.EventTemplateGetPayload<{
@@ -71,6 +72,15 @@ export interface CreateEventFromTemplateDto {
   tenantId: string;
 }
 
+export interface CreateContestFromTemplateDto {
+  templateId: string;
+  templateContestId: string;
+  targetEventId: string;
+  contestName?: string;
+  contestDescription?: string;
+  tenantId: string;
+}
+
 // Response interfaces
 export interface TemplateResponse {
   id: string;
@@ -104,10 +114,107 @@ export interface EventCreationResponse {
   createdAt: Date;
 }
 
+export interface ContestCreationFromTemplateResponse {
+  id: string;
+  eventId: string;
+  name: string;
+  description: string | null;
+  createdAt: Date;
+  copiedCategoriesCount: number;
+  copiedCriteriaCount: number;
+}
+
 @injectable()
 export class EventTemplateService extends BaseService {
-  constructor(@inject('PrismaClient') private prisma: PrismaClient) {
+  constructor(
+    @inject('PrismaClient') private prisma: PrismaClient,
+    @inject('CacheService') private cacheService: CacheService
+  ) {
     super();
+  }
+
+  private parseTemplatePayload(template: EventTemplate): { contests: ContestTemplate[]; categories: CategoryTemplate[] } {
+    return {
+      contests: JSON.parse(template.contests as string) as ContestTemplate[],
+      categories: JSON.parse(template.categories as string) as CategoryTemplate[],
+    };
+  }
+
+  private async invalidateTemplateDeploymentCaches(eventId?: string, contestId?: string): Promise<void> {
+    if (eventId) {
+      await this.cacheService.del(`contests:event:${eventId}`);
+    }
+    if (contestId) {
+      await this.cacheService.del(`contest:${contestId}`);
+      await this.cacheService.del(`contest:details:${contestId}`);
+      await this.cacheService.del(`categories:contest:${contestId}`);
+    }
+    await this.cacheService.invalidatePattern('events:*');
+    await this.cacheService.invalidatePattern('contests:*');
+    await this.cacheService.invalidatePattern('categories:*');
+  }
+
+  private async createContestStructure(
+    tx: Prisma.TransactionClient,
+    input: {
+      eventId: string;
+      tenantId: string;
+      contestTemplate: ContestTemplate;
+      categories: CategoryTemplate[];
+      contestName?: string;
+      contestDescription?: string;
+    }
+  ): Promise<ContestCreationFromTemplateResponse> {
+    const contest = await tx.contest.create({
+      data: {
+        eventId: input.eventId,
+        name: input.contestName?.trim() || input.contestTemplate.name,
+        description: input.contestDescription?.trim() || input.contestTemplate.description || null,
+        tenantId: input.tenantId,
+      },
+    });
+
+    const contestCategories = input.categories.filter((category) => category.contestId === input.contestTemplate.id);
+    let copiedCategoriesCount = 0;
+    let copiedCriteriaCount = 0;
+
+    for (const categoryTemplate of contestCategories) {
+      const createdCategory = await tx.category.create({
+        data: {
+          contestId: contest.id,
+          name: categoryTemplate.name,
+          description: categoryTemplate.description || null,
+          scoreCap: categoryTemplate.scoreCap || null,
+          timeLimit: categoryTemplate.timeLimit || null,
+          contestantMin: categoryTemplate.contestantMin || null,
+          contestantMax: categoryTemplate.contestantMax || null,
+          tenantId: input.tenantId,
+        },
+      });
+      copiedCategoriesCount += 1;
+
+      if (categoryTemplate.criteria && categoryTemplate.criteria.length > 0) {
+        await tx.criterion.createMany({
+          data: categoryTemplate.criteria.map((criterion) => ({
+            categoryId: createdCategory.id,
+            name: criterion.name,
+            maxScore: criterion.maxScore || 10,
+            tenantId: input.tenantId,
+          })),
+        });
+        copiedCriteriaCount += categoryTemplate.criteria.length;
+      }
+    }
+
+    return {
+      id: contest.id,
+      eventId: contest.eventId,
+      name: contest.name,
+      description: contest.description,
+      createdAt: contest.createdAt,
+      copiedCategoriesCount,
+      copiedCriteriaCount,
+    };
   }
 
   async create(data: CreateTemplateDto): Promise<TemplateResponse> {
@@ -259,56 +366,32 @@ export class EventTemplateService extends BaseService {
       throw this.badRequestError('Event name is required');
     }
 
-    const contests: ContestTemplate[] = JSON.parse(template.contests as string) as ContestTemplate[];
-    const categories: CategoryTemplate[] = JSON.parse(template.categories as string) as CategoryTemplate[];
+    const { contests, categories } = this.parseTemplatePayload(template);
 
-    const event: Event = await this.prisma.event.create({
-      data: {
-        name: eventName,
-        description: data.eventDescription || null,
-        startDate,
-        endDate,
-        tenantId: data.tenantId
-      }
-    });
-
-    for (const contestTemplate of contests) {
-      const contest: Contest = await this.prisma.contest.create({
+    const event: Event = await this.prisma.$transaction(async (tx) => {
+      const createdEvent = await tx.event.create({
         data: {
-          eventId: event.id,
-          name: contestTemplate.name,
-          description: contestTemplate.description || null,
+          name: eventName,
+          description: data.eventDescription || null,
+          startDate,
+          endDate,
           tenantId: data.tenantId
         }
       });
 
-      const contestCategories: CategoryTemplate[] = categories.filter((cat: CategoryTemplate) => cat.contestId === contestTemplate.id);
-      for (const categoryTemplate of contestCategories) {
-        const createdCategory: Category = await this.prisma.category.create({
-          data: {
-            contestId: contest.id,
-            name: categoryTemplate.name,
-            description: categoryTemplate.description || null,
-            scoreCap: categoryTemplate.scoreCap || null,
-            timeLimit: categoryTemplate.timeLimit || null,
-            contestantMin: categoryTemplate.contestantMin || null,
-            contestantMax: categoryTemplate.contestantMax || null,
-            tenantId: data.tenantId
-          }
+      for (const contestTemplate of contests) {
+        await this.createContestStructure(tx, {
+          eventId: createdEvent.id,
+          tenantId: data.tenantId,
+          contestTemplate,
+          categories,
         });
-
-        if (categoryTemplate.criteria && categoryTemplate.criteria.length > 0) {
-          await this.prisma.criterion.createMany({
-            data: categoryTemplate.criteria.map((c: CriterionTemplate) => ({
-              categoryId: createdCategory.id,
-              name: c.name,
-              maxScore: c.maxScore || 10,
-              tenantId: data.tenantId
-            }))
-          });
-        }
       }
-    }
+
+      return createdEvent;
+    });
+
+    await this.invalidateTemplateDeploymentCaches(event.id);
 
     return {
       id: event.id,
@@ -318,5 +401,60 @@ export class EventTemplateService extends BaseService {
       endDate: event.endDate,
       createdAt: event.createdAt
     };
+  }
+
+  async createContestFromTemplate(data: CreateContestFromTemplateDto): Promise<ContestCreationFromTemplateResponse> {
+    if (!data.templateId) {
+      throw this.badRequestError('Template ID is required');
+    }
+    if (!data.templateContestId) {
+      throw this.badRequestError('Template contest ID is required');
+    }
+    if (!data.targetEventId) {
+      throw this.badRequestError('Target event ID is required');
+    }
+
+    const template = await this.prisma.eventTemplate.findFirst({
+      where: { id: data.templateId, tenantId: data.tenantId }
+    });
+
+    if (!template) {
+      throw this.notFoundError('Template', data.templateId);
+    }
+
+    const targetEvent = await this.prisma.event.findFirst({
+      where: {
+        id: data.targetEventId,
+        tenantId: data.tenantId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (!targetEvent) {
+      throw this.notFoundError('Event', data.targetEventId);
+    }
+
+    const { contests, categories } = this.parseTemplatePayload(template);
+    const contestTemplate = contests.find((contest) => contest.id === data.templateContestId);
+
+    if (!contestTemplate) {
+      throw this.notFoundError('Template contest', data.templateContestId);
+    }
+
+    const createdContest = await this.prisma.$transaction((tx) =>
+      this.createContestStructure(tx, {
+        eventId: targetEvent.id,
+        tenantId: data.tenantId,
+        contestTemplate,
+        categories,
+        contestName: data.contestName,
+        contestDescription: data.contestDescription,
+      })
+    );
+
+    await this.invalidateTemplateDeploymentCaches(targetEvent.id, createdContest.id);
+
+    return createdContest;
   }
 }

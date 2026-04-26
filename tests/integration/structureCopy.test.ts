@@ -19,6 +19,8 @@ describe('Structure Copy API Integration Tests', () => {
   let targetContest: any;
   let sourceCategory: any;
   let targetCategory: any;
+  let directCategoryTemplate: any;
+  let directEventTemplate: any;
 
   beforeAll(async () => {
     const tenant = await ensureTestTenant();
@@ -28,6 +30,9 @@ describe('Structure Copy API Integration Tests', () => {
       where: { tenantId, template: { name: { contains: 'copy-test-' } } },
     });
     await prisma.categoryTemplate.deleteMany({
+      where: { tenantId, name: { contains: 'copy-test-' } },
+    });
+    await prisma.eventTemplate.deleteMany({
       where: { tenantId, name: { contains: 'copy-test-' } },
     });
     await prisma.criterion.deleteMany({
@@ -172,6 +177,62 @@ describe('Structure Copy API Integration Tests', () => {
         tenantId,
       },
     });
+
+    directCategoryTemplate = await prisma.categoryTemplate.create({
+      data: {
+        name: `copy-test-direct-template-${Date.now()}`,
+        description: 'Direct template deployment',
+        tenantId,
+      },
+    });
+
+    await prisma.templateCriterion.createMany({
+      data: [
+        {
+          templateId: directCategoryTemplate.id,
+          name: 'Presentation',
+          maxScore: 25,
+          tenantId,
+        },
+        {
+          templateId: directCategoryTemplate.id,
+          name: 'Technique',
+          maxScore: 25,
+          tenantId,
+        },
+      ],
+    });
+
+    directEventTemplate = await prisma.eventTemplate.create({
+      data: {
+        name: `copy-test-event-template-${Date.now()}`,
+        description: 'Deployable event template',
+        contests: JSON.stringify([
+          {
+            id: 'contest-template-1',
+            name: 'copy-test-template-contest',
+            description: 'Contest from event template',
+          },
+        ]),
+        categories: JSON.stringify([
+          {
+            contestId: 'contest-template-1',
+            name: 'copy-test-template-category',
+            description: 'Category from event template',
+            scoreCap: 50,
+            timeLimit: 5,
+            contestantMin: 1,
+            contestantMax: 5,
+            criteria: [
+              { name: 'Presence', maxScore: 20 },
+              { name: 'Execution', maxScore: 30 },
+            ],
+          },
+        ]),
+        createdBy: adminUser.id,
+        tenantId,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -179,6 +240,9 @@ describe('Structure Copy API Integration Tests', () => {
       where: { tenantId, template: { name: { contains: 'copy-test-' } } },
     });
     await prisma.categoryTemplate.deleteMany({
+      where: { tenantId, name: { contains: 'copy-test-' } },
+    });
+    await prisma.eventTemplate.deleteMany({
       where: { tenantId, name: { contains: 'copy-test-' } },
     });
     await prisma.criterion.deleteMany({
@@ -309,5 +373,60 @@ describe('Structure Copy API Integration Tests', () => {
       where: { categoryId: sourceCategory.id, tenantId },
     });
     expect(sourceCriteria).toHaveLength(2);
+  });
+
+  it('creates a category directly from a saved category template', async () => {
+    const response = await request(app)
+      .post(`/api/templates/${directCategoryTemplate.id}/create-category`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        contestId: targetContest.id,
+        name: 'copy-test-category-from-template',
+        description: 'Created directly from template',
+        scoreCap: 75,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data?.copiedCriteriaCount).toBe(2);
+
+    const createdCategoryId = response.body.data?.id || response.body.id;
+    const createdCategory = await prisma.category.findUnique({
+      where: { id: createdCategoryId },
+      include: { criteria: true },
+    });
+
+    expect(createdCategory?.contestId).toBe(targetContest.id);
+    expect(createdCategory?.scoreCap).toBe(75);
+    expect(createdCategory?.criteria).toHaveLength(2);
+  });
+
+  it('creates a contest directly from an event template contest', async () => {
+    const response = await request(app)
+      .post(`/api/event-templates/${directEventTemplate.id}/create-contest`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        templateContestId: 'contest-template-1',
+        targetEventId: targetEvent.id,
+        contestName: 'copy-test-contest-from-template',
+        contestDescription: 'Created directly from event template',
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data?.copiedCategoriesCount).toBe(1);
+    expect(response.body.data?.copiedCriteriaCount).toBe(2);
+
+    const createdContestId = response.body.data?.id || response.body.id;
+    const createdContest = await prisma.contest.findUnique({
+      where: { id: createdContestId },
+      include: {
+        categories: {
+          include: { criteria: true },
+        },
+      },
+    });
+
+    expect(createdContest?.eventId).toBe(targetEvent.id);
+    expect(createdContest?.categories).toHaveLength(1);
+    expect(createdContest?.categories[0]?.criteria).toHaveLength(2);
   });
 });

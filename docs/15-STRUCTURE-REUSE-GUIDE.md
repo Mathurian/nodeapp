@@ -6,6 +6,8 @@ This guide covers:
 
 - cloning contests
 - cloning categories
+- creating contests directly from event templates
+- creating categories directly from saved category templates
 - importing criteria into an existing category
 - saving a category as a reusable template
 - completing fresh assignment setup after cloning
@@ -129,8 +131,8 @@ It does not contain:
 Use a template when:
 
 - you want a reusable rubric library
-- you only need criteria
-- the destination category already exists
+- you want to create a new category from a saved rubric
+- you only need criteria or a rubric-first category setup
 
 Use a clone when:
 
@@ -174,6 +176,40 @@ Use a clone when:
 4. Select the source.
 5. Import.
 6. Review and edit the resulting criteria as needed.
+
+### Create a contest from an event template
+
+1. Open `Contests`.
+2. Select `Create Contest`.
+3. Switch to `From Template`.
+4. Select the source event template.
+5. Select the contest template within that event template.
+6. Choose the target event and optionally adjust the generated name/description.
+7. Create the contest.
+8. In the post-create review flow:
+   - review the created contest
+   - review created categories and criteria
+   - complete fresh assignments
+
+Notes:
+
+- categories and criteria linked to the selected template contest are deployed automatically
+- assignments, scores, certifications, and publication state are not copied
+
+### Create a category from a saved category template
+
+1. Open `Categories`.
+2. Select `Create Category`.
+3. Switch to `From Template`.
+4. Select the saved category template.
+5. Choose the target contest and adjust the name/description or limits if needed.
+6. Create the category.
+7. Review the created category in edit mode and make any rubric changes needed.
+
+Notes:
+
+- saved category templates currently provide the template description and criteria
+- `scoreCap`, `timeLimit`, `contestantMin`, and `contestantMax` are set from the creation form, not from the saved template
 
 ### Save a category as a template
 
@@ -241,12 +277,16 @@ Primary endpoints:
 - `POST /api/v1/contests/:id/clone`
 - `POST /api/v1/categories/:id/clone`
 - `POST /api/v1/categories/:id/criteria/import`
+- `POST /api/v1/event-templates/:id/create-contest`
+- `POST /api/v1/templates/:id/create-category`
 - `POST /api/v1/templates/categories/from-category/:id`
 
 Request highlights:
 
 - contest clone requires `targetEventId`
 - category clone requires `targetContestId`
+- event-template contest deployment requires `templateContestId` and `targetEventId`
+- category-template deployment requires `contestId`
 - criteria import requires exactly one of:
   - `sourceCategoryId`
   - `templateId`

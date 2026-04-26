@@ -5,10 +5,12 @@ import {
   getTemplate,
   updateTemplate,
   deleteTemplate,
-  createEventFromTemplate
+  createEventFromTemplate,
+  createContestFromTemplate
 } from '../controllers/eventTemplateController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
+import { validate, createContestFromTemplateSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
 
@@ -47,6 +49,7 @@ router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), lo
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), updateTemplate)
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), deleteTemplate)
 router.post('/:id/create-event', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createEventFromTemplate)
+router.post('/:id/create-contest', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createContestFromTemplateSchema), logActivity('CREATE_CONTEST_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createContestFromTemplate)
 
 export default router;
 

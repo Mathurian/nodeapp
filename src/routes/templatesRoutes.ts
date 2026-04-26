@@ -1,8 +1,8 @@
 import express, { Router } from 'express';
-import { getAllTemplates, createTemplate, getTemplateById, updateTemplate, deleteTemplate, duplicateTemplate, createTemplateFromCategory } from '../controllers/templatesController';
+import { getAllTemplates, createTemplate, getTemplateById, updateTemplate, deleteTemplate, duplicateTemplate, createTemplateFromCategory, createCategoryFromTemplate } from '../controllers/templatesController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import { validate, createTemplateFromCategorySchema } from '../middleware/validation';
+import { validate, createTemplateFromCategorySchema, createCategoryFromTemplateSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
 
@@ -41,6 +41,7 @@ router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_TEMPLATE', 'TEMPLATE'), updateTemplate)
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_TEMPLATE', 'TEMPLATE'), deleteTemplate)
 router.post('/:id/duplicate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DUPLICATE_TEMPLATE', 'TEMPLATE'), duplicateTemplate)
+router.post('/:id/create-category', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createCategoryFromTemplateSchema), logActivity('CREATE_CATEGORY_FROM_TEMPLATE', 'TEMPLATE'), createCategoryFromTemplate)
 router.post('/categories/from-category/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createTemplateFromCategorySchema), logActivity('CREATE_TEMPLATE_FROM_CATEGORY', 'TEMPLATE'), createTemplateFromCategory)
 
 export default router;

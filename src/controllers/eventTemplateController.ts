@@ -119,6 +119,29 @@ export class EventTemplateController {
       return next(error);
     }
   };
+
+  createContestFromTemplate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const templateId = req.params['id'] || req.body.templateId;
+      const { templateContestId, targetEventId, contestName, contestDescription } = req.body;
+      const contest = await this.eventTemplateService.createContestFromTemplate({
+        templateId,
+        templateContestId,
+        targetEventId,
+        contestName,
+        contestDescription,
+        tenantId: req.user.tenantId
+      });
+      return sendSuccess(res, contest, 'Contest created from template', 201);
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 const controller = new EventTemplateController();
@@ -128,3 +151,4 @@ export const getTemplate = controller.getTemplate;
 export const updateTemplate = controller.updateTemplate;
 export const deleteTemplate = controller.deleteTemplate;
 export const createEventFromTemplate = controller.createEventFromTemplate;
+export const createContestFromTemplate = controller.createContestFromTemplate;

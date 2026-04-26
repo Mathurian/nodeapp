@@ -222,6 +222,8 @@ Supported patterns:
 
 - clone a contest into another event
 - clone a category into another contest
+- create a contest directly from an event template
+- create a category directly from a saved category template
 - save a category as a reusable template
 - import criteria from another category or template
 

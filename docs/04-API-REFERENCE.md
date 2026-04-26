@@ -65,12 +65,16 @@ Structure reuse endpoints:
 - `POST /contests/:id/clone`
 - `POST /categories/:id/clone`
 - `POST /categories/:id/criteria/import`
+- `POST /event-templates/:id/create-contest`
+- `POST /templates/:id/create-category`
 - `POST /templates/categories/from-category/:id`
 
 Request notes:
 
 - contest clone requires `targetEventId`
 - category clone requires `targetContestId`
+- event-template contest deployment requires `templateContestId` and `targetEventId`
+- category-template deployment requires `contestId`
 - criteria import accepts exactly one of `sourceCategoryId` or `templateId`
 - clone/import routes are tenant-scoped and do not copy assignments, scores, or certifications
 

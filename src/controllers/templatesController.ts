@@ -159,6 +159,32 @@ export class TemplatesController {
       return next(error);
     }
   };
+
+  createCategoryFromTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const id = req.params['id'] as string;
+      const { contestId, name, description, scoreCap, timeLimit, contestantMin, contestantMax } = req.body;
+      const category = await this.structureCopyService.createCategoryFromTemplate({
+        tenantId: req.user.tenantId,
+        templateId: id,
+        contestId,
+        name,
+        description,
+        scoreCap,
+        timeLimit,
+        contestantMin,
+        contestantMax,
+      });
+      sendCreated(res, category, 'Category created from template successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Create instance and export methods
@@ -171,3 +197,4 @@ export const updateTemplate = controller.updateTemplate;
 export const deleteTemplate = controller.deleteTemplate;
 export const duplicateTemplate = controller.duplicateTemplate;
 export const createTemplateFromCategory = controller.createTemplateFromCategory;
+export const createCategoryFromTemplate = controller.createCategoryFromTemplate;

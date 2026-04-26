@@ -201,6 +201,7 @@ Capabilities:
 - Contest-level certifications
 - Contest-specific numbering
 - Clone contest structure into another event
+- Create a contest directly from an event template
 - Open a post-clone review flow before adding fresh assignments
 
 ### Categories
@@ -214,6 +215,7 @@ Capabilities:
 - Min/max contestants
 - Custom scoring criteria
 - Clone category structure into another contest
+- Create a category directly from a saved category template
 - Import criteria from another category or saved template
 
 ### Scoring Criteria

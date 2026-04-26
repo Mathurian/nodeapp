@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useQuery, useMutation, useQueryClient, UseQueryResult } from 'react-query'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from 'react-query'
+import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
-import { contestsAPI, eventsAPI } from '../services/api'
+import { api, contestsAPI, eventsAPI } from '../services/api'
 import {
   TrophyIcon,
   PlusIcon,
@@ -54,6 +54,19 @@ interface Contest {
   }
 }
 
+interface EventTemplateContestOption {
+  id?: string
+  name: string
+  description?: string
+}
+
+interface EventTemplateOption {
+  id: string
+  name: string
+  description?: string
+  contests: EventTemplateContestOption[]
+}
+
 interface ContestFormData {
   name: string
   description: string
@@ -91,7 +104,6 @@ const ContestsPage: React.FC = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { eventId, slug } = useParams<{ eventId?: string; slug?: string }>()
-  const location = useLocation()
 
   const form = useForm<ContestFormValues>({
     resolver: zodResolver(contestFormSchema),
@@ -118,6 +130,9 @@ const ContestsPage: React.FC = () => {
   const [cloneIncludeCategories, setCloneIncludeCategories] = useState(true)
   const [cloneIncludeCriteria, setCloneIncludeCriteria] = useState(true)
   const [postCloneContest, setPostCloneContest] = useState<ClonedContestSummary | null>(null)
+  const [creationMode, setCreationMode] = useState<'blank' | 'template'>('blank')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [selectedTemplateContestId, setSelectedTemplateContestId] = useState('')
 
   // Check permissions
   const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
@@ -138,6 +153,19 @@ const ContestsPage: React.FC = () => {
     retry: 1,
     onError: (err) => console.error('Fetch events failed:', err),
   })
+
+  const { data: eventTemplates = [] } = useQuery<EventTemplateOption[]>(
+    'event-templates',
+    async () => {
+      const response = await api.get('/event-templates')
+      const payload = response.data?.data || response.data
+      return Array.isArray(payload) ? payload : []
+    },
+    {
+      enabled: canManageContests,
+      retry: 1,
+    }
+  )
 
   // Get parent event name for breadcrumb when accessed via /events/:eventId/contests
   const parentEvent = eventId ? events?.find(e => e.id === eventId) : null
@@ -189,7 +217,7 @@ const ContestsPage: React.FC = () => {
   )
 
   // Fetch Olympic scoring validation when editing a contest
-  const { data: olympicValidation, refetch: refetchOlympicValidation } = useQuery<OlympicScoringValidation>(
+  const { data: olympicValidation } = useQuery<OlympicScoringValidation>(
     ['olympic-validation', editingContest?.id],
     async () => {
       if (!editingContest?.id) return null
@@ -231,6 +259,26 @@ const ContestsPage: React.FC = () => {
       onError: (error: any) => {
         const errorMessage = error.response?.data?.message || error.message || 'Failed to create contest'
         toast.error(`Error creating contest: ${errorMessage}`)
+      },
+    }
+  )
+
+  const createFromTemplateMutation = useMutation(
+    async (payload: { templateId: string; templateContestId: string; targetEventId: string; contestName?: string; contestDescription?: string }) => {
+      const response = await contestsAPI.createFromTemplate(payload.templateId, payload)
+      return response.data?.data || response.data
+    },
+    {
+      onSuccess: (createdContest: any) => {
+        queryClient.invalidateQueries('contests')
+        queryClient.invalidateQueries('categories')
+        resetForm()
+        setPostCloneContest(createdContest as ClonedContestSummary)
+        toast.success('Contest created from template successfully!')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create contest from template'
+        toast.error(`Error creating contest from template: ${errorMessage}`)
       },
     }
   )
@@ -339,6 +387,9 @@ const ContestsPage: React.FC = () => {
     reset({ eventId: '', name: '', description: '', scoringType: '' })
     setEditingContest(null)
     setMinimumWinningScoreInput('')
+    setCreationMode('blank')
+    setSelectedTemplateId('')
+    setSelectedTemplateContestId('')
     setIsFormOpen(false)
   }
 
@@ -400,6 +451,22 @@ const ContestsPage: React.FC = () => {
   }
 
   const onSubmit = (data: ContestFormValues) => {
+    if (!editingContest && creationMode === 'template') {
+      if (!selectedTemplateId || !selectedTemplateContestId) {
+        toast.error('Select an event template and contest template')
+        return
+      }
+
+      createFromTemplateMutation.mutate({
+        templateId: selectedTemplateId,
+        templateContestId: selectedTemplateContestId,
+        targetEventId: data.eventId,
+        contestName: data.name,
+        contestDescription: data.description,
+      })
+      return
+    }
+
     const dataToSend: ContestFormData = {
       name: data.name,
       description: data.description,
@@ -489,6 +556,16 @@ const ContestsPage: React.FC = () => {
 
     return events.filter((event) => event.tenantId === sourceTenantId)
   }, [cloneSource, events])
+
+  const selectedEventTemplate = useMemo(
+    () => eventTemplates.find((template) => template.id === selectedTemplateId) || null,
+    [eventTemplates, selectedTemplateId]
+  )
+
+  const selectedTemplateContest = useMemo(
+    () => selectedEventTemplate?.contests.find((contest) => contest.id === selectedTemplateContestId) || null,
+    [selectedEventTemplate, selectedTemplateContestId]
+  )
 
   // Handle error states
   if (eventsError) {
@@ -745,6 +822,95 @@ const ContestsPage: React.FC = () => {
                 </div>
 
                 <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
+                {!editingContest && (
+                  <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCreationMode('blank')}
+                        className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'blank' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                      >
+                        Blank Contest
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreationMode('template')}
+                        className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                      >
+                        From Template
+                      </button>
+                    </div>
+
+                    {creationMode === 'template' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Event Template <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={selectedTemplateId}
+                            onChange={(e) => {
+                              const templateId = e.target.value
+                              const template = eventTemplates.find((item) => item.id === templateId) || null
+                              setSelectedTemplateId(templateId)
+                              setSelectedTemplateContestId('')
+                              if (template?.description && !form.getValues('description')) {
+                                setValue('description', template.description)
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="">Select an event template...</option>
+                            {eventTemplates.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Contest Template <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={selectedTemplateContestId}
+                            onChange={(e) => {
+                              const templateContestId = e.target.value
+                              const templateContest = selectedEventTemplate?.contests.find((contest) => contest.id === templateContestId) || null
+                              setSelectedTemplateContestId(templateContestId)
+                              if (templateContest) {
+                                setValue('name', templateContest.name || '')
+                                setValue('description', templateContest.description || '')
+                              }
+                            }}
+                            disabled={!selectedTemplateId}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                          >
+                            <option value="">Select a contest template...</option>
+                            {(selectedEventTemplate?.contests || []).map((contest) => (
+                              <option key={contest.id || contest.name} value={contest.id}>
+                                {contest.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {selectedTemplateContest && (
+                          <div className="md:col-span-2 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 p-3">
+                            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                              Template categories and criteria will be deployed with the new contest.
+                            </p>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-200">
+                              Review the generated contest after creation to adjust categories and assignments.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Event Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -907,10 +1073,10 @@ const ContestsPage: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={createMutation.isLoading || updateMutation.isLoading}
+                      disabled={createMutation.isLoading || updateMutation.isLoading || createFromTemplateMutation.isLoading}
                       className="w-full sm:flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
                     >
-                      {createMutation.isLoading || updateMutation.isLoading ? (
+                      {createMutation.isLoading || updateMutation.isLoading || createFromTemplateMutation.isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Saving...
@@ -918,7 +1084,7 @@ const ContestsPage: React.FC = () => {
                       ) : (
                         <>
                           <CheckIcon className="h-5 w-5 mr-2" />
-                          {editingContest ? 'Update Contest' : 'Create Contest'}
+                          {editingContest ? 'Update Contest' : creationMode === 'template' ? 'Create Contest from Template' : 'Create Contest'}
                         </>
                       )}
                     </button>

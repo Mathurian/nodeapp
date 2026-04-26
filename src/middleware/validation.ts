@@ -370,6 +370,23 @@ export const createTemplateFromCategorySchema = z.object({
   description: z.string().trim().max(1000).optional(),
 });
 
+export const createCategoryFromTemplateSchema = z.object({
+  contestId: compatIdSchema,
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().max(1000).optional(),
+  scoreCap: z.number().int().positive().optional(),
+  timeLimit: z.number().int().positive().optional(),
+  contestantMin: z.number().int().positive().optional(),
+  contestantMax: z.number().int().positive().optional(),
+});
+
+export const createContestFromTemplateSchema = z.object({
+  templateContestId: compatIdSchema,
+  targetEventId: compatIdSchema,
+  contestName: z.string().trim().min(1).max(200).optional(),
+  contestDescription: z.string().trim().max(1000).optional(),
+});
+
 /**
  * Notification creation schema
  */

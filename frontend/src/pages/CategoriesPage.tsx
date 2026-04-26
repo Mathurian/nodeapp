@@ -83,6 +83,11 @@ interface CategoryTemplateOption {
   id: string
   name: string
   description?: string | null
+  templateCriteria?: Array<{
+    id: string
+    name: string
+    maxScore: number
+  }>
 }
 
 const categoryFormSchema = z.object({
@@ -144,6 +149,8 @@ const CategoriesPage: React.FC = () => {
     isOpen: false,
     category: null,
   })
+  const [creationMode, setCreationMode] = useState<'blank' | 'template'>('blank')
+  const [selectedCategoryTemplateId, setSelectedCategoryTemplateId] = useState('')
 
   // Check permissions
   const canManageCategories = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
@@ -267,6 +274,25 @@ const CategoriesPage: React.FC = () => {
     }
   )
 
+  const createFromTemplateMutation = useMutation(
+    async (data: CategoryFormData) => {
+      if (!selectedCategoryTemplateId) {
+        throw new Error('Template ID is required')
+      }
+      const payload = {
+        contestId: data.contestId,
+        name: toOptionalString(data.name),
+        description: toOptionalString(data.description),
+        scoreCap: toOptionalNumber(data.scoreCap),
+        timeLimit: toOptionalNumber(data.timeLimit),
+        contestantMin: toOptionalNumber(data.contestantMin),
+        contestantMax: toOptionalNumber(data.contestantMax),
+      }
+      const response = await categoriesAPI.createFromTemplate(selectedCategoryTemplateId, payload)
+      return response.data?.data || response.data
+    }
+  )
+
   // Update category mutation
   const updateMutation = useMutation(
     async ({ id, data }: { id: string; data: CategoryFormData }) => {
@@ -358,6 +384,8 @@ const CategoriesPage: React.FC = () => {
     setCriteriaLoading(false)
     setFormSubmitting(false)
     setPostCloneNotice(null)
+    setCreationMode('blank')
+    setSelectedCategoryTemplateId('')
     setIsFormOpen(false)
   }
 
@@ -492,6 +520,20 @@ const CategoriesPage: React.FC = () => {
         }
 
         toast.success('Category updated successfully!')
+        queryClient.invalidateQueries('categories')
+        resetForm()
+      } else if (creationMode === 'template') {
+        if (!selectedCategoryTemplateId) {
+          toast.error('Select a category template')
+          return
+        }
+
+        const created = await createFromTemplateMutation.mutateAsync(data)
+        queryClient.invalidateQueries('categories')
+        resetForm()
+        setPostCloneNotice('Category created from template. Review criteria and assignments before use.')
+        await handleEdit(created as Category)
+        toast.success('Category created from template successfully!')
       } else {
         const created = await createMutation.mutateAsync(data)
         const createdCategoryId = created?.data?.id || created?.id
@@ -505,10 +547,9 @@ const CategoriesPage: React.FC = () => {
         }
 
         toast.success('Category created successfully!')
+        queryClient.invalidateQueries('categories')
+        resetForm()
       }
-
-      queryClient.invalidateQueries('categories')
-      resetForm()
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to save category'
       toast.error(`Error saving category: ${errorMessage}`)
@@ -607,6 +648,11 @@ const CategoriesPage: React.FC = () => {
 
     return matchesSearch && matchesContest
   }) : []
+
+  const selectedCategoryTemplate = useMemo(
+    () => categoryTemplates.find((template) => template.id === selectedCategoryTemplateId) || null,
+    [categoryTemplates, selectedCategoryTemplateId]
+  )
 
   // Error handling
   if (contestsError || categoriesError) {
@@ -828,6 +874,88 @@ const CategoriesPage: React.FC = () => {
                 </div>
 
                 <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
+                {!editingCategory && (
+                  <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCreationMode('blank')}
+                        className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'blank' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                      >
+                        Blank Category
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreationMode('template')}
+                        className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                      >
+                        From Template
+                      </button>
+                    </div>
+
+                    {creationMode === 'template' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Category Template <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={selectedCategoryTemplateId}
+                            onChange={(e) => {
+                              const templateId = e.target.value
+                              const template = categoryTemplates.find((item) => item.id === templateId) || null
+                              setSelectedCategoryTemplateId(templateId)
+                              if (template) {
+                                reset({
+                                  contestId: form.getValues('contestId'),
+                                  name: template.name || '',
+                                  description: template.description || '',
+                                  scoreCap: form.getValues('scoreCap'),
+                                  timeLimit: form.getValues('timeLimit'),
+                                  contestantMin: form.getValues('contestantMin'),
+                                  contestantMax: form.getValues('contestantMax'),
+                                })
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="">Select a category template...</option>
+                            {categoryTemplates.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {selectedCategoryTemplate && (
+                          <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 p-3 space-y-2">
+                            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                              Template criteria preview
+                            </p>
+                            {selectedCategoryTemplate.templateCriteria && selectedCategoryTemplate.templateCriteria.length > 0 ? (
+                              <ul className="space-y-1 text-sm text-emerald-800 dark:text-emerald-200">
+                                {selectedCategoryTemplate.templateCriteria.map((criterion) => (
+                                  <li key={criterion.id}>
+                                    {criterion.name} - {criterion.maxScore}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-emerald-700 dark:text-emerald-200">
+                                This template does not currently contain criteria.
+                              </p>
+                            )}
+                            <p className="text-xs text-emerald-700 dark:text-emerald-200">
+                              The category will be created with these criteria. Review and edit the created category after deployment if needed.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {postCloneNotice && editingCategory && (
                   <div className="rounded-md border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 dark:border-indigo-800 p-4">
                     <div className="flex items-center justify-between gap-4">
@@ -971,6 +1099,7 @@ const CategoriesPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={addCriterionRow}
+                        disabled={!editingCategory && creationMode === 'template'}
                         className="px-2 py-1 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600"
                       >
                         Add Criterion
@@ -979,6 +1108,10 @@ const CategoriesPage: React.FC = () => {
                   </div>
                   {criteriaLoading ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400">Loading criteria...</p>
+                  ) : !editingCategory && creationMode === 'template' ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Criteria will be copied from the selected template when the category is created.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {criterionDrafts.map((criterion, index) => (
@@ -1033,10 +1166,10 @@ const CategoriesPage: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={formSubmitting}
+                      disabled={formSubmitting || createFromTemplateMutation.isLoading}
                       className="w-full sm:flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center"
                     >
-                      {formSubmitting ? (
+                      {formSubmitting || createFromTemplateMutation.isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Saving...
@@ -1044,7 +1177,7 @@ const CategoriesPage: React.FC = () => {
                       ) : (
                         <>
                           <CheckIcon className="h-5 w-5 mr-2" />
-                          {editingCategory ? 'Update Category' : 'Create Category'}
+                          {editingCategory ? 'Update Category' : creationMode === 'template' ? 'Create Category from Template' : 'Create Category'}
                         </>
                       )}
                     </button>
