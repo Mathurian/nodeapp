@@ -10,6 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import CommandPaletteOnboardingWrapper from './components/CommandPaletteOnboardingWrapper'
 import TenantRouter from './components/TenantRouter'
 import { lazyWithRetry } from './utils/lazyWithRetry'
+import { PWA_HARD_REFRESH_NOTICE_KEY } from './utils/pwaRefresh'
 import './index.css'
 
 // Lazy load command palette
@@ -33,17 +34,26 @@ const isStandalonePwaContext = (): boolean => {
 
 function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
-  const [showUpdateRecoveryNotice, setShowUpdateRecoveryNotice] = useState(false)
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null)
   const [isCompactToastViewport, setIsCompactToastViewport] = useState(false)
   const updateRecoveryNoticeKey = 'app:update-recovery-notice'
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const shouldShow = window.sessionStorage.getItem(updateRecoveryNoticeKey) === '1'
-    if (!shouldShow) return
-    setShowUpdateRecoveryNotice(true)
-    window.sessionStorage.removeItem(updateRecoveryNoticeKey)
-    const timer = window.setTimeout(() => setShowUpdateRecoveryNotice(false), 7000)
+    const recoveredFromStaleCache = window.sessionStorage.getItem(updateRecoveryNoticeKey) === '1'
+    const recoveredFromHardRefresh = window.sessionStorage.getItem(PWA_HARD_REFRESH_NOTICE_KEY) === '1'
+
+    if (recoveredFromStaleCache) {
+      setUpdateNotice('App updated. We refreshed automatically to recover from a stale browser cache.')
+      window.sessionStorage.removeItem(updateRecoveryNoticeKey)
+    } else if (recoveredFromHardRefresh) {
+      setUpdateNotice('App refreshed and cache revalidated.')
+      window.sessionStorage.removeItem(PWA_HARD_REFRESH_NOTICE_KEY)
+    } else {
+      return
+    }
+
+    const timer = window.setTimeout(() => setUpdateNotice(null), 7000)
     return () => window.clearTimeout(timer)
   }, [])
 
@@ -124,9 +134,9 @@ function App() {
             <SystemSettingsProvider>
               <AuthProvider>
                 <SocketProvider>
-                  {showUpdateRecoveryNotice && (
+                  {updateNotice && (
                     <div className="pwa-update-recovery-notice">
-                      App updated. We refreshed automatically to recover from a stale browser cache.
+                      {updateNotice}
                     </div>
                   )}
                   <Toaster

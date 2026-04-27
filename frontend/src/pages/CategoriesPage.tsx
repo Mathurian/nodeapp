@@ -24,6 +24,7 @@ import {
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
+import { isInteractiveElement } from '../utils/interactive'
 
 interface Contest {
   id: string
@@ -222,7 +223,7 @@ const CategoriesPage: React.FC = () => {
       if (parentContest.event) {
         items.push({ label: parentContest.event.name, href: `${basePath}/events/${parentContest.eventId}/contests` })
       }
-      items.push({ label: parentContest.name })
+      items.push({ label: parentContest.name, href: `${basePath}/events/${parentContest.eventId}/contests?contestId=${parentContest.id}` })
       items.push({ label: 'Categories' })
     } else if (contestId) {
       items.push({ label: 'Contests', href: `${basePath}/contests` })
@@ -736,7 +737,28 @@ const CategoriesPage: React.FC = () => {
         ) : filteredCategories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCategories.map((category) => (
-              <Card key={category.id} hover className="rounded-lg">
+              <Card
+                key={category.id}
+                hover={canManageCategories}
+                className="rounded-lg"
+                onClick={(event) => {
+                  if (!canManageCategories || isInteractiveElement(event.target, event.currentTarget)) return
+                  handleEdit(category)
+                }}
+                onMouseUp={(event) => {
+                  if (!canManageCategories || isInteractiveElement(event.target, event.currentTarget)) return
+                  handleEdit(category)
+                }}
+                onKeyDown={(event) => {
+                  if (!canManageCategories) return
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  handleEdit(category)
+                }}
+                role={canManageCategories ? 'button' : undefined}
+                tabIndex={canManageCategories ? 0 : undefined}
+                aria-label={canManageCategories ? `Edit category ${category.name}` : undefined}
+              >
                 {/* Category Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -858,7 +880,7 @@ const CategoriesPage: React.FC = () => {
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
           <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
-            <div className="flex min-h-full items-start sm:items-center justify-center">
+            <div className="flex min-h-full w-full items-center justify-center">
               <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl p-4 sm:p-6 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">

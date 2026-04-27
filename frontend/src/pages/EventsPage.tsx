@@ -24,6 +24,7 @@ import DateFilterControls, { DateFilters } from '../components/DateFilterControl
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import { EventCardSkeleton } from '../components/ui/SkeletonPatterns'
 import { safeFormatDate } from '../utils/dateUtils'
+import { isInteractiveElement } from '../utils/interactive'
 
 interface Event {
   id: string
@@ -494,6 +495,22 @@ const EventsPage: React.FC = () => {
                 className={`${
                   event.archived ? 'opacity-60' : ''
                 }`}
+                onClick={(currentEvent) => {
+                  if (isInteractiveElement(currentEvent.target, currentEvent.currentTarget)) return
+                  navigate(`/events/${event.id}/contests`)
+                }}
+                onMouseUp={(currentEvent) => {
+                  if (isInteractiveElement(currentEvent.target, currentEvent.currentTarget)) return
+                  navigate(`/events/${event.id}/contests`)
+                }}
+                onKeyDown={(currentEvent) => {
+                  if (currentEvent.key !== 'Enter' && currentEvent.key !== ' ') return
+                  currentEvent.preventDefault()
+                  navigate(`/events/${event.id}/contests`)
+                }}
+                role="link"
+                tabIndex={0}
+                aria-label={`Open contests for event ${event.name}`}
               >
                 {/* Event Header */}
                 <div className="flex justify-between items-start mb-4">
@@ -556,6 +573,7 @@ const EventsPage: React.FC = () => {
                 <div className="cgr-card-actions">
                   <button
                     onClick={() => navigate(`/events/${event.id}/contests`)}
+                    data-disable-card-click="true"
                     className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
                   >
                     <TrophyIcon className="h-4 w-4 mr-1" />
@@ -566,6 +584,7 @@ const EventsPage: React.FC = () => {
                       {event.archived ? (
                         <button
                           onClick={() => handleUnarchive(event)}
+                          data-disable-card-click="true"
                           className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                         >
                           <ArrowPathIcon className="h-4 w-4 mr-1" />
@@ -575,6 +594,7 @@ const EventsPage: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleEdit(event)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
                           >
                             <PencilIcon className="h-4 w-4 mr-1" />
@@ -582,6 +602,7 @@ const EventsPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleArchive(event)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                           >
                             <ArchiveBoxIcon className="h-4 w-4 mr-1" />
@@ -589,6 +610,7 @@ const EventsPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleDelete(event)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                           >
                             <TrashIcon className="h-4 w-4 mr-1" />

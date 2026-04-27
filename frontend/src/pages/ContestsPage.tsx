@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -27,6 +27,7 @@ import DateFilterControls, { DateFilters } from '../components/DateFilterControl
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
+import { isInteractiveElement } from '../utils/interactive'
 
 interface Event {
   id: string
@@ -104,6 +105,7 @@ const ContestsPage: React.FC = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { eventId, slug } = useParams<{ eventId?: string; slug?: string }>()
+  const [searchParams] = useSearchParams()
 
   const form = useForm<ContestFormValues>({
     resolver: zodResolver(contestFormSchema),
@@ -133,6 +135,7 @@ const ContestsPage: React.FC = () => {
   const [creationMode, setCreationMode] = useState<'blank' | 'template'>('blank')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [selectedTemplateContestId, setSelectedTemplateContestId] = useState('')
+  const focusedContestId = searchParams.get('contestId') || ''
 
   // Check permissions
   const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
@@ -143,6 +146,12 @@ const ContestsPage: React.FC = () => {
       console.log('ContestsPage - User role:', user?.role, 'Can manage:', canManageContests)
     }
   }, [user?.role, canManageContests])
+
+  useEffect(() => {
+    if (eventId) {
+      setSelectedEventFilter(eventId)
+    }
+  }, [eventId])
 
   // Fetch events for dropdowns
   const { data: events, error: eventsError } = useQuery<Event[]>('events', async () => {
@@ -538,6 +547,27 @@ const ContestsPage: React.FC = () => {
     return matchesSearch && matchesArchived && matchesEvent
   }) : []
 
+  useEffect(() => {
+    if (!focusedContestId) return
+    const focusedContest = Array.isArray(contests)
+      ? contests.find((contest) => contest.id === focusedContestId)
+      : null
+
+    if (focusedContest && !eventId && selectedEventFilter !== focusedContest.eventId) {
+      setSelectedEventFilter(focusedContest.eventId)
+    }
+  }, [contests, eventId, focusedContestId, selectedEventFilter])
+
+  useEffect(() => {
+    if (!focusedContestId) return
+    const targetCard = document.getElementById(`contest-card-${focusedContestId}`)
+    if (!targetCard) return
+
+    window.requestAnimationFrame(() => {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [filteredContests, focusedContestId])
+
   const cloneTargetEvents = useMemo(() => {
     if (!Array.isArray(events) || events.length === 0) {
       return [] as Event[]
@@ -684,10 +714,29 @@ const ContestsPage: React.FC = () => {
             {filteredContests.map((contest) => (
               <Card
                 key={contest.id}
+                id={`contest-card-${contest.id}`}
                 hover
                 className={`rounded-lg ${
+                  focusedContestId === contest.id ? 'ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-gray-900 ' : ''
+                }${
                   contest.archived ? 'opacity-60' : ''
                 }`}
+                onClick={(event) => {
+                  if (isInteractiveElement(event.target, event.currentTarget)) return
+                  navigate(`/contests/${contest.id}/categories`)
+                }}
+                onMouseUp={(event) => {
+                  if (isInteractiveElement(event.target, event.currentTarget)) return
+                  navigate(`/contests/${contest.id}/categories`)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  navigate(`/contests/${contest.id}/categories`)
+                }}
+                role="link"
+                tabIndex={0}
+                aria-label={`Open categories for contest ${contest.name}`}
               >
                 {/* Contest Header */}
                 <div className="flex justify-between items-start mb-4">
@@ -739,6 +788,7 @@ const ContestsPage: React.FC = () => {
                 <div className="cgr-card-actions">
                   <button
                     onClick={() => navigate(`/contests/${contest.id}/categories`)}
+                    data-disable-card-click="true"
                     className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 flex items-center justify-center text-sm"
                   >
                     <ListBulletIcon className="h-4 w-4 mr-1" />
@@ -749,6 +799,7 @@ const ContestsPage: React.FC = () => {
                       {contest.archived ? (
                         <button
                           onClick={() => handleReactivate(contest)}
+                          data-disable-card-click="true"
                           className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                         >
                           <ArrowPathIcon className="h-4 w-4 mr-1" />
@@ -758,6 +809,7 @@ const ContestsPage: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleEdit(contest)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 flex items-center justify-center text-sm"
                           >
                             <PencilIcon className="h-4 w-4 mr-1" />
@@ -765,6 +817,7 @@ const ContestsPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => openCloneModal(contest)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-600 flex items-center justify-center text-sm"
                           >
                             <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
@@ -772,6 +825,7 @@ const ContestsPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleArchive(contest)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-md hover:bg-amber-700 dark:hover:bg-amber-600 flex items-center justify-center text-sm"
                           >
                             <ArchiveBoxIcon className="h-4 w-4 mr-1" />
@@ -779,6 +833,7 @@ const ContestsPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleDelete(contest)}
+                            data-disable-card-click="true"
                             className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 flex items-center justify-center text-sm"
                           >
                             <TrashIcon className="h-4 w-4 mr-1" />
@@ -806,7 +861,7 @@ const ContestsPage: React.FC = () => {
         {/* Create/Edit Form Modal */}
         {isFormOpen && (
           <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
-            <div className="flex min-h-full items-start sm:items-center justify-center">
+            <div className="flex min-h-full w-full items-center justify-center">
               <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-4xl p-4 sm:p-6 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">

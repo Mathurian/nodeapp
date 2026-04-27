@@ -1043,8 +1043,8 @@ const ScoringPage: React.FC = () => {
                       }}
                       className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                         selectedCategory?.id === category.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40 shadow-sm'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}
                     >
                       <div className="font-medium text-gray-900 dark:text-white">{category.name}</div>
@@ -1087,8 +1087,8 @@ const ScoringPage: React.FC = () => {
                         onClick={() => setSelectedContestant(contestant)}
                         className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                           selectedContestant?.id === contestant.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40 shadow-sm'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
                       >
                         <div className="flex items-center">

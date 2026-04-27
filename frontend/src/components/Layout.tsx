@@ -12,6 +12,7 @@ import {
   ROLE_WELCOME_GUIDE_FORCE_OPEN_STORAGE_KEY,
   ROLE_WELCOME_GUIDE_OPEN_EVENT,
 } from '../constants/onboarding'
+import { performPwaHardRefresh } from '../utils/pwaRefresh'
 import AccordionNav from './AccordionNav'
 import Breadcrumb, { BreadcrumbItem } from './Breadcrumb'
 import {
@@ -52,7 +53,8 @@ interface PendingPublicationOverview {
 
 const SIDEBAR_STORAGE_KEY = 'event-manager-sidebar-open'
 const PULL_REFRESH_TRIGGER_PX = 72
-const PULL_REFRESH_MAX_PX = 120
+const PULL_HARD_REFRESH_TRIGGER_PX = 120
+const PULL_REFRESH_MAX_PX = 160
 
 // Map of route segments to human-readable labels
 const ROUTE_LABELS: Record<string, string> = {
@@ -129,6 +131,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [pullDistance, setPullDistance] = useState(0)
   const [isRefreshingByPull, setIsRefreshingByPull] = useState(false)
+  const [isHardRefreshingByPull, setIsHardRefreshingByPull] = useState(false)
   const desktopSidebarRef = useRef<HTMLElement | null>(null)
   const desktopToggleRef = useRef<HTMLButtonElement | null>(null)
   const pullTouchStartYRef = useRef<number | null>(null)
@@ -175,6 +178,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       }, 350)
     }
   }, [queryClient])
+
+  const hardRefreshByPull = useCallback(async () => {
+    setIsHardRefreshingByPull(true)
+    try {
+      await performPwaHardRefresh()
+    } finally {
+      setIsHardRefreshingByPull(false)
+    }
+  }, [])
 
   // Persist sidebar state to localStorage
   useEffect(() => {
@@ -283,13 +295,21 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     const handleTouchEnd = () => {
       if (!isPullGestureActiveRef.current) return
 
-      const shouldRefresh = pullDistanceRef.current >= PULL_REFRESH_TRIGGER_PX && !isRefreshingByPull
+      const shouldHardRefresh = pullDistanceRef.current >= PULL_HARD_REFRESH_TRIGGER_PX && !isRefreshingByPull && !isHardRefreshingByPull
+      const shouldRefresh = pullDistanceRef.current >= PULL_REFRESH_TRIGGER_PX && !isRefreshingByPull && !isHardRefreshingByPull
       isPullGestureActiveRef.current = false
       pullTouchStartYRef.current = null
 
       if (!shouldRefresh) {
         pullDistanceRef.current = 0
         setPullDistance(0)
+        return
+      }
+
+      if (shouldHardRefresh) {
+        pullDistanceRef.current = PULL_HARD_REFRESH_TRIGGER_PX
+        setPullDistance(PULL_HARD_REFRESH_TRIGGER_PX)
+        void hardRefreshByPull()
         return
       }
 
@@ -309,7 +329,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       window.removeEventListener('touchend', handleTouchEnd)
       window.removeEventListener('touchcancel', resetPullGesture)
     }
-  }, [hasScrollableAncestor, isRefreshingByPull, mobileMenuOpen, refreshDataByPull, resetPullGesture])
+  }, [hardRefreshByPull, hasScrollableAncestor, isHardRefreshingByPull, isRefreshingByPull, mobileMenuOpen, refreshDataByPull, resetPullGesture])
 
   // Close open menus after navigation so the new page content is immediately visible.
   useEffect(() => {
@@ -505,11 +525,15 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const isDarkMode = actualTheme === 'dark'
   const socketStatusLabel = isConnected ? 'Live' : 'Connecting...'
   const pullProgress = Math.min(1, pullDistance / PULL_REFRESH_TRIGGER_PX)
-  const showPullIndicator = pullDistance > 0 || isRefreshingByPull
-  const pullIndicatorText = isRefreshingByPull
+  const showPullIndicator = pullDistance > 0 || isRefreshingByPull || isHardRefreshingByPull
+  const pullIndicatorText = isHardRefreshingByPull
+    ? 'Refreshing app...'
+    : isRefreshingByPull
     ? 'Refreshing data...'
+    : pullDistance >= PULL_HARD_REFRESH_TRIGGER_PX
+      ? 'Release to refresh app'
     : pullDistance >= PULL_REFRESH_TRIGGER_PX
-      ? 'Release to refresh'
+      ? 'Release to refresh data'
       : 'Pull to refresh'
 
   // Close desktop sidebar when clicking outside of it
@@ -556,7 +580,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
           <div className="flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 px-4 py-2 shadow-md">
             <span
               className={`h-4 w-4 rounded-full border-2 border-indigo-500 border-t-transparent ${
-                isRefreshingByPull ? 'animate-spin' : ''
+                isRefreshingByPull || isHardRefreshingByPull ? 'animate-spin' : ''
               }`}
               style={{ opacity: Math.max(0.45, pullProgress) }}
             />

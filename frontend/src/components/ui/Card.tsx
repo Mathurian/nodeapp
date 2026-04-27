@@ -2,12 +2,11 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
   className?: string
   hover?: boolean
   padding?: 'none' | 'sm' | 'md' | 'lg'
-  onClick?: () => void
 }
 
 const Card: React.FC<CardProps> = ({
@@ -15,8 +14,21 @@ const Card: React.FC<CardProps> = ({
   className,
   hover = false,
   padding = 'md',
-  onClick,
+  ...divProps
 }) => {
+  const {
+    onClick,
+    onMouseUp,
+    onPointerUp,
+    onKeyDown,
+    role,
+    tabIndex,
+    id,
+    style,
+    title,
+    'aria-label': ariaLabel,
+    ...containerProps
+  } = divProps
   const paddingClasses = {
     none: '',
     sm: 'p-4',
@@ -29,10 +41,11 @@ const Card: React.FC<CardProps> = ({
       className={clsx(
         'bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700',
         paddingClasses[padding],
-        hover && 'cursor-pointer',
+        hover && onClick && 'cursor-pointer',
         className
       )}
-      onClick={onClick}
+      {...(!hover ? containerProps : {})}
+      {...(!hover ? { onClick, onMouseUp, onPointerUp, onKeyDown, role, tabIndex, id, style, title, 'aria-label': ariaLabel } : {})}
     >
       {children}
     </div>
@@ -51,6 +64,16 @@ const Card: React.FC<CardProps> = ({
         transition: { duration: 0.2, ease: 'easeOut' },
       }}
       className="rounded-2xl"
+      onClick={onClick}
+      onMouseUp={onMouseUp}
+      onPointerUp={onPointerUp}
+      onKeyDown={onKeyDown}
+      role={role}
+      tabIndex={tabIndex}
+      id={id}
+      style={style}
+      title={title}
+      aria-label={ariaLabel}
     >
       {content}
     </motion.div>

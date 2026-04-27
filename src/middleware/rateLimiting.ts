@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
+import { jwtSecret } from '../utils/config';
 
 // Skip rate limiting in test environment
 const isTestEnv = process.env['NODE_ENV'] === 'test';
@@ -19,6 +21,8 @@ const isBootstrapPath = (path: string): boolean => {
     path === '/settings/theme' ||
     path === '/v1/settings/public' ||
     path === '/settings/public' ||
+    path === '/v1/settings/pwa-manifest' ||
+    path === '/settings/pwa-manifest' ||
     path === '/v1/navigation' ||
     path === '/navigation' ||
     path.startsWith('/v1/tenants/slug/') ||
@@ -26,6 +30,19 @@ const isBootstrapPath = (path: string): boolean => {
     path === '/v1/csrf-token' ||
     path === '/csrf-token'
   );
+};
+
+const hasVerifiedAuthenticatedSession = (req: Request): boolean => {
+  const token = req.cookies?.['access_token'];
+  if (!token) return false;
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as { userId?: string; tenantId?: string } | string;
+    if (!decoded || typeof decoded === 'string') return false;
+    return Boolean(decoded.userId && decoded.tenantId);
+  } catch {
+    return false;
+  }
 };
 
 const isMonitoringAuthProxyPath = (path: string): boolean => {
@@ -44,6 +61,7 @@ const generalLimiter = isTestEnv ? noopLimiter : rateLimit({
   skip: (req: Request): boolean =>
     req.path === '/health' ||
     isLocalhost(req) ||
+    hasVerifiedAuthenticatedSession(req) ||
     isBootstrapPath(req.path) ||
     isMonitoringAuthProxyPath(req.path) ||
     req.path.startsWith('/v1/test-runner') // Test runner and UAT ID routes have dedicated auth checks

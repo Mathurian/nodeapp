@@ -6,6 +6,9 @@ import './index.css'
 
 const SW_MIGRATION_KEY = 'event-manager-sw-migration-version'
 const SW_MIGRATION_VERSION = '2026-02-pwa-reenable-v1'
+const UPDATE_RECOVERY_NOTICE_KEY = 'app:update-recovery-notice'
+const SW_UPDATE_RELOAD_KEY = 'event-manager-sw-update-reload'
+const SW_UPDATE_CHECK_INTERVAL_MS = 60_000
 const PWA_ENABLED = import.meta.env.PROD && String(import.meta.env.VITE_PWA_ENABLED || 'true').toLowerCase() !== 'false'
 
 const isStandalonePwaContext = (): boolean => {
@@ -80,10 +83,86 @@ const recoverFromStaleServiceWorker = async (): Promise<void> => {
 const registerPwa = () => {
   if (!PWA_ENABLED) return
 
+  let hasTriggeredReload = false
+
+  const markReloadNotice = () => {
+    try {
+      window.sessionStorage.setItem(UPDATE_RECOVERY_NOTICE_KEY, '1')
+    } catch {
+      // Best effort only.
+    }
+  }
+
+  const markReloadPending = () => {
+    try {
+      window.sessionStorage.setItem(SW_UPDATE_RELOAD_KEY, '1')
+    } catch {
+      // Best effort only.
+    }
+  }
+
+  const clearReloadPending = () => {
+    try {
+      window.sessionStorage.removeItem(SW_UPDATE_RELOAD_KEY)
+    } catch {
+      // Best effort only.
+    }
+  }
+
+  const reloadForActivatedWorker = () => {
+    if (hasTriggeredReload) return
+    hasTriggeredReload = true
+    markReloadNotice()
+    clearReloadPending()
+    window.location.reload()
+  }
+
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
+      markReloadPending()
       updateSW(true)
+    },
+    onRegisteredSW(_swScriptUrl, registration) {
+      if (!registration) return
+
+      const checkForServiceWorkerUpdate = async () => {
+        try {
+          await registration.update()
+          if (registration.waiting) {
+            markReloadPending()
+            await updateSW(true)
+          }
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.error('PWA service worker update check failed', error)
+          }
+        }
+      }
+
+      void checkForServiceWorkerUpdate()
+
+      window.setInterval(() => {
+        void checkForServiceWorkerUpdate()
+      }, SW_UPDATE_CHECK_INTERVAL_MS)
+
+      window.addEventListener('focus', () => {
+        void checkForServiceWorkerUpdate()
+      })
+
+      window.addEventListener('online', () => {
+        void checkForServiceWorkerUpdate()
+      })
+
+      window.addEventListener('pageshow', () => {
+        void checkForServiceWorkerUpdate()
+      })
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          void checkForServiceWorkerUpdate()
+        }
+      })
     },
     onRegisterError(error) {
       if (import.meta.env.DEV) {
@@ -92,6 +171,20 @@ const registerPwa = () => {
       }
     }
   })
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      reloadForActivatedWorker()
+    })
+
+    try {
+      if (window.sessionStorage.getItem(SW_UPDATE_RELOAD_KEY) === '1' && navigator.serviceWorker.controller) {
+        reloadForActivatedWorker()
+      }
+    } catch {
+      // Ignore storage access failures.
+    }
+  }
 }
 
 void recoverFromStaleServiceWorker().finally(() => {

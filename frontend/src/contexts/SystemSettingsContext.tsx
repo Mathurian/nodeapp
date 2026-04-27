@@ -57,6 +57,7 @@ const DYNAMIC_PRIMARY_STYLE_ID = 'dynamic-primary-theme'
 const CUSTOM_THEME_STYLE_ID = 'custom-theme-css'
 const DEFAULT_THEME_COLOR = '#6366f1'
 const DEFAULT_MANIFEST_PATH = '/api/v1/settings/pwa-manifest'
+const THEME_SETTINGS_CACHE_TTL_MS = 5 * 60 * 1000
 const THEME_VARIABLES = [
   '--color-primary',
   '--color-secondary',
@@ -70,6 +71,14 @@ const THEME_VARIABLES = [
   '--font-family',
   '--font-size-base',
 ] as const
+
+interface ThemeSettingsCacheEntry {
+  data: SystemSettings
+  expiresAt: number
+}
+
+const themeSettingsCache = new Map<string, ThemeSettingsCacheEntry>()
+const themeSettingsInFlight = new Map<string, Promise<SystemSettings>>()
 
 export const useSystemSettings = () => {
   const context = useContext(SystemSettingsContext)
@@ -89,18 +98,16 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestSequenceRef = useRef(0)
-
-  // Extract tenant slug from URL path when present.
-  // If no slug is present (e.g., tenant subdomain/custom domain access),
-  // let backend tenant middleware resolve tenant from host.
-  const getTenantSlug = (): string | null => {
-    return extractTenantSlugFromPath(location.pathname)
-  }
+  const tenantSlug = extractTenantSlugFromPath(location.pathname)
+  const tenantScopeKey = tenantSlug || (typeof window !== 'undefined' ? window.location.host.toLowerCase() : 'default')
 
   const updateManifestHref = (tenantSlug?: string | null) => {
     const manifestHref = tenantSlug
       ? `${DEFAULT_MANIFEST_PATH}?tenantSlug=${encodeURIComponent(tenantSlug)}`
       : DEFAULT_MANIFEST_PATH
+    const absoluteManifestHref = typeof window !== 'undefined'
+      ? new URL(manifestHref, window.location.origin).href
+      : manifestHref
 
     let manifestLink = document.getElementById('tenant-manifest-link') as HTMLLinkElement | null
     if (!manifestLink) {
@@ -113,7 +120,9 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
       document.head.appendChild(manifestLink)
     }
     manifestLink.id = 'tenant-manifest-link'
-    manifestLink.href = manifestHref
+    if (manifestLink.href !== absoluteManifestHref) {
+      manifestLink.href = absoluteManifestHref
+    }
 
     // Keep only one manifest link so install metadata cannot fall back to stale static values.
     const allManifestLinks = Array.from(document.querySelectorAll("link[rel='manifest']"))
@@ -169,31 +178,54 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
     updateAppleTouchIcon(null)
   }
 
-  const fetchSettings = async () => {
+  const commitThemeSettings = (resolvedThemeData: SystemSettings) => {
+    setSettings(resolvedThemeData)
+    clearThemeSettings()
+    applyThemeSettings(resolvedThemeData)
+  }
+
+  const fetchSettings = async (options: { force?: boolean } = {}) => {
     const requestSequence = ++requestSequenceRef.current
     try {
       setIsLoading(true)
       setError(null)
+      updateManifestHref(tenantSlug)
 
-      const slug = getTenantSlug()
-      updateManifestHref(slug)
+      const cached = themeSettingsCache.get(tenantScopeKey)
+      if (!options.force && cached && cached.expiresAt > Date.now()) {
+        if (requestSequence === requestSequenceRef.current) {
+          commitThemeSettings(cached.data)
+        }
+        return
+      }
 
-      // Fetch theme settings from public endpoint (no auth required)
-      // Pass tenant slug to get tenant-specific theme settings
-      const response = await settingsAPI.getThemeSettings(undefined, slug || undefined)
+      let settingsRequest = themeSettingsInFlight.get(tenantScopeKey)
+      if (!settingsRequest || options.force) {
+        settingsRequest = settingsAPI
+          .getThemeSettings(undefined, tenantSlug || undefined)
+          .then((response) => {
+            const themeData = response.data?.data || response.data?.settings || response.data
+            return (themeData && typeof themeData === 'object')
+              ? (themeData as SystemSettings)
+              : {}
+          })
+          .finally(() => {
+            themeSettingsInFlight.delete(tenantScopeKey)
+          })
 
-      // Handle response format: { success: true, data: { theme_primaryColor: '...', app_name: '...' } }
-      const themeData = response.data?.data || response.data?.settings || response.data
+        themeSettingsInFlight.set(tenantScopeKey, settingsRequest)
+      }
+
+      const resolvedThemeData = await settingsRequest
 
       if (requestSequence !== requestSequenceRef.current) {
         return
       }
-      const resolvedThemeData = (themeData && typeof themeData === 'object')
-        ? (themeData as SystemSettings)
-        : {}
-      setSettings(resolvedThemeData)
-      clearThemeSettings()
-      applyThemeSettings(resolvedThemeData)
+      themeSettingsCache.set(tenantScopeKey, {
+        data: resolvedThemeData,
+        expiresAt: Date.now() + THEME_SETTINGS_CACHE_TTL_MS,
+      })
+      commitThemeSettings(resolvedThemeData)
     } catch (err: any) {
       if (requestSequence !== requestSequenceRef.current) {
         return
@@ -295,28 +327,28 @@ export const SystemSettingsProvider: React.FC<SystemSettingsProviderProps> = ({ 
 
   useEffect(() => {
     fetchSettings()
-  }, [location.pathname]) // Re-fetch settings when URL changes (tenant slug may have changed)
+  }, [tenantScopeKey]) // Re-fetch only when tenant identity changes
 
   useEffect(() => {
-    updateManifestHref(getTenantSlug())
-  }, [location.pathname])
+    updateManifestHref(tenantSlug)
+  }, [tenantSlug])
 
   useEffect(() => {
     const onThemeUpdate = () => {
-      void fetchSettings()
+      void fetchSettings({ force: true })
     }
 
     window.addEventListener('event-manager:theme-settings-updated', onThemeUpdate)
     return () => {
       window.removeEventListener('event-manager:theme-settings-updated', onThemeUpdate)
     }
-  }, [location.pathname])
+  }, [tenantScopeKey])
 
   const value = {
     settings,
     isLoading,
     error,
-    refreshSettings: fetchSettings
+    refreshSettings: () => fetchSettings({ force: true })
   }
 
   return (

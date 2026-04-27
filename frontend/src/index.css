@@ -578,25 +578,41 @@
 
   /* Standardized modal overlays for app-level consistency. */
   .cgr-modal-overlay {
-    @apply fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto;
+    z-index: 120;
+    padding-top: max(4.75rem, calc(env(safe-area-inset-top, 0px) + 4rem));
+    padding-right: max(1rem, calc(env(safe-area-inset-right, 0px) + 0.75rem));
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+    padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 0.75rem));
+    @apply fixed inset-0 bg-black/50 flex items-start justify-center overflow-y-auto;
   }
 
   .cgr-modal-overlay-soft {
-    @apply fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto;
+    z-index: 120;
+    padding-top: max(4.75rem, calc(env(safe-area-inset-top, 0px) + 4rem));
+    padding-right: max(1rem, calc(env(safe-area-inset-right, 0px) + 0.75rem));
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+    padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 0.75rem));
+    @apply fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto;
   }
 
   .cgr-modal-overlay > [class*="bg-white"],
   .cgr-modal-overlay-soft > [class*="bg-white"] {
-    max-height: calc(100vh - 2rem);
-    max-height: calc(100dvh - 2rem);
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 5.75rem);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 5.75rem);
     overflow-y: auto;
   }
 
   @media (min-width: 640px) {
+    .cgr-modal-overlay,
+    .cgr-modal-overlay-soft {
+      padding-top: max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem));
+      @apply items-center;
+    }
+
     .cgr-modal-overlay > [class*="bg-white"],
     .cgr-modal-overlay-soft > [class*="bg-white"] {
-      max-height: calc(100vh - 3rem);
-      max-height: calc(100dvh - 3rem);
+      max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3rem);
+      max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 3rem);
     }
   }
 
