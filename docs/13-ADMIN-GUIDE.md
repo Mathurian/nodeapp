@@ -144,6 +144,33 @@ curl -sS http://127.0.0.1:3000/metrics
 
 If Grafana or Prometheus are proxied separately by nginx or upstream infrastructure, validate those endpoints through the current proxy configuration rather than assuming a static standalone topology.
 
+## Email / SMTP Settings
+
+Administrators configure outbound email from **Admin -> Settings -> Email / SMTP Settings**.
+The same settings path is used for notification email, report delivery, template sends, and test-email validation.
+
+### Sender fields
+
+- **From Email Address** (`email_from_address`): the mailbox address emitted in the outbound `From` header. This should usually be a verified sender for the configured SMTP provider, such as `noreply@example.com`.
+- **From Name** (`email_from_name`): the display name emitted with the sender address. When set, outbound mail is sent with a display-name sender such as `"Event Manager" <noreply@example.com>`.
+
+From Name has existed in the settings UI for administrators. The current runtime uses it when constructing outbound mail, so changes to this field affect the visible sender name recipients see.
+
+### Reply-To fields
+
+- **Reply-To Email Address** (`email_reply_to_address`): optional mailbox where recipient replies should be delivered.
+- **Reply-To Name** (`email_reply_to_name`): optional display name for the reply destination.
+
+Reply-To is only added to outbound mail when a reply-to address is configured. Leaving the reply-to address blank keeps the header omitted, so replies go to the normal sender behavior determined by the mail client and provider. A reply-to name without a reply-to address is rejected because it would not produce a valid header.
+
+Use Reply-To when outbound mail must come from a controlled sender address but replies should route to a support desk, organizer mailbox, or tenant-specific contact. Use From fields for the sender identity that SMTP providers authenticate and recipients see as the message sender.
+
+### Tenant and global behavior
+
+Super admins can edit global email settings or explicitly select a tenant scope. Global values act as platform defaults. Tenant-scoped values override the global defaults only for that tenant.
+
+When a tenant does not define a sender or reply-to value, runtime resolution falls back to the global setting and then to environment SMTP defaults where applicable. Updating a tenant's Email / SMTP Settings should therefore be treated as a tenant-specific override, not a platform-wide change.
+
 ## Backups and Recovery
 
 ### Application-level backup roles

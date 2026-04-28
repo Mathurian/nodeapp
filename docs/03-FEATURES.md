@@ -568,7 +568,7 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 ### Settings Management
 
 **System Settings**:
-1. **Email Settings** - SMTP configuration
+1. **Email Settings** - SMTP configuration, sender name/address, optional reply-to routing, and tenant-specific overrides
 2. **Security Settings** - Password policies, MFA
 3. **Backup Settings** - Automated backups
 4. **Theme Settings** - Branding and colors
