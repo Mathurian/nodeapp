@@ -4,26 +4,88 @@
  */
 
 import 'reflect-metadata';
+import nodemailer from 'nodemailer';
 import { EmailService } from '../../../src/services/EmailService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
+jest.mock('nodemailer', () => ({
+  __esModule: true,
+  default: {
+    createTransport: jest.fn(),
+  },
+}));
+
 describe('EmailService', () => {
   let service: EmailService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  let mockSendMail: jest.Mock;
+  const mockCreateTransport = nodemailer.createTransport as jest.Mock;
 
   const mockSettings = [
-    { id: '1', key: 'EMAIL_ENABLED', value: 'true', description: '', category: 'email', createdAt: new Date(), updatedAt: new Date() },
-    { id: '2', key: 'EMAIL_HOST', value: 'smtp.example.com', description: '', category: 'email', createdAt: new Date(), updatedAt: new Date() },
-    { id: '3', key: 'EMAIL_PORT', value: '587', description: '', category: 'email', createdAt: new Date(), updatedAt: new Date() },
-    { id: '4', key: 'EMAIL_USER', value: 'test@example.com', description: '', category: 'email', createdAt: new Date(), updatedAt: new Date() },
-    { id: '5', key: 'EMAIL_FROM', value: 'noreply@example.com', description: '', category: 'email', createdAt: new Date(), updatedAt: new Date() },
+    {
+      id: '1',
+      key: 'EMAIL_ENABLED',
+      value: 'true',
+      description: '',
+      category: 'email',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: '2',
+      key: 'EMAIL_HOST',
+      value: 'smtp.example.com',
+      description: '',
+      category: 'email',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: '3',
+      key: 'EMAIL_PORT',
+      value: '587',
+      description: '',
+      category: 'email',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: '4',
+      key: 'EMAIL_USER',
+      value: 'test@example.com',
+      description: '',
+      category: 'email',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: '5',
+      key: 'EMAIL_FROM',
+      value: 'noreply@example.com',
+      description: '',
+      category: 'email',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   ];
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
+    mockSendMail = jest.fn().mockResolvedValue({
+      messageId: 'mock-message-id',
+      response: 'queued',
+    });
+    mockCreateTransport.mockReturnValue({
+      sendMail: mockSendMail,
+      verify: jest.fn().mockResolvedValue(true),
+    });
     service = new EmailService(mockPrisma as any);
     jest.clearAllMocks();
+    mockCreateTransport.mockReturnValue({
+      sendMail: mockSendMail,
+      verify: jest.fn().mockResolvedValue(true),
+    });
   });
 
   afterEach(() => {
@@ -55,10 +117,7 @@ describe('EmailService', () => {
     });
 
     it('should return disabled config when EMAIL_ENABLED is false', async () => {
-      const disabledSettings = [
-        { ...mockSettings[0], value: 'false' },
-        ...mockSettings.slice(1),
-      ];
+      const disabledSettings = [{ ...mockSettings[0], value: 'false' }, ...mockSettings.slice(1)];
       mockPrisma.systemSetting.findMany.mockResolvedValue(disabledSettings);
 
       const result = await service.getConfig();
@@ -146,6 +205,53 @@ describe('EmailService', () => {
       );
 
       expect(result.success).toBe(true);
+    });
+
+    it('should apply configured from name and reply-to headers for tenant runtime email', async () => {
+      mockPrisma.systemSetting.findMany
+        .mockResolvedValueOnce([{ key: 'email_reply_to_name', value: 'Global Support' }] as any)
+        .mockResolvedValueOnce([
+          { key: 'smtp_enabled', value: 'true' },
+          { key: 'smtp_host', value: 'smtp.example.com' },
+          { key: 'smtp_port', value: '587' },
+          { key: 'email_fromEmail', value: 'sender@example.com' },
+          { key: 'email_fromName', value: 'Event Ops' },
+          { key: 'email_replyToEmail', value: 'replies@example.com' },
+        ] as any);
+
+      const result = await service.sendEmail('recipient@example.com', 'Subject', 'Body', {
+        tenantId: 'tenant-1',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: '"Event Ops" <sender@example.com>',
+          replyTo: '"Global Support" <replies@example.com>',
+        })
+      );
+    });
+
+    it('should omit reply-to when tenant runtime email has no reply-to address', async () => {
+      mockPrisma.systemSetting.findMany.mockResolvedValueOnce([] as any).mockResolvedValueOnce([
+        { key: 'smtp_enabled', value: 'true' },
+        { key: 'smtp_host', value: 'smtp.example.com' },
+        { key: 'smtp_port', value: '587' },
+        { key: 'email_fromEmail', value: 'sender@example.com' },
+        { key: 'email_fromName', value: 'Event Ops' },
+      ] as any);
+
+      await service.sendEmail('recipient@example.com', 'Subject', 'Body', {
+        tenantId: 'tenant-1',
+      });
+
+      const mailOptions = mockSendMail.mock.calls[0]?.[0];
+      expect(mailOptions).toEqual(
+        expect.objectContaining({
+          from: '"Event Ops" <sender@example.com>',
+        })
+      );
+      expect(mailOptions).not.toHaveProperty('replyTo');
     });
   });
 

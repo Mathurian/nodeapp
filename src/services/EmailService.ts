@@ -2,11 +2,16 @@ import { injectable, inject, container } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
 import nodemailer, { Transporter } from 'nodemailer';
+import type { SendMailOptions } from 'nodemailer';
 import { env } from '../config/env';
 import { templateRenderer } from '../utils/templateRenderer';
 import { ErrorLogService } from './ErrorLogService';
 import { createLogger } from '../utils/logger';
-import { extractPlainTextFromHtml, looksLikeHtml, prepareOutboundEmailHtml } from '../utils/emailHtml';
+import {
+  extractPlainTextFromHtml,
+  looksLikeHtml,
+  prepareOutboundEmailHtml,
+} from '../utils/emailHtml';
 // S4-1: Circuit breaker for email service resilience
 import { CircuitBreaker, CircuitBreakerRegistry } from '../utils/circuitBreaker';
 
@@ -71,6 +76,8 @@ interface SmtpRuntimeConfig {
   pass: string;
   from: string;
   fromName: string;
+  replyToAddress: string;
+  replyToName: string;
   source: 'env' | 'settings';
 }
 
@@ -87,11 +94,11 @@ export class EmailService extends BaseService {
 
     // S4-1: Initialize circuit breaker for email service
     this.circuitBreaker = CircuitBreakerRegistry.get('email-service', {
-      failureThreshold: 5,      // Open after 5 failures
-      successThreshold: 2,      // Close after 2 successes in half-open
-      timeout: 60000,           // 60s before retry (half-open)
-      windowSize: 60000,        // 60s sliding window
-      volumeThreshold: 10,      // Minimum 10 requests before evaluation
+      failureThreshold: 5, // Open after 5 failures
+      successThreshold: 2, // Close after 2 successes in half-open
+      timeout: 60000, // 60s before retry (half-open)
+      windowSize: 60000, // 60s sliding window
+      volumeThreshold: 10, // Minimum 10 requests before evaluation
     });
 
     // S4-1: Monitor circuit breaker state changes
@@ -155,10 +162,7 @@ export class EmailService extends BaseService {
         return;
       }
 
-      const normalized = this.normalizeSmtpSecurity(
-        env.get('SMTP_PORT'),
-        env.get('SMTP_SECURE')
-      );
+      const normalized = this.normalizeSmtpSecurity(env.get('SMTP_PORT'), env.get('SMTP_SECURE'));
       if (normalized.note) {
         logger.warn(normalized.note, { source: 'env' });
       }
@@ -169,8 +173,8 @@ export class EmailService extends BaseService {
         secure: normalized.secure,
         auth: {
           user: env.get('SMTP_USER'),
-          pass: env.get('SMTP_PASS')
-        }
+          pass: env.get('SMTP_PASS'),
+        },
       };
       if (normalized.requireTLS) {
         smtpConfig['requireTLS'] = true;
@@ -189,15 +193,11 @@ export class EmailService extends BaseService {
       // Log SMTP initialization failure to ErrorLogService
       try {
         const errorLogService = container.resolve(ErrorLogService);
-        await errorLogService.logException(
-          error as Error,
-          'EmailService:initializeTransporter',
-          {
-            smtpHost: env.get('SMTP_HOST'),
-            smtpPort: env.get('SMTP_PORT'),
-            smtpUser: env.get('SMTP_USER'),
-          }
-        );
+        await errorLogService.logException(error as Error, 'EmailService:initializeTransporter', {
+          smtpHost: env.get('SMTP_HOST'),
+          smtpPort: env.get('SMTP_PORT'),
+          smtpUser: env.get('SMTP_USER'),
+        });
       } catch (logError) {
         logger.error('Failed to log SMTP initialization error', { error: logError });
       }
@@ -207,30 +207,35 @@ export class EmailService extends BaseService {
   async getConfig(): Promise<EmailConfig> {
     const settings: SystemSettingBasic[] = await this.prisma.systemSetting.findMany({
       where: {
-        key: { in: ['EMAIL_ENABLED', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_FROM'] }
+        key: { in: ['EMAIL_ENABLED', 'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_FROM'] },
       },
       select: {
         key: true,
-        value: true
-      }
+        value: true,
+      },
     });
 
     const config: Record<string, string> = {};
-    settings.forEach((s) => { config[s.key.toLowerCase()] = s.value; });
+    settings.forEach((s) => {
+      config[s.key.toLowerCase()] = s.value;
+    });
 
     return {
       enabled: config['email_enabled'] === 'true',
       host: config['email_host'] || '',
       port: parseInt(config['email_port'] as string) || 587,
       user: config['email_user'] || '',
-      from: config['email_from'] || ''
+      from: config['email_from'] || '',
     };
   }
 
   /**
    * Render email template with variables using Handlebars
    */
-  private async renderTemplate(templateName: string, variables: Record<string, unknown>): Promise<string> {
+  private async renderTemplate(
+    templateName: string,
+    variables: Record<string, unknown>
+  ): Promise<string> {
     try {
       // Add .html extension if not present
       const templateFile = templateName.endsWith('.html') ? templateName : `${templateName}.html`;
@@ -259,14 +264,37 @@ export class EmailService extends BaseService {
     return extractPlainTextFromHtml(htmlBody) || subject;
   }
 
+  private formatAddressHeader(address: string, displayName?: string): string {
+    const trimmedAddress = String(address || '').trim();
+    const trimmedDisplayName = String(displayName || '').trim();
+
+    if (!trimmedAddress) {
+      return '';
+    }
+
+    if (!trimmedDisplayName) {
+      return trimmedAddress;
+    }
+
+    const escapedDisplayName = trimmedDisplayName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escapedDisplayName}" <${trimmedAddress}>`;
+  }
+
   /**
    * Send email with retry logic
    */
-  async sendEmail(to: string, subject: string, body: string, options?: Partial<EmailOptions>): Promise<EmailSendResult> {
+  async sendEmail(
+    to: string,
+    subject: string,
+    body: string,
+    options?: Partial<EmailOptions>
+  ): Promise<EmailSendResult> {
     const smtpConfig = await this.resolveSmtpRuntimeConfig(options?.tenantId);
 
     if (!smtpConfig.enabled) {
-      logger.info(`Email would be sent to ${to} (SMTP disabled)`, { tenantId: options?.tenantId || null });
+      logger.info(`Email would be sent to ${to} (SMTP disabled)`, {
+        tenantId: options?.tenantId || null,
+      });
       await this.logEmail(
         to,
         subject,
@@ -283,7 +311,9 @@ export class EmailService extends BaseService {
     }
 
     if (!smtpConfig.host || !smtpConfig.from) {
-      throw this.badRequestError('SMTP settings are incomplete. Please configure host and from address.');
+      throw this.badRequestError(
+        'SMTP settings are incomplete. Please configure host and from address.'
+      );
     }
 
     let transporter: Transporter | null = null;
@@ -337,14 +367,18 @@ export class EmailService extends BaseService {
 
     const textBody = this.resolveTextBody(body, html, subject);
 
-    const mailOptions = {
-      from: smtpConfig.from,
+    const replyTo = this.formatAddressHeader(smtpConfig.replyToAddress, smtpConfig.replyToName);
+    const mailOptions: SendMailOptions = {
+      from: this.formatAddressHeader(smtpConfig.from, smtpConfig.fromName),
       to,
       subject,
       text: textBody,
       html,
-      attachments: options?.attachments || []
+      attachments: options?.attachments || [],
     };
+    if (replyTo) {
+      mailOptions.replyTo = replyTo;
+    }
 
     // Send email with retry logic
     // S4-1: Circuit breaker wraps retry logic to fail fast when SMTP is down
@@ -377,7 +411,7 @@ export class EmailService extends BaseService {
           to,
           subject,
           messageId: info.messageId,
-          response: info.response
+          response: info.response,
         };
       } catch (error) {
         lastError = error as Error;
@@ -400,14 +434,16 @@ export class EmailService extends BaseService {
             options?.userId
           );
 
-          throw this.badRequestError('Email service temporarily unavailable - please try again later');
+          throw this.badRequestError(
+            'Email service temporarily unavailable - please try again later'
+          );
         }
 
         logger.error(`Email send failed (attempt ${attempt}/${this.maxRetries})`, { error, to });
 
         if (attempt < this.maxRetries) {
           // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+          await new Promise((resolve) => setTimeout(resolve, this.retryDelay * attempt));
         }
       }
     }
@@ -430,17 +466,13 @@ export class EmailService extends BaseService {
     // Log email sending failure to ErrorLogService
     try {
       const errorLogService = container.resolve(ErrorLogService);
-      await errorLogService.logException(
-        lastError as Error,
-        'EmailService:sendEmail',
-        {
-          to,
-          subject,
-          template: options?.template,
-          attempts: this.maxRetries,
-          smtpHost: smtpConfig.host,
-        }
-      );
+      await errorLogService.logException(lastError as Error, 'EmailService:sendEmail', {
+        to,
+        subject,
+        template: options?.template,
+        attempts: this.maxRetries,
+        smtpHost: smtpConfig.host,
+      });
     } catch (logError) {
       logger.error('Failed to log email sending error', { error: logError });
     }
@@ -451,13 +483,17 @@ export class EmailService extends BaseService {
       );
     }
 
-    throw this.badRequestError(`Failed to send email after ${this.maxRetries} attempts: ${lastMessage || 'Unknown error'}`);
+    throw this.badRequestError(
+      `Failed to send email after ${this.maxRetries} attempts: ${lastMessage || 'Unknown error'}`
+    );
   }
 
   private parseBool(value: string | undefined, defaultValue = false): boolean {
     if (value == null || value === '') return defaultValue;
     const normalized = String(value).trim().toLowerCase();
-    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+    return (
+      normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
+    );
   }
 
   private async resolveSmtpRuntimeConfig(tenantId?: string): Promise<SmtpRuntimeConfig> {
@@ -470,20 +506,40 @@ export class EmailService extends BaseService {
       pass: String(env.get('SMTP_PASS') || ''),
       from: String(env.get('SMTP_FROM') || ''),
       fromName: String(env.get('SMTP_FROM_NAME') || ''),
+      replyToAddress: '',
+      replyToName: '',
       source: 'env',
     };
 
     if (!tenantId) return envConfig;
 
     const keys = [
-      'email_enabled', 'smtp_enabled',
-      'email_smtp_host', 'email_smtpHost', 'smtp_host',
-      'email_smtp_port', 'email_smtpPort', 'smtp_port',
-      'email_smtp_secure', 'email_smtpSecure', 'email_secure',
-      'email_smtp_user', 'email_smtpUser', 'smtp_user',
-      'email_smtp_pass', 'email_smtpPassword', 'smtp_password',
-      'email_from_address', 'email_fromEmail', 'smtp_from',
-      'email_from_name', 'email_fromName',
+      'email_enabled',
+      'smtp_enabled',
+      'email_smtp_host',
+      'email_smtpHost',
+      'smtp_host',
+      'email_smtp_port',
+      'email_smtpPort',
+      'smtp_port',
+      'email_smtp_secure',
+      'email_smtpSecure',
+      'email_secure',
+      'email_smtp_user',
+      'email_smtpUser',
+      'smtp_user',
+      'email_smtp_pass',
+      'email_smtpPassword',
+      'smtp_password',
+      'email_from_address',
+      'email_fromEmail',
+      'smtp_from',
+      'email_from_name',
+      'email_fromName',
+      'email_reply_to_address',
+      'email_replyToEmail',
+      'email_reply_to_name',
+      'email_replyToName',
     ];
 
     const [globalRows, tenantRows] = await Promise.all([
@@ -522,11 +578,17 @@ export class EmailService extends BaseService {
       enabled: settingsEnabled,
       host: pick('email_smtp_host', 'email_smtpHost', 'smtp_host') || envConfig.host,
       port: Number(pick('email_smtp_port', 'email_smtpPort', 'smtp_port') || envConfig.port),
-      secure: this.parseBool(pick('email_smtp_secure', 'email_smtpSecure', 'email_secure'), envConfig.secure),
+      secure: this.parseBool(
+        pick('email_smtp_secure', 'email_smtpSecure', 'email_secure'),
+        envConfig.secure
+      ),
       user: pick('email_smtp_user', 'email_smtpUser', 'smtp_user') || envConfig.user,
       pass: pick('email_smtp_pass', 'email_smtpPassword', 'smtp_password') || envConfig.pass,
       from: pick('email_from_address', 'email_fromEmail', 'smtp_from') || envConfig.from,
       fromName: pick('email_from_name', 'email_fromName') || envConfig.fromName,
+      replyToAddress:
+        pick('email_reply_to_address', 'email_replyToEmail') || envConfig.replyToAddress,
+      replyToName: pick('email_reply_to_name', 'email_replyToName') || envConfig.replyToName,
       source: 'settings',
     };
   }
@@ -559,8 +621,8 @@ export class EmailService extends BaseService {
           metadata: metadata ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
           tenantId: tenantId || null,
           userId: userId || null,
-          sentAt: new Date()
-        }
+          sentAt: new Date(),
+        },
       });
     } catch (logError) {
       logger.error('Failed to log email', { error: logError });
@@ -571,7 +633,12 @@ export class EmailService extends BaseService {
   /**
    * Send bulk emails with concurrency control
    */
-  async sendBulkEmail(recipients: string[], subject: string, body: string, options?: Partial<EmailOptions>): Promise<BulkEmailResult[]> {
+  async sendBulkEmail(
+    recipients: string[],
+    subject: string,
+    body: string,
+    options?: Partial<EmailOptions>
+  ): Promise<BulkEmailResult[]> {
     const results: BulkEmailResult[] = [];
     const concurrency = 5; // Send 5 emails at a time
 
@@ -579,7 +646,7 @@ export class EmailService extends BaseService {
       const batch = recipients.slice(i, i + concurrency);
 
       const batchResults = await Promise.allSettled(
-        batch.map(to => this.sendEmail(to, subject, body, options))
+        batch.map((to) => this.sendEmail(to, subject, body, options))
       );
 
       batchResults.forEach((result, index) => {
@@ -591,7 +658,7 @@ export class EmailService extends BaseService {
             success: Boolean(payload.success),
             messageId: payload.messageId,
             response: payload.response,
-            error: payload.success ? undefined : (payload.message || 'Email skipped'),
+            error: payload.success ? undefined : payload.message || 'Email skipped',
           });
         } else {
           results.push({ to, success: false, error: String(result.reason || 'Unknown error') });
@@ -613,59 +680,56 @@ export class EmailService extends BaseService {
   ): Promise<EmailSendResult> {
     return this.sendEmail(to, subject, '', {
       template,
-      variables
+      variables,
     });
   }
 
   /**
    * Send welcome email to new user
    */
-  async sendWelcomeEmail(email: string, name: string, verificationUrl?: string): Promise<EmailSendResult> {
-    return this.sendTemplatedEmail(
-      email,
-      'Welcome to Event Manager',
-      'welcome',
-      {
-        name,
-        verificationUrl: verificationUrl || '#',
-        appName: env.get('APP_NAME'),
-        supportEmail: env.get('SMTP_FROM')
-      }
-    );
+  async sendWelcomeEmail(
+    email: string,
+    name: string,
+    verificationUrl?: string
+  ): Promise<EmailSendResult> {
+    return this.sendTemplatedEmail(email, 'Welcome to Event Manager', 'welcome', {
+      name,
+      verificationUrl: verificationUrl || '#',
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+    });
   }
 
   /**
    * Send password reset email
    */
-  async sendPasswordResetEmail(email: string, name: string, resetUrl: string): Promise<EmailSendResult> {
-    return this.sendTemplatedEmail(
-      email,
-      'Reset Your Password',
-      'password-reset',
-      {
-        name,
-        resetUrl,
-        appName: env.get('APP_NAME'),
-        supportEmail: env.get('SMTP_FROM')
-      }
-    );
+  async sendPasswordResetEmail(
+    email: string,
+    name: string,
+    resetUrl: string
+  ): Promise<EmailSendResult> {
+    return this.sendTemplatedEmail(email, 'Reset Your Password', 'password-reset', {
+      name,
+      resetUrl,
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+    });
   }
 
   /**
    * Send email verification
    */
-  async sendVerificationEmail(email: string, name: string, verificationUrl: string): Promise<EmailSendResult> {
-    return this.sendTemplatedEmail(
-      email,
-      'Verify Your Email Address',
-      'email-verification',
-      {
-        name,
-        verificationUrl,
-        appName: env.get('APP_NAME'),
-        supportEmail: env.get('SMTP_FROM')
-      }
-    );
+  async sendVerificationEmail(
+    email: string,
+    name: string,
+    verificationUrl: string
+  ): Promise<EmailSendResult> {
+    return this.sendTemplatedEmail(email, 'Verify Your Email Address', 'email-verification', {
+      name,
+      verificationUrl,
+      appName: env.get('APP_NAME'),
+      supportEmail: env.get('SMTP_FROM'),
+    });
   }
 
   /**
@@ -748,7 +812,7 @@ export class EmailService extends BaseService {
         success: false,
         to: '',
         subject: 'Security Alert: Virus Detected',
-        message: 'Security email not configured'
+        message: 'Security email not configured',
       };
     }
 

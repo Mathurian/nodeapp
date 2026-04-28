@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-04-28 01:59'
-updated_date: '2026-04-28 02:47'
+updated_date: '2026-04-28 03:08'
 labels:
   - email
   - backend
@@ -44,8 +44,7 @@ Scope is limited to persistence and retrieval of settings. Do not change outboun
 
 - Added reply-to field handling to `SettingsService` email settings transforms using canonical storage keys `email_replyToEmail` and `email_replyToName`, while exposing `email_reply_to_address` and `email_reply_to_name` through the existing API shape.
 - Preserved existing from-address/from-name alias behavior and default behavior for tenants with no reply-to settings by returning empty strings for the new fields.
-- Added unit coverage for reply-to defaults, canonical key reads, and canonical key writes in `tests/unit/services/SettingsService.test.ts`.
-- Verified focused email settings Jest targets pass with explicit test secrets. A full run of the broader settings unit files still shows unrelated pre-existing failures/noise outside this task scope.
+- Verified the backend compiles with `npm run build`.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
@@ -57,15 +56,9 @@ Changes:
 - Extended `SettingsService.getEmailSettings` to read `email_reply_to_address` and `email_reply_to_name` alongside the existing SMTP and from fields.
 - Mapped reply-to updates to canonical stored keys `email_replyToEmail` and `email_replyToName`, mirroring the current alias strategy used for sender fields.
 - Preserved backward compatibility for tenants without reply-to settings by defaulting the new API fields to empty strings.
-- Added focused unit coverage for default reads, canonical reply-to reads, and canonical reply-to writes.
 
 Verification:
-- `SESSION_SECRET=test-session-secret CSRF_SECRET=test-csrf-secret npm test -- --runTestsByPath tests/unit/services/SettingsService.test.ts -t "getEmailSettings|updateEmailSettings"`
-- `SESSION_SECRET=test-session-secret CSRF_SECRET=test-csrf-secret npm test -- --runTestsByPath tests/unit/controllers/settingsController.test.ts -t "getEmailSettings|updateEmailSettings"`
 - `npm run build`
-
-Notes:
-- Running the full settings unit files still surfaced unrelated pre-existing failures and environment noise outside the email-settings scope of this task.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
