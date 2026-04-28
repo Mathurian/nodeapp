@@ -94,6 +94,13 @@ describe('Settings API Integration Tests', () => {
   });
 
   afterAll(async () => {
+    await prisma.systemSetting.deleteMany({
+      where: {
+        tenantId,
+        key: { in: ['email_replyToEmail', 'email_replyToName'] }
+      }
+    });
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -223,6 +230,64 @@ describe('Settings API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect([200, 401, 403]).toContain(response.status);
+    });
+
+    it('should persist tenant-scoped reply-to settings through the email settings API', async () => {
+      await prisma.systemSetting.deleteMany({
+        where: {
+          tenantId,
+          key: { in: ['email_replyToEmail', 'email_replyToName'] }
+        }
+      });
+
+      const updateResponse = await request(app)
+        .put('/api/settings/email')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          email_enabled: 'true',
+          email_smtp_host: 'smtp.settingstest.com',
+          email_smtp_port: '587',
+          email_smtp_secure: 'false',
+          email_smtp_user: 'smtp-user',
+          email_smtp_pass: 'smtp-pass',
+          email_from_address: 'noreply@settingstest.com',
+          email_from_name: 'Settings Test Sender',
+          email_reply_to_address: 'replies@settingstest.com',
+          email_reply_to_name: 'Settings Test Replies',
+        });
+
+      expect(updateResponse.status).toBe(200);
+      expect(updateResponse.body.data?.scope).toBe('tenant');
+
+      const readResponse = await request(app)
+        .get('/api/settings/email')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(readResponse.status).toBe(200);
+      expect(readResponse.body.data).toMatchObject({
+        email_reply_to_address: 'replies@settingstest.com',
+        email_reply_to_name: 'Settings Test Replies',
+      });
+
+      const storedReplyToSettings = await prisma.systemSetting.findMany({
+        where: {
+          tenantId,
+          key: { in: ['email_replyToEmail', 'email_replyToName'] },
+        },
+        select: { key: true, value: true, tenantId: true },
+      });
+      const storedByKey = Object.fromEntries(
+        storedReplyToSettings.map((setting) => [setting.key, setting])
+      );
+
+      expect(storedByKey['email_replyToEmail']).toMatchObject({
+        value: 'replies@settingstest.com',
+        tenantId,
+      });
+      expect(storedByKey['email_replyToName']).toMatchObject({
+        value: 'Settings Test Replies',
+        tenantId,
+      });
     });
   });
 

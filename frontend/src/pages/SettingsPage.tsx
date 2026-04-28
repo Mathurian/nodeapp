@@ -62,6 +62,8 @@ interface EmailSettings {
   email_smtp_pass: string
   email_from_address: string
   email_from_name: string
+  email_reply_to_address: string
+  email_reply_to_name: string
 }
 
 interface ThemeSettings {
@@ -363,6 +365,8 @@ const SettingsPage: React.FC = () => {
     email_smtp_pass: '',
     email_from_address: '',
     email_from_name: DEFAULT_APP_BASELINE.appName,
+    email_reply_to_address: '',
+    email_reply_to_name: '',
   })
 
   const [themeFormData, setThemeFormData] = useState<ThemeSettings>({
@@ -544,6 +548,8 @@ const SettingsPage: React.FC = () => {
             email_smtp_pass: data.email_smtp_pass || '',
             email_from_address: data.email_from_address || '',
             email_from_name: data.email_from_name || DEFAULT_APP_BASELINE.appName,
+            email_reply_to_address: data.email_reply_to_address || '',
+            email_reply_to_name: data.email_reply_to_name || '',
           })
         }
       },
@@ -4132,30 +4138,85 @@ const SettingsPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label
+                          htmlFor="email_from_address"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                        >
                           From Email Address
                         </label>
                         <input
+                          id="email_from_address"
                           type="email"
                           value={emailFormData.email_from_address}
                           onChange={(e) => setEmailFormData({ ...emailFormData, email_from_address: e.target.value })}
                           placeholder="noreply@example.com"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Appears as the sender address on outbound email.
+                        </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label
+                          htmlFor="email_from_name"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                        >
                           From Name
                         </label>
                         <input
+                          id="email_from_name"
                           type="text"
                           value={emailFormData.email_from_name}
                           onChange={(e) => setEmailFormData({ ...emailFormData, email_from_name: e.target.value })}
                           placeholder={DEFAULT_APP_BASELINE.appName}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Appears as the sender display name on outbound email.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label
+                          htmlFor="email_reply_to_address"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                        >
+                          Reply-To Email Address
+                        </label>
+                        <input
+                          id="email_reply_to_address"
+                          type="email"
+                          value={emailFormData.email_reply_to_address}
+                          onChange={(e) => setEmailFormData({ ...emailFormData, email_reply_to_address: e.target.value })}
+                          placeholder="support@example.com"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Optional address where replies should be delivered.
+                        </p>
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="email_reply_to_name"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                        >
+                          Reply-To Name
+                        </label>
+                        <input
+                          id="email_reply_to_name"
+                          type="text"
+                          value={emailFormData.email_reply_to_name}
+                          onChange={(e) => setEmailFormData({ ...emailFormData, email_reply_to_name: e.target.value })}
+                          placeholder="Support Team"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Optional display name for reply recipients.
+                        </p>
                       </div>
                     </div>
 
