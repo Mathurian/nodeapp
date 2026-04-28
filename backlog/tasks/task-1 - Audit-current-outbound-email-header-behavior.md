@@ -1,10 +1,10 @@
 ---
 id: TASK-1
 title: Audit current outbound email header behavior
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-04-28 01:59'
-updated_date: '2026-04-28 02:31'
+updated_date: '2026-04-27 21:40'
 labels:
   - email
   - backend
@@ -21,9 +21,9 @@ Research the current outbound email behavior before any header changes are imple
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 All outbound email entry points are identified
-- [ ] #2 Any mail paths bypassing the shared EmailService are documented
-- [ ] #3 Current from/from-name behavior is documented with affected files
+- [x] #1 All outbound email entry points are identified
+- [x] #2 Any mail paths bypassing the shared EmailService are documented
+- [x] #3 Current from/from-name behavior is documented with affected files
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -37,12 +37,27 @@ Research the current outbound email behavior before any header changes are imple
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Research-only task. No runtime behavior should change here. Output should give later tasks enough context to stay additive and low-risk.
+Audit results:
+
+- Shared outbound runtime is `src/services/EmailService.ts`.
+- Current shared callers are `src/controllers/emailController.ts`, `src/controllers/EmailTemplateController.ts`, `src/services/AuthService.ts`, `src/services/EmailDigestService.ts`, `src/services/ReportEmailService.ts`, `src/jobs/EmailJobProcessor.ts`, and wrapper-based flows such as `sendInvitationEmail` / `sendVirusAlertEmail`.
+- `EmailService.sendEmail` currently sends `from`, `to`, `subject`, `text`, `html`, and `attachments`. It does not set `replyTo`.
+- `resolveSmtpRuntimeConfig` already resolves `fromName`, but `sendEmail` does not apply that value to the actual `from` header. Existing tasks therefore need to treat `fromName` activation as part of the runtime enhancement, not just reply-to support.
+- `src/services/SettingsService.ts:testEmailSettings` is a direct `nodemailer.createTransport(...).sendMail(...)` bypass. It currently sets only a raw `from` address and will need separate treatment for header parity.
+- `src/services/VirusScanService.ts:notifyInfection` is a second non-standard path. It dynamically resolves `EmailService` and calls `emailService.send(...)` behind `@ts-expect-error`, not the typed `sendEmail` / `sendVirusAlertEmail` path. That should be treated as an existing cleanup risk, not folded into the first reply-to change unless required.
+- Current settings persistence supports `email_from_address` / `email_from_name` aliases in `src/services/SettingsService.ts`, but there are no reply-to keys yet.
+- Current admin settings UI in `frontend/src/pages/SettingsPage.tsx` already exposes From Address and From Name. Reply-to is not present.
+
+Implementation impact for follow-on tasks:
+
+1. Runtime work must include actual display-name `From` header application, not only reply-to.
+2. Validation and tests must cover the `testEmailSettings` bypass explicitly.
+3. UI work only needs to add reply-to fields; from-name editing already exists.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->

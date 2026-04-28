@@ -379,14 +379,18 @@ describe('SettingsService', () => {
       expect(result).toBeDefined();
       expect(result.email_enabled).toBe('true');
       expect(result.email_smtp_port).toBe('587');
+      expect(result.email_reply_to_address).toBe('');
+      expect(result.email_reply_to_name).toBe('');
     });
 
     it('should return configured email settings', async () => {
       mockPrisma.systemSetting.findFirst
         .mockImplementation(async (args: any) => {
           const keyMap: Record<string, string> = {
-            'email_smtp_host': 'smtp.gmail.com',
-            'email_smtp_port': '465',
+            email_smtpHost: 'smtp.gmail.com',
+            email_smtpPort: '465',
+            email_replyToEmail: 'replies@example.com',
+            email_replyToName: 'Support Team',
           };
           const key = args?.where?.key;
           if (key && keyMap[key]) {
@@ -400,6 +404,72 @@ describe('SettingsService', () => {
       expect(result).toBeDefined();
       expect(result.email_smtp_host).toBe('smtp.gmail.com');
       expect(result.email_smtp_port).toBe('465');
+      expect(result.email_reply_to_address).toBe('replies@example.com');
+      expect(result.email_reply_to_name).toBe('Support Team');
+    });
+  });
+
+  describe('updateEmailSettings', () => {
+    it('should persist reply-to fields using canonical storage keys', async () => {
+      mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
+      mockPrisma.systemSetting.create.mockResolvedValue({} as any);
+
+      const result = await service.updateEmailSettings(
+        {
+          email_reply_to_address: 'replies@example.com',
+          email_reply_to_name: 'Support Team',
+          email_from_address: 'from@example.com',
+        },
+        'user-1',
+        'tenant-1'
+      );
+
+      expect(result).toBe(3);
+      expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
+        where: { key_tenantId: { key: 'email_replyToEmail', tenantId: 'tenant-1' } },
+        update: expect.objectContaining({
+          value: 'replies@example.com',
+          category: 'email',
+          updatedBy: 'user-1',
+        }),
+        create: expect.objectContaining({
+          key: 'email_replyToEmail',
+          value: 'replies@example.com',
+          tenantId: 'tenant-1',
+          category: 'email',
+          updatedBy: 'user-1',
+        }),
+      });
+      expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
+        where: { key_tenantId: { key: 'email_replyToName', tenantId: 'tenant-1' } },
+        update: expect.objectContaining({
+          value: 'Support Team',
+          category: 'email',
+          updatedBy: 'user-1',
+        }),
+        create: expect.objectContaining({
+          key: 'email_replyToName',
+          value: 'Support Team',
+          tenantId: 'tenant-1',
+          category: 'email',
+          updatedBy: 'user-1',
+        }),
+      });
+      expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith({
+        where: { key_tenantId: { key: 'email_fromEmail', tenantId: 'tenant-1' } },
+        update: expect.objectContaining({
+          value: 'from@example.com',
+          category: 'email',
+          updatedBy: 'user-1',
+        }),
+        create: expect.objectContaining({
+          key: 'email_fromEmail',
+          value: 'from@example.com',
+          tenantId: 'tenant-1',
+          category: 'email',
+          updatedBy: 'user-1',
+        }),
+      });
     });
   });
 

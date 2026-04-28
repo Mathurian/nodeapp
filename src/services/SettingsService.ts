@@ -110,6 +110,30 @@ const BACKUP_RUNTIME_SETTING_MAP: Array<{ settingKey: string; envKey: string }> 
 ];
 const execFileAsync = promisify(execFile);
 const GOOGLE_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const EMAIL_SETTINGS_KEYS: ReadonlyArray<string> = [
+  'email_enabled', 'smtp_enabled',
+  'email_smtp_host', 'email_smtpHost', 'smtp_host',
+  'email_smtp_port', 'email_smtpPort', 'smtp_port',
+  'email_smtp_secure', 'email_smtpSecure', 'email_secure',
+  'email_smtp_user', 'email_smtpUser', 'smtp_user',
+  'email_smtp_pass', 'email_smtpPassword', 'smtp_password',
+  'email_from_address', 'email_fromEmail', 'smtp_from',
+  'email_from_name', 'email_fromName',
+  'email_reply_to_address', 'email_replyToEmail',
+  'email_reply_to_name', 'email_replyToName',
+];
+const EMAIL_SETTINGS_WRITE_KEY_MAP: Readonly<Record<string, string>> = {
+  email_enabled: 'email_enabled',
+  email_smtp_host: 'email_smtpHost',
+  email_smtp_port: 'email_smtpPort',
+  email_smtp_secure: 'email_smtpSecure',
+  email_smtp_user: 'email_smtpUser',
+  email_smtp_pass: 'email_smtpPassword',
+  email_from_address: 'email_fromEmail',
+  email_from_name: 'email_fromName',
+  email_reply_to_address: 'email_replyToEmail',
+  email_reply_to_name: 'email_replyToName',
+};
 
 type GoogleOAuthState = {
   tenantId: string | null;
@@ -1247,19 +1271,8 @@ export class SettingsService extends BaseService {
    * Get email settings (tenant-aware - tenants can override with their own SMTP)
    */
   async getEmailSettings(tenantId?: string | null): Promise<Record<string, string>> {
-    const emailKeys = [
-      'email_enabled', 'smtp_enabled',
-      'email_smtp_host', 'email_smtpHost', 'smtp_host',
-      'email_smtp_port', 'email_smtpPort', 'smtp_port',
-      'email_smtp_secure', 'email_smtpSecure', 'email_secure',
-      'email_smtp_user', 'email_smtpUser', 'smtp_user',
-      'email_smtp_pass', 'email_smtpPassword', 'smtp_password',
-      'email_from_address', 'email_fromEmail', 'smtp_from',
-      'email_from_name', 'email_fromName'
-    ];
-
     const keyMap: Record<string, string> = {};
-    for (const key of emailKeys) {
+    for (const key of EMAIL_SETTINGS_KEYS) {
       const value = await this.getSettingWithFallback(key, tenantId);
       if (value) keyMap[key] = value;
     }
@@ -1274,6 +1287,8 @@ export class SettingsService extends BaseService {
       email_smtp_pass: keyMap['email_smtp_pass'] || keyMap['email_smtpPassword'] || keyMap['smtp_password'] || '',
       email_from_address: keyMap['email_from_address'] || keyMap['email_fromEmail'] || keyMap['smtp_from'] || '',
       email_from_name: keyMap['email_from_name'] || keyMap['email_fromName'] || DEFAULT_APP_NAME,
+      email_reply_to_address: keyMap['email_reply_to_address'] || keyMap['email_replyToEmail'] || '',
+      email_reply_to_name: keyMap['email_reply_to_name'] || keyMap['email_replyToName'] || '',
     };
   }
 
@@ -1287,20 +1302,8 @@ export class SettingsService extends BaseService {
   ): Promise<number> {
     let updatedCount = 0;
 
-    // Map frontend keys to database keys
-    const keyMapping: Record<string, string> = {
-      'email_enabled': 'email_enabled',
-      'email_smtp_host': 'email_smtpHost',
-      'email_smtp_port': 'email_smtpPort',
-      'email_smtp_secure': 'email_smtpSecure',
-      'email_smtp_user': 'email_smtpUser',
-      'email_smtp_pass': 'email_smtpPassword',
-      'email_from_address': 'email_fromEmail',
-      'email_from_name': 'email_fromName',
-    };
-
     for (const [key, value] of Object.entries(emailSettings)) {
-      const dbKey = keyMapping[key] || key;
+      const dbKey = EMAIL_SETTINGS_WRITE_KEY_MAP[key] || key;
       await this.updateSetting(dbKey, value, userId, tenantId);
       updatedCount++;
     }

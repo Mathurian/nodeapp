@@ -4,7 +4,7 @@ title: Document enhanced email sender settings
 status: To Do
 assignee: []
 created_date: '2026-04-28 01:59'
-updated_date: '2026-04-28 02:31'
+updated_date: '2026-04-27 21:40'
 labels:
   - email
   - docs
@@ -19,7 +19,7 @@ ordinal: 7
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Document the enhanced sender settings for administrators after the backend and UI changes are in place. Update the admin/user-facing docs that already describe settings management so they clearly explain from address, from name, optional reply-to behavior, and how tenant-level values override global defaults. Keep the documentation aligned with the final implemented field names and behavior.
+Document the enhanced sender settings for administrators after the backend and UI changes are in place. Update the admin/user-facing docs that already describe settings management so they clearly explain from address, from name, optional reply-to behavior, and how tenant-level values override global defaults. Keep the documentation aligned with the final implemented field names and behavior, including the fact that From Name already exists in the UI and becomes part of the actual emitted sender header after the runtime task lands.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -40,7 +40,7 @@ Document the enhanced sender settings for administrators after the backend and U
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Documentation should follow the implemented behavior, not speculative behavior. Recheck field names and defaults before closing the task.
+Documentation should follow the implemented behavior, not speculative behavior. Recheck field names and defaults before closing the task. Audit finding: clarify the difference between an administrator editing From Name in settings and the runtime actually using that display name in outbound mail after TASK-3.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

@@ -4,7 +4,7 @@ title: Extend admin email settings UI for reply-to
 status: To Do
 assignee: []
 created_date: '2026-04-28 01:59'
-updated_date: '2026-04-28 02:31'
+updated_date: '2026-04-27 21:40'
 labels:
   - email
   - frontend
@@ -19,7 +19,7 @@ ordinal: 5
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Update the existing admin email settings screen in `frontend/src/pages/SettingsPage.tsx` so reply-to address and reply-to name can be edited alongside the current SMTP and sender fields. Reuse the current settings save flow and data model, keep the change additive, and include short explanatory copy clarifying the difference between `From` and `Reply-To` for administrators.
+Update the existing admin email settings screen in `frontend/src/pages/SettingsPage.tsx` so reply-to address and reply-to name can be edited alongside the current SMTP and sender fields. The existing UI already exposes From Address and From Name; this task should extend that section rather than redesign it. Reuse the current settings save flow and data model, keep the change additive, and include short explanatory copy clarifying the difference between `From` and `Reply-To` for administrators.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -40,7 +40,7 @@ Update the existing admin email settings screen in `frontend/src/pages/SettingsP
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-UI change should stay additive and reuse the existing save mutation rather than introducing a parallel settings workflow.
+UI change should stay additive and reuse the existing save mutation rather than introducing a parallel settings workflow. Audit finding: From Name is already editable in the current screen, so the minimum implementation here is only to add reply-to fields and supporting help text.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
