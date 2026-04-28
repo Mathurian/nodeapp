@@ -688,7 +688,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               title="Quick actions"
               aria-label="Open quick actions"
             >
-              <LightBulbIcon className="h-5 w-5" />
+              <ClockIcon className="h-5 w-5" />
               {(recentCommands.length > 0 || favoriteCommands.length > 0) && (
                 <span className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full"></span>
               )}

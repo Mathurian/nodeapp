@@ -41,7 +41,7 @@ export default defineConfig({
       // Registration is handled in app code (main.tsx) so we can run one-time
       // stale-client migration logic before registering the current service worker.
       injectRegister: false,
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: [
         'favicon.svg',
         'offline.html',
@@ -90,8 +90,8 @@ export default defineConfig({
         prefer_related_applications: false
       },
       workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
+        skipWaiting: false,
+        clientsClaim: false,
         cleanupOutdatedCaches: true,
         importScripts: ['push-sw.js'],
         // Keep SPA route refreshes working under SW control.

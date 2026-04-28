@@ -521,6 +521,10 @@
     left: 50%;
     transform: translateX(-50%);
     width: min(calc(100vw - 1.5rem), 28rem);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     border-radius: 16px;
     background: rgb(37 99 235);
     color: white;

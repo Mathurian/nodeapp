@@ -2,6 +2,7 @@ import { lazy, type ComponentType } from 'react'
 
 type ModuleFactory<T extends ComponentType<any>> = () => Promise<{ default: T }>
 const UPDATE_RECOVERY_NOTICE_KEY = 'app:update-recovery-notice'
+const GLOBAL_LAZY_RETRY_KEY = 'lazy-retry:global'
 
 function isChunkLoadError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error || '')
@@ -30,9 +31,12 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     } catch (error) {
       if (typeof window !== 'undefined' && isChunkLoadError(error)) {
         const retryKey = `lazy-retry:${key}`
-        const alreadyRetried = window.sessionStorage.getItem(retryKey) === '1'
+        const alreadyRetriedForChunk = window.sessionStorage.getItem(retryKey) === '1'
+        const alreadyRetriedGlobally = window.sessionStorage.getItem(GLOBAL_LAZY_RETRY_KEY) === '1'
+        const alreadyRetried = alreadyRetriedForChunk || alreadyRetriedGlobally
         if (!alreadyRetried) {
           window.sessionStorage.setItem(retryKey, '1')
+          window.sessionStorage.setItem(GLOBAL_LAZY_RETRY_KEY, '1')
           window.sessionStorage.setItem(UPDATE_RECOVERY_NOTICE_KEY, '1')
           window.location.reload()
           return new Promise<never>(() => {})

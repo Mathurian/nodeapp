@@ -10,11 +10,12 @@ import ErrorBoundary from './components/ErrorBoundary'
 import CommandPaletteOnboardingWrapper from './components/CommandPaletteOnboardingWrapper'
 import TenantRouter from './components/TenantRouter'
 import { lazyWithRetry } from './utils/lazyWithRetry'
-import { PWA_HARD_REFRESH_NOTICE_KEY } from './utils/pwaRefresh'
+import { PWA_HARD_REFRESH_NOTICE_KEY, performPwaHardRefresh } from './utils/pwaRefresh'
 import './index.css'
 
 // Lazy load command palette
 const CommandPalette = lazyWithRetry(() => import('./components/CommandPalette'), 'CommandPalette')
+const UPDATE_AVAILABLE_EVENT = 'event-manager:update-available'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +36,7 @@ const isStandalonePwaContext = (): boolean => {
 function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [updateNotice, setUpdateNotice] = useState<string | null>(null)
+  const [showUpdateAction, setShowUpdateAction] = useState(false)
   const [isCompactToastViewport, setIsCompactToastViewport] = useState(false)
   const updateRecoveryNoticeKey = 'app:update-recovery-notice'
 
@@ -45,9 +47,11 @@ function App() {
 
     if (recoveredFromStaleCache) {
       setUpdateNotice('App updated. We refreshed automatically to recover from a stale browser cache.')
+      setShowUpdateAction(false)
       window.sessionStorage.removeItem(updateRecoveryNoticeKey)
     } else if (recoveredFromHardRefresh) {
       setUpdateNotice('App refreshed and cache revalidated.')
+      setShowUpdateAction(false)
       window.sessionStorage.removeItem(PWA_HARD_REFRESH_NOTICE_KEY)
     } else {
       return
@@ -55,6 +59,20 @@ function App() {
 
     const timer = window.setTimeout(() => setUpdateNotice(null), 7000)
     return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleUpdateAvailable = () => {
+      setUpdateNotice('Update available. Refresh to load the latest version.')
+      setShowUpdateAction(true)
+    }
+
+    window.addEventListener(UPDATE_AVAILABLE_EVENT, handleUpdateAvailable)
+    return () => {
+      window.removeEventListener(UPDATE_AVAILABLE_EVENT, handleUpdateAvailable)
+    }
   }, [])
 
   useEffect(() => {
@@ -136,7 +154,18 @@ function App() {
                 <SocketProvider>
                   {updateNotice && (
                     <div className="pwa-update-recovery-notice">
-                      {updateNotice}
+                      <span>{updateNotice}</span>
+                      {showUpdateAction && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void performPwaHardRefresh()
+                          }}
+                          className="ml-3 inline-flex items-center rounded-full border border-white/40 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+                        >
+                          Refresh Now
+                        </button>
+                      )}
                     </div>
                   )}
                   <Toaster
