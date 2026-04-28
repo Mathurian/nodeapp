@@ -4,7 +4,7 @@ title: Inventory current multer usage
 status: To Do
 assignee: []
 created_date: '2026-04-28 02:33'
-updated_date: '2026-04-28 02:34'
+updated_date: '2026-04-28 18:39'
 labels:
   - npm
   - security
@@ -12,6 +12,7 @@ labels:
 dependencies: []
 parent_task_id: TASK-8
 priority: high
+ordinal: 7013
 ---
 
 ## Description

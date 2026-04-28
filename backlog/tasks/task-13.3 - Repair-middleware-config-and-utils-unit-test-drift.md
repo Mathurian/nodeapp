@@ -1,10 +1,10 @@
 ---
 id: TASK-13.3
-title: Repair middleware, config, and utils unit test drift
+title: 'Repair middleware, config, and utils unit test drift'
 status: To Do
 assignee: []
 created_date: '2026-04-27 21:47'
-updated_date: '2026-04-27 21:47'
+updated_date: '2026-04-28 18:39'
 labels:
   - tests
   - unit-tests
@@ -13,6 +13,7 @@ dependencies:
   - TASK-13.1
 parent_task_id: TASK-13
 priority: medium
+ordinal: 3013
 ---
 
 ## Description

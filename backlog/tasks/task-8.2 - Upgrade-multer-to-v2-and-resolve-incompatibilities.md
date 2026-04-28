@@ -4,7 +4,7 @@ title: Upgrade multer to v2 and resolve incompatibilities
 status: To Do
 assignee: []
 created_date: '2026-04-28 02:33'
-updated_date: '2026-04-28 02:34'
+updated_date: '2026-04-28 18:39'
 labels:
   - npm
   - security
@@ -13,6 +13,7 @@ dependencies:
   - TASK-8.1
 parent_task_id: TASK-8
 priority: high
+ordinal: 8013
 ---
 
 ## Description

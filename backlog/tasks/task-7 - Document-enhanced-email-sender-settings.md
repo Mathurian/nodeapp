@@ -4,7 +4,7 @@ title: Document enhanced email sender settings
 status: To Do
 assignee: []
 created_date: '2026-04-28 01:59'
-updated_date: '2026-04-27 21:40'
+updated_date: '2026-04-28 18:39'
 labels:
   - email
   - docs
@@ -13,7 +13,7 @@ dependencies:
   - TASK-3
   - TASK-5
 priority: low
-ordinal: 7
+ordinal: 9013
 ---
 
 ## Description

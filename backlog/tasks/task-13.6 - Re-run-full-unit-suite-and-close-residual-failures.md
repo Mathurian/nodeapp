@@ -4,7 +4,7 @@ title: Re-run full unit suite and close residual failures
 status: To Do
 assignee: []
 created_date: '2026-04-27 21:47'
-updated_date: '2026-04-27 21:47'
+updated_date: '2026-04-28 18:39'
 labels:
   - tests
   - unit-tests
@@ -16,6 +16,7 @@ dependencies:
   - TASK-13.5
 parent_task_id: TASK-13
 priority: high
+ordinal: 6013
 ---
 
 ## Description
