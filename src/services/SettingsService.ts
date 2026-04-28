@@ -134,6 +134,20 @@ const EMAIL_SETTINGS_WRITE_KEY_MAP: Readonly<Record<string, string>> = {
   email_reply_to_address: 'email_replyToEmail',
   email_reply_to_name: 'email_replyToName',
 };
+const EMAIL_ADDRESS_SETTING_KEYS = new Set([
+  'email_from_address',
+  'email_fromEmail',
+  'smtp_from',
+  'email_reply_to_address',
+  'email_replyToEmail',
+]);
+const EMAIL_SENDER_TEXT_SETTING_KEYS = new Set([
+  ...EMAIL_ADDRESS_SETTING_KEYS,
+  'email_from_name',
+  'email_fromName',
+  'email_reply_to_name',
+  'email_replyToName',
+]);
 
 type GoogleOAuthState = {
   tenantId: string | null;
@@ -179,6 +193,85 @@ export class SettingsService extends BaseService {
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  }
+
+  private normalizeEmailSettingValue(key: string, value: unknown): string {
+    const normalizedValue = String(value ?? '');
+
+    if (EMAIL_SENDER_TEXT_SETTING_KEYS.has(key)) {
+      return normalizedValue.trim();
+    }
+
+    return normalizedValue;
+  }
+
+  private isValidEmailAddress(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private validateEmailAddressSetting(key: string, value: string): void {
+    if (!EMAIL_ADDRESS_SETTING_KEYS.has(key) || value === '') {
+      return;
+    }
+
+    if (!this.isValidEmailAddress(value)) {
+      throw this.badRequestError(`${key} must be a valid email address`);
+    }
+  }
+
+  private formatAddressHeader(address: string, displayName?: string): string {
+    const trimmedAddress = String(address || '').trim();
+    const trimmedDisplayName = String(displayName || '').trim();
+
+    if (!trimmedAddress) {
+      return '';
+    }
+
+    if (!trimmedDisplayName) {
+      return trimmedAddress;
+    }
+
+    const escapedDisplayName = trimmedDisplayName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escapedDisplayName}" <${trimmedAddress}>`;
+  }
+
+  private async normalizeAndValidateEmailSettingsUpdate(
+    emailSettings: Record<string, unknown>,
+    tenantId?: string | null
+  ): Promise<Record<string, string>> {
+    const normalizedSettings: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(emailSettings || {})) {
+      const normalizedValue = this.normalizeEmailSettingValue(key, value);
+      this.validateEmailAddressSetting(key, normalizedValue);
+      normalizedSettings[key] = normalizedValue;
+    }
+
+    const touchesReplyTo =
+      Object.prototype.hasOwnProperty.call(normalizedSettings, 'email_reply_to_address') ||
+      Object.prototype.hasOwnProperty.call(normalizedSettings, 'email_replyToEmail') ||
+      Object.prototype.hasOwnProperty.call(normalizedSettings, 'email_reply_to_name') ||
+      Object.prototype.hasOwnProperty.call(normalizedSettings, 'email_replyToName');
+
+    if (touchesReplyTo) {
+      const currentSettings = await this.getEmailSettings(tenantId);
+      const effectiveReplyToAddress =
+        normalizedSettings['email_reply_to_address'] ??
+        normalizedSettings['email_replyToEmail'] ??
+        currentSettings['email_reply_to_address'] ??
+        '';
+      const effectiveReplyToName =
+        normalizedSettings['email_reply_to_name'] ??
+        normalizedSettings['email_replyToName'] ??
+        currentSettings['email_reply_to_name'] ??
+        '';
+
+      if (effectiveReplyToName.trim() && !effectiveReplyToAddress.trim()) {
+        throw this.badRequestError('email_reply_to_name requires email_reply_to_address');
+      }
+    }
+
+    return normalizedSettings;
   }
 
   private cleanupExpiredGoogleStates(): void {
@@ -1301,8 +1394,12 @@ export class SettingsService extends BaseService {
     tenantId?: string | null
   ): Promise<number> {
     let updatedCount = 0;
+    const normalizedSettings = await this.normalizeAndValidateEmailSettingsUpdate(
+      emailSettings,
+      tenantId
+    );
 
-    for (const [key, value] of Object.entries(emailSettings)) {
+    for (const [key, value] of Object.entries(normalizedSettings)) {
       const dbKey = EMAIL_SETTINGS_WRITE_KEY_MAP[key] || key;
       await this.updateSetting(dbKey, value, userId, tenantId);
       updatedCount++;
@@ -1316,6 +1413,32 @@ export class SettingsService extends BaseService {
    */
   async testEmailSettings(testEmail: string, tenantId?: string | null): Promise<boolean> {
     const emailSettings = await this.getEmailSettings(tenantId);
+    const normalizedTestEmail = String(testEmail || '').trim();
+    const fromAddress = this.normalizeEmailSettingValue(
+      'email_from_address',
+      emailSettings['email_from_address'] || emailSettings['email_from'] || ''
+    );
+    const fromName = this.normalizeEmailSettingValue(
+      'email_from_name',
+      emailSettings['email_from_name'] || ''
+    );
+    const replyToAddress = this.normalizeEmailSettingValue(
+      'email_reply_to_address',
+      emailSettings['email_reply_to_address'] || ''
+    );
+    const replyToName = this.normalizeEmailSettingValue(
+      'email_reply_to_name',
+      emailSettings['email_reply_to_name'] || ''
+    );
+
+    if (!this.isValidEmailAddress(normalizedTestEmail)) {
+      throw this.badRequestError('testEmail must be a valid email address');
+    }
+    this.validateEmailAddressSetting('email_from_address', fromAddress);
+    this.validateEmailAddressSetting('email_reply_to_address', replyToAddress);
+    if (replyToName && !replyToAddress) {
+      throw this.badRequestError('email_reply_to_name requires email_reply_to_address');
+    }
 
     const transporter = nodemailer.createTransport({
       host: emailSettings['email_smtp_host'] || emailSettings['smtp_host'],
@@ -1327,12 +1450,18 @@ export class SettingsService extends BaseService {
       },
     });
 
-    await transporter.sendMail({
-      from: emailSettings['email_from_address'] || emailSettings['email_from'] || 'noreply@example.com',
-      to: testEmail,
+    const mailOptions = {
+      from: this.formatAddressHeader(fromAddress || 'noreply@example.com', fromName),
+      to: normalizedTestEmail,
       subject: `Test Email from ${DEFAULT_APP_NAME}`,
       text: 'This is a test email to verify your SMTP settings are working correctly.',
-    });
+    };
+    const replyTo = this.formatAddressHeader(replyToAddress, replyToName);
+    if (replyTo) {
+      Object.assign(mailOptions, { replyTo });
+    }
+
+    await transporter.sendMail(mailOptions);
 
     return true;
   }

@@ -4,18 +4,31 @@
  */
 
 import 'reflect-metadata';
+import nodemailer from 'nodemailer';
 import { SettingsService } from '../../../src/services/SettingsService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
+jest.mock('nodemailer', () => ({
+  __esModule: true,
+  default: {
+    createTransport: jest.fn(),
+  },
+}));
+
 describe('SettingsService', () => {
   let service: SettingsService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  let mockSendMail: jest.Mock;
+  const mockCreateTransport = nodemailer.createTransport as jest.Mock;
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
+    mockSendMail = jest.fn().mockResolvedValue({ messageId: 'mock-message-id' });
+    mockCreateTransport.mockReturnValue({ sendMail: mockSendMail });
     service = new SettingsService(mockPrisma as any);
     jest.clearAllMocks();
+    mockCreateTransport.mockReturnValue({ sendMail: mockSendMail });
   });
 
   afterEach(() => {
@@ -470,6 +483,131 @@ describe('SettingsService', () => {
           updatedBy: 'user-1',
         }),
       });
+    });
+
+    it('should trim sender email settings before validation and persistence', async () => {
+      mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
+      mockPrisma.systemSetting.create.mockResolvedValue({} as any);
+
+      await service.updateEmailSettings(
+        {
+          email_from_address: '  sender@example.com  ',
+          email_reply_to_address: '  replies@example.com  ',
+          email_reply_to_name: '  Support Team  ',
+        },
+        'user-1',
+        'tenant-1'
+      );
+
+      expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { key_tenantId: { key: 'email_fromEmail', tenantId: 'tenant-1' } },
+          update: expect.objectContaining({ value: 'sender@example.com' }),
+          create: expect.objectContaining({ value: 'sender@example.com' }),
+        })
+      );
+      expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { key_tenantId: { key: 'email_replyToEmail', tenantId: 'tenant-1' } },
+          update: expect.objectContaining({ value: 'replies@example.com' }),
+          create: expect.objectContaining({ value: 'replies@example.com' }),
+        })
+      );
+      expect(mockPrisma.systemSetting.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { key_tenantId: { key: 'email_replyToName', tenantId: 'tenant-1' } },
+          update: expect.objectContaining({ value: 'Support Team' }),
+          create: expect.objectContaining({ value: 'Support Team' }),
+        })
+      );
+    });
+
+    it('should reject invalid from and reply-to email addresses', async () => {
+      await expect(
+        service.updateEmailSettings(
+          {
+            email_from_address: 'not-an-email',
+          },
+          'user-1',
+          'tenant-1'
+        )
+      ).rejects.toThrow('email_from_address must be a valid email address');
+
+      await expect(
+        service.updateEmailSettings(
+          {
+            email_reply_to_address: 'replies@invalid',
+          },
+          'user-1',
+          'tenant-1'
+        )
+      ).rejects.toThrow('email_reply_to_address must be a valid email address');
+      expect(mockPrisma.systemSetting.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should reject reply-to name without an effective reply-to address', async () => {
+      mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updateEmailSettings(
+          {
+            email_reply_to_name: 'Support Team',
+          },
+          'user-1',
+          'tenant-1'
+        )
+      ).rejects.toThrow('email_reply_to_name requires email_reply_to_address');
+      expect(mockPrisma.systemSetting.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('testEmailSettings', () => {
+    it('should trim and format sender/reply-to headers in test email flow', async () => {
+      mockPrisma.systemSetting.findFirst.mockImplementation(async (args: any) => {
+        const keyMap: Record<string, string> = {
+          email_smtpHost: 'smtp.example.com',
+          email_smtpPort: '587',
+          email_smtpSecure: 'false',
+          email_smtpUser: 'smtp-user',
+          email_smtpPassword: 'smtp-pass',
+          email_fromEmail: '  sender@example.com  ',
+          email_fromName: '  Event Ops  ',
+          email_replyToEmail: '  replies@example.com  ',
+          email_replyToName: '  Support Team  ',
+        };
+        const key = args?.where?.key;
+        return key && keyMap[key] ? ({ id: '1', key, value: keyMap[key] } as any) : null;
+      });
+
+      const result = await service.testEmailSettings('  recipient@example.com  ', 'tenant-1');
+
+      expect(result).toBe(true);
+      expect(mockSendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: '"Event Ops" <sender@example.com>',
+          to: 'recipient@example.com',
+          replyTo: '"Support Team" <replies@example.com>',
+        })
+      );
+    });
+
+    it('should reject invalid test email and invalid saved sender settings', async () => {
+      mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
+
+      await expect(service.testEmailSettings('not-an-email', 'tenant-1')).rejects.toThrow(
+        'testEmail must be a valid email address'
+      );
+
+      mockPrisma.systemSetting.findFirst.mockImplementation(async (args: any) => {
+        const key = args?.where?.key;
+        return key === 'email_fromEmail'
+          ? ({ id: '1', key, value: 'invalid-from' } as any)
+          : null;
+      });
+
+      await expect(service.testEmailSettings('recipient@example.com', 'tenant-1')).rejects.toThrow(
+        'email_from_address must be a valid email address'
+      );
     });
   });
 
