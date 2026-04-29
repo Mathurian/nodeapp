@@ -4,12 +4,26 @@
  */
 
 import 'reflect-metadata';
-import { AuditorCertificationService } from '../../../src/services/AuditorCertificationService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn(),
+  ensureCertificationRecord: jest.fn(),
+  refreshRoleStages: jest.fn(),
+  upsertCategoryRoleCertification: jest.fn(),
+}));
+
+const { AuditorCertificationService } = require('../../../src/services/AuditorCertificationService');
+const {
+  applyCertificationStage,
+  ensureCertificationRecord,
+  refreshRoleStages,
+  upsertCategoryRoleCertification,
+} = require('../../../src/utils/certificationPipeline');
+
 describe('AuditorCertificationService', () => {
-  let service: AuditorCertificationService;
+  let service: any;
   let mockPrisma: DeepMockProxy<PrismaClient>;
 
   const mockCategoryId = 'cat-123';
@@ -19,6 +33,7 @@ describe('AuditorCertificationService', () => {
 
   const mockCategory = {
     id: mockCategoryId,
+    tenantId: 'tenant-123',
     name: 'Vocals',
     description: 'Vocal performance',
     scoreCap: 100,
@@ -118,6 +133,7 @@ describe('AuditorCertificationService', () => {
 
   const mockAuditor = {
     id: mockUserId,
+    tenantId: 'tenant-123',
     email: 'auditor@example.com',
     name: 'Auditor User',
     role: 'AUDITOR',
@@ -126,9 +142,91 @@ describe('AuditorCertificationService', () => {
     updatedAt: new Date()
   };
 
+  const mockPipelineCertification = {
+    id: 'pipeline-cert-1',
+    categoryId: mockCategoryId,
+    contestId: 'contest-123',
+    eventId: 'event-123',
+    tenantId: 'tenant-123',
+    userId: null,
+    status: 'IN_PROGRESS',
+    currentStep: 3,
+    totalSteps: 4,
+    judgeCertified: true,
+    tallyCertified: true,
+    auditorCertified: false,
+    boardApproved: false,
+    certifiedAt: null,
+    certifiedBy: null,
+    rejectionReason: null,
+    comments: null,
+    createdAt: new Date('2024-01-15T09:00:00Z'),
+    updatedAt: new Date('2024-01-15T09:00:00Z'),
+  };
+
+  const mockedApplyCertificationStage = jest.mocked(applyCertificationStage);
+  const mockedEnsureCertificationRecord = jest.mocked(ensureCertificationRecord);
+  const mockedRefreshRoleStages = jest.mocked(refreshRoleStages);
+  const mockedUpsertCategoryRoleCertification = jest.mocked(upsertCategoryRoleCertification);
+
+  const setRoleCertifications = (
+    tallyCertifications: unknown[] = mockTallyCertifications,
+    auditorCertifications: unknown[] = []
+  ) => {
+    mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+      if (where?.role === 'TALLY_MASTER') {
+        return Promise.resolve(tallyCertifications as any);
+      }
+      if (where?.role === 'AUDITOR') {
+        return Promise.resolve(auditorCertifications as any);
+      }
+      return Promise.resolve([] as any);
+    });
+  };
+
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new AuditorCertificationService(mockPrisma as any);
+    mockedApplyCertificationStage.mockReset();
+    mockedEnsureCertificationRecord.mockReset();
+    mockedRefreshRoleStages.mockReset();
+    mockedUpsertCategoryRoleCertification.mockReset();
+    mockedEnsureCertificationRecord.mockResolvedValue(mockPipelineCertification as any);
+    mockedRefreshRoleStages.mockResolvedValue(mockPipelineCertification as any);
+    mockedUpsertCategoryRoleCertification.mockResolvedValue(mockAuditorCertification as any);
+    mockedApplyCertificationStage.mockResolvedValue({} as any);
+    mockPrisma.category.findFirst.mockResolvedValue({
+      id: mockCategoryId,
+      tenantId: 'tenant-123',
+      contestId: 'contest-123',
+      contest: { eventId: 'event-123' },
+    } as any);
+    mockPrisma.certification.upsert.mockResolvedValue(mockPipelineCertification as any);
+    mockPrisma.certification.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        ...mockPipelineCertification,
+        ...data,
+      } as any)
+    );
+    mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
+    mockPrisma.assignment.groupBy.mockResolvedValue([] as any);
+    mockPrisma.judgeCertification.findMany.mockResolvedValue([
+      { judgeId: mockJudgeId1 },
+      { judgeId: mockJudgeId2 },
+    ] as any);
+    mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
+    mockPrisma.event.findFirst.mockResolvedValue({} as any);
+    mockPrisma.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
+    mockPrisma.auditorAssignment.findMany.mockResolvedValue([] as any);
+    mockPrisma.user.findMany.mockResolvedValue([] as any);
+    setRoleCertifications();
+    mockPrisma.categoryCertification.create.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        ...mockAuditorCertification,
+        ...data,
+      } as any)
+    );
+    mockPrisma.score.updateMany.mockResolvedValue({ count: 0 } as any);
     jest.clearAllMocks();
   });
 
@@ -149,7 +247,7 @@ describe('AuditorCertificationService', () => {
 
   describe('getFinalCertificationStatus', () => {
     it('should return complete status when ready for final certification', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
@@ -182,7 +280,11 @@ describe('AuditorCertificationService', () => {
     it('should indicate cannot certify when tally certifications incomplete', async () => {
       const incompleteTallyCerts = [mockTallyCertifications[0]];
 
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(incompleteTallyCerts as any);
+      setRoleCertifications(incompleteTallyCerts);
+      mockPrisma.tallyMasterAssignment.findMany.mockResolvedValue([
+        { userId: 'tally-1', user: { isActive: true, role: 'TALLY_MASTER' } },
+        { userId: 'tally-2', user: { isActive: true, role: 'TALLY_MASTER' } },
+      ] as any);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
@@ -198,7 +300,7 @@ describe('AuditorCertificationService', () => {
     });
 
     it('should indicate already certified when auditor certification exists', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications, [mockAuditorCertification]);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(mockAuditorCertification as any);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
@@ -218,7 +320,7 @@ describe('AuditorCertificationService', () => {
     it('should indicate not ready when scores are uncertified', async () => {
       const uncertifiedScores = mockScores.map(s => ({ ...s, isCertified: false }));
 
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
@@ -232,7 +334,7 @@ describe('AuditorCertificationService', () => {
     });
 
     it('should handle category with no judges', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue([]);
+      setRoleCertifications([]);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue([]);
@@ -242,7 +344,7 @@ describe('AuditorCertificationService', () => {
 
       expect(result.tallyCertifications.required).toBe(0);
       expect(result.tallyCertifications.completed).toBe(0);
-      expect(result.canCertify).toBe(true);
+      expect(result.canCertify).toBe(false);
     });
 
     it('should filter out scores without criterion when checking certification', async () => {
@@ -261,7 +363,7 @@ describe('AuditorCertificationService', () => {
         }
       ];
 
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
@@ -274,16 +376,15 @@ describe('AuditorCertificationService', () => {
     });
 
     it('should handle missing category gracefully', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(null);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
       mockPrisma.score.findMany.mockResolvedValue(mockScores as any);
 
-      const result = await service.getFinalCertificationStatus(mockCategoryId);
-
-      expect(result.categoryName).toBeUndefined();
-      expect(result.categoryId).toBe(mockCategoryId);
+      await expect(service.getFinalCertificationStatus(mockCategoryId)).rejects.toThrow(
+        "Category with identifier 'cat-123' not found"
+      );
     });
 
     it('should calculate missing certifications correctly', async () => {
@@ -303,7 +404,7 @@ describe('AuditorCertificationService', () => {
         }
       ];
 
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(multipleCategoryJudges as any);
@@ -324,7 +425,8 @@ describe('AuditorCertificationService', () => {
     };
 
     beforeEach(() => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
       mockPrisma.score.findMany.mockResolvedValue(mockScores as any);
@@ -353,9 +455,13 @@ describe('AuditorCertificationService', () => {
       expect(result).toEqual(createdCertification);
       expect(mockPrisma.categoryCertification.create).toHaveBeenCalledWith({
         data: {
+          tenantId: 'tenant-123',
           categoryId: mockCategoryId,
           role: 'AUDITOR',
-          userId: mockUserId
+          userId: mockUserId,
+          signatureName: null,
+          comments: null,
+          boardRoleSnapshot: null
         }
       });
       expect(mockPrisma.score.updateMany).toHaveBeenCalledWith({
@@ -406,11 +512,15 @@ describe('AuditorCertificationService', () => {
     });
 
     it('should throw error when tally certifications incomplete', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue([mockTallyCertifications[0]] as any);
+      setRoleCertifications([mockTallyCertifications[0]]);
+      mockPrisma.tallyMasterAssignment.findMany.mockResolvedValue([
+        { userId: 'tally-1', user: { isActive: true, role: 'TALLY_MASTER' } },
+        { userId: 'tally-2', user: { isActive: true, role: 'TALLY_MASTER' } },
+      ] as any);
 
       await expect(
         service.submitFinalCertification(mockCategoryId, mockUserId, 'AUDITOR', validConfirmations)
-      ).rejects.toThrow('Not all required certifications are complete');
+      ).rejects.toThrow('Tally Master certification must be completed first');
     });
 
     it('should throw error when scores are not certified', async () => {
@@ -512,7 +622,7 @@ describe('AuditorCertificationService', () => {
         }
       ];
 
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(extraTallyCerts as any);
+      setRoleCertifications(extraTallyCerts);
       mockPrisma.categoryCertification.create.mockResolvedValue({
         id: 'cert-123',
         categoryId: mockCategoryId,
@@ -536,7 +646,7 @@ describe('AuditorCertificationService', () => {
 
   describe('edge cases', () => {
     it('should handle category with no scores', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
@@ -561,15 +671,15 @@ describe('AuditorCertificationService', () => {
     });
 
     it('should handle undefined categoryId', async () => {
-      mockPrisma.categoryCertification.findMany.mockResolvedValue([]);
+      setRoleCertifications([]);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(null);
       mockPrisma.categoryJudge.findMany.mockResolvedValue([]);
       mockPrisma.score.findMany.mockResolvedValue([]);
 
-      const result = await service.getFinalCertificationStatus('undefined-category');
-
-      expect(result.categoryId).toBe('undefined-category');
+      await expect(service.getFinalCertificationStatus('undefined-category')).rejects.toThrow(
+        "Category with identifier 'undefined-category' not found"
+      );
     });
 
     it('should handle scores with mixed certification states', async () => {
@@ -589,7 +699,7 @@ describe('AuditorCertificationService', () => {
         }
       ];
 
-      mockPrisma.categoryCertification.findMany.mockResolvedValue(mockTallyCertifications as any);
+      setRoleCertifications(mockTallyCertifications);
       mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);

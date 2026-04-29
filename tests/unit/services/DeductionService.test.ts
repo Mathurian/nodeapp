@@ -353,7 +353,8 @@ describe('DeductionService', () => {
         'u1',
         'JUDGE',
         tenantId,
-        true
+        true,
+        null
       );
     });
 

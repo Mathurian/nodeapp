@@ -62,6 +62,7 @@ describe('CategoryService', () => {
         contestId: 'contest-1',
         description: 'Talent category',
         scoreCap: 100,
+        tenantId: 'tenant-1',
       };
       const createdCategory = { id: '1', ...categoryData };
       mockCategoryRepo.create.mockResolvedValue(createdCategory as any);
@@ -101,6 +102,7 @@ describe('CategoryService', () => {
         name: 'Talent',
         contestId: 'contest-1',
         scoreCap: 0,
+        tenantId: 'tenant-1',
       };
       const createdCategory = { id: '1', ...categoryData };
       mockCategoryRepo.create.mockResolvedValue(createdCategory as any);

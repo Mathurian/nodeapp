@@ -19,17 +19,120 @@ import 'reflect-metadata';
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient, UserRole } from '@prisma/client';
-import { TallyMasterService } from '../../../src/services/TallyMasterService';
 import { NotFoundError } from '../../../src/services/BaseService';
 
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn(),
+  refreshRoleStages: jest.fn(),
+  upsertCategoryRoleCertification: jest.fn(),
+}));
+
+const {
+  applyCertificationStage,
+  refreshRoleStages,
+  upsertCategoryRoleCertification,
+} = require('../../../src/utils/certificationPipeline');
+const { TallyMasterService } = require('../../../src/services/TallyMasterService');
+
 describe('TallyMasterService', () => {
-  let service: TallyMasterService;
+  let service: any;
   let prismaMock: DeepMockProxy<PrismaClient>;
   const tenantId = 'tenant-test';
+  const mockedApplyCertificationStage = jest.mocked(applyCertificationStage);
+  const mockedRefreshRoleStages = jest.mocked(refreshRoleStages);
+  const mockedUpsertCategoryRoleCertification = jest.mocked(upsertCategoryRoleCertification);
 
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
     service = new TallyMasterService(prismaMock as any);
+    mockedApplyCertificationStage.mockReset();
+    mockedRefreshRoleStages.mockReset();
+    mockedUpsertCategoryRoleCertification.mockReset();
+    mockedRefreshRoleStages.mockResolvedValue({
+      id: 'certification-1',
+      categoryId: 'cat1',
+      contestId: 'c1',
+      eventId: 'e1',
+      tenantId,
+      userId: null,
+      status: 'IN_PROGRESS',
+      currentStep: 2,
+      totalSteps: 4,
+      judgeCertified: true,
+      tallyCertified: false,
+      auditorCertified: false,
+      boardApproved: false,
+      certifiedAt: null,
+      certifiedBy: null,
+      rejectionReason: null,
+      comments: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+    mockedUpsertCategoryRoleCertification.mockResolvedValue({ id: 'tally-cert-1' } as any);
+    mockedApplyCertificationStage.mockResolvedValue({} as any);
+    prismaMock.certification.upsert.mockResolvedValue({
+      id: 'certification-1',
+      categoryId: 'cat1',
+      contestId: 'c1',
+      eventId: 'e1',
+      tenantId,
+      userId: null,
+      status: 'IN_PROGRESS',
+      currentStep: 2,
+      totalSteps: 4,
+      judgeCertified: true,
+      tallyCertified: false,
+      auditorCertified: false,
+      boardApproved: false,
+      certifiedAt: null,
+      certifiedBy: null,
+      rejectionReason: null,
+      comments: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+    prismaMock.certification.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: 'certification-1',
+        categoryId: 'cat1',
+        contestId: 'c1',
+        eventId: 'e1',
+        tenantId,
+        userId: null,
+        status: 'IN_PROGRESS',
+        currentStep: 2,
+        totalSteps: 4,
+        judgeCertified: true,
+        tallyCertified: false,
+        auditorCertified: false,
+        boardApproved: false,
+        certifiedAt: null,
+        certifiedBy: null,
+        rejectionReason: null,
+        comments: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      } as any)
+    );
+    prismaMock.category.findFirst.mockResolvedValue({
+      id: 'cat1',
+      tenantId,
+      contestId: 'c1',
+      contest: { eventId: 'e1' },
+    } as any);
+    prismaMock.categoryJudge.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
+    prismaMock.assignment.groupBy.mockResolvedValue([] as any);
+    prismaMock.judgeCertification.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
+    prismaMock.systemSetting.findFirst.mockResolvedValue(null);
+    prismaMock.event.findFirst.mockResolvedValue({} as any);
+    prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
+    prismaMock.auditorAssignment.findMany.mockResolvedValue([] as any);
+    prismaMock.categoryCertification.findFirst.mockResolvedValue(null);
+    prismaMock.categoryCertification.findMany.mockResolvedValue([] as any);
+    prismaMock.categoryCertification.create.mockResolvedValue({ id: 'tally-cert-1' } as any);
+    prismaMock.user.findMany.mockResolvedValue([] as any);
   });
 
   afterEach(() => {
@@ -137,21 +240,27 @@ describe('TallyMasterService', () => {
 
   describe('getCertificationQueue', () => {
     it('should return categories ready for tally master review', async () => {
+      const mockCertifications = [
+        {
+          id: 'cert1',
+          categoryId: 'cat1',
+          status: 'IN_PROGRESS',
+          currentStep: 2,
+          updatedAt: new Date('2026-02-25T12:00:00Z'),
+        },
+      ];
       const mockCategories = [
         {
           id: 'cat1',
-          totalsCertified: false,
-          contest: { id: 'c1', event: { id: 'e1' } },
-          scores: [
-            { id: 's1', isCertified: true },
-            { id: 's2', isCertified: true },
-          ],
-          categoryCertifications: [],
+          name: 'Solo',
+          contestId: 'c1',
+          updatedAt: new Date('2026-02-25T12:00:00Z'),
+          contest: { id: 'c1', name: 'Contest', event: { id: 'e1', name: 'Event' } },
         },
       ];
 
+      prismaMock.certification.findMany.mockResolvedValue(mockCertifications as any);
       prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue({ id: 'jc1' } as any);
 
       const result = await service.getCertificationQueue(1, 20);
 
@@ -161,17 +270,7 @@ describe('TallyMasterService', () => {
     });
 
     it('should exclude categories without judge certifications', async () => {
-      const mockCategories = [
-        {
-          id: 'cat1',
-          totalsCertified: false,
-          scores: [{ id: 's1', isCertified: true }],
-          categoryCertifications: [],
-        },
-      ];
-
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue(null);
+      prismaMock.certification.findMany.mockResolvedValue([]);
 
       const result = await service.getCertificationQueue();
 
@@ -179,17 +278,7 @@ describe('TallyMasterService', () => {
     });
 
     it('should exclude categories with tally certifications', async () => {
-      const mockCategories = [
-        {
-          id: 'cat1',
-          totalsCertified: false,
-          scores: [{ id: 's1', isCertified: true }],
-          categoryCertifications: [{ role: 'TALLY_MASTER' }],
-        },
-      ];
-
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue({ id: 'jc1' } as any);
+      prismaMock.certification.findMany.mockResolvedValue([]);
 
       const result = await service.getCertificationQueue();
 
@@ -197,17 +286,7 @@ describe('TallyMasterService', () => {
     });
 
     it('should exclude categories without scores', async () => {
-      const mockCategories = [
-        {
-          id: 'cat1',
-          totalsCertified: false,
-          scores: [],
-          categoryCertifications: [],
-        },
-      ];
-
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue({ id: 'jc1' } as any);
+      prismaMock.certification.findMany.mockResolvedValue([]);
 
       const result = await service.getCertificationQueue();
 
@@ -215,20 +294,7 @@ describe('TallyMasterService', () => {
     });
 
     it('should exclude categories with uncertified scores', async () => {
-      const mockCategories = [
-        {
-          id: 'cat1',
-          totalsCertified: false,
-          scores: [
-            { id: 's1', isCertified: true },
-            { id: 's2', isCertified: false },
-          ],
-          categoryCertifications: [],
-        },
-      ];
-
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.judgeCertification.findFirst.mockResolvedValue({ id: 'jc1' } as any);
+      prismaMock.certification.findMany.mockResolvedValue([]);
 
       const result = await service.getCertificationQueue();
 
@@ -301,7 +367,9 @@ describe('TallyMasterService', () => {
       const mockCategory = {
         id: 'cat1',
         name: 'Solo Performance',
-        contest: { id: 'c1', event: { id: 'e1' } },
+        tenantId,
+        contestId: 'c1',
+        contest: { id: 'c1', eventId: 'e1', event: { id: 'e1' } },
       };
 
       const mockUpdated = {

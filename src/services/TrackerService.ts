@@ -41,7 +41,7 @@ export class TrackerService extends BaseService {
     });
 
     const categoryProgress = await Promise.all(contest.categories.map(async (category: any) => {
-      const totalContestants = category.contestants.length;
+      const totalContestants = category.categoryContestants.length;
       const uniqueJudges = new Set(category.scores.map((s: any) => s.judgeId));
       const totalJudgeScores = category.scores.length;
       const expectedScores = totalContestants * uniqueJudges.size;

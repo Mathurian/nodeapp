@@ -64,6 +64,7 @@ describe('DataWipeService', () => {
       contestant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       judge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       user: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      $executeRawUnsafe: jest.fn().mockResolvedValue(0),
     };
 
     mockPrisma.event.count.mockResolvedValue(1);
@@ -76,6 +77,15 @@ describe('DataWipeService', () => {
     mockPrisma.judgeComment.count.mockResolvedValue(0);
     mockPrisma.categoryCertification.count.mockResolvedValue(0);
     mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-123', tenantId: adminTenantId } as any);
+    mockPrisma.contest.findMany.mockResolvedValue([
+      { id: 'contest-1' },
+      { id: 'contest-2' },
+    ] as any);
+    mockPrisma.category.findMany.mockResolvedValue([
+      { id: 'category-1' },
+      { id: 'category-2' },
+      { id: 'category-3' },
+    ] as any);
 
     mockPrisma.$transaction.mockImplementation(async (callback) => {
       return callback(mockTransaction);
@@ -475,7 +485,9 @@ describe('DataWipeService', () => {
     });
 
     it('should require tenant context for non-super-admin event wipes', async () => {
-      await expect(invokeEventWipe('ADMIN', undefined, false)).rejects.toThrow(ForbiddenError);
+      await expect(
+        service.wipeEventData('event-123', 'user-456', 'ADMIN', undefined, false, false)
+      ).rejects.toThrow(ForbiddenError);
     });
   });
 });

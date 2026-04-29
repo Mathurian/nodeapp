@@ -13,6 +13,12 @@ import 'reflect-metadata';
 import { BoardCertificationService } from '../../../src/services/BoardCertificationService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
+import { applyCertificationStage, refreshRoleStages } from '../../../src/utils/certificationPipeline';
+
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn(),
+  refreshRoleStages: jest.fn(),
+}));
 
 describe('BoardCertificationService', () => {
   let service: BoardCertificationService;
@@ -85,9 +91,36 @@ describe('BoardCertificationService', () => {
     comments: null
   };
 
+  const mockedApplyCertificationStage = jest.mocked(applyCertificationStage);
+  const mockedRefreshRoleStages = jest.mocked(refreshRoleStages);
+
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new BoardCertificationService(mockPrisma as any);
+    mockedApplyCertificationStage.mockReset();
+    mockedRefreshRoleStages.mockReset();
+    mockedRefreshRoleStages.mockResolvedValue({
+      id: 'pipeline-cert-1',
+      categoryId: mockCategoryId,
+      contestId: 'contest-123',
+      eventId: 'event-123',
+      tenantId: mockTenantId,
+      userId: null,
+      status: 'IN_PROGRESS',
+      currentStep: 4,
+      totalSteps: 4,
+      judgeCertified: true,
+      tallyCertified: true,
+      auditorCertified: true,
+      boardApproved: false,
+      certifiedAt: null,
+      certifiedBy: null,
+      rejectionReason: null,
+      comments: null,
+      createdAt: new Date('2024-01-15T09:00:00Z'),
+      updatedAt: new Date('2024-01-15T09:00:00Z'),
+    } as any);
+    mockedApplyCertificationStage.mockResolvedValue({} as any);
     jest.clearAllMocks();
   });
 
@@ -132,6 +165,10 @@ describe('BoardCertificationService', () => {
 
       mockPrisma.category.findUnique.mockResolvedValue(categoryWithOneCert as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
+      mockedRefreshRoleStages.mockResolvedValueOnce({
+        auditorCertified: false,
+        boardApproved: false,
+      } as any);
 
       const result = await service.getBoardCertificationStatus(mockCategoryId, mockTenantId);
 
@@ -161,11 +198,15 @@ describe('BoardCertificationService', () => {
     it('should return reason when no Auditors assigned', async () => {
       mockPrisma.category.findUnique.mockResolvedValue(mockCategory as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue([]);
+      mockedRefreshRoleStages.mockResolvedValueOnce({
+        auditorCertified: false,
+        boardApproved: false,
+      } as any);
 
       const result = await service.getBoardCertificationStatus(mockCategoryId, mockTenantId);
 
       expect(result.canCertify).toBe(false);
-      expect(result.reason).toContain('No Auditors assigned');
+      expect(result.reason).toContain('Auditor certification must be completed first');
     });
 
     it('should throw error when category not found', async () => {
@@ -277,6 +318,10 @@ describe('BoardCertificationService', () => {
       };
 
       mockPrisma.category.findUnique.mockResolvedValue(categoryWithOneCert as any);
+      mockedRefreshRoleStages.mockResolvedValueOnce({
+        auditorCertified: false,
+        boardApproved: false,
+      } as any);
 
       await expect(
         service.submitBoardCertification(mockCategoryId, mockUserId, mockTenantId)
@@ -285,7 +330,7 @@ describe('BoardCertificationService', () => {
 
     it('should reject if Board has already certified', async () => {
       const existingBoardCert = { ...mockBoardCertification };
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(existingBoardCert as any);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(existingBoardCert as any);
 
       await expect(
         service.submitBoardCertification(mockCategoryId, mockUserId, mockTenantId)
@@ -383,6 +428,10 @@ describe('BoardCertificationService', () => {
       // Mock findUnique for the internal getBoardCertificationStatus call
       mockPrisma.category.findUnique.mockResolvedValue(incompleteCategory as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
+      mockedRefreshRoleStages.mockResolvedValueOnce({
+        auditorCertified: false,
+        boardApproved: false,
+      } as any);
 
       const result = await service.getPendingBoardApprovals(mockTenantId);
 
@@ -453,7 +502,7 @@ describe('BoardCertificationService', () => {
     const reason = 'Error in certification, needs correction';
 
     it('should successfully revoke Board certification', async () => {
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(mockBoardCertification as any);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(mockBoardCertification as any);
       mockPrisma.$transaction.mockResolvedValue([
         undefined,
         { ...mockCategory, boardApproved: false }
@@ -470,7 +519,7 @@ describe('BoardCertificationService', () => {
     });
 
     it('should throw error if Board certification not found', async () => {
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(null);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
 
       await expect(
         service.revokeBoardCertification(mockCategoryId, mockUserId, mockTenantId, reason)
@@ -478,7 +527,7 @@ describe('BoardCertificationService', () => {
     });
 
     it('should delete Board certification record', async () => {
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(mockBoardCertification as any);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(mockBoardCertification as any);
       mockPrisma.$transaction.mockResolvedValue([undefined, mockCategory] as any);
 
       await service.revokeBoardCertification(
@@ -492,7 +541,7 @@ describe('BoardCertificationService', () => {
     });
 
     it('should reset category boardApproved fields', async () => {
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(mockBoardCertification as any);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(mockBoardCertification as any);
       mockPrisma.$transaction.mockResolvedValue([
         undefined,
         { ...mockCategory, boardApproved: false, approvedAt: null, approvedBy: null }
@@ -509,7 +558,7 @@ describe('BoardCertificationService', () => {
     });
 
     it('should use transaction to ensure atomicity', async () => {
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(mockBoardCertification as any);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(mockBoardCertification as any);
       mockPrisma.$transaction.mockResolvedValue([undefined, mockCategory] as any);
 
       await service.revokeBoardCertification(
@@ -529,6 +578,10 @@ describe('BoardCertificationService', () => {
       let categoryState = { ...mockCategory, categoryCertifications: [] };
       mockPrisma.category.findUnique.mockResolvedValue(categoryState as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
+      mockedRefreshRoleStages.mockResolvedValueOnce({
+        auditorCertified: false,
+        boardApproved: false,
+      } as any);
 
       // Board cannot approve yet
       let status = await service.getBoardCertificationStatus(mockCategoryId, mockTenantId);
@@ -551,7 +604,7 @@ describe('BoardCertificationService', () => {
 
       mockPrisma.category.findUnique.mockResolvedValue(categoryWithCerts as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(null);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
       mockPrisma.$transaction.mockResolvedValue([
         mockBoardCertification,
         { ...mockCategory, boardApproved: true }
@@ -561,7 +614,7 @@ describe('BoardCertificationService', () => {
       await service.submitBoardCertification(mockCategoryId, mockUserId, mockTenantId);
 
       // Second submission should fail
-      mockPrisma.categoryCertification.findUnique.mockResolvedValue(mockBoardCertification as any);
+      mockPrisma.categoryCertification.findFirst.mockResolvedValue(mockBoardCertification as any);
 
       await expect(
         service.submitBoardCertification(mockCategoryId, mockUserId, mockTenantId)

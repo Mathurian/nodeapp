@@ -107,7 +107,9 @@ describe('JudgeUncertificationService', () => {
           categoryId: 'cat1',
           reason: 'Scoring errors',
           requestedBy: 'u1',
+          requestedByBoardRoleSnapshot: null,
           status: 'PENDING',
+          tenantId: undefined,
         },
         include: expect.any(Object),
       });

@@ -445,13 +445,19 @@ describe('JudgeService', () => {
   describe('getContestantBios', () => {
     it('should return contestant bios for assigned category', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category-1', contestId: 'contest-1' } as any);
       mockPrisma.assignment.findFirst.mockResolvedValue(mockAssignment as any);
       mockPrisma.categoryContestant.findMany.mockResolvedValue([{ contestant: mockContestant }] as any);
 
       const result = await service.getContestantBios('category-1', 'user-1', tenantId);
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(mockContestant);
+      expect(result[0]).toEqual({
+        ...mockContestant,
+        bio: null,
+        bioFilePath: null,
+        imagePath: null,
+      });
     });
 
     it('should throw error when user is not linked to judge', async () => {
@@ -462,6 +468,7 @@ describe('JudgeService', () => {
 
     it('should throw error when judge is not assigned to category', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category-1', contestId: 'contest-1' } as any);
       mockPrisma.assignment.findFirst.mockResolvedValue(null);
 
       await expect(service.getContestantBios('category-1', 'user-1', tenantId)).rejects.toThrow(ForbiddenError);
@@ -504,19 +511,13 @@ describe('JudgeService', () => {
       mockPrisma.contestant.findFirst.mockResolvedValue(mockContestant as any);
       mockPrisma.categoryContestant.findFirst.mockResolvedValue(null);
 
-      await expect(service.getContestantBio('contestant-1', 'user-1', tenantId)).rejects.toThrow(NotFoundError);
+      await expect(service.getContestantBio('contestant-1', 'user-1', tenantId)).rejects.toThrow(ForbiddenError);
     });
 
     it('should throw error when judge is not assigned to contestants category', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockPrisma.contestant.findFirst.mockResolvedValue(mockContestant as any);
-      mockPrisma.categoryContestant.findFirst.mockResolvedValue({
-        contestantId: 'contestant-1',
-        categoryId: 'category-1',
-        tenantId,
-        category: { id: 'category-1', name: 'Dance' }
-      } as any);
-      mockPrisma.assignment.findFirst.mockResolvedValue(null);
+      mockPrisma.categoryContestant.findFirst.mockResolvedValue(null);
 
       await expect(service.getContestantBio('contestant-1', 'user-1', tenantId)).rejects.toThrow(ForbiddenError);
     });

@@ -52,7 +52,9 @@ export class AuditorCertificationService extends BaseService {
       // include removed - no user relation in schema
     });
 
-    const auditorCertification = certification.auditorCertified ? certification : null;
+    const auditorCertificationRecord = await this.prisma.categoryCertification.findFirst({
+      where: { categoryId, role: 'AUDITOR' },
+    });
 
     const categoryJudges = await this.prisma.categoryJudge.findMany({
       where: { categoryId },
@@ -63,7 +65,7 @@ export class AuditorCertificationService extends BaseService {
     const completedTallyCertifications = tallyCertifications.length;
 
     const canCertify = certification.tallyCertified;
-    const alreadyCertified = !!auditorCertification;
+    const alreadyCertified = certification.auditorCertified || !!auditorCertificationRecord;
 
     const allScores = await this.prisma.score.findMany({
       where: { categoryId },
@@ -95,9 +97,9 @@ export class AuditorCertificationService extends BaseService {
         completed: scoresCompleted
       },
       auditorCertified: alreadyCertified,
-      auditorCertification: auditorCertification ? {
-        certifiedAt: auditorCertification.certifiedAt,
-        certifiedBy: auditorCertification.certifiedBy || auditorCertification.userId
+      auditorCertification: alreadyCertified ? {
+        certifiedAt: auditorCertificationRecord?.certifiedAt ?? certification.certifiedAt,
+        certifiedBy: auditorCertificationRecord?.userId ?? certification.certifiedBy ?? certification.userId
       } : null
     };
   }

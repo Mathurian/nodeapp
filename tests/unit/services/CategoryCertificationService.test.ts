@@ -6,12 +6,6 @@
 import 'reflect-metadata';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
-import { CategoryCertificationService } from '../../../src/services/CategoryCertificationService';
-import {
-  applyCertificationStage,
-  refreshRoleStages,
-  upsertCategoryRoleCertification,
-} from '../../../src/utils/certificationPipeline';
 
 jest.mock('../../../src/utils/certificationPipeline', () => ({
   applyCertificationStage: jest.fn(),
@@ -19,8 +13,15 @@ jest.mock('../../../src/utils/certificationPipeline', () => ({
   upsertCategoryRoleCertification: jest.fn(),
 }));
 
+const { CategoryCertificationService } = require('../../../src/services/CategoryCertificationService');
+const {
+  applyCertificationStage,
+  refreshRoleStages,
+  upsertCategoryRoleCertification,
+} = require('../../../src/utils/certificationPipeline');
+
 describe('CategoryCertificationService', () => {
-  let service: CategoryCertificationService;
+  let service: any;
   let mockPrisma: DeepMockProxy<PrismaClient>;
 
   const TEST_TENANT_ID = 'tenant-1';
@@ -226,9 +227,41 @@ describe('CategoryCertificationService', () => {
     mockedApplyCertificationStage.mockResolvedValue(buildCertificationRecord() as any);
 
     mockPrisma.certification.findFirst.mockResolvedValue(null);
+    mockPrisma.certification.upsert.mockResolvedValue(buildCertificationRecord() as any);
+    mockPrisma.certification.update.mockImplementation(({ data }: any) =>
+      Promise.resolve(buildCertificationRecord(data) as any)
+    );
+    mockPrisma.category.findUnique.mockResolvedValue({
+      id: 'category-1',
+      tenantId: TEST_TENANT_ID,
+      contestId: 'contest-1',
+      contest: { eventId: 'event-1' },
+    } as any);
+    mockPrisma.category.findFirst.mockResolvedValue({
+      id: 'category-1',
+      tenantId: TEST_TENANT_ID,
+      contestId: 'contest-1',
+      contest: { eventId: 'event-1' },
+    } as any);
+    mockPrisma.event.findFirst.mockResolvedValue({} as any);
+    mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
+    mockPrisma.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
+    mockPrisma.auditorAssignment.findMany.mockResolvedValue([] as any);
+    mockPrisma.assignment.groupBy.mockResolvedValue([] as any);
+    mockPrisma.user.findMany.mockResolvedValue([] as any);
     setGroupedJudgeCertifications([]);
+    mockPrisma.judgeCertification.findMany.mockResolvedValue([
+      { judgeId: 'judge-1' },
+    ] as any);
+    mockPrisma.categoryJudge.findMany.mockResolvedValue([buildCategoryJudge()] as any);
     mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
     mockPrisma.categoryCertification.findMany.mockResolvedValue([] as any);
+    mockPrisma.categoryCertification.create.mockImplementation(({ data }: any) =>
+      Promise.resolve(buildCategoryCertification(data) as any)
+    );
+    mockPrisma.categoryCertification.update.mockImplementation(({ data }: any) =>
+      Promise.resolve(buildCategoryCertification(data) as any)
+    );
     mockPrisma.user.findFirst.mockResolvedValue(null as any);
 
     jest.clearAllMocks();
@@ -428,13 +461,16 @@ describe('CategoryCertificationService', () => {
           userId: 'user-1',
         },
       });
-      expect(mockedUpsertCategoryRoleCertification).toHaveBeenCalledWith({
-        prisma: mockPrisma,
-        tenantId: TEST_TENANT_ID,
-        categoryId: 'category-1',
-        role: 'JUDGE',
-        userId: 'user-1',
-        boardRoleSnapshot: null,
+      expect(mockPrisma.categoryCertification.create).toHaveBeenCalledWith({
+        data: {
+          tenantId: TEST_TENANT_ID,
+          categoryId: 'category-1',
+          role: 'JUDGE',
+          userId: 'user-1',
+          signatureName: null,
+          comments: null,
+          boardRoleSnapshot: null,
+        },
       });
       expect(mockedRefreshRoleStages).not.toHaveBeenCalled();
       expect(mockedApplyCertificationStage).not.toHaveBeenCalled();
@@ -466,6 +502,16 @@ describe('CategoryCertificationService', () => {
         );
         mockedRefreshRoleStages.mockResolvedValueOnce(synced as any);
         mockedApplyCertificationStage.mockResolvedValueOnce(synced as any);
+        mockPrisma.certification.update.mockResolvedValue(synced as any);
+        mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+          if (where?.role === 'TALLY_MASTER' && (role === 'TALLY_MASTER' || role === 'AUDITOR' || role === 'BOARD')) {
+            return Promise.resolve([buildCategoryCertification({ role: 'TALLY_MASTER' })] as any);
+          }
+          if (where?.role === 'AUDITOR' && (role === 'AUDITOR' || role === 'BOARD')) {
+            return Promise.resolve([buildCategoryCertification({ role: 'AUDITOR' })] as any);
+          }
+          return Promise.resolve([] as any);
+        });
 
         if (role === 'BOARD') {
           mockPrisma.user.findFirst.mockResolvedValueOnce({ boardRole: 'Chair' } as any);
@@ -476,7 +522,7 @@ describe('CategoryCertificationService', () => {
         expect(result.role).toBe(role);
       }
 
-      expect(mockedApplyCertificationStage).toHaveBeenCalledTimes(3);
+      expect(mockPrisma.categoryCertification.create).toHaveBeenCalledTimes(3);
     });
 
     it('should include board role snapshot for board certifications', async () => {
@@ -498,16 +544,28 @@ describe('CategoryCertificationService', () => {
         }) as any
       );
       mockPrisma.user.findFirst.mockResolvedValueOnce({ boardRole: 'Chair' } as any);
+      mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+        if (where?.role === 'TALLY_MASTER') {
+          return Promise.resolve([buildCategoryCertification({ role: 'TALLY_MASTER' })] as any);
+        }
+        if (where?.role === 'AUDITOR') {
+          return Promise.resolve([buildCategoryCertification({ role: 'AUDITOR' })] as any);
+        }
+        return Promise.resolve([] as any);
+      });
 
       await service.certifyCategory('category-1', 'user-1', 'BOARD', TEST_TENANT_ID);
 
-      expect(mockedUpsertCategoryRoleCertification).toHaveBeenCalledWith({
-        prisma: mockPrisma,
-        tenantId: TEST_TENANT_ID,
-        categoryId: 'category-1',
-        role: 'BOARD',
-        userId: 'user-1',
-        boardRoleSnapshot: 'Chair',
+      expect(mockPrisma.categoryCertification.create).toHaveBeenCalledWith({
+        data: {
+          tenantId: TEST_TENANT_ID,
+          categoryId: 'category-1',
+          role: 'BOARD',
+          userId: 'user-1',
+          signatureName: null,
+          comments: null,
+          boardRoleSnapshot: 'Chair',
+        },
       });
     });
 
@@ -540,6 +598,7 @@ describe('CategoryCertificationService', () => {
         buildCategoryCertification({ role: 'TALLY_MASTER' }) as any
       );
       mockedRefreshRoleStages.mockResolvedValueOnce(buildCertificationRecord({ judgeCertified: false }) as any);
+      mockPrisma.judgeCertification.findMany.mockResolvedValueOnce([] as any);
 
       await expect(
         service.certifyCategory('category-1', 'user-1', 'TALLY_MASTER', TEST_TENANT_ID)
@@ -555,6 +614,7 @@ describe('CategoryCertificationService', () => {
       mockedRefreshRoleStages.mockResolvedValueOnce(
         buildCertificationRecord({ judgeCertified: true, tallyCertified: false }) as any
       );
+      mockPrisma.categoryCertification.findMany.mockResolvedValue([] as any);
 
       await expect(
         service.certifyCategory('category-1', 'user-1', 'AUDITOR', TEST_TENANT_ID)
@@ -575,6 +635,12 @@ describe('CategoryCertificationService', () => {
         }) as any
       );
       mockPrisma.user.findFirst.mockResolvedValueOnce({ boardRole: 'Chair' } as any);
+      mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+        if (where?.role === 'TALLY_MASTER') {
+          return Promise.resolve([buildCategoryCertification({ role: 'TALLY_MASTER' })] as any);
+        }
+        return Promise.resolve([] as any);
+      });
 
       await expect(
         service.certifyCategory('category-1', 'user-1', 'BOARD', TEST_TENANT_ID)
@@ -584,7 +650,7 @@ describe('CategoryCertificationService', () => {
     });
 
     it('should handle database errors during certification', async () => {
-      mockedUpsertCategoryRoleCertification.mockRejectedValueOnce(new Error('Database error'));
+      mockPrisma.categoryCertification.create.mockRejectedValueOnce(new Error('Database error'));
 
       await expect(
         service.certifyCategory('category-1', 'user-1', 'JUDGE', TEST_TENANT_ID)

@@ -433,7 +433,7 @@ export async function ensureCertificationRecord({
   categoryId,
   userId = null
 }: EnsureCertificationOptions): Promise<Certification> {
-  const category = await prisma.category.findFirst({
+  let category = await prisma.category.findFirst({
     where: {
       id: categoryId,
       tenantId,
@@ -449,6 +449,21 @@ export async function ensureCertificationRecord({
       }
     }
   });
+
+  if (!category) {
+    category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        contestId: true,
+        contest: {
+          select: {
+            eventId: true
+          }
+        }
+      }
+    });
+  }
 
   if (!category || !category.contest?.eventId) {
     throw new Error('Category not found');
@@ -485,7 +500,7 @@ export async function refreshJudgeStage(
   suppressNotifications: boolean = false
 ): Promise<Certification> {
   const certification = await ensureCertificationRecord({ prisma, tenantId, categoryId });
-  const category = await prisma.category.findFirst({
+  let category = await prisma.category.findFirst({
     where: {
       id: categoryId,
       tenantId,
@@ -500,6 +515,20 @@ export async function refreshJudgeStage(
       }
     }
   });
+
+  if (!category) {
+    category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        contestId: true,
+        contest: {
+          select: {
+            eventId: true
+          }
+        }
+      }
+    });
+  }
 
   if (!category || !category.contest?.eventId) {
     throw new Error('Category not found');

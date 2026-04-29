@@ -172,7 +172,8 @@ describe('UserService', () => {
       email: 'new@example.com',
       password: 'Password123!',
       role: UserRole.JUDGE,
-      preferredName: 'New User'
+      preferredName: 'New User',
+      tenantId: 'tenant-1'
     };
 
     beforeEach(() => {
@@ -253,7 +254,10 @@ describe('UserService', () => {
       const result = await userService.updateUser('user-123', updateUserDTO);
 
       expect(mockUserRepository.findById).toHaveBeenCalledWith('user-123');
-      expect(mockUserRepository.update).toHaveBeenCalledWith('user-123', updateUserDTO);
+      expect(mockUserRepository.update).toHaveBeenCalledWith('user-123', {
+        ...updateUserDTO,
+        boardRole: null,
+      });
       expect(result).not.toHaveProperty('password');
     });
 

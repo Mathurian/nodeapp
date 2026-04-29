@@ -89,6 +89,7 @@ describe('ContestService', () => {
         name: 'Talent Contest',
         eventId: 'event-1',
         description: 'Test Contest',
+        tenantId: 'tenant-1',
       };
       const createdContest = { id: '1', ...contestData };
       mockContestRepo.create.mockResolvedValue(createdContest as any);

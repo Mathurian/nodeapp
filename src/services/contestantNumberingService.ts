@@ -1,4 +1,4 @@
-const prisma = require('../utils/prisma')
+import prisma from '../utils/prisma';
 const { createLogger } = require('../utils/logger')
 
 const logger = createLogger('ContestantNumberingService')
@@ -164,4 +164,3 @@ class ContestantNumberingService {
 }
 
 export default new ContestantNumberingService();
-

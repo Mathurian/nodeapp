@@ -79,6 +79,14 @@ describe('ScoringService', () => {
     } as any;
 
     service = new ScoringService(mockScoreRepository, mockPrisma as any, mockCacheService as any);
+    (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback: any) =>
+      callback({
+        $executeRawUnsafe: jest.fn().mockResolvedValue(0),
+        score: {
+          create: mockPrisma.score.create,
+        },
+      })
+    );
     jest.clearAllMocks();
   });
 

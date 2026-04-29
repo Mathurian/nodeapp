@@ -44,11 +44,16 @@ describe('TestEventSetupService', () => {
       assignment: { create: jest.fn(), deleteMany: jest.fn() },
       auditorAssignment: { deleteMany: jest.fn() },
       tallyMasterAssignment: { deleteMany: jest.fn() },
-      tenant: { delete: jest.fn() }
+      tenant: { create: jest.fn(), delete: jest.fn(), findUnique: jest.fn() }
     };
 
     mockPrisma.$transaction.mockImplementation(async (callback: any) => {
       return callback(mockTransaction);
+    });
+    mockTransaction.tenant.findUnique.mockResolvedValue({
+      id: defaultTenantId,
+      slug: 'test',
+      name: 'Test Tenant',
     });
 
     // Mock tenant lookup (used outside transaction for email domain)

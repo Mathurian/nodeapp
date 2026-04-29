@@ -56,6 +56,7 @@ describe('AssignmentService', () => {
       invalidatePattern: jest.fn().mockResolvedValue(undefined),
     };
     service = new AssignmentService(mockPrisma as any, mockCacheService as any);
+    (mockPrisma.systemSetting.findMany as jest.Mock).mockResolvedValue([]);
     jest.clearAllMocks();
   });
 
@@ -445,9 +446,11 @@ describe('AssignmentService', () => {
       expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           select: expect.any(Object),
-          orderBy: {
-            name: 'asc'
-          },
+          orderBy: [
+            { name: 'asc' },
+            { email: 'asc' },
+            { id: 'asc' },
+          ],
           skip: expect.any(Number),
           take: expect.any(Number),
         })

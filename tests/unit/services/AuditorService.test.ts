@@ -20,16 +20,109 @@ import 'reflect-metadata';
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { AuditorService } from '../../../src/services/AuditorService';
 import { NotFoundError } from '../../../src/services/BaseService';
 
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn(),
+  refreshRoleStages: jest.fn(),
+  upsertCategoryRoleCertification: jest.fn(),
+}));
+
+const {
+  applyCertificationStage,
+  refreshRoleStages,
+  upsertCategoryRoleCertification,
+} = require('../../../src/utils/certificationPipeline');
+const { AuditorService } = require('../../../src/services/AuditorService');
+
 describe('AuditorService', () => {
-  let service: AuditorService;
+  let service: any;
   let prismaMock: DeepMockProxy<PrismaClient>;
+  const mockedApplyCertificationStage = jest.mocked(applyCertificationStage);
+  const mockedRefreshRoleStages = jest.mocked(refreshRoleStages);
+  const mockedUpsertCategoryRoleCertification = jest.mocked(upsertCategoryRoleCertification);
 
   beforeEach(() => {
     prismaMock = mockDeep<PrismaClient>();
     service = new AuditorService(prismaMock as any);
+    mockedApplyCertificationStage.mockReset();
+    mockedRefreshRoleStages.mockReset();
+    mockedUpsertCategoryRoleCertification.mockReset();
+    mockedRefreshRoleStages.mockResolvedValue({
+      tallyCertified: true,
+      auditorCertified: false,
+    } as any);
+    mockedApplyCertificationStage.mockResolvedValue({} as any);
+    prismaMock.certification.upsert.mockResolvedValue({
+      id: 'certification-1',
+      categoryId: 'cat1',
+      contestId: 'c1',
+      eventId: 'e1',
+      tenantId: 'tenant1',
+      userId: null,
+      status: 'IN_PROGRESS',
+      currentStep: 3,
+      totalSteps: 4,
+      judgeCertified: true,
+      tallyCertified: true,
+      auditorCertified: false,
+      boardApproved: false,
+      certifiedAt: null,
+      certifiedBy: null,
+      rejectionReason: null,
+      comments: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+    prismaMock.certification.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: 'certification-1',
+        categoryId: 'cat1',
+        contestId: 'c1',
+        eventId: 'e1',
+        tenantId: 'tenant1',
+        userId: null,
+        status: 'IN_PROGRESS',
+        currentStep: 3,
+        totalSteps: 4,
+        judgeCertified: true,
+        tallyCertified: true,
+        auditorCertified: false,
+        boardApproved: false,
+        certifiedAt: null,
+        certifiedBy: null,
+        rejectionReason: null,
+        comments: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...data,
+      } as any)
+    );
+    prismaMock.category.findFirst.mockResolvedValue({
+      id: 'cat1',
+      tenantId: 'tenant1',
+      contestId: 'c1',
+      contest: { eventId: 'e1' },
+    } as any);
+    prismaMock.categoryJudge.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
+    prismaMock.assignment.groupBy.mockResolvedValue([] as any);
+    prismaMock.judgeCertification.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
+    prismaMock.systemSetting.findFirst.mockResolvedValue(null);
+    prismaMock.event.findFirst.mockResolvedValue({} as any);
+    prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
+    prismaMock.auditorAssignment.findMany.mockResolvedValue([] as any);
+    prismaMock.categoryCertification.findFirst.mockResolvedValue(null);
+    prismaMock.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+      if (where?.role === 'TALLY_MASTER') {
+        return Promise.resolve([{ userId: 'tally-1' }] as any);
+      }
+      return Promise.resolve([] as any);
+    });
+    prismaMock.categoryCertification.create.mockImplementation(({ data }: any) =>
+      Promise.resolve({ id: 'cert1', ...data } as any)
+    );
+    prismaMock.user.findMany.mockResolvedValue([] as any);
+    prismaMock.score.updateMany.mockResolvedValue({ count: 0 } as any);
   });
 
   afterEach(() => {
@@ -221,7 +314,8 @@ describe('AuditorService', () => {
         id: 'cat1',
         name: 'Solo',
         tenantId: 'tenant1',
-        contest: { id: 'c1', event: { id: 'e1' } },
+        contestId: 'c1',
+        contest: { id: 'c1', eventId: 'e1', event: { id: 'e1' } },
       };
 
       const mockCertification = {
@@ -230,10 +324,13 @@ describe('AuditorService', () => {
         userId: 'u1',
         role: 'AUDITOR',
         tenantId: 'tenant1',
+        signatureName: null,
+        comments: 'Auditor category certification (final for audit)',
+        boardRoleSnapshot: null,
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.categoryCertification.create.mockResolvedValue(mockCertification as any);
+      mockedUpsertCategoryRoleCertification.mockResolvedValue(mockCertification as any);
 
       const result = await service.finalCertification('cat1', 'u1');
 
@@ -245,7 +342,9 @@ describe('AuditorService', () => {
           categoryId: 'cat1',
           userId: 'u1',
           role: 'AUDITOR',
+          signatureName: null,
           comments: 'Auditor category certification (final for audit)',
+          boardRoleSnapshot: null,
         },
       });
     });
@@ -260,14 +359,15 @@ describe('AuditorService', () => {
       const mockCategory = {
         id: 'cat1',
         tenantId: 'tenant1',
+        contestId: 'c1',
         contest: {
           id: 'c1',
+          eventId: 'e1',
           event: { id: 'e1', name: 'Spring Event' },
         },
       };
 
       prismaMock.category.findUnique.mockResolvedValue(mockCategory as any);
-      prismaMock.categoryCertification.create.mockResolvedValue({} as any);
 
       const result = await service.finalCertification('cat1', 'u1');
 
@@ -295,6 +395,7 @@ describe('AuditorService', () => {
       expect(prismaMock.activityLog.create).toHaveBeenCalledWith({
         data: {
           userId: 'u1',
+          tenantId: null,
           action: 'AUDIT_REJECTED',
           resourceType: 'CATEGORY',
           resourceId: 'cat1',
