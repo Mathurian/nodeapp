@@ -102,13 +102,16 @@ describe('NotificationsController', () => {
   });
 
   describe('getNotificationById', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return 410 because notification detail endpoint is unavailable', async () => {
       mockReq.params = { id: 'notif-1' };
 
       await controller.getNotificationById(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Not implemented' });
+      expect(mockRes.status).toHaveBeenCalledWith(410);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Notification detail endpoint is not available',
+        message: 'Use the list notifications endpoint to retrieve notification data.',
+      });
     });
 
     it('should call next with error if exception occurs', async () => {
@@ -194,14 +197,17 @@ describe('NotificationsController', () => {
   });
 
   describe('updateNotification', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return 410 because notification update endpoint is unavailable', async () => {
       mockReq.params = { id: 'notif-1' };
       mockReq.body = { isRead: true };
 
       await controller.updateNotification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Not implemented' });
+      expect(mockRes.status).toHaveBeenCalledWith(410);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Notification update endpoint is not available',
+        message: 'Notifications can be marked as read or deleted, but not updated in place.',
+      });
     });
 
     it('should call next with error if exception occurs', async () => {

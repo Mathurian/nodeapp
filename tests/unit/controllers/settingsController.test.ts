@@ -75,6 +75,8 @@ describe('SettingsController', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
+      setHeader: jest.fn().mockReturnThis(),
+      vary: jest.fn().mockReturnThis(),
     };
 
     mockNext = jest.fn();
@@ -707,13 +709,13 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateSetting).toHaveBeenCalledWith(
         'theme_logoPath',
-        '/uploads/logo-123.png',
+        '/uploads/theme/logo-123.png',
         'user-1',
         'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { logoPath: '/uploads/logo-123.png', scope: 'tenant' },
+        { logoPath: '/uploads/theme/logo-123.png', scope: 'tenant' },
         'Logo uploaded successfully'
       );
     });
@@ -753,13 +755,13 @@ describe('SettingsController', () => {
 
       expect(mockSettingsService.updateSetting).toHaveBeenCalledWith(
         'theme_faviconPath',
-        '/uploads/favicon-123.ico',
+        '/uploads/theme/favicon-123.ico',
         'user-1',
         'tenant-1'
       );
       expect(successResponse).toHaveBeenCalledWith(
         mockRes,
-        { faviconPath: '/uploads/favicon-123.ico', scope: 'tenant' },
+        { faviconPath: '/uploads/theme/favicon-123.ico', scope: 'tenant' },
         'Favicon uploaded successfully'
       );
     });

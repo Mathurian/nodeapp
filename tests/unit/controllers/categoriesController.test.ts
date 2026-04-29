@@ -249,6 +249,7 @@ describe('CategoriesController', () => {
         timeLimit: 300,
         contestantMin: undefined,
         contestantMax: undefined,
+        tenantId: 'default_tenant',
       });
       expect(sendCreated).toHaveBeenCalledWith(mockRes, mockCategory, 'Category created successfully');
     });

@@ -77,6 +77,8 @@ describe('AdminController', () => {
       query: {},
       body: {},
       user: { id: 'admin-1', role: UserRole.ADMIN },
+      get: jest.fn().mockReturnValue(undefined),
+      isSuperAdmin: false,
     };
 
     mockRes = {
@@ -168,7 +170,11 @@ describe('AdminController', () => {
 
       await controller.getDatabaseTables(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getDatabaseTables).toHaveBeenCalled();
+      expect(mockAdminService.getDatabaseTables).toHaveBeenCalledWith({
+        tenantId: undefined,
+        isSuperAdmin: false,
+        forceTenantScope: false,
+      });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockTables);
     });
 
@@ -222,7 +228,14 @@ describe('AdminController', () => {
 
       await controller.getTableData(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getTableData).toHaveBeenCalledWith('users', 2, 25, 'createdAt', 'desc');
+      expect(mockAdminService.getTableData).toHaveBeenCalledWith(
+        'users',
+        2,
+        25,
+        'createdAt',
+        'desc',
+        { tenantId: undefined, isSuperAdmin: false, forceTenantScope: false }
+      );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockData);
     });
 
@@ -233,7 +246,14 @@ describe('AdminController', () => {
 
       await controller.getTableData(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getTableData).toHaveBeenCalledWith('users', 1, 50, undefined, 'asc');
+      expect(mockAdminService.getTableData).toHaveBeenCalledWith(
+        'users',
+        1,
+        50,
+        undefined,
+        'asc',
+        { tenantId: undefined, isSuperAdmin: false, forceTenantScope: false }
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -305,7 +325,10 @@ describe('AdminController', () => {
 
       await controller.getLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: 50, page: 1 });
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
+        { limit: 50, page: 1 },
+        { tenantId: undefined, isSuperAdmin: false }
+      );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
 
@@ -315,7 +338,10 @@ describe('AdminController', () => {
 
       await controller.getLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: undefined, page: undefined });
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
+        { limit: undefined, page: undefined },
+        { tenantId: undefined, isSuperAdmin: false }
+      );
     });
   });
 
@@ -551,7 +577,10 @@ describe('AdminController', () => {
 
       await controller.getActivityLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: 200, page: 2 });
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
+        { limit: 200, page: 2 },
+        { tenantId: undefined, isSuperAdmin: false }
+      );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
 
@@ -561,7 +590,10 @@ describe('AdminController', () => {
 
       await controller.getActivityLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith({ limit: undefined, page: undefined });
+      expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
+        { limit: undefined, page: undefined },
+        { tenantId: undefined, isSuperAdmin: false }
+      );
     });
   });
 
@@ -573,7 +605,10 @@ describe('AdminController', () => {
 
       await controller.getAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(150);
+      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(150, {
+        tenantId: undefined,
+        isSuperAdmin: false,
+      });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
 
@@ -583,7 +618,10 @@ describe('AdminController', () => {
 
       await controller.getAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(100);
+      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(100, {
+        tenantId: undefined,
+        isSuperAdmin: false,
+      });
     });
   });
 
@@ -605,7 +643,10 @@ describe('AdminController', () => {
 
       await controller.exportAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(500);
+      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(500, {
+        tenantId: undefined,
+        isSuperAdmin: false,
+      });
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
@@ -631,7 +672,10 @@ describe('AdminController', () => {
 
       await controller.exportAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(1000);
+      expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(1000, {
+        tenantId: undefined,
+        isSuperAdmin: false,
+      });
     });
 
     it('should call next with error when service throws', async () => {
@@ -659,6 +703,7 @@ describe('AdminController', () => {
 
   describe('forceLogoutAllUsers', () => {
     it('should force logout all users', async () => {
+      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN };
       mockPrisma.user.updateMany.mockResolvedValue({ count: 50 } as any);
       mockPrisma.user.count.mockResolvedValue(50);
 
@@ -679,6 +724,7 @@ describe('AdminController', () => {
     });
 
     it('should handle zero users', async () => {
+      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN };
       mockPrisma.user.updateMany.mockResolvedValue({ count: 0 } as any);
       mockPrisma.user.count.mockResolvedValue(0);
 
@@ -692,6 +738,7 @@ describe('AdminController', () => {
     });
 
     it('should call next with error when operation fails', async () => {
+      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN };
       const error = new Error('Database error');
       mockPrisma.user.updateMany.mockRejectedValue(error);
 
@@ -703,15 +750,15 @@ describe('AdminController', () => {
 
   describe('forceLogoutUser', () => {
     it('should force logout specific user', async () => {
-      mockReq.params = { userId: 'user-1' };
+      mockReq.params = { id: 'user-1' };
       const mockUser = { id: 'user-1', name: 'John Doe' };
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
-      mockPrisma.user.update.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.updateMany.mockResolvedValue({ count: 1 } as any);
 
       await controller.forceLogoutUser(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-1' } });
-      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({ where: { id: 'user-1' } });
+      expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: {
           sessionVersion: {
@@ -727,8 +774,8 @@ describe('AdminController', () => {
     });
 
     it('should return 404 when user not found', async () => {
-      mockReq.params = { userId: 'user-1' };
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockReq.params = { id: 'user-1' };
+      mockPrisma.user.findFirst.mockResolvedValue(null);
 
       await controller.forceLogoutUser(mockReq as Request, mockRes as Response, mockNext);
 
@@ -741,13 +788,13 @@ describe('AdminController', () => {
         'User not found',
         404
       );
-      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(mockPrisma.user.updateMany).not.toHaveBeenCalled();
     });
 
     it('should call next with error when operation fails', async () => {
-      mockReq.params = { userId: 'user-1' };
+      mockReq.params = { id: 'user-1' };
       const error = new Error('Database error');
-      mockPrisma.user.findUnique.mockRejectedValue(error);
+      mockPrisma.user.findFirst.mockRejectedValue(error);
 
       await controller.forceLogoutUser(mockReq as Request, mockRes as Response, mockNext);
 

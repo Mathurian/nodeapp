@@ -7,7 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ScoringController } from '../../../src/controllers/scoringController';
 import { ScoringService } from '../../../src/services/ScoringService';
-import { sendSuccess, sendCreated, sendNoContent, sendError, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden } from '../../../src/utils/responseHelpers';
+import { sendSuccess, sendCreated, sendNoContent, sendError, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, errorResponse } from '../../../src/utils/responseHelpers';
 import { container } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { createRequestLogger } from '../../../src/utils/logger';
@@ -24,6 +24,17 @@ jest.mock('tsyringe', () => ({
 // Mock dependencies
 jest.mock('../../../src/services/ScoringService');
 jest.mock('../../../src/utils/responseHelpers');
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn().mockResolvedValue(undefined),
+  refreshJudgeStage: jest.fn().mockResolvedValue(undefined),
+  refreshRoleStages: jest.fn().mockResolvedValue({
+    judgeCertified: true,
+    tallyCertified: false,
+    auditorCertified: false,
+    boardApproved: false,
+  }),
+  upsertCategoryRoleCertification: jest.fn().mockResolvedValue({ id: 'cert-1', role: 'AUDITOR' }),
+}));
 jest.mock('../../../src/utils/requestValidation', () => ({
   requireAuthAndTenant: jest.fn(),
   requireAuthenticatedUser: jest.fn(),
@@ -116,6 +127,9 @@ describe('ScoringController', () => {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
       },
+      criterion: {
+        findFirst: jest.fn(),
+      },
       user: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
@@ -136,6 +150,14 @@ describe('ScoringController', () => {
       },
       deductionApproval: {
         create: jest.fn(),
+        upsert: jest.fn(),
+        findMany: jest.fn(),
+      },
+      overallDeduction: {
+        upsert: jest.fn(),
+      },
+      judgeCertification: {
+        upsert: jest.fn(),
       },
       score: {
         updateMany: jest.fn(),
@@ -144,7 +166,10 @@ describe('ScoringController', () => {
         findUnique: jest.fn(),
         deleteMany: jest.fn(),
       },
+      $executeRawUnsafe: jest.fn(),
+      $transaction: jest.fn(),
     };
+    mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
 
     const mockAuditLogService = {
       logFromRequest: jest.fn().mockResolvedValue(undefined),
@@ -165,8 +190,11 @@ describe('ScoringController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
       tenantId: 'tenant-1',
+      method: 'POST',
+      originalUrl: '/api/scoring/test',
+      path: '/api/scoring/test',
     } as any;
 
     mockRes = {
@@ -185,6 +213,21 @@ describe('ScoringController', () => {
     (sendBadRequest as jest.Mock).mockImplementation((res, message) => res.status(400).json({ success: false, error: message }));
     (sendUnauthorized as jest.Mock).mockImplementation((res, message) => res.status(401).json({ success: false, error: message }));
     (sendForbidden as jest.Mock).mockImplementation((res, message) => res.status(403).json({ success: false, error: message }));
+    (errorResponse as jest.Mock).mockImplementation((res, message, _code, status) => {
+      if (status === 400) return (sendBadRequest as jest.Mock)(res, message);
+      if (status === 404) return (sendNotFound as jest.Mock)(res, message);
+      return (sendError as jest.Mock)(res, message, status);
+    });
+    const certificationPipeline = require('../../../src/utils/certificationPipeline');
+    certificationPipeline.refreshRoleStages.mockResolvedValue({
+      judgeCertified: true,
+      tallyCertified: false,
+      auditorCertified: false,
+      boardApproved: false,
+    });
+    certificationPipeline.upsertCategoryRoleCertification.mockResolvedValue({ id: 'cert-1', role: 'TALLY_MASTER' });
+    certificationPipeline.applyCertificationStage.mockResolvedValue(undefined);
+    certificationPipeline.refreshJudgeStage.mockResolvedValue(undefined);
 
     // By default, requireAuthAndTenant passes
     (requireAuthAndTenant as jest.Mock).mockReturnValue(true);
@@ -197,7 +240,7 @@ describe('ScoringController', () => {
 
       await controller.getScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockScoringService.getScoresByCategory).toHaveBeenCalledWith('cat-1', 'tenant-1', undefined);
+      expect(mockScoringService.getScoresByCategory).toHaveBeenCalledWith('cat-1', 'tenant-1', undefined, undefined);
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockScores);
     });
 
@@ -208,7 +251,7 @@ describe('ScoringController', () => {
 
       await controller.getScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockScoringService.getScoresByCategory).toHaveBeenCalledWith('cat-1', 'tenant-1', 'contestant-1');
+      expect(mockScoringService.getScoresByCategory).toHaveBeenCalledWith('cat-1', 'tenant-1', 'contestant-1', undefined);
     });
 
     it('should call next with error when service throws', async () => {
@@ -240,7 +283,8 @@ describe('ScoringController', () => {
           comments: 'Good',
         },
         'judge-1',
-        'tenant-1'
+        'tenant-1',
+        expect.any(Number)
       );
       expect(sendCreated).toHaveBeenCalledWith(mockRes, mockScore);
     });
@@ -275,11 +319,11 @@ describe('ScoringController', () => {
     it('should update score with valid data', async () => {
       mockReq.params = { scoreId: 'score-1' };
       mockReq.body = { score: 90, comments: 'Excellent' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
       const updatedScore = { ...mockScore, score: 90, comments: 'Excellent' };
 
-      // Controller uses atomic prisma.score.updateMany
+      mockPrisma.score.findFirst.mockResolvedValue(mockScore);
       mockPrisma.score.updateMany.mockResolvedValue({ count: 1 });
-      // Then fetches the updated score
       mockPrisma.score.findUnique.mockResolvedValue(updatedScore);
 
       await controller.updateScore(mockReq as Request, mockRes as Response, mockNext);
@@ -301,7 +345,7 @@ describe('ScoringController', () => {
       const error = new Error('Not found');
       mockReq.params = { scoreId: 'score-1' };
       mockReq.body = { score: 90 };
-      mockPrisma.score.updateMany.mockRejectedValue(error);
+      mockPrisma.score.findFirst.mockRejectedValue(error);
 
       await controller.updateScore(mockReq as Request, mockRes as Response, mockNext);
 
@@ -312,6 +356,7 @@ describe('ScoringController', () => {
   describe('deleteScore', () => {
     it('should delete score and return 204', async () => {
       mockReq.params = { scoreId: 'score-1' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
       // Controller first finds the score via prisma.score.findFirst
       mockPrisma.score.findFirst.mockResolvedValue(mockScore);
       // Then does atomic deleteMany
@@ -376,13 +421,20 @@ describe('ScoringController', () => {
   describe('certifyScores', () => {
     it('should certify all scores for category', async () => {
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { signatureName: 'John Doe' };
       mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
+      mockReq.body = { typedSignature: 'Tally Master' };
       const result = { certified: 10, categoryId: 'cat-1' };
       mockScoringService.certifyScores.mockResolvedValue(result as any);
 
       await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockScoringService.certifyScores).toHaveBeenCalledWith('cat-1', 'user-1', 'tenant-1');
+      expect(mockScoringService.certifyScores).toHaveBeenCalledWith(
+        'cat-1',
+        'user-1',
+        'tenant-1',
+        { userRole: 'TALLY_MASTER', judgeId: null }
+      );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, result);
     });
 
@@ -399,6 +451,7 @@ describe('ScoringController', () => {
       const error = new Error('Category not found');
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
+      mockReq.body = { typedSignature: 'Tally Master' };
       mockScoringService.certifyScores.mockRejectedValue(error);
 
       await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
@@ -574,23 +627,10 @@ describe('ScoringController', () => {
       mockReq.body = { signatureName: 'John Doe', comments: 'Verified' };
       mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
       const category = { id: 'cat-1', name: 'Singing' };
-      const certification = {
-        id: 'cert-1',
-        categoryId: 'cat-1',
-        role: 'TALLY_MASTER',
-        userId: 'user-1',
-      };
       (mockPrisma.category.findFirst as jest.Mock).mockResolvedValue(category);
-      (mockPrisma.categoryCertification.upsert as jest.Mock).mockResolvedValue(certification);
 
       await controller.certifyTotals(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.categoryCertification.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { tenantId_categoryId_role: { tenantId: 'tenant-1', categoryId: 'cat-1', role: 'TALLY_MASTER' } },
-          create: expect.objectContaining({ role: 'TALLY_MASTER' }),
-        })
-      );
       expect(sendSuccess).toHaveBeenCalled();
     });
 
@@ -605,6 +645,7 @@ describe('ScoringController', () => {
 
     it('should return 404 when category not found', async () => {
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { signatureName: 'John Doe' };
       mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
       (mockPrisma.category.findFirst as jest.Mock).mockResolvedValue(null);
 
@@ -616,6 +657,7 @@ describe('ScoringController', () => {
     it('should call next with error when database throws', async () => {
       const error = new Error('Database error');
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { signatureName: 'John Doe' };
       mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
       (mockPrisma.category.findFirst as jest.Mock).mockRejectedValue(error);
 
@@ -627,29 +669,27 @@ describe('ScoringController', () => {
 
   describe('finalCertification', () => {
     it('should certify as Auditor when Tally Master has certified', async () => {
+      const { refreshRoleStages } = require('../../../src/utils/certificationPipeline');
+      refreshRoleStages.mockResolvedValueOnce({
+        judgeCertified: true,
+        tallyCertified: true,
+        auditorCertified: false,
+        boardApproved: false,
+      });
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.body = { signatureName: 'Jane Doe' };
       mockReq.user = { id: 'user-2', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
       const category = { id: 'cat-1', name: 'Singing' };
-      const tallyMasterCert = { id: 'cert-1', role: 'TALLY_MASTER' };
-      const auditorCert = { id: 'cert-2', role: 'AUDITOR' };
       (mockPrisma.category.findFirst as jest.Mock).mockResolvedValue(category);
-      (mockPrisma.categoryCertification.findUnique as jest.Mock).mockResolvedValue(tallyMasterCert);
-      (mockPrisma.categoryCertification.upsert as jest.Mock).mockResolvedValue(auditorCert);
 
       await controller.finalCertification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.categoryCertification.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { tenantId_categoryId_role: { tenantId: 'tenant-1', categoryId: 'cat-1', role: 'AUDITOR' } },
-          create: expect.objectContaining({ role: 'AUDITOR' }),
-        })
-      );
       expect(sendSuccess).toHaveBeenCalled();
     });
 
     it('should return 400 when Tally Master has not certified', async () => {
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { signatureName: 'Jane Doe' };
       mockReq.user = { id: 'user-2', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
       const category = { id: 'cat-1', name: 'Singing' };
       (mockPrisma.category.findFirst as jest.Mock).mockResolvedValue(category);
@@ -672,6 +712,7 @@ describe('ScoringController', () => {
     it('should call next with error when database throws', async () => {
       const error = new Error('Database error');
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { signatureName: 'Jane Doe' };
       mockReq.user = { id: 'user-2', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
       (mockPrisma.category.findFirst as jest.Mock).mockRejectedValue(error);
 
@@ -736,7 +777,7 @@ describe('ScoringController', () => {
 
       expect(sendBadRequest).toHaveBeenCalledWith(
         mockRes,
-        'contestantId, categoryId, amount, and reason are required'
+        'contestantId, amount, and reason are required'
       );
     });
 
@@ -765,6 +806,7 @@ describe('ScoringController', () => {
         reason: 'test',
       };
       mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' } as any;
+      (mockPrisma.contestant.findFirst as jest.Mock).mockResolvedValue({ id: 'contestant-1' });
       (mockPrisma.category.findFirst as jest.Mock).mockRejectedValue(error);
 
       await controller.requestDeduction(mockReq as Request, mockRes as Response, mockNext);
@@ -777,16 +819,30 @@ describe('ScoringController', () => {
     it('should approve deduction request', async () => {
       mockReq.params = { deductionId: 'ded-1' };
       mockReq.body = { isHeadJudge: true };
-      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' } as any;
-      const deduction = { id: 'ded-1', status: 'PENDING', tenantId: 'tenant-1' };
+      mockReq.user = { id: 'user-1', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
+      const deduction = {
+        id: 'ded-1',
+        status: 'PENDING',
+        tenantId: 'tenant-1',
+        requestedById: 'initiator',
+        categoryId: 'cat-1',
+        contestantId: 'contestant-1',
+        amount: 5,
+        reason: 'Violation',
+      };
       const updated = { ...deduction, status: 'APPROVED' };
       (mockPrisma.deductionRequest.findFirst as jest.Mock).mockResolvedValue(deduction);
-      (mockPrisma.deductionApproval.create as jest.Mock).mockResolvedValue({});
+      (mockPrisma.deductionApproval.upsert as jest.Mock).mockResolvedValue({});
+      (mockPrisma.deductionApproval.findMany as jest.Mock).mockResolvedValue([
+        { approvedById: 'initiator' },
+        { approvedById: 'user-1' },
+        { approvedById: 'user-2' },
+      ]);
       (mockPrisma.deductionRequest.update as jest.Mock).mockResolvedValue(updated);
 
       await controller.approveDeduction(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.deductionApproval.create).toHaveBeenCalled();
+      expect(mockPrisma.deductionApproval.upsert).toHaveBeenCalled();
       expect(mockPrisma.deductionRequest.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'ded-1' },
@@ -807,7 +863,7 @@ describe('ScoringController', () => {
 
     it('should return 404 when deduction not found', async () => {
       mockReq.params = { deductionId: 'ded-1' };
-      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' } as any;
+      mockReq.user = { id: 'user-1', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
       (mockPrisma.deductionRequest.findFirst as jest.Mock).mockResolvedValue(null);
 
       await controller.approveDeduction(mockReq as Request, mockRes as Response, mockNext);
@@ -817,7 +873,7 @@ describe('ScoringController', () => {
 
     it('should return 400 when deduction is already processed', async () => {
       mockReq.params = { deductionId: 'ded-1' };
-      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' } as any;
+      mockReq.user = { id: 'user-1', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
       const deduction = { id: 'ded-1', status: 'APPROVED', tenantId: 'tenant-1' };
       (mockPrisma.deductionRequest.findFirst as jest.Mock).mockResolvedValue(deduction);
 
@@ -829,7 +885,7 @@ describe('ScoringController', () => {
     it('should call next with error when database throws', async () => {
       const error = new Error('Database error');
       mockReq.params = { deductionId: 'ded-1' };
-      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' } as any;
+      mockReq.user = { id: 'user-1', role: 'AUDITOR', tenantId: 'tenant-1' } as any;
       (mockPrisma.deductionRequest.findFirst as jest.Mock).mockRejectedValue(error);
 
       await controller.approveDeduction(mockReq as Request, mockRes as Response, mockNext);

@@ -93,7 +93,7 @@ describe('TallyMasterController', () => {
 
       await controller.getStats(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTallyMasterService.getStats).toHaveBeenCalledWith();
+      expect(mockTallyMasterService.getStats).toHaveBeenCalledWith(undefined);
       expect(mockRes.json).toHaveBeenCalledWith(mockStats);
     });
 
@@ -173,7 +173,7 @@ describe('TallyMasterController', () => {
 
       await controller.getCertificationQueue(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20);
+      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20, undefined);
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
@@ -191,7 +191,7 @@ describe('TallyMasterController', () => {
 
       await controller.getCertificationQueue(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20);
+      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20, undefined);
     });
 
     it('should call next with error when service throws', async () => {
@@ -255,7 +255,7 @@ describe('TallyMasterController', () => {
 
   describe('certifyTotals', () => {
     it('should certify totals successfully', async () => {
-      mockReq.body = { categoryId: 'cat-1' };
+      mockReq.body = { categoryId: 'cat-1', typedSignature: 'Tally Master' };
       const mockResult = {
         success: true,
         message: 'Category totals certified',
@@ -269,13 +269,19 @@ describe('TallyMasterController', () => {
       expect(mockTallyMasterService.certifyTotals).toHaveBeenCalledWith(
         'cat-1',
         'user-1',
-        'TALLY_MASTER'
+        'TALLY_MASTER',
+        {
+          typedSignature: 'Tally Master',
+          drawnSignatureData: undefined,
+          signatureFilePath: undefined,
+          comments: undefined,
+        }
       );
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
     it('should return 401 when user is not authenticated', async () => {
-      mockReq.body = { categoryId: 'cat-1' };
+      mockReq.body = { categoryId: 'cat-1', typedSignature: 'Tally Master' };
       mockReq.user = undefined;
 
       await controller.certifyTotals(mockReq as Request, mockRes as Response, mockNext);
@@ -306,7 +312,7 @@ describe('TallyMasterController', () => {
     });
 
     it('should call next with error when service throws', async () => {
-      mockReq.body = { categoryId: 'cat-1' };
+      mockReq.body = { categoryId: 'cat-1', typedSignature: 'Tally Master' };
       const error = new Error('Certification failed');
       mockTallyMasterService.certifyTotals.mockRejectedValue(error);
 
@@ -376,10 +382,10 @@ describe('TallyMasterController', () => {
         category: mockReview.category,
         contest: mockReview.contest,
         certificationStatus: {
-          totalsCertified: true,
+          totalsCertified: false,
           currentStep: 1,
-          totalSteps: 2,
-          canProceed: true,
+          totalSteps: 4,
+          canProceed: false,
           nextStep: 'CERTIFY_TOTALS',
         },
         totalScores: mockReview.totalScores,
@@ -796,45 +802,75 @@ describe('TallyMasterController', () => {
   });
 
   describe('approveScoreRemoval', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return 410 for retired legacy endpoint', async () => {
       await controller.approveScoreRemoval(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
+      expect(mockRes.status).toHaveBeenCalledWith(410);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Score removal approval to be implemented in ScoreRemovalService',
+        error: 'Legacy tally score-removal approval endpoint is no longer available',
+        message: 'Use the current board score-removal workflow for approval actions.',
       });
     });
   });
 
   describe('rejectScoreRemoval', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return 410 for retired legacy endpoint', async () => {
       await controller.rejectScoreRemoval(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
+      expect(mockRes.status).toHaveBeenCalledWith(410);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Score removal rejection to be implemented in ScoreRemovalService',
+        error: 'Legacy tally score-removal rejection endpoint is no longer available',
+        message: 'Use the current board score-removal workflow for rejection actions.',
       });
     });
   });
 
   describe('getContestantScores', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return contestant scores', async () => {
+      const mockScores = [{ id: 'score-1', contestantId: 'cont-1', categoryId: 'cat-1' }];
+      mockReq.query = { contestantId: 'cont-1', categoryId: 'cat-1', contestId: 'contest-1' };
+      mockPrisma.score.findMany.mockResolvedValue(mockScores as any);
+
       await controller.getContestantScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: undefined,
+          contestantId: 'cont-1',
+          categoryId: 'cat-1',
+          category: { contestId: 'contest-1' },
+        },
+        include: expect.any(Object),
+        orderBy: [{ categoryId: 'asc' }, { contestantId: 'asc' }, { createdAt: 'asc' }],
+      });
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Get contestant scores to be implemented',
+        success: true,
+        data: mockScores,
       });
     });
   });
 
   describe('getJudgeScores', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return judge scores', async () => {
+      const mockScores = [{ id: 'score-1', judgeId: 'judge-1', categoryId: 'cat-1' }];
+      mockReq.query = { judgeId: 'judge-1', categoryId: 'cat-1', contestId: 'contest-1' };
+      mockPrisma.score.findMany.mockResolvedValue(mockScores as any);
+
       await controller.getJudgeScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: undefined,
+          judgeId: 'judge-1',
+          categoryId: 'cat-1',
+          category: { contestId: 'contest-1' },
+        },
+        include: expect.any(Object),
+        orderBy: [{ categoryId: 'asc' }, { judgeId: 'asc' }, { createdAt: 'asc' }],
+      });
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Get judge scores to be implemented',
+        success: true,
+        data: mockScores,
       });
     });
   });
@@ -876,12 +912,13 @@ describe('TallyMasterController', () => {
   });
 
   describe('removeJudgeContestantScores', () => {
-    it('should return 501 not implemented', async () => {
+    it('should return 410 for retired legacy endpoint', async () => {
       await controller.removeJudgeContestantScores(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(501);
+      expect(mockRes.status).toHaveBeenCalledWith(410);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Remove judge contestant scores to be implemented',
+        error: 'Legacy tally score-removal execution endpoint is no longer available',
+        message: 'Use the current governed score-removal workflow to remove scores.',
       });
     });
   });

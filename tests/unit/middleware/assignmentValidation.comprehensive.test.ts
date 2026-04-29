@@ -4,17 +4,10 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import {
-  validateAssignmentCreation,
-  validateAssignmentUpdate,
-  validateAssignmentDeletion,
-  validateBulkAssignmentOperation,
-  validateAssignmentQuery,
-} from '../../../src/middleware/assignmentValidation';
 
 // Mock Prisma
 const mockPrisma = {
-  user: {
+  judge: {
     findUnique: jest.fn(),
   },
   category: {
@@ -41,7 +34,18 @@ const mockPrisma = {
 };
 
 // Mock the prisma module
-jest.mock('../../../src/utils/prisma', () => mockPrisma);
+jest.mock('../../../src/utils/prisma', () => ({
+  __esModule: true,
+  default: mockPrisma,
+}));
+
+const {
+  validateAssignmentCreation,
+  validateAssignmentUpdate,
+  validateAssignmentDeletion,
+  validateBulkAssignmentOperation,
+  validateAssignmentQuery,
+} = require('../../../src/middleware/assignmentValidation');
 
 describe('Assignment Validation Middleware', () => {
   let req: Partial<Request>;
@@ -101,7 +105,7 @@ describe('Assignment Validation Middleware', () => {
         contestId: 'contest-123',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(judgeUser);
+      mockPrisma.judge.findUnique.mockResolvedValue(judgeUser);
       mockPrisma.category.findUnique.mockResolvedValue(category);
       mockPrisma.assignment.findFirst.mockResolvedValue(null); // No existing assignment
       mockPrisma.assignment.findMany.mockResolvedValue([]); // No overlapping assignments
@@ -122,35 +126,12 @@ describe('Assignment Validation Middleware', () => {
         categoryId: 'category-123',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.judge.findUnique.mockResolvedValue(null);
 
       await validateAssignmentCreation(req as Request, res as Response, next);
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ error: 'Judge not found' });
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it('should reject if user is not a JUDGE', async () => {
-      const nonJudgeUser = {
-        id: 'user-123',
-        role: 'CONTESTANT',
-        judge: null,
-      };
-
-      req.body = {
-        judgeId: 'user-123',
-        categoryId: 'category-123',
-      };
-
-      mockPrisma.user.findUnique.mockResolvedValue(nonJudgeUser);
-
-      await validateAssignmentCreation(req as Request, res as Response, next);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'User must have JUDGE role to be assigned',
-      });
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -166,7 +147,7 @@ describe('Assignment Validation Middleware', () => {
         categoryId: 'nonexistent-category',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(judgeUser);
+      mockPrisma.judge.findUnique.mockResolvedValue(judgeUser);
       mockPrisma.category.findUnique.mockResolvedValue(null);
 
       await validateAssignmentCreation(req as Request, res as Response, next);
@@ -200,7 +181,7 @@ describe('Assignment Validation Middleware', () => {
         categoryId: 'category-123',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(judgeUser);
+      mockPrisma.judge.findUnique.mockResolvedValue(judgeUser);
       mockPrisma.category.findUnique.mockResolvedValue(category);
       mockPrisma.assignment.findFirst.mockResolvedValue({ id: 'existing-assignment' });
 
@@ -238,7 +219,7 @@ describe('Assignment Validation Middleware', () => {
         categoryId: 'category-123',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(judgeUser);
+      mockPrisma.judge.findUnique.mockResolvedValue(judgeUser);
       mockPrisma.category.findUnique.mockResolvedValue(category);
       mockPrisma.assignment.findFirst.mockResolvedValue(null);
       mockPrisma.assignment.findMany.mockResolvedValue([]); // No overlapping
@@ -483,7 +464,7 @@ describe('Assignment Validation Middleware', () => {
         sortOrder: 'desc',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'judge-123' });
+      mockPrisma.judge.findUnique.mockResolvedValue({ id: 'judge-123' });
 
       await validateAssignmentQuery(req as Request, res as Response, next);
 

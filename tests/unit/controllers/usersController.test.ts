@@ -46,7 +46,9 @@ jest.mock('../../../src/utils/cache', () => ({
 }));
 
 // Mock response helpers - capture calls for verification
-const mockSendSuccess = jest.fn((res: any, data: any) => res.status(200).json({ success: true, data }));
+const mockSendSuccess = jest.fn((res: any, data: any, message?: string) =>
+  res.status(200).json({ success: true, data, ...(message ? { message } : {}) })
+);
 const mockSendCreated = jest.fn((res: any, data: any) => res.status(201).json({ success: true, data }));
 const mockSendNoContent = jest.fn((res: any) => res.status(204).send());
 const mockSendNotFound = jest.fn((res: any, message: any) =>
@@ -60,12 +62,15 @@ const mockSendError = jest.fn((res: any, message: any, statusCode = 500) =>
 );
 
 jest.mock('../../../src/utils/responseHelpers', () => ({
-  sendSuccess: (res: any, data: any) => mockSendSuccess(res, data),
+  sendSuccess: (res: any, data: any, message?: string) =>
+    message === undefined ? mockSendSuccess(res, data) : mockSendSuccess(res, data, message),
   sendCreated: (res: any, data: any) => mockSendCreated(res, data),
   sendNoContent: (res: any) => mockSendNoContent(res),
   sendNotFound: (res: any, message: any) => mockSendNotFound(res, message),
   sendBadRequest: (res: any, message: any) => mockSendBadRequest(res, message),
   sendError: (res: any, message: any, statusCode?: number) => mockSendError(res, message, statusCode),
+  errorResponse: (res: any, message: any, _code: any, statusCode?: number) =>
+    mockSendError(res, message, statusCode),
 }));
 
 describe('UsersController', () => {
@@ -90,6 +95,7 @@ describe('UsersController', () => {
     mockUserService = mockDeep<UserService>();
     mockAssignmentService = mockDeep<AssignmentService>();
     mockPrisma = mockDeep<PrismaClient>();
+    mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
 
     // Mock container.resolve to return our mock services
     const { container } = require('tsyringe');
@@ -250,7 +256,7 @@ describe('UsersController', () => {
 
       await controller.createUser(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendError).toHaveBeenCalledWith(mockRes, 'User with this email already exists', 400);
+      expect(mockSendError).toHaveBeenCalledWith(mockRes, 'User with this email already exists', 409);
     });
 
     it('should create user with JUDGE role and linked judge record', async () => {
@@ -332,7 +338,7 @@ describe('UsersController', () => {
 
       await controller.createUser(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockSendError).toHaveBeenCalledWith(mockRes, 'User with this email already exists', 400);
+      expect(mockSendError).toHaveBeenCalledWith(mockRes, 'User with this email already exists', 409);
     });
 
     it('should handle other errors and call next', async () => {
@@ -592,7 +598,7 @@ describe('UsersController', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             role: 'JUDGE',
-            tenantId: 'default_tenant' // Tenant isolation is enforced for security
+            tenantId: 'tenant-1' // Tenant isolation is enforced for security
           }),
           include: expect.objectContaining({
             judge: true,
@@ -987,7 +993,7 @@ describe('UsersController', () => {
         expect.objectContaining({
           where: { id: 'user-1' },
           data: expect.objectContaining({
-            bio: expect.stringContaining('/uploads/bios/'),
+            bio: expect.stringContaining('/uploads/users/bios/'),
           }),
         })
       );
@@ -1060,6 +1066,7 @@ Jane Smith,jane@test.com,Pass456!,JUDGE`;
 
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockUserService.createUser.mockResolvedValue({ id: 'user-1' } as any);
+      mockPrisma.judge.create.mockResolvedValue({ id: 'judge-1' } as any);
 
       await controller.bulkUploadUsers(mockReq as Request, mockRes as Response, mockNext);
 

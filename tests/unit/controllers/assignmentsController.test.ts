@@ -122,7 +122,7 @@ describe('AssignmentsController', () => {
         categoryId: undefined,
         contestId: undefined,
         eventId: undefined,
-      });
+      }, undefined);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         mockAssignments,
@@ -143,7 +143,8 @@ describe('AssignmentsController', () => {
       expect(mockAssignmentService.getAllAssignments).toHaveBeenCalledWith(
         expect.objectContaining({
           judgeId: 'judge-1',
-        })
+        }),
+        undefined
       );
     });
 
@@ -161,7 +162,8 @@ describe('AssignmentsController', () => {
         expect.objectContaining({
           categoryId: 'cat-1',
           status: 'ACTIVE',
-        })
+        }),
+        undefined
       );
     });
 
@@ -521,7 +523,7 @@ describe('AssignmentsController', () => {
 
       await controller.getJudges(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAssignmentService.getJudges).toHaveBeenCalled();
+      expect(mockAssignmentService.getJudges).toHaveBeenCalledWith(undefined, undefined);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         mockJudges,
@@ -549,7 +551,7 @@ describe('AssignmentsController', () => {
 
       await controller.getCategories(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAssignmentService.getCategories).toHaveBeenCalled();
+      expect(mockAssignmentService.getCategories).toHaveBeenCalledWith(undefined);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         mockCategories,
@@ -568,7 +570,7 @@ describe('AssignmentsController', () => {
 
       await controller.getContestants(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAssignmentService.getContestants).toHaveBeenCalled();
+      expect(mockAssignmentService.getContestants).toHaveBeenCalledWith(undefined);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         mockContestants,
@@ -631,6 +633,7 @@ describe('AssignmentsController', () => {
       );
 
       expect(mockAssignmentService.assignContestantToCategory).toHaveBeenCalledTimes(2);
+      expect(mockAssignmentService.getCategories).toHaveBeenCalledWith(undefined);
       expect(mockAssignmentService.assignContestantToCategory).toHaveBeenCalledWith(
         'cat-1',
         'cont-1'
@@ -806,7 +809,7 @@ describe('AssignmentsController', () => {
         mockNext
       );
 
-      expect(mockAssignmentService.getCategoryContestants).toHaveBeenCalledWith('cat-1');
+      expect(mockAssignmentService.getCategoryContestants).toHaveBeenCalledWith('cat-1', undefined);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         mockContestants,
@@ -834,7 +837,7 @@ describe('AssignmentsController', () => {
       expect(mockAssignmentService.getAllContestantAssignments).toHaveBeenCalledWith({
         categoryId: undefined,
         contestId: undefined,
-      });
+      }, undefined);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         [
@@ -867,7 +870,7 @@ describe('AssignmentsController', () => {
       expect(mockAssignmentService.getAllContestantAssignments).toHaveBeenCalledWith({
         categoryId: 'cat-1',
         contestId: undefined,
-      });
+      }, undefined);
     });
   });
 

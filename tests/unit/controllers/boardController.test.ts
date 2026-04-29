@@ -59,7 +59,7 @@ describe('BoardController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'BOARD' },
+      user: { id: 'user-1', role: 'BOARD', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {
@@ -85,7 +85,7 @@ describe('BoardController', () => {
 
       await controller.getStats(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.getStats).toHaveBeenCalledWith();
+      expect(mockBoardService.getStats).toHaveBeenCalledWith('tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockStats);
     });
 
@@ -111,7 +111,7 @@ describe('BoardController', () => {
 
       await controller.getCertifications(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.getCertifications).toHaveBeenCalledWith();
+      expect(mockBoardService.getCertifications).toHaveBeenCalledWith('tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockCertifications);
     });
 
@@ -137,6 +137,7 @@ describe('BoardController', () => {
   describe('approveCertification', () => {
     it('should approve certification successfully', async () => {
       mockReq.params = { id: 'cat-1' };
+      mockReq.body = { typedSignature: 'Board Member' };
       const mockResult = {
         success: true,
         message: 'Certification approved by board',
@@ -147,7 +148,12 @@ describe('BoardController', () => {
 
       await controller.approveCertification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.approveCertification).toHaveBeenCalledWith('cat-1');
+      expect(mockBoardService.approveCertification).toHaveBeenCalledWith('cat-1', 'user-1', 'tenant-1', {
+        typedSignature: 'Board Member',
+        drawnSignatureData: undefined,
+        signatureFilePath: undefined,
+        comments: undefined,
+      });
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
@@ -163,6 +169,7 @@ describe('BoardController', () => {
 
     it('should call next with error when service throws', async () => {
       mockReq.params = { id: 'cat-1' };
+      mockReq.body = { typedSignature: 'Board Member' };
       const error = new Error('Approval failed');
       mockBoardService.approveCertification.mockRejectedValue(error);
 
@@ -187,7 +194,7 @@ describe('BoardController', () => {
 
       await controller.rejectCertification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.rejectCertification).toHaveBeenCalledWith('cat-1', 'Scores need verification');
+      expect(mockBoardService.rejectCertification).toHaveBeenCalledWith('cat-1', 'tenant-1', 'Scores need verification');
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
@@ -203,7 +210,7 @@ describe('BoardController', () => {
 
       await controller.rejectCertification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.rejectCertification).toHaveBeenCalledWith('cat-1', undefined);
+      expect(mockBoardService.rejectCertification).toHaveBeenCalledWith('cat-1', 'tenant-1', undefined);
     });
 
     it('should return 400 when id is missing', async () => {
@@ -244,7 +251,7 @@ describe('BoardController', () => {
 
       await controller.getCertificationStatus(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.getCertificationStatus).toHaveBeenCalledWith();
+      expect(mockBoardService.getCertificationStatus).toHaveBeenCalledWith('tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockStatus);
     });
 
@@ -326,6 +333,7 @@ describe('BoardController', () => {
         order: 1,
         notes: 'First script',
         userId: 'user-1',
+        tenantId: 'tenant-1',
       });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockScript);
@@ -413,17 +421,20 @@ describe('BoardController', () => {
 
       await controller.updateEmceeScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.updateEmceeScript).toHaveBeenCalledWith('script-1', {
-        title: 'Updated Title',
-        content: 'Updated content',
-        type: 'OPENING',
-        eventId: undefined,
-        contestId: undefined,
-        categoryId: undefined,
-        order: 2,
-        notes: undefined,
-        isActive: true,
-      });
+      expect(mockBoardService.updateEmceeScript).toHaveBeenCalledWith(
+        'script-1',
+        {
+          title: 'Updated Title',
+          content: 'Updated content',
+          type: 'OPENING',
+          eventId: undefined,
+          contestId: undefined,
+          categoryId: undefined,
+          order: 2,
+          notes: undefined,
+        },
+        'tenant-1'
+      );
       expect(mockRes.json).toHaveBeenCalledWith(mockUpdatedScript);
     });
 
@@ -440,17 +451,20 @@ describe('BoardController', () => {
 
       await controller.updateEmceeScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.updateEmceeScript).toHaveBeenCalledWith('script-1', {
-        title: 'New Title Only',
-        content: undefined,
-        type: undefined,
-        eventId: undefined,
-        contestId: undefined,
-        categoryId: undefined,
-        order: undefined,
-        notes: undefined,
-        isActive: undefined,
-      });
+      expect(mockBoardService.updateEmceeScript).toHaveBeenCalledWith(
+        'script-1',
+        {
+          title: 'New Title Only',
+          content: undefined,
+          type: undefined,
+          eventId: undefined,
+          contestId: undefined,
+          categoryId: undefined,
+          order: undefined,
+          notes: undefined,
+        },
+        'tenant-1'
+      );
     });
 
     it('should return 400 when id is missing', async () => {
@@ -488,7 +502,7 @@ describe('BoardController', () => {
 
       await controller.deleteEmceeScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockBoardService.deleteEmceeScript).toHaveBeenCalledWith('script-1');
+      expect(mockBoardService.deleteEmceeScript).toHaveBeenCalledWith('script-1', 'tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
@@ -510,35 +524,6 @@ describe('BoardController', () => {
 
       expect(mockNext).toHaveBeenCalledWith(error);
       expect(mockLog.error).toHaveBeenCalledWith('Delete emcee script error', error);
-    });
-  });
-
-  describe('generateReport', () => {
-    it('should return 501 not implemented', async () => {
-      mockReq.body = { type: 'BOARD_SUMMARY' };
-
-      await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(501);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Report generation to be implemented in ReportGenerationService',
-      });
-      expect(mockLog.warn).toHaveBeenCalledWith('Generate report - not fully implemented', { type: 'BOARD_SUMMARY' });
-    });
-
-    it('should handle exception and call next', async () => {
-      mockReq.body = { type: 'TEST' };
-      const error = new Error('Unexpected error');
-
-      // Force an error by making status throw
-      mockRes.status = jest.fn().mockImplementation(() => {
-        throw error;
-      });
-
-      await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(error);
-      expect(mockLog.error).toHaveBeenCalledWith('Generate report error', error);
     });
   });
 

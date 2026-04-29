@@ -195,11 +195,13 @@ describe('ContestsController', () => {
         description: 'Contest description',
         contestantNumberingMode: 'SEQUENTIAL',
       };
+      (mockReq as any).tenantId = 'tenant-1';
       mockContestService.createContest.mockResolvedValue(mockContest as any);
 
       await controller.createContest(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockContestService.createContest).toHaveBeenCalledWith({
+        tenantId: 'tenant-1',
         eventId: 'event-1',
         name: 'New Contest',
         description: 'Contest description',
@@ -221,11 +223,13 @@ describe('ContestsController', () => {
     it('should create contest with minimal data', async () => {
       mockReq.params = { eventId: 'event-1' };
       mockReq.body = { name: 'Minimal Contest' };
+      (mockReq as any).tenantId = 'tenant-1';
       mockContestService.createContest.mockResolvedValue(mockContest as any);
 
       await controller.createContest(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockContestService.createContest).toHaveBeenCalledWith({
+        tenantId: 'tenant-1',
         eventId: 'event-1',
         name: 'Minimal Contest',
         description: undefined,
@@ -237,6 +241,7 @@ describe('ContestsController', () => {
       const error = new Error('Validation error');
       mockReq.params = { eventId: 'event-1' };
       mockReq.body = { name: 'Test' };
+      (mockReq as any).tenantId = 'tenant-1';
       mockContestService.createContest.mockRejectedValue(error);
 
       await controller.createContest(mockReq as Request, mockRes as Response, mockNext);
@@ -525,6 +530,7 @@ describe('ContestsController', () => {
       const longName = 'A'.repeat(500);
       mockReq.params = { eventId: 'event-1' };
       mockReq.body = { name: longName };
+      (mockReq as any).tenantId = 'tenant-1';
       mockContestService.createContest.mockResolvedValue(mockContest as any);
 
       await controller.createContest(mockReq as Request, mockRes as Response, mockNext);

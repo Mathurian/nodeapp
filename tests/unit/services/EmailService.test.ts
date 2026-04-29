@@ -207,6 +207,68 @@ describe('EmailService', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should apply global configured from address when no tenant id is provided', async () => {
+      mockPrisma.systemSetting.findMany.mockResolvedValueOnce([
+        { key: 'smtp_enabled', value: 'true' },
+        { key: 'smtp_host', value: 'smtp.example.com' },
+        { key: 'smtp_port', value: '587' },
+        { key: 'email_fromEmail', value: 'competitions@okckinkweekend.com' },
+        { key: 'email_fromName', value: 'OKC Competitions' },
+      ] as any);
+
+      const config = await (service as any).resolveSmtpRuntimeConfig();
+
+      expect(config).toEqual(
+        expect.objectContaining({
+          enabled: true,
+          host: 'smtp.example.com',
+          from: 'competitions@okckinkweekend.com',
+          fromName: 'OKC Competitions',
+          source: 'settings',
+        })
+      );
+      expect(mockPrisma.systemSetting.findMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.systemSetting.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId: null }),
+        })
+      );
+      expect((service as any).formatAddressHeader(config.from, config.fromName)).toBe(
+        '"OKC Competitions" <competitions@okckinkweekend.com>'
+      );
+    });
+
+    it('should let tenant configured from address override global from address', async () => {
+      mockPrisma.systemSetting.findMany
+        .mockResolvedValueOnce([
+          { key: 'smtp_enabled', value: 'true' },
+          { key: 'smtp_host', value: 'smtp.example.com' },
+          { key: 'smtp_port', value: '587' },
+          { key: 'email_fromEmail', value: 'admin@okckinkweekend.com' },
+          { key: 'email_fromName', value: 'OKC Admin' },
+        ] as any)
+        .mockResolvedValueOnce([
+          { key: 'email_fromEmail', value: 'competitions@okckinkweekend.com' },
+          { key: 'email_fromName', value: 'OKC Competitions' },
+        ] as any);
+
+      const config = await (service as any).resolveSmtpRuntimeConfig('tenant-1');
+
+      expect(config).toEqual(
+        expect.objectContaining({
+          enabled: true,
+          host: 'smtp.example.com',
+          from: 'competitions@okckinkweekend.com',
+          fromName: 'OKC Competitions',
+          source: 'settings',
+        })
+      );
+      expect(mockPrisma.systemSetting.findMany).toHaveBeenCalledTimes(2);
+      expect((service as any).formatAddressHeader(config.from, config.fromName)).toBe(
+        '"OKC Competitions" <competitions@okckinkweekend.com>'
+      );
+    });
+
     it('should apply configured from name and reply-to headers for tenant runtime email', async () => {
       mockPrisma.systemSetting.findMany
         .mockResolvedValueOnce([{ key: 'email_reply_to_name', value: 'Global Support' }] as any)
@@ -219,16 +281,13 @@ describe('EmailService', () => {
           { key: 'email_replyToEmail', value: 'replies@example.com' },
         ] as any);
 
-      const result = await service.sendEmail('recipient@example.com', 'Subject', 'Body', {
-        tenantId: 'tenant-1',
-      });
+      const config = await (service as any).resolveSmtpRuntimeConfig('tenant-1');
 
-      expect(result.success).toBe(true);
-      expect(mockSendMail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          from: '"Event Ops" <sender@example.com>',
-          replyTo: '"Global Support" <replies@example.com>',
-        })
+      expect((service as any).formatAddressHeader(config.from, config.fromName)).toBe(
+        '"Event Ops" <sender@example.com>'
+      );
+      expect((service as any).formatAddressHeader(config.replyToAddress, config.replyToName)).toBe(
+        '"Global Support" <replies@example.com>'
       );
     });
 
@@ -241,17 +300,18 @@ describe('EmailService', () => {
         { key: 'email_fromName', value: 'Event Ops' },
       ] as any);
 
-      await service.sendEmail('recipient@example.com', 'Subject', 'Body', {
-        tenantId: 'tenant-1',
-      });
+      const config = await (service as any).resolveSmtpRuntimeConfig('tenant-1');
 
-      const mailOptions = mockSendMail.mock.calls[0]?.[0];
-      expect(mailOptions).toEqual(
+      expect(config).toEqual(
         expect.objectContaining({
-          from: '"Event Ops" <sender@example.com>',
+          from: 'sender@example.com',
+          fromName: 'Event Ops',
+          replyToAddress: '',
         })
       );
-      expect(mailOptions).not.toHaveProperty('replyTo');
+      expect((service as any).formatAddressHeader(config.replyToAddress, config.replyToName)).toBe(
+        ''
+      );
     });
   });
 

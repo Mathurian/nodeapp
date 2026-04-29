@@ -75,6 +75,7 @@ describe('ReportsController', () => {
     } as any;
 
     mockInstanceService = {
+      createInstance: jest.fn(),
       getInstances: jest.fn(),
       deleteInstance: jest.fn(),
     } as any;
@@ -96,6 +97,7 @@ describe('ReportsController', () => {
       query: {},
       body: {},
       user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
+      prisma: mockPrisma,
     } as any;
 
     mockRes = {
@@ -266,6 +268,7 @@ describe('ReportsController', () => {
       // Mock auth check - event exists and user has access
       mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1', tenantId: 'tenant-1' });
       mockGenerationService.generateEventReportData.mockResolvedValue(mockReportData as any);
+      mockInstanceService.createInstance.mockResolvedValue({ id: 'inst-1' } as any);
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
 
@@ -273,8 +276,21 @@ describe('ReportsController', () => {
         'event-1',
         'user-1'
       );
+      expect(mockInstanceService.createInstance).toHaveBeenCalledWith({
+        type: 'event',
+        name: 'Event Summary Report',
+        generatedById: 'user-1',
+        format: 'PDF',
+        tenantId: 'tenant-1',
+        data: JSON.stringify(mockReportData),
+      });
       expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(mockReportData);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        data: {
+          instance: { id: 'inst-1' },
+          preview: mockReportData,
+        },
+      });
     });
 
     it('should generate contest report', async () => {
@@ -284,6 +300,7 @@ describe('ReportsController', () => {
       // Mock auth check - contest exists and user has access
       mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1', tenantId: 'tenant-1' });
       mockGenerationService.generateContestResultsData.mockResolvedValue(mockReportData as any);
+      mockInstanceService.createInstance.mockResolvedValue({ id: 'inst-2' } as any);
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
 
@@ -291,8 +308,21 @@ describe('ReportsController', () => {
         'contest-1',
         'user-1'
       );
+      expect(mockInstanceService.createInstance).toHaveBeenCalledWith({
+        type: 'contest',
+        name: 'Contest Results Report',
+        generatedById: 'user-1',
+        format: 'PDF',
+        tenantId: 'tenant-1',
+        data: JSON.stringify(mockReportData),
+      });
       expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(mockReportData);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        data: {
+          instance: { id: 'inst-2' },
+          preview: mockReportData,
+        },
+      });
     });
 
     it('should generate system analytics report', async () => {
@@ -300,13 +330,27 @@ describe('ReportsController', () => {
 
       mockReq.body = { type: 'system' };
       mockGenerationService.generateSystemAnalyticsData.mockResolvedValue(mockReportData as any);
+      mockInstanceService.createInstance.mockResolvedValue({ id: 'inst-3' } as any);
 
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
 
       // Controller now passes tenantId and userRole
       expect(mockGenerationService.generateSystemAnalyticsData).toHaveBeenCalledWith('user-1', 'tenant-1', 'ADMIN');
+      expect(mockInstanceService.createInstance).toHaveBeenCalledWith({
+        type: 'system',
+        name: 'System Analytics Report',
+        generatedById: 'user-1',
+        format: 'PDF',
+        tenantId: 'tenant-1',
+        data: JSON.stringify(mockReportData),
+      });
       expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(mockReportData);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        data: {
+          instance: { id: 'inst-3' },
+          preview: mockReportData,
+        },
+      });
     });
 
     it('should return 400 for invalid report type', async () => {
@@ -608,7 +652,8 @@ describe('ReportsController', () => {
         data: JSON.stringify(mockReportData),
       });
 
-      mockEmailService.sendReportEmail.mockResolvedValue(undefined);
+      const dispatchSummary = { total: 1, sent: 1, failed: 0, skipped: 0 };
+      mockEmailService.sendReportEmail.mockResolvedValue(dispatchSummary);
 
       await controller.sendReportEmail(mockReq as Request, mockRes as Response, mockNext);
 
@@ -616,11 +661,16 @@ describe('ReportsController', () => {
         recipients: ['user@example.com'],
         subject: 'Your Report',
         message: 'Please find the report attached',
+        html: undefined,
         reportData: mockReportData,
         format: 'pdf',
         userId: 'user-1',
+        tenantId: 'tenant-1',
       });
-      expect(mockRes.json).toHaveBeenCalledWith({ message: 'Report emailed successfully' });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: 'Report emailed successfully',
+        data: dispatchSummary,
+      });
     });
 
     it('should use default format when not provided', async () => {
@@ -636,7 +686,7 @@ describe('ReportsController', () => {
         data: '{}',
       });
 
-      mockEmailService.sendReportEmail.mockResolvedValue(undefined);
+      mockEmailService.sendReportEmail.mockResolvedValue({ total: 1, sent: 1, failed: 0, skipped: 0 });
 
       await controller.sendReportEmail(mockReq as Request, mockRes as Response, mockNext);
 
@@ -661,7 +711,7 @@ describe('ReportsController', () => {
         data: '{}',
       });
 
-      mockEmailService.sendReportEmail.mockResolvedValue(undefined);
+      mockEmailService.sendReportEmail.mockResolvedValue({ total: 1, sent: 1, failed: 0, skipped: 0 });
 
       await controller.sendReportEmail(mockReq as Request, mockRes as Response, mockNext);
 

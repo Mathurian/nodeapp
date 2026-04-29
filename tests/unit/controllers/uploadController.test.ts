@@ -91,7 +91,7 @@ describe('UploadController', () => {
       );
     });
 
-    it('should use empty string when user not authenticated', async () => {
+    it('should return 400 when user and tenant context are missing', async () => {
       mockReq.user = undefined;
       mockReq.file = { filename: 'test.pdf' } as Express.Multer.File;
       mockReq.body = { category: 'DOCUMENT' };
@@ -100,11 +100,12 @@ describe('UploadController', () => {
 
       await controller.uploadFile(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockUploadService.processUploadedFile).toHaveBeenCalledWith(
-        mockReq.file,
-        '',
-        expect.any(Object)
-      );
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Tenant context is required',
+      });
+      expect(mockUploadService.processUploadedFile).not.toHaveBeenCalled();
     });
 
     it('should call next with error when service throws', async () => {

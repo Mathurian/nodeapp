@@ -8,6 +8,8 @@
 // Note: PRISMA_QUERY_ENGINE_LIBRARY is set in jest.globalMocks.ts (runs first)
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing';
+process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-session-secret';
+process.env.CSRF_SECRET = process.env.CSRF_SECRET || 'test-csrf-secret';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public';
 
 // Disable file logging in tests to avoid permission issues

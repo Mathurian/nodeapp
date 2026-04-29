@@ -12,10 +12,22 @@ import { sendSuccess, sendNotFound, sendBadRequest, sendConflict } from '../../.
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { UserRole } from '@prisma/client';
+import {
+  applyCertificationStage,
+  refreshJudgeStage,
+  refreshRoleStages,
+  upsertCategoryRoleCertification,
+} from '../../../src/utils/certificationPipeline';
 
 // Mock dependencies
 jest.mock('../../../src/utils/logger');
 jest.mock('../../../src/utils/responseHelpers');
+jest.mock('../../../src/utils/certificationPipeline', () => ({
+  applyCertificationStage: jest.fn(),
+  refreshJudgeStage: jest.fn(),
+  refreshRoleStages: jest.fn(),
+  upsertCategoryRoleCertification: jest.fn(),
+}));
 
 describe('CertificationController', () => {
   let controller: CertificationController;
@@ -26,6 +38,7 @@ describe('CertificationController', () => {
 
   const mockCertification = {
     id: 'cert-1',
+    tenantId: 'tenant-1',
     categoryId: 'cat-1',
     contestId: 'contest-1',
     eventId: 'event-1',
@@ -74,6 +87,30 @@ describe('CertificationController', () => {
     });
 
     mockPrisma = mockDeep<PrismaClient>();
+    mockPrisma.category.findMany.mockResolvedValue([{ id: 'cat-1', name: 'Category 1' }] as any);
+    mockPrisma.contest.findMany.mockResolvedValue([{ id: 'contest-1', name: 'Contest 1' }] as any);
+    mockPrisma.event.findMany.mockResolvedValue([{ id: 'event-1', name: 'Event 1' }] as any);
+    mockPrisma.judgeCertification.upsert.mockResolvedValue({} as any);
+    (applyCertificationStage as jest.Mock).mockResolvedValue({
+      ...mockCertification,
+      status: 'IN_PROGRESS',
+    });
+    (refreshJudgeStage as jest.Mock).mockResolvedValue({
+      ...mockCertification,
+      judgeCertified: true,
+      currentStep: 2,
+      status: 'IN_PROGRESS',
+    });
+    (refreshRoleStages as jest.Mock).mockResolvedValue({
+      ...mockCertification,
+      judgeCertified: true,
+      tallyCertified: false,
+      auditorCertified: false,
+      boardApproved: false,
+      currentStep: 2,
+      status: 'IN_PROGRESS',
+    });
+    (upsertCategoryRoleCertification as jest.Mock).mockResolvedValue({});
 
     (container.resolve as jest.Mock) = jest.fn((token) => {
       if (token === 'PrismaClient') return mockPrisma;
@@ -114,7 +151,14 @@ describe('CertificationController', () => {
       expect(mockPrisma.certification.findMany).toHaveBeenCalled();
       expect(mockPrisma.certification.count).toHaveBeenCalled();
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, {
-        certifications: mockCertifications,
+        certifications: [
+          expect.objectContaining({
+            id: 'cert-1',
+            categoryName: 'Category 1',
+            contestName: 'Contest 1',
+            eventName: 'Event 1',
+          }),
+        ],
         pagination: {
           page: 1,
           limit: 20,
@@ -138,7 +182,7 @@ describe('CertificationController', () => {
 
       expect(mockPrisma.certification.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'CERTIFIED' },
+          where: expect.objectContaining({ status: 'CERTIFIED', tenantId: 'tenant-1' }),
         })
       );
     });
@@ -162,11 +206,12 @@ describe('CertificationController', () => {
 
       expect(mockPrisma.certification.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
+          where: expect.objectContaining({
             eventId: 'event-1',
             contestId: 'contest-1',
             categoryId: 'cat-1',
-          },
+            tenantId: 'tenant-1',
+          }),
         })
       );
     });
@@ -455,9 +500,9 @@ describe('CertificationController', () => {
   describe('certifyJudge', () => {
     it('should certify as judge', async () => {
       mockReq.params = { id: 'cert-1' };
-      mockReq.body = { comments: 'Judge approved' };
+      mockReq.body = { comments: 'Judge approved', typedSignature: 'Judge User' };
       mockPrisma.certification.findUnique.mockResolvedValue(mockCertification as any);
-      mockPrisma.certification.update.mockResolvedValue({
+      (applyCertificationStage as jest.Mock).mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         currentStep: 2,
@@ -470,15 +515,16 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(mockPrisma.certification.update).toHaveBeenCalledWith({
-        where: { id: 'cert-1' },
-        data: {
-          judgeCertified: true,
-          currentStep: 2,
-          status: 'IN_PROGRESS',
+      expect(applyCertificationStage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 'tenant-1',
+          categoryId: 'cat-1',
+          role: 'JUDGE',
           comments: 'Judge approved',
-        },
-      });
+          userId: 'user-1',
+          certifiedBy: 'user-1',
+        })
+      );
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         expect.any(Object),
@@ -488,6 +534,7 @@ describe('CertificationController', () => {
 
     it('should return 404 when certification not found', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Judge User' };
       mockPrisma.certification.findUnique.mockResolvedValue(null);
 
       await controller.certifyJudge(
@@ -504,6 +551,7 @@ describe('CertificationController', () => {
 
     it('should return 400 when judge already certified', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Judge User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
@@ -526,12 +574,17 @@ describe('CertificationController', () => {
   describe('certifyTally', () => {
     it('should certify as tally master', async () => {
       mockReq.params = { id: 'cert-1' };
-      mockReq.body = { comments: 'Tally approved' };
+      mockReq.body = { comments: 'Tally approved', typedSignature: 'Tally User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
       } as any);
-      mockPrisma.certification.update.mockResolvedValue({
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        judgeCertified: true,
+        tallyCertified: false,
+      });
+      (applyCertificationStage as jest.Mock).mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
@@ -544,15 +597,22 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(mockPrisma.certification.update).toHaveBeenCalledWith({
-        where: { id: 'cert-1' },
-        data: {
-          tallyCertified: true,
-          currentStep: 3,
-          status: 'IN_PROGRESS',
+      expect(upsertCategoryRoleCertification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 'tenant-1',
+          categoryId: 'cat-1',
+          role: 'TALLY_MASTER',
+          userId: 'user-1',
+          signatureName: 'Tally User',
           comments: 'Tally approved',
-        },
-      });
+        })
+      );
+      expect(applyCertificationStage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'TALLY_MASTER',
+          comments: 'Tally approved',
+        })
+      );
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         expect.any(Object),
@@ -562,7 +622,12 @@ describe('CertificationController', () => {
 
     it('should return 400 when judge not certified first', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Tally User' };
       mockPrisma.certification.findUnique.mockResolvedValue(mockCertification as any);
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        judgeCertified: false,
+      });
 
       await controller.certifyTally(
         mockReq as Request,
@@ -579,11 +644,17 @@ describe('CertificationController', () => {
 
     it('should return 400 when tally already certified', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Tally User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
       } as any);
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        judgeCertified: true,
+        tallyCertified: true,
+      });
 
       await controller.certifyTally(
         mockReq as Request,
@@ -601,13 +672,18 @@ describe('CertificationController', () => {
   describe('certifyAuditor', () => {
     it('should certify as auditor', async () => {
       mockReq.params = { id: 'cert-1' };
-      mockReq.body = { comments: 'Auditor approved' };
+      mockReq.body = { comments: 'Auditor approved', typedSignature: 'Auditor User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
       } as any);
-      mockPrisma.certification.update.mockResolvedValue({
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        tallyCertified: true,
+        auditorCertified: false,
+      });
+      (applyCertificationStage as jest.Mock).mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
@@ -621,7 +697,16 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(mockPrisma.certification.update).toHaveBeenCalled();
+      expect(upsertCategoryRoleCertification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'AUDITOR',
+          signatureName: 'Auditor User',
+          comments: 'Auditor approved',
+        })
+      );
+      expect(applyCertificationStage).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'AUDITOR', comments: 'Auditor approved' })
+      );
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         expect.any(Object),
@@ -631,10 +716,16 @@ describe('CertificationController', () => {
 
     it('should return 400 when tally not certified first', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Auditor User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
       } as any);
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        judgeCertified: true,
+        tallyCertified: false,
+      });
 
       await controller.certifyAuditor(
         mockReq as Request,
@@ -650,12 +741,18 @@ describe('CertificationController', () => {
 
     it('should return 400 when auditor already certified', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Auditor User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
         auditorCertified: true,
       } as any);
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        tallyCertified: true,
+        auditorCertified: true,
+      });
 
       await controller.certifyAuditor(
         mockReq as Request,
@@ -673,7 +770,7 @@ describe('CertificationController', () => {
   describe('approveBoard', () => {
     it('should approve by board and finalize certification', async () => {
       mockReq.params = { id: 'cert-1' };
-      mockReq.body = { comments: 'Board approved' };
+      mockReq.body = { comments: 'Board approved', typedSignature: 'Board User' };
       mockReq.user = { id: 'board-user', role: UserRole.ADMIN };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
@@ -681,7 +778,12 @@ describe('CertificationController', () => {
         tallyCertified: true,
         auditorCertified: true,
       } as any);
-      mockPrisma.certification.update.mockResolvedValue({
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        auditorCertified: true,
+        boardApproved: false,
+      });
+      (applyCertificationStage as jest.Mock).mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
@@ -697,16 +799,22 @@ describe('CertificationController', () => {
         mockNext
       );
 
-      expect(mockPrisma.certification.update).toHaveBeenCalledWith({
-        where: { id: 'cert-1' },
-        data: {
-          boardApproved: true,
-          status: 'CERTIFIED',
-          certifiedAt: expect.any(Date),
-          certifiedBy: 'board-user',
+      expect(upsertCategoryRoleCertification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'BOARD',
+          userId: 'board-user',
+          signatureName: 'Board User',
           comments: 'Board approved',
-        },
-      });
+        })
+      );
+      expect(applyCertificationStage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'BOARD',
+          comments: 'Board approved',
+          userId: 'board-user',
+          certifiedBy: 'board-user',
+        })
+      );
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
         expect.any(Object),
@@ -716,11 +824,17 @@ describe('CertificationController', () => {
 
     it('should return 400 when auditor not certified first', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Board User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
         tallyCertified: true,
       } as any);
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        tallyCertified: true,
+        auditorCertified: false,
+      });
 
       await controller.approveBoard(
         mockReq as Request,
@@ -736,6 +850,7 @@ describe('CertificationController', () => {
 
     it('should return 400 when board already approved', async () => {
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Board User' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
@@ -743,6 +858,11 @@ describe('CertificationController', () => {
         auditorCertified: true,
         boardApproved: true,
       } as any);
+      (refreshRoleStages as jest.Mock).mockResolvedValue({
+        ...mockCertification,
+        auditorCertified: true,
+        boardApproved: true,
+      });
 
       await controller.approveBoard(
         mockReq as Request,
@@ -936,7 +1056,12 @@ describe('CertificationController', () => {
 
       // Step 1: Judge must certify first
       mockReq.params = { id: 'cert-1' };
+      mockReq.body = { typedSignature: 'Workflow User' };
       mockPrisma.certification.findUnique.mockResolvedValue(cert as any);
+      (refreshRoleStages as jest.Mock)
+        .mockResolvedValueOnce({ ...cert, judgeCertified: false })
+        .mockResolvedValueOnce({ ...cert, judgeCertified: false, tallyCertified: false })
+        .mockResolvedValueOnce({ ...cert, auditorCertified: false });
 
       // Try to certify as Tally before Judge - should fail
       await controller.certifyTally(

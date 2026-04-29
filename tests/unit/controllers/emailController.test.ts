@@ -101,7 +101,10 @@ describe('EmailController', () => {
 
       await controller.sendEmail(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.sendEmail).toHaveBeenCalledWith('test@example.com', 'Test', 'Hello');
+      expect(mockService.sendEmail).toHaveBeenCalledWith('test@example.com', 'Test', 'Hello', {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+      });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockResult, 'Email sent');
     });
 
@@ -131,9 +134,17 @@ describe('EmailController', () => {
       expect(mockService.sendBulkEmail).toHaveBeenCalledWith(
         ['user1@example.com', 'user2@example.com'],
         'Newsletter',
-        'Content'
+        'Content',
+        {
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+        }
       );
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockResults, 'Bulk email sent');
+      expect(sendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        { results: mockResults, sent: 2, failed: 0, skipped: 0, total: 2 },
+        'Bulk email sent'
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -173,7 +184,7 @@ describe('EmailController', () => {
 
       expect(mockPrisma.emailTemplate.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { type: 'NOTIFICATION', eventId: 'event-1' },
+          where: { type: 'NOTIFICATION', eventId: 'event-1', tenantId: 'tenant-1' },
           skip: 10,
           take: 10
         })
@@ -328,7 +339,7 @@ describe('EmailController', () => {
       await controller.getCampaigns(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.emailLog.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: 'SENT' }, take: 25 })
+        expect.objectContaining({ where: { status: 'SENT', tenantId: 'tenant-1' }, take: 25 })
       );
     });
 
@@ -471,7 +482,7 @@ describe('EmailController', () => {
 
       expect(mockPrisma.emailLog.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'FAILED' },
+          where: { status: 'FAILED', tenantId: 'tenant-1' },
           skip: 25,
           take: 25
         })
@@ -491,10 +502,9 @@ describe('EmailController', () => {
   describe('sendMultipleEmails', () => {
     it('should send multiple emails successfully', async () => {
       mockReq.body = {
-        emails: [
-          { to: 'user1@example.com', subject: 'Test 1', body: 'Body 1' },
-          { to: 'user2@example.com', subject: 'Test 2', body: 'Body 2' }
-        ]
+        recipients: ['user1@example.com', 'user2@example.com'],
+        subject: 'Test',
+        body: 'Body'
       };
       mockService.sendEmail.mockResolvedValue({ messageId: 'msg-1' } as any);
 
@@ -513,12 +523,14 @@ describe('EmailController', () => {
 
       await controller.sendMultipleEmails(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'Emails array is required');
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'Recipients array is required');
     });
 
     it('should call next with error when send fails', async () => {
       mockReq.body = {
-        emails: [{ to: 'user@example.com', subject: 'Test', body: 'Content' }]
+        recipients: ['user@example.com'],
+        subject: 'Test',
+        body: 'Content'
       };
       const error = new Error('Send failed');
       mockService.sendEmail.mockRejectedValue(error);
@@ -538,7 +550,7 @@ describe('EmailController', () => {
 
   describe('sendEmailByRole', () => {
     it('should send email to all users with role', async () => {
-      mockReq.body = { role: 'JUDGE', subject: 'Important Update', body: 'Please review...' };
+      mockReq.body = { roles: ['JUDGE'], subject: 'Important Update', body: 'Please review...' };
       mockPrisma.user.findMany.mockResolvedValue([
         { email: 'judge1@example.com' },
         { email: 'judge2@example.com' }
@@ -548,13 +560,13 @@ describe('EmailController', () => {
       await controller.sendEmailByRole(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { role: 'JUDGE' } })
+        expect.objectContaining({ where: { role: { in: ['JUDGE'] }, tenantId: 'tenant-1' } })
       );
       expect(mockService.sendEmail).toHaveBeenCalledTimes(2);
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
-        expect.objectContaining({ sent: 2, role: 'JUDGE' }),
-        'Emails sent to users with role: JUDGE'
+        expect.objectContaining({ sent: 2, roles: ['JUDGE'] }),
+        'Emails sent to users with roles: JUDGE'
       );
     });
 
@@ -563,20 +575,20 @@ describe('EmailController', () => {
 
       await controller.sendEmailByRole(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'Role is required');
+      expect(sendBadRequest).toHaveBeenCalledWith(mockRes, 'At least one role is required');
     });
 
     it('should handle no users found', async () => {
-      mockReq.body = { role: 'UNKNOWN', subject: 'Test', body: 'Content' };
+      mockReq.body = { roles: ['UNKNOWN'], subject: 'Test', body: 'Content' };
       mockPrisma.user.findMany.mockResolvedValue([]);
 
       await controller.sendEmailByRole(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, { sent: 0 }, 'No users found with that role');
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, { sent: 0 }, 'No users found with those roles');
     });
 
     it('should call next with error when send fails', async () => {
-      mockReq.body = { role: 'JUDGE', subject: 'Test', body: 'Content' };
+      mockReq.body = { roles: ['JUDGE'], subject: 'Test', body: 'Content' };
       const error = new Error('Query failed');
       mockPrisma.user.findMany.mockRejectedValue(error);
 

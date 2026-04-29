@@ -13,6 +13,9 @@ import {
 } from '../../helpers/authHelpers';
 import { createMockUser } from '../../helpers/mockData';
 
+const tokenPayloads = new Map<string, unknown>();
+let tokenSequence = 0;
+
 // Mock dependencies - must mock the correct path (config/database, not utils/prisma)
 const mockFindFirst = jest.fn();
 const mockFindUnique = jest.fn();
@@ -42,7 +45,19 @@ jest.mock('../../../src/utils/cache', () => ({
 // Mock the env module
 jest.mock('../../../src/config/env', () => ({
   env: {
+    get: jest.fn((key: string) => {
+      const values: Record<string, unknown> = {
+        JWT_SECRET: process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing',
+        CSRF_SECRET: process.env.CSRF_SECRET || 'test-csrf-secret',
+        DATABASE_URL: process.env.DATABASE_URL || 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public',
+        NODE_ENV: 'test',
+        MAX_FILE_SIZE: 10485760,
+        PERF_SAMPLE_RATE: 0.2,
+      };
+      return values[key];
+    }),
     isProduction: jest.fn(() => false),
+    isTest: jest.fn(() => true),
   },
 }));
 
@@ -117,6 +132,34 @@ describe('Authentication Middleware', () => {
     res = mockResponse();
     next = mockNext();
     jest.clearAllMocks();
+
+    tokenPayloads.clear();
+    tokenSequence = 0;
+    (jwt.sign as jest.Mock).mockImplementation((payload: unknown, _secret: string, options?: { expiresIn?: string }) => {
+      const token = `test-token-${++tokenSequence}`;
+      tokenPayloads.set(token, {
+        payload,
+        expired: options?.expiresIn === '-1h',
+      });
+      return token;
+    });
+    (jwt.verify as jest.Mock).mockImplementation((token: string) => {
+      const record = tokenPayloads.get(token) as { payload: unknown; expired: boolean } | undefined;
+
+      if (!record) {
+        const error = new Error('invalid token') as Error & { name: string };
+        error.name = 'JsonWebTokenError';
+        throw error;
+      }
+
+      if (record.expired) {
+        const error = new Error('jwt expired') as Error & { name: string };
+        error.name = 'TokenExpiredError';
+        throw error;
+      }
+
+      return record.payload;
+    });
   });
 
   describe('Token Validation', () => {
@@ -127,6 +170,7 @@ describe('Authentication Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
+        success: false,
         error: 'Access token required',
       });
       expect(next).not.toHaveBeenCalled();
@@ -227,6 +271,7 @@ describe('Authentication Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
+        success: false,
         error: 'Invalid token',
       });
       expect(next).not.toHaveBeenCalled();
@@ -253,6 +298,7 @@ describe('Authentication Middleware', () => {
       expect(mockInvalidate).toHaveBeenCalledWith(userId);
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
+        success: false,
         error: 'Session expired',
         message: 'Your session has been invalidated. Please log in again.',
         code: 'SESSION_VERSION_MISMATCH',
@@ -407,6 +453,7 @@ describe('Authentication Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
+        success: false,
         error: 'Invalid authentication token',
       });
       expect(next).not.toHaveBeenCalled();

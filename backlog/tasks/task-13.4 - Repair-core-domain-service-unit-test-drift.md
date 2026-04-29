@@ -1,10 +1,11 @@
 ---
 id: TASK-13.4
 title: Repair core domain service unit test drift
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-04-27 21:47'
-updated_date: '2026-04-28 18:39'
+updated_date: '2026-04-29 13:30'
 labels:
   - tests
   - unit-tests

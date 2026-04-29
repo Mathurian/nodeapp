@@ -511,8 +511,6 @@ export class EmailService extends BaseService {
       source: 'env',
     };
 
-    if (!tenantId) return envConfig;
-
     const keys = [
       'email_enabled',
       'smtp_enabled',
@@ -542,16 +540,17 @@ export class EmailService extends BaseService {
       'email_replyToName',
     ];
 
-    const [globalRows, tenantRows] = await Promise.all([
-      this.prisma.systemSetting.findMany({
+    const globalRows =
+      (await this.prisma.systemSetting.findMany({
         where: { tenantId: null, key: { in: keys } },
         select: { key: true, value: true },
-      }),
-      this.prisma.systemSetting.findMany({
-        where: { tenantId, key: { in: keys } },
-        select: { key: true, value: true },
-      }),
-    ]);
+      })) || [];
+    const tenantRows = tenantId
+      ? (await this.prisma.systemSetting.findMany({
+          where: { tenantId, key: { in: keys } },
+          select: { key: true, value: true },
+        })) || []
+      : [];
 
     if (tenantRows.length === 0 && globalRows.length === 0) {
       return envConfig;

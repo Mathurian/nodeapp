@@ -404,27 +404,27 @@ describe('JudgeController', () => {
         previousAwards: ['Best Newcomer 2023', 'Regional Champion 2024'],
       };
 
-      mockReq.params = { contestantId: 'cont-1' };
+      mockReq.params = { contestantNumber: '101' };
       mockJudgeService.getContestantBio.mockResolvedValue(mockContestant as any);
 
       await controller.getContestantBio(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getContestantBio).toHaveBeenCalledWith('cont-1', 'judge-1', 'tenant-1');
+      expect(mockJudgeService.getContestantBio).toHaveBeenCalledWith('101', 'judge-1', 'tenant-1');
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockContestant);
     });
 
-    it('should return 400 when contestant ID is missing', async () => {
+    it('should return 400 when contestant number is missing', async () => {
       mockReq.params = {};
 
       await controller.getContestantBio(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Contestant ID is required' });
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Contestant number is required' });
     });
 
     it('should call next with error when service throws', async () => {
       const error = new Error('Service error');
-      mockReq.params = { contestantId: 'cont-1' };
+      mockReq.params = { contestantNumber: '101' };
       mockJudgeService.getContestantBio.mockRejectedValue(error);
 
       await controller.getContestantBio(mockReq as Request, mockRes as Response, mockNext);

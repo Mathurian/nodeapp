@@ -215,6 +215,7 @@ describe('AuditorController', () => {
   describe('finalCertification', () => {
     it('should certify category successfully', async () => {
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { typedSignature: 'Auditor User', comments: 'Approved' };
       const mockResult = {
         success: true,
         message: 'Category certified by auditor',
@@ -225,7 +226,12 @@ describe('AuditorController', () => {
 
       await controller.finalCertification(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAuditorService.finalCertification).toHaveBeenCalledWith('cat-1', 'user-1');
+      expect(mockAuditorService.finalCertification).toHaveBeenCalledWith('cat-1', 'user-1', {
+        typedSignature: 'Auditor User',
+        drawnSignatureData: undefined,
+        signatureFilePath: undefined,
+        comments: 'Approved',
+      });
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
@@ -261,6 +267,7 @@ describe('AuditorController', () => {
 
     it('should call next with error when service throws', async () => {
       mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { typedSignature: 'Auditor User' };
       const error = new Error('Certification failed');
       mockAuditorService.finalCertification.mockRejectedValue(error);
 

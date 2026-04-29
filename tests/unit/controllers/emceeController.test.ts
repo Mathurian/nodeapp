@@ -31,6 +31,7 @@ describe('EmceeController', () => {
     mockLog = {
       debug: jest.fn(),
       info: jest.fn(),
+      warn: jest.fn(),
       error: jest.fn(),
     };
     (createRequestLogger as jest.Mock).mockReturnValue(mockLog);
@@ -74,6 +75,7 @@ describe('EmceeController', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
+      setHeader: jest.fn().mockReturnThis(),
     };
 
     mockNext = jest.fn();
@@ -189,7 +191,7 @@ describe('EmceeController', () => {
 
       await controller.getScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1');
+      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1', { tenantId: undefined });
       expect(mockRes.json).toHaveBeenCalledWith(mockScript);
     });
 
@@ -664,14 +666,18 @@ describe('EmceeController', () => {
 
       await controller.updateScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.updateScript).toHaveBeenCalledWith('script-1', {
-        title: 'Updated Title',
-        content: 'Updated content',
-        eventId: 'event-2',
-        contestId: undefined,
-        categoryId: undefined,
-        order: 5,
-      });
+      expect(mockEmceeService.updateScript).toHaveBeenCalledWith(
+        'script-1',
+        {
+          title: 'Updated Title',
+          content: 'Updated content',
+          eventId: 'event-2',
+          contestId: undefined,
+          categoryId: undefined,
+          order: 5,
+        },
+        undefined
+      );
       expect(mockRes.json).toHaveBeenCalledWith(mockUpdatedScript);
     });
 
@@ -700,14 +706,18 @@ describe('EmceeController', () => {
 
       await controller.updateScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.updateScript).toHaveBeenCalledWith('script-1', {
-        title: 'New Title Only',
-        content: undefined,
-        eventId: undefined,
-        contestId: undefined,
-        categoryId: undefined,
-        order: 0,
-      });
+      expect(mockEmceeService.updateScript).toHaveBeenCalledWith(
+        'script-1',
+        {
+          title: 'New Title Only',
+          content: undefined,
+          eventId: undefined,
+          contestId: undefined,
+          categoryId: undefined,
+          order: 0,
+        },
+        undefined
+      );
     });
 
     it('should call next with error when service throws', async () => {
@@ -730,7 +740,7 @@ describe('EmceeController', () => {
 
       await controller.deleteScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.deleteScript).toHaveBeenCalledWith('script-1');
+      expect(mockEmceeService.deleteScript).toHaveBeenCalledWith('script-1', undefined);
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();
     });
@@ -770,7 +780,7 @@ describe('EmceeController', () => {
 
       await controller.toggleScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1');
+      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1', { tenantId: undefined });
       expect(mockRes.json).toHaveBeenCalledWith(mockScript);
     });
 
@@ -813,12 +823,13 @@ describe('EmceeController', () => {
       const fs = require('fs');
       const path = require('path');
 
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       jest.spyOn(fs, 'createReadStream').mockReturnValue(mockFileStream);
       jest.spyOn(path, 'join').mockReturnValue('/opt/event-manager/current/uploads/emcee/script.pdf');
 
       await controller.serveScriptFile(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1');
+      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1', { tenantId: undefined });
       expect(mockFileStream.pipe).toHaveBeenCalledWith(mockRes);
     });
 
@@ -871,9 +882,9 @@ describe('EmceeController', () => {
 
       await controller.getFileViewUrl(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1');
+      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1', { tenantId: undefined });
       expect(mockRes.json).toHaveBeenCalledWith({
-        viewUrl: '/api/emcee/scripts/script-1/view',
+        viewUrl: '/uploads/emcee/script.pdf',
         expiresIn: 300,
       });
     });

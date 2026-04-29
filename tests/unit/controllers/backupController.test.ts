@@ -101,6 +101,7 @@ describe('BackupController', () => {
 
   describe('createBackup', () => {
     beforeEach(() => {
+      (mockReq as any).tenantId = 'tenant-1';
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.mkdirSync as jest.Mock).mockReturnValue(undefined);
       (fs.statSync as jest.Mock).mockReturnValue({ size: 1024000 });
@@ -388,14 +389,14 @@ describe('BackupController', () => {
         status: 'COMPLETED',
       };
 
-      mockPrisma.backupLog.findUnique.mockResolvedValue(mockBackup as any);
+      mockPrisma.backupLog.findFirst.mockResolvedValue(mockBackup as any);
       (fs.existsSync as jest.Mock).mockReturnValue(true);
 
       mockReq.params = { backupId: 'backup-1' };
 
       await backupController.downloadBackup(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.backupLog.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.backupLog.findFirst).toHaveBeenCalledWith({
         where: { id: 'backup-1' },
       });
       expect(mockRes.download).toHaveBeenCalledWith(
@@ -405,7 +406,7 @@ describe('BackupController', () => {
     });
 
     it('should return 404 when backup not found in database', async () => {
-      mockPrisma.backupLog.findUnique.mockResolvedValue(null);
+      mockPrisma.backupLog.findFirst.mockResolvedValue(null);
 
       mockReq.params = { backupId: 'nonexistent' };
 
@@ -423,7 +424,7 @@ describe('BackupController', () => {
         status: 'COMPLETED',
       };
 
-      mockPrisma.backupLog.findUnique.mockResolvedValue(mockBackup as any);
+      mockPrisma.backupLog.findFirst.mockResolvedValue(mockBackup as any);
       (fs.existsSync as jest.Mock).mockReturnValue(false);
 
       mockReq.params = { backupId: 'backup-1' };
@@ -436,7 +437,7 @@ describe('BackupController', () => {
 
     it('should call next with error when query fails', async () => {
       const error = new Error('Database error');
-      mockPrisma.backupLog.findUnique.mockRejectedValue(error);
+      mockPrisma.backupLog.findFirst.mockRejectedValue(error);
 
       mockReq.params = { backupId: 'backup-1' };
 
@@ -517,35 +518,48 @@ describe('BackupController', () => {
     it('should delete backup successfully', async () => {
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.unlinkSync as jest.Mock).mockReturnValue(undefined);
-      mockPrisma.backupLog.updateMany.mockResolvedValue({ count: 1 } as any);
+      mockPrisma.backupLog.findFirst.mockResolvedValue({
+        id: 'backup-1',
+        location: 'backups/backup-full-2025-11-13.sql',
+        errorMessage: null,
+        metadata: {},
+      } as any);
+      mockPrisma.backupLog.update.mockResolvedValue({ id: 'backup-1', status: 'DELETED' } as any);
 
       mockReq.params = { filename: 'backup-full-2025-11-13.sql' };
 
       await backupController.deleteBackup(mockReq as Request, mockRes as Response, mockNext);
 
       expect(fs.unlinkSync).toHaveBeenCalledWith('backups/backup-full-2025-11-13.sql');
-      expect(mockPrisma.backupLog.updateMany).toHaveBeenCalledWith({
-        where: { location: 'backups/backup-full-2025-11-13.sql' },
-        data: { status: 'DELETED' },
+      expect(mockPrisma.backupLog.update).toHaveBeenCalledWith({
+        where: { id: 'backup-1' },
+        data: expect.objectContaining({ status: 'DELETED' }),
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, null, 'Backup deleted successfully');
     });
 
     it('should return 404 when file does not exist', async () => {
       (fs.existsSync as jest.Mock).mockReturnValue(false);
+      mockPrisma.backupLog.findFirst.mockResolvedValue(null);
 
       mockReq.params = { filename: 'nonexistent.sql' };
 
       await backupController.deleteBackup(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Backup file not found' });
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Backup not found' });
     });
 
     it('should call next with error when deletion fails', async () => {
       const error = new Error('Deletion error');
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.unlinkSync as jest.Mock).mockImplementation(() => { throw error; });
+      mockPrisma.backupLog.findFirst.mockResolvedValue({
+        id: 'backup-1',
+        location: 'backups/backup.sql',
+        errorMessage: null,
+        metadata: {},
+      } as any);
 
       mockReq.params = { filename: 'backup.sql' };
 
@@ -585,10 +599,11 @@ describe('BackupController', () => {
       await backupController.getBackupSettings(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.backupSetting.findMany).toHaveBeenCalledWith({
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ backupType: 'asc' }, { createdAt: 'asc' }],
       });
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, expect.objectContaining({
         success: true,
+        scope: 'platform',
         settings: expect.arrayContaining([
           expect.objectContaining({
             id: 'setting-1',
@@ -596,7 +611,8 @@ describe('BackupController', () => {
             enabled: true,
           }),
         ]),
-      });
+        globalDefaults: expect.any(Array),
+      }));
     });
 
     it('should handle missing backupSetting table (P2021)', async () => {
@@ -608,7 +624,9 @@ describe('BackupController', () => {
 
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, {
         success: true,
+        scope: 'platform',
         settings: [],
+        globalDefaults: [],
       });
     });
 
@@ -620,7 +638,9 @@ describe('BackupController', () => {
 
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, {
         success: true,
+        scope: 'platform',
         settings: [],
+        globalDefaults: [],
       });
     });
 
@@ -641,66 +661,87 @@ describe('BackupController', () => {
         enabled: true,
         frequency: 'DAILY',
       };
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN' } as any;
+      mockPrisma.backupSetting.findFirst.mockResolvedValue(null);
+      mockPrisma.backupSetting.create.mockResolvedValue({ id: 'setting-1', ...mockReq.body } as any);
 
       await backupController.createBackupSetting(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'Backup setting created');
+      expect(sendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({ id: 'setting-1' }),
+        'Backup setting created'
+      );
     });
 
     it('should handle errors gracefully', async () => {
-      // This test verifies error handling works
-      // The actual implementation may vary
+      const error = new Error('Database error');
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN' } as any;
+      mockReq.body = {
+        backupType: 'FULL',
+        enabled: true,
+        frequency: 'DAILY',
+      };
+      mockPrisma.backupSetting.findFirst.mockResolvedValue(null);
+      mockPrisma.backupSetting.create.mockRejectedValue(error);
+
       await backupController.createBackupSetting(mockReq as Request, mockRes as Response, mockNext);
 
-      // Should either call sendSuccess or next
-      expect(sendSuccess).toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
   describe('updateBackupSetting', () => {
     it('should call update backup settings', async () => {
-      mockSettingsService.updateBackupSettings.mockResolvedValue(undefined);
-
       mockReq.params = { id: 'setting-1' };
       mockReq.body = {
         enabled: false,
         frequency: 'WEEKLY',
       };
+      mockPrisma.backupSetting.findUnique.mockResolvedValue({ id: 'setting-1', backupType: 'FULL' } as any);
+      mockPrisma.backupSetting.update.mockResolvedValue({ id: 'setting-1', enabled: false, frequency: 'WEEKLY' } as any);
 
       await backupController.updateBackupSetting(mockReq as Request, mockRes as Response, mockNext);
 
-      // Verify either success or next was called (depends on service resolution)
-      const called = (sendSuccess as jest.Mock).mock.calls.length > 0 || mockNext.mock.calls.length > 0;
-      expect(called).toBe(true);
+      expect(mockPrisma.backupSetting.update).toHaveBeenCalledWith({
+        where: { id: 'setting-1' },
+        data: expect.objectContaining({ enabled: false, frequency: 'WEEKLY' }),
+      });
+      expect(sendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({ id: 'setting-1' }),
+        'Backup settings updated'
+      );
     });
 
     it('should handle errors from service', async () => {
-      mockSettingsService.updateBackupSettings.mockRejectedValue(new Error('Service error'));
+      const error = new Error('Service error');
 
       mockReq.params = { id: 'setting-1' };
       mockReq.body = { enabled: true };
+      mockPrisma.backupSetting.findUnique.mockRejectedValue(error);
 
       await backupController.updateBackupSetting(mockReq as Request, mockRes as Response, mockNext);
 
-      // Should call next with the error
-      expect(mockNext).toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
   describe('deleteBackupSetting', () => {
     it('should delete backup setting', async () => {
       mockReq.params = { id: 'setting-1' };
+      mockPrisma.backupSetting.delete.mockResolvedValue({ id: 'setting-1' } as any);
 
       await backupController.deleteBackupSetting(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'Backup setting deleted');
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, { id: 'setting-1' }, 'Backup setting deleted');
     });
 
-    it('should succeed even without params (controller ignores id)', async () => {
-      // Controller doesn't use req.params, so it always succeeds
+    it('should return 400 without params', async () => {
       await backupController.deleteBackupSetting(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(sendSuccess).toHaveBeenCalledWith(mockRes, {}, 'Backup setting deleted');
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Setting id is required' });
     });
   });
 

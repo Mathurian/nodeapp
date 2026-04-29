@@ -187,7 +187,7 @@ describe('FileController', () => {
 
       expect(mockPrisma.file.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { category: 'DOCUMENT', eventId: 'event-1' },
+          where: { category: 'DOCUMENT', eventId: 'event-1', tenantId: 'tenant-1' },
           skip: 10,
           take: 10,
         })
