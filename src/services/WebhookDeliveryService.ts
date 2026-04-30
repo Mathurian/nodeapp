@@ -564,6 +564,10 @@ export class WebhookDeliveryService {
     const providedHash = signature.substring(7); // Remove 'sha256=' prefix
     const expectedHash = expectedSignature.substring(7);
 
+    if (!/^[a-fA-F0-9]{64}$/.test(providedHash)) {
+      return { valid: false, error: 'Invalid signature encoding' };
+    }
+
     // Use timing-safe comparison to prevent timing attacks
     try {
       const providedBuffer = Buffer.from(providedHash, 'hex');

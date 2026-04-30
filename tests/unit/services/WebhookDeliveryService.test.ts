@@ -55,6 +55,8 @@ jest.mock('axios');
 
 import { WebhookDeliveryService } from '../../../src/services/WebhookDeliveryService';
 
+const flipHexChar = (value: string): string => (value.toLowerCase() === '0' ? '1' : '0');
+
 describe('WebhookDeliveryService', () => {
   const testSecret = 'test-webhook-secret-12345';
 
@@ -203,7 +205,12 @@ describe('WebhookDeliveryService', () => {
       const payloadString = JSON.stringify(payload);
       const timestamp = Date.now().toString();
       const signature = WebhookDeliveryService.signPayload(payload, timestamp, testSecret);
-      const tamperedSignature = signature.slice(0, -1) + '0';
+      const hash = signature.substring(7);
+      const tamperedSignature = [
+        'sha256=',
+        hash.substring(0, hash.length - 1),
+        flipHexChar(hash[hash.length - 1]!),
+      ].join('');
 
       const result = WebhookDeliveryService.verifySignature(
         payloadString,
@@ -214,6 +221,22 @@ describe('WebhookDeliveryService', () => {
 
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Signature mismatch');
+    });
+
+    it('should reject malformed sha256 hash encoding', () => {
+      const payloadString = '{"event":"test"}';
+      const timestamp = Date.now().toString();
+      const signature = `sha256=${'g'.repeat(64)}`;
+
+      const result = WebhookDeliveryService.verifySignature(
+        payloadString,
+        signature,
+        timestamp,
+        testSecret
+      );
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Invalid signature encoding');
     });
 
     it('should reject tampered payload', () => {
@@ -324,8 +347,12 @@ describe('WebhookDeliveryService', () => {
 
       // Create signatures that differ at different positions
       const hash = validSignature.substring(7);
-      const wrongFirst = `sha256=0${hash.substring(1)}`;
-      const wrongLast = `sha256=${hash.substring(0, hash.length - 1)}0`;
+      const wrongFirst = `sha256=${flipHexChar(hash[0]!)}${hash.substring(1)}`;
+      const wrongLast = [
+        'sha256=',
+        hash.substring(0, hash.length - 1),
+        flipHexChar(hash[hash.length - 1]!),
+      ].join('');
 
       // Both should fail (we can't easily test timing in unit tests)
       const result1 = WebhookDeliveryService.verifySignature(
@@ -343,6 +370,8 @@ describe('WebhookDeliveryService', () => {
 
       expect(result1.valid).toBe(false);
       expect(result2.valid).toBe(false);
+      expect(result1.error).toBe('Signature mismatch');
+      expect(result2.error).toBe('Signature mismatch');
     });
   });
 
