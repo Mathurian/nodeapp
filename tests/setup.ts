@@ -42,7 +42,7 @@ export function getTestPrismaClient(): PrismaClient {
           url: process.env.DATABASE_URL,
         },
       },
-      log: process.env.DEBUG_TESTS === 'true' ? ['query', 'error', 'warn'] : ['error'],
+      log: process.env.DEBUG_TESTS === 'true' ? ['query', 'error', 'warn'] : [],
     });
   }
   return prismaClientInstance;
@@ -53,8 +53,55 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+function requireLoadedModule<T>(modulePath: string): T | null {
+  try {
+    const resolvedPath = require.resolve(modulePath);
+    if (!require.cache[resolvedPath]) {
+      return null;
+    }
+
+    return require(resolvedPath) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function cleanupBackgroundResources(): Promise<void> {
+  const cleanupTasks: Promise<unknown>[] = [];
+
+  const eventBusModule = requireLoadedModule<{
+    default?: { shutdown?: () => Promise<void> };
+  }>('../src/services/EventBusService');
+  if (eventBusModule?.default?.shutdown) {
+    cleanupTasks.push(eventBusModule.default.shutdown());
+  }
+
+  const queueServiceModule = requireLoadedModule<{
+    default?: { shutdown?: () => Promise<void> };
+  }>('../src/services/QueueService');
+  if (queueServiceModule?.default?.shutdown) {
+    cleanupTasks.push(queueServiceModule.default.shutdown());
+  }
+
+  const databaseModule = requireLoadedModule<{
+    rawPrisma?: { $disconnect?: () => Promise<void> };
+  }>('../src/config/database');
+  if (databaseModule?.rawPrisma?.$disconnect) {
+    cleanupTasks.push(databaseModule.rawPrisma.$disconnect());
+  }
+
+  const cleanupResults = await Promise.allSettled(cleanupTasks);
+  cleanupResults.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.warn('Jest background resource cleanup failed:', result.reason);
+    }
+  });
+}
+
 // Global cleanup after all tests complete
 afterAll(async () => {
+  await cleanupBackgroundResources();
+
   // Disconnect Prisma client
   if (prismaClientInstance) {
     await prismaClientInstance.$disconnect();

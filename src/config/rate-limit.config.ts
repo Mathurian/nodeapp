@@ -274,16 +274,20 @@ export function calculateRetryAfter(
  * Validate rate limit configuration
  */
 export function validateRateLimitConfig(): boolean {
+  const quietValidation = process.env['NODE_ENV'] === 'test' && process.env['DEBUG_TESTS'] !== 'true';
+
   // Check that all tiers have valid values
   for (const [tierName, tier] of Object.entries(RATE_LIMIT_TIERS)) {
     if (tier.requestsPerHour <= 0 || tier.requestsPerMinute <= 0 || tier.burstLimit <= 0) {
-      console.error(`Invalid rate limit configuration for tier: ${tierName}`);
+      if (!quietValidation) {
+        console.error(`Invalid rate limit configuration for tier: ${tierName}`);
+      }
       return false;
     }
 
     // Ensure consistency: minute limit should be <= hour limit / 60
     const maxPerMinute = tier.requestsPerHour / 60;
-    if (tier.requestsPerMinute > maxPerMinute * 2) {
+    if (!quietValidation && tier.requestsPerMinute > maxPerMinute * 2) {
       console.warn(
         `Inconsistent rate limits for tier ${tierName}: ` +
         `${tier.requestsPerMinute}/min may exceed ${tier.requestsPerHour}/hour`
@@ -296,5 +300,7 @@ export function validateRateLimitConfig(): boolean {
 
 // Validate on module load
 if (!validateRateLimitConfig()) {
-  console.warn('Rate limit configuration validation failed');
+  if (process.env['NODE_ENV'] !== 'test' || process.env['DEBUG_TESTS'] === 'true') {
+    console.warn('Rate limit configuration validation failed');
+  }
 }

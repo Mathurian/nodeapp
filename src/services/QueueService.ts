@@ -25,7 +25,7 @@ import { env } from '../config/env';
  */
 
 export class QueueService {
-  private static instance: QueueService;
+  private static instance: QueueService | undefined;
   private connection: Redis;
   private queues: Map<string, Queue>;
   private workers: Map<string, Worker>;
@@ -358,6 +358,7 @@ export class QueueService {
     await Promise.all(
       Array.from(this.workers.values()).map((worker) => worker.close())
     );
+    this.workers.clear();
 
     // Note: QueueScheduler was removed in BullMQ v2+
 
@@ -365,6 +366,7 @@ export class QueueService {
     await Promise.all(
       Array.from(this.queues.values()).map((queue) => queue.close())
     );
+    this.queues.clear();
 
     // Close Redis connection
     await this.connection.quit();

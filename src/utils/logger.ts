@@ -13,6 +13,7 @@ const LOG_DIRECTORY = env.get('LOG_DIRECTORY') ||
     : path.join(__dirname, '../../logs'))
 const DISABLE_FILE_LOGGING = env.get('DISABLE_FILE_LOGGING') || env.isTest()
 const LOG_DUPLICATE_TO_GENERAL = env.get('LOG_DUPLICATE_TO_GENERAL') || false
+const ENABLE_TEST_CONSOLE_LOGGING = process.env['DEBUG_TESTS'] === 'true';
 const LOG_LEVELS = {
   ERROR: 0,
   WARN: 1,
@@ -74,6 +75,10 @@ const ensureLogDirectory = async (category: string = 'default') => {
 
 // Load log levels from database (with caching)
 const loadLogLevels = async () => {
+  if (env.isTest()) {
+    return;
+  }
+
   try {
     const prisma = (await import('../config/database')).default;
     const settings = await prisma.systemSetting.findMany({
@@ -122,6 +127,10 @@ const shouldLog = (level: string, category: string = 'default'): boolean => {
   const thresholdLevel = (LOG_LEVELS as Record<string, number>)[categoryLevel] ?? LOG_LEVELS.INFO;
   
   return messageLevel <= thresholdLevel;
+};
+
+const isMockedConsoleMethod = (method: (...args: unknown[]) => void): boolean => {
+  return (method as unknown as { _isMockFunction?: boolean })._isMockFunction === true;
 };
 
 // Format date helper
@@ -232,6 +241,10 @@ class Logger {
                          level === 'DEBUG' ? console.debug :
                          console.log
 
+    if (env.isTest() && !ENABLE_TEST_CONSOLE_LOGGING && !isMockedConsoleMethod(consoleMethod)) {
+      return;
+    }
+
     const formattedMessage = `[${this.category.toUpperCase()}] ${message}`
     if (Object.keys(enrichedMeta).length > 0) {
       consoleMethod(formattedMessage, enrichedMeta)
@@ -264,9 +277,11 @@ class Logger {
 }
 
 // Initialize log levels on startup
-loadLogLevels().catch(err => {
-  console.error('Failed to initialize log levels:', err)
-})
+if (!env.isTest()) {
+  loadLogLevels().catch(err => {
+    console.error('Failed to initialize log levels:', err)
+  })
+}
 
 // Create a request-aware logger that includes user context
 const createRequestLogger = (req: unknown, category: string = 'default') => {

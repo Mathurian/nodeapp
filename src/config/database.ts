@@ -31,9 +31,11 @@ declare global {
  */
 const prismaClientSingleton = () => {
   const client = new PrismaClient({
-    log: env.isDevelopment()
-      ? ['query', 'info', 'warn', 'error']
-      : ['error'],
+    log: env.isTest()
+      ? []
+      : env.isDevelopment()
+        ? ['query', 'info', 'warn', 'error']
+        : ['error'],
 
     datasources: {
       db: {

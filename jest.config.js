@@ -92,8 +92,9 @@ module.exports = {
   // Increased timeout for integration tests
   testTimeout: 30000,
 
-  // Verbose output
-  verbose: true,
+  // Keep full-suite output compact by default. Use JEST_VERBOSE=true when
+  // debugging individual files and full per-test reporting is needed.
+  verbose: process.env.JEST_VERBOSE === 'true',
 
   // Coverage directory
   coverageDirectory: 'coverage',
@@ -104,8 +105,9 @@ module.exports = {
   // Force Jest to exit after tests complete (handles hanging connections)
   forceExit: true,
 
-  // Detect open handles (useful for debugging)
-  detectOpenHandles: true,
+  // Open-handle detection is expensive and retains extra state across this
+  // large suite. Use JEST_DETECT_OPEN_HANDLES=true for focused leak debugging.
+  detectOpenHandles: process.env.JEST_DETECT_OPEN_HANDLES === 'true',
 
   // Max workers for parallel test execution
   // Limited to prevent database connection pool exhaustion

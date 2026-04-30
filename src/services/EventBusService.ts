@@ -89,7 +89,7 @@ export type EventHandler<T = any> = (event: AppEvent<T>) => Promise<void>;
  * Uses BullMQ for reliable event processing.
  */
 export class EventBusService {
-  private static instance: EventBusService;
+  private static instance: EventBusService | undefined;
   private queueService: typeof QueueService;
   private handlers: Map<AppEventType, Set<EventHandler>>;
   private readonly EVENTS_QUEUE = 'app-events';
@@ -97,7 +97,12 @@ export class EventBusService {
   private constructor() {
     this.queueService = QueueService;
     this.handlers = new Map();
-    this.initializeWorker();
+
+    if (this.shouldInitializeWorker()) {
+      this.initializeWorker();
+    } else {
+      logger.debug('Event bus worker initialization skipped for test environment');
+    }
   }
 
   static getInstance(): EventBusService {
@@ -121,6 +126,17 @@ export class EventBusService {
     );
 
     logger.info('Event bus worker initialized');
+  }
+
+  private shouldInitializeWorker(): boolean {
+    const isTestRuntime =
+      process.env['NODE_ENV'] === 'test' || process.env['JEST_WORKER_ID'] !== undefined;
+
+    if (!isTestRuntime) {
+      return true;
+    }
+
+    return process.env['EVENT_BUS_WORKER_ENABLED_IN_TESTS'] === 'true';
   }
 
   /**
