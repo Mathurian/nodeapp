@@ -6,6 +6,8 @@ CURRENT_LINK="${CURRENT_LINK:-/opt/event-manager/current}"
 SERVICE_NAME="${SERVICE_NAME:-event-manager.service}"
 NGINX_ENABLED="${NGINX_ENABLED:-/etc/nginx/sites-enabled/event-manager}"
 NGINX_AVAILABLE="${NGINX_AVAILABLE:-/etc/nginx/sites-available/event-manager}"
+NGINX_BACKUP_DIR="${NGINX_BACKUP_DIR:-/etc/nginx/backups/event-manager}"
+SYSTEMD_BACKUP_DIR="${SYSTEMD_BACKUP_DIR:-/etc/systemd/system/event-manager-backups}"
 ENV_FILE="${ENV_FILE:-/etc/event-manager/event-manager.env}"
 RETAIN_RELEASES="${RETAIN_RELEASES:-10}"
 GRAFANA_PROVISIONING_DIR="${GRAFANA_PROVISIONING_DIR:-/etc/grafana/provisioning}"
@@ -25,9 +27,67 @@ if [ ! -d "$REL" ]; then
 fi
 
 NOW="$(date +%Y%m%d%H%M%S)"
-sudo cp /etc/systemd/system/event-manager.service "/etc/systemd/system/event-manager.service.bak-$NOW"
-[ -f "$NGINX_ENABLED" ] && sudo cp "$NGINX_ENABLED" "$NGINX_ENABLED.bak-$NOW" || true
-[ -f "$NGINX_AVAILABLE" ] && sudo cp "$NGINX_AVAILABLE" "$NGINX_AVAILABLE.bak-$NOW" || true
+
+backup_runtime_config() {
+  local backup_set="$1"
+  local nginx_target="$NGINX_BACKUP_DIR/$backup_set"
+  local systemd_target="$SYSTEMD_BACKUP_DIR/$backup_set"
+
+  if [ -f /etc/systemd/system/event-manager.service ]; then
+    sudo install -d -m 755 "$systemd_target"
+    sudo cp -a /etc/systemd/system/event-manager.service "$systemd_target/event-manager.service"
+  fi
+
+  sudo install -d -m 755 "$nginx_target"
+  [ -f "$NGINX_ENABLED" ] && sudo cp -a "$NGINX_ENABLED" "$nginx_target/sites-enabled-event-manager" || true
+  [ -f "$NGINX_AVAILABLE" ] && sudo cp -a "$NGINX_AVAILABLE" "$nginx_target/sites-available-event-manager" || true
+}
+
+migrate_legacy_nginx_backups() {
+  local backup_set="$1"
+  local legacy_target="$NGINX_BACKUP_DIR/$backup_set/legacy"
+  local legacy_file
+  local found=0
+
+  for legacy_file in /etc/nginx/sites-enabled/event-manager.bak-* /etc/nginx/sites-available/event-manager.bak-*; do
+    [ -e "$legacy_file" ] || continue
+    if [ "$found" -eq 0 ]; then
+      sudo install -d -m 755 "$legacy_target"
+      found=1
+    fi
+    sudo mv "$legacy_file" "$legacy_target/"
+    echo "Moved legacy nginx backup out of site directory: $legacy_file"
+  done
+}
+
+prune_backup_sets() {
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+
+  if ! [[ "$RETAIN_RELEASES" =~ ^[0-9]+$ ]] || [ "$RETAIN_RELEASES" -lt 1 ]; then
+    echo "Skipping backup pruning for $dir: RETAIN_RELEASES must be a positive integer (current: $RETAIN_RELEASES)"
+    return 0
+  fi
+
+  mapfile -t backups < <(sudo find "$dir" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null | sort -rn | awk '{print $2}')
+
+  if [ "${#backups[@]}" -le "$RETAIN_RELEASES" ]; then
+    return 0
+  fi
+
+  local index=0
+  for backup in "${backups[@]}"; do
+    index=$((index + 1))
+    if [ "$index" -le "$RETAIN_RELEASES" ]; then
+      continue
+    fi
+    sudo rm -rf "$backup"
+    echo "Pruned old backup set: $backup"
+  done
+}
+
+backup_runtime_config "$NOW"
+migrate_legacy_nginx_backups "$NOW"
 
 sudo ln -sfn "$REL" "$CURRENT_LINK"
 
@@ -176,13 +236,6 @@ reconcile_grafana_permissions() {
   sudo bash "$reconcile_script"
 }
 
-if [ -d /etc/nginx/backup-sites-enabled ]; then
-  for f in /etc/nginx/sites-enabled/*.bak-*; do
-    [ -e "$f" ] || continue
-    sudo mv "$f" /etc/nginx/backup-sites-enabled/
-  done
-fi
-
 sudo systemctl daemon-reload
 sudo systemctl restart "$SERVICE_NAME"
 sync_grafana_provisioning
@@ -193,6 +246,8 @@ fi
 sudo nginx -t
 sudo systemctl reload nginx
 prune_old_releases
+prune_backup_sets "$NGINX_BACKUP_DIR"
+prune_backup_sets "$SYSTEMD_BACKUP_DIR"
 
 echo "Activated release: $REL"
 systemctl is-active "$SERVICE_NAME"
