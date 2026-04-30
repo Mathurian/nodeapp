@@ -6,15 +6,30 @@ cd "$ROOT_DIR"
 
 JEST_BIN="node_modules/.bin/jest"
 NODE_HEAP_MB="${JEST_NODE_HEAP_MB:-4096}"
+PREPARE_DB=0
 
 run_jest() {
   node --max-old-space-size="$NODE_HEAP_MB" "$JEST_BIN" --runInBand "$@"
 }
 
+prepare_test_database() {
+  bash scripts/test-db-setup.sh
+}
+
+if [ "${1:-}" = "--prepare-db" ]; then
+  PREPARE_DB=1
+  shift
+fi
+
 if [ "$#" -gt 0 ]; then
+  if [ "$PREPARE_DB" -eq 1 ]; then
+    prepare_test_database
+  fi
   run_jest "$@"
   exit $?
 fi
+
+prepare_test_database
 
 status=0
 

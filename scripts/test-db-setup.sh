@@ -27,6 +27,11 @@ echo -e "${YELLOW}Database: ${DB_NAME}${NC}"
 echo -e "${YELLOW}Host: ${DB_HOST}:${DB_PORT}${NC}"
 echo -e "${YELLOW}User: ${DB_USER}${NC}"
 
+if [[ "$DB_NAME" != *test* ]]; then
+    echo -e "${RED}Refusing to recreate non-test database: ${DB_NAME}${NC}"
+    exit 1
+fi
+
 # Drop existing test database if it exists
 echo -e "${YELLOW}Dropping existing test database (if exists)...${NC}"
 PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
@@ -35,9 +40,30 @@ PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "DRO
 echo -e "${YELLOW}Creating test database...${NC}"
 PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;"
 
-# Run Prisma migrations
-echo -e "${YELLOW}Running Prisma migrations...${NC}"
-npx prisma migrate deploy
+# Push the current Prisma schema into the disposable test database. The
+# migration history is not bootstrappable from an empty database because this
+# project has a production baseline older than the checked-in migrations.
+echo -e "${YELLOW}Pushing Prisma schema to test database...${NC}"
+npx prisma db push --accept-data-loss --skip-generate
+
+echo -e "${YELLOW}Verifying required test schema columns...${NC}"
+verify_column() {
+    local table_name="$1"
+    local column_name="$2"
+    local exists
+
+    exists=$(PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -At -v ON_ERROR_STOP=1 -c \
+      "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${table_name}' AND column_name = '${column_name}');")
+
+    if [ "$exists" != "t" ]; then
+        echo -e "${RED}Missing required test schema column: ${table_name}.${column_name}${NC}"
+        exit 1
+    fi
+}
+
+verify_column "users" "boardRole"
+verify_column "events" "requireAllTallyCertifiers"
+verify_column "events" "requireAllAuditorCertifiers"
 
 # Run seed data (optional, comment out if not needed)
 # echo -e "${YELLOW}Seeding test database...${NC}"
