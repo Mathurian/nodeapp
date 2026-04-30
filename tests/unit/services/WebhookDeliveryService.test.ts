@@ -39,7 +39,8 @@ jest.mock('../../../src/utils/circuitBreaker', () => ({
   CircuitBreakerRegistry: {
     get: jest.fn().mockReturnValue({
       execute: jest.fn().mockImplementation((fn) => fn()),
-      on: jest.fn()
+      on: jest.fn(),
+      onUnique: jest.fn()
     })
   }
 }));

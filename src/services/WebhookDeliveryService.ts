@@ -82,11 +82,11 @@ export class WebhookDeliveryService {
       });
 
       // Monitor state changes
-      breaker.on('open', () => {
+      breaker.onUnique('open', 'webhook-delivery-service:log-open', () => {
         logger.error(`Webhook circuit breaker OPENED for ${webhookName} (${webhookId})`);
       });
 
-      breaker.on('close', () => {
+      breaker.onUnique('close', 'webhook-delivery-service:log-close', () => {
         logger.info(`Webhook circuit breaker CLOSED for ${webhookName} (${webhookId}) - endpoint recovered`);
       });
 

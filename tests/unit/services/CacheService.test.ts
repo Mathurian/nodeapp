@@ -26,6 +26,7 @@ jest.mock('../../../src/utils/circuitBreaker', () => ({
   CircuitBreakerRegistry: {
     get: jest.fn(() => ({
       on: jest.fn(),
+      onUnique: jest.fn(),
       execute: jest.fn((fn: () => Promise<unknown>) => fn()),
       isOpen: jest.fn(() => false),
     })),

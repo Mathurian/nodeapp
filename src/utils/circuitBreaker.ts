@@ -94,6 +94,7 @@ export class CircuitBreaker extends EventEmitter {
   private lastSuccessTime?: Date;
   private nextAttempt: number = Date.now();
   private windowStart: number = Date.now();
+  private uniqueListenerKeys = new Set<string>();
 
   constructor(private config: CircuitBreakerConfig) {
     super();
@@ -109,6 +110,24 @@ export class CircuitBreaker extends EventEmitter {
       failureThreshold: this.config.failureThreshold,
       timeout: this.config.timeout,
     });
+  }
+
+  /**
+   * Register an event listener at most once per breaker/key pair.
+   *
+   * Circuit breakers are shared by name through CircuitBreakerRegistry, while
+   * services can be constructed repeatedly in tests and dependency injection
+   * scopes. This keeps service-level monitoring listeners idempotent without
+   * hiding real leaks by raising the global listener limit.
+   */
+  onUnique(eventName: string | symbol, listenerKey: string, listener: (...args: any[]) => void): this {
+    const key = `${String(eventName)}:${listenerKey}`;
+    if (!this.uniqueListenerKeys.has(key)) {
+      this.uniqueListenerKeys.add(key);
+      this.on(eventName, listener);
+    }
+
+    return this;
   }
 
   /**

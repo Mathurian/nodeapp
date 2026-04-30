@@ -102,11 +102,11 @@ export class EmailService extends BaseService {
     });
 
     // S4-1: Monitor circuit breaker state changes
-    this.circuitBreaker.on('stateChange', (newState) => {
+    this.circuitBreaker.onUnique('stateChange', 'email-service:log-state-change', (newState) => {
       logger.warn('Email service circuit breaker state changed', { newState });
     });
 
-    this.circuitBreaker.on('open', () => {
+    this.circuitBreaker.onUnique('open', 'email-service:log-open', () => {
       logger.error('Email service circuit breaker OPENED - failing fast');
     });
 

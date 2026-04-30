@@ -47,15 +47,15 @@ export class CacheService {
     });
 
     // S4-1: Monitor circuit breaker state changes
-    this.circuitBreaker.on('stateChange', (newState) => {
+    this.circuitBreaker.onUnique('stateChange', 'cache-service:log-state-change', (newState) => {
       logger.warn('Redis circuit breaker state changed', { newState });
     });
 
-    this.circuitBreaker.on('open', () => {
+    this.circuitBreaker.onUnique('open', 'cache-service:log-open', () => {
       logger.error('Redis circuit breaker OPENED - failing fast');
     });
 
-    this.circuitBreaker.on('close', () => {
+    this.circuitBreaker.onUnique('close', 'cache-service:log-close', () => {
       logger.info('Redis circuit breaker CLOSED - Redis service recovered');
     });
 
