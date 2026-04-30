@@ -48,6 +48,7 @@ describe('ScheduledBackupService', () => {
   let service: ScheduledBackupService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockCronJob: any;
+  const defaultTenant = { id: 'default_tenant', slug: 'default' };
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
@@ -69,6 +70,9 @@ describe('ScheduledBackupService', () => {
     };
 
     (cron.schedule as jest.Mock).mockReturnValue(mockCronJob);
+    mockPrisma.tenant.findUnique.mockResolvedValue(defaultTenant as any);
+    mockPrisma.tenant.findMany.mockResolvedValue([]);
+    mockPrisma.systemSetting.findMany.mockResolvedValue([]);
 
     // Setup fs mocks (must be after clearAllMocks)
     (fs.existsSync as jest.Mock).mockReturnValue(false);
@@ -389,18 +393,21 @@ describe('ScheduledBackupService', () => {
       expect(command).toContain('--data-only');
     });
 
-    it('should handle invalid backup type', async () => {
+    it('should fall back to FULL backup for unknown backup type', async () => {
       const setting = { backupType: 'INVALID', retentionDays: 7 };
+      const execMock = exec as unknown as jest.Mock;
+      execMock.mockImplementation((cmd: string, callback: Function) => callback(null, '', ''));
 
       await service.runScheduledBackup(setting as any);
 
-      expect(mockPrisma.backupLog.update).toHaveBeenCalledWith({
-        where: { id: 'log-1' },
+      expect(mockPrisma.backupLog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          status: 'failed',
-          errorMessage: 'Invalid backup type'
-        })
+          type: 'FULL',
+          status: 'running',
+        }),
       });
+      expect(exec).toHaveBeenCalled();
+      expect(execMock.mock.calls[0][0]).toContain('pg_dump');
     });
 
     it('should handle backup execution errors', async () => {

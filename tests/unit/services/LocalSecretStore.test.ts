@@ -10,12 +10,27 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 
 describe('LocalSecretStore', () => {
+  const actualFs = jest.requireActual<typeof import('fs')>('fs');
+  const restoreFsMock = <T extends (...args: any[]) => any>(mocked: T, actual: T) => {
+    if (jest.isMockFunction(mocked)) {
+      mocked.mockImplementation(actual);
+    }
+  };
   let testDir: string;
   let storePath: string;
   let backupPath: string;
   let store: LocalSecretStore;
 
   beforeEach(() => {
+    restoreFsMock(fs.existsSync, actualFs.existsSync);
+    restoreFsMock(fs.mkdirSync, actualFs.mkdirSync);
+    restoreFsMock(fs.statSync, actualFs.statSync);
+    restoreFsMock(fs.unlinkSync, actualFs.unlinkSync);
+    restoreFsMock(fs.readdirSync, actualFs.readdirSync);
+    restoreFsMock(fs.readFileSync, actualFs.readFileSync);
+    restoreFsMock(fs.writeFileSync, actualFs.writeFileSync);
+    restoreFsMock(fs.copyFileSync, actualFs.copyFileSync);
+
     // Create temporary test directory
     testDir = path.join(__dirname, '.test-local-secrets');
     storePath = path.join(testDir, 'secrets.encrypted');

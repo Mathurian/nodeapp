@@ -5,6 +5,7 @@
 
 import 'reflect-metadata';
 import { CSVService, CSVImportResult } from '../../../src/services/CSVService';
+import { VALID_ROLES } from '../../../src/constants/roles';
 
 describe('CSVService', () => {
   let service: CSVService;
@@ -494,7 +495,7 @@ José García,Biografía en español
     });
 
     it('should validate all allowed roles', async () => {
-      const validRoles = ['ADMIN', 'BOARD', 'TALLYMASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT'];
+      const validRoles = VALID_ROLES;
       const csvData = validRoles.map((role, i) => ({
         email: `user${i}@example.com`,
         name: `User ${i}`,

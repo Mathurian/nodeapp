@@ -409,7 +409,7 @@ describe('SearchService', () => {
 
       const result = await service.executeSavedSearch('user-1', testTenantId, 'search-1');
 
-      expect(mockRepository.getSavedSearches).toHaveBeenCalledWith('user-1', testTenantId, false);
+      expect(mockRepository.getSavedSearches).toHaveBeenCalledWith('user-1', testTenantId);
       expect(result.query).toBe('test query');
       expect(result.results).toEqual(mockSearchResults);
     });

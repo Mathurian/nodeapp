@@ -6,6 +6,13 @@ import * as VirusScanService from '../../../src/services/VirusScanService';
 import { SecretManager } from '../../../src/services/SecretManager';
 import fs from 'fs';
 
+jest.mock('../../../src/utils/prisma', () => ({
+  __esModule: true,
+  default: {
+    $queryRaw: jest.fn(),
+  },
+}));
+
 describe('HealthCheckService', () => {
   let service: HealthCheckService;
   let mockCacheService: any;
@@ -38,8 +45,7 @@ describe('HealthCheckService', () => {
       healthCheck: jest.fn(),
     };
 
-    // Use jest.spyOn for all external dependencies
-    prismaSpy = jest.spyOn(prisma, '$queryRaw');
+    prismaSpy = prisma.$queryRaw as jest.MockedFunction<typeof prisma.$queryRaw>;
     getCacheServiceSpy = jest.spyOn(RedisCacheService, 'getCacheService').mockReturnValue(mockCacheService);
     getVirusScanServiceSpy = jest.spyOn(VirusScanService, 'getVirusScanService').mockReturnValue(mockVirusScanService);
     secretManagerGetInstanceSpy = jest.spyOn(SecretManager, 'getInstance').mockReturnValue(mockSecretManager as any);

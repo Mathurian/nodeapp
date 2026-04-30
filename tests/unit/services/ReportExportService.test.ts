@@ -1,13 +1,39 @@
 import 'reflect-metadata';
 
-import { ExportFormat, ReportExportService } from '../../../src/services/ReportExportService';
-import { ReportData } from '../../../src/services/ReportGenerationService';
+import type { ExportFormat } from '../../../src/services/ReportExportService';
+import type { ReportData } from '../../../src/services/ReportGenerationService';
 
-jest.mock('pdfkit');
-jest.mock('exceljs');
+const MockPDFDocument = jest.fn();
+jest.mock('pdfkit', () => ({
+  __esModule: true,
+  default: MockPDFDocument,
+}));
+
+const MockExcelWorkbook = jest.fn();
+jest.mock('exceljs', () => ({
+  __esModule: true,
+  default: { Workbook: MockExcelWorkbook },
+  Workbook: MockExcelWorkbook,
+}));
+
+jest.resetModules();
+const { ReportExportService } = require('../../../src/services/ReportExportService') as typeof import('../../../src/services/ReportExportService');
 
 describe('ReportExportService', () => {
   let service: ReportExportService;
+  const mockWorksheet = {
+    columns: [],
+    addRow: jest.fn(),
+    getCell: jest.fn(),
+  };
+  const mockWorkbook = {
+    creator: '',
+    created: null as Date | null,
+    addWorksheet: jest.fn(),
+    xlsx: {
+      writeBuffer: jest.fn(),
+    },
+  };
 
   const BASE_METADATA = {
     generatedAt: '2026-02-25T12:00:00.000Z',
@@ -155,6 +181,29 @@ describe('ReportExportService', () => {
   });
 
   beforeEach(() => {
+    MockPDFDocument.mockImplementation(() => {
+      const handlers: Record<string, Function> = {};
+      const doc = {
+        on: jest.fn((event: string, callback: Function) => {
+          handlers[event] = callback;
+          return doc;
+        }),
+        fontSize: jest.fn().mockReturnThis(),
+        text: jest.fn().mockReturnThis(),
+        moveDown: jest.fn().mockReturnThis(),
+        end: jest.fn(() => {
+          handlers['data']?.(Buffer.from('mock pdf'));
+          handlers['end']?.();
+        }),
+      };
+      return doc;
+    });
+    mockWorksheet.addRow.mockReturnValue(undefined);
+    mockWorksheet.getCell.mockReturnValue({ font: {} });
+    mockWorksheet.columns = [];
+    mockWorkbook.addWorksheet.mockReturnValue(mockWorksheet);
+    mockWorkbook.xlsx.writeBuffer.mockResolvedValue(Buffer.from('mock excel'));
+    MockExcelWorkbook.mockImplementation(() => mockWorkbook);
     service = new ReportExportService();
     jest.clearAllMocks();
   });

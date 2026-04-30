@@ -30,10 +30,32 @@ describe('ScoreFileService', () => {
     updatedAt: new Date(),
   };
 
+  const normalizedScoreFile = (file: ScoreFile = mockScoreFile) => ({
+    id: file.id,
+    categoryId: file.categoryId,
+    judgeId: file.judgeId,
+    contestantId: file.contestantId,
+    fileName: file.fileName,
+    fileType: file.fileType,
+    filePath: file.filePath,
+    fileSize: file.fileSize,
+    uploadedById: file.uploadedById,
+    status: file.status,
+    notes: file.notes,
+    metadata: null,
+    publicUrl: file.filePath.startsWith('/') ? file.filePath : `/${file.filePath}`,
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
+  });
+
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new ScoreFileService(mockPrisma as any);
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+      mockPrisma.$executeRawUnsafe.mockResolvedValue(0 as any);
+      return callback(mockPrisma);
+    });
   });
 
   afterEach(() => {
@@ -145,7 +167,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.getScoreFileById('file-123', tenantId);
 
-      expect(result).toEqual(mockScoreFile);
+      expect(result).toEqual(normalizedScoreFile());
       expect(mockPrisma.scoreFile.findFirst).toHaveBeenCalledWith({
         where: { id: 'file-123', tenantId },
       });
@@ -167,7 +189,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.getScoreFilesByCategory('cat-123', tenantId);
 
-      expect(result).toEqual(files);
+      expect(result).toEqual(files.map((file) => normalizedScoreFile(file as ScoreFile)));
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
         where: { categoryId: 'cat-123', tenantId },
         orderBy: { createdAt: 'desc' },
@@ -190,7 +212,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.getScoreFilesByJudge('judge-123', tenantId);
 
-      expect(result).toEqual(files);
+      expect(result).toEqual(files.map((file) => normalizedScoreFile(file as ScoreFile)));
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
         where: { judgeId: 'judge-123', tenantId },
         orderBy: { createdAt: 'desc' },
@@ -205,7 +227,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.getScoreFilesByContestant('contestant-123', tenantId);
 
-      expect(result).toEqual(files);
+      expect(result).toEqual(files.map((file) => normalizedScoreFile(file as ScoreFile)));
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
         where: { contestantId: 'contestant-123', tenantId },
         orderBy: { createdAt: 'desc' },
@@ -371,7 +393,7 @@ describe('ScoreFileService', () => {
 
       const result = await service.getAllScoreFiles(tenantId);
 
-      expect(result).toEqual(files);
+      expect(result).toEqual(files.map((file) => normalizedScoreFile(file as ScoreFile)));
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
         where: {
           tenantId,

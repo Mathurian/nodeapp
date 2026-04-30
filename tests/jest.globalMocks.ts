@@ -60,6 +60,44 @@ jest.mock('qrcode', () => ({
   toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mockQRCode'),
 }));
 
+// Mock ioredis globally because the DI container imports cache-backed services
+// during test setup, before individual test files can install local mocks.
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => ({
+    on: jest.fn().mockReturnThis(),
+    connect: jest.fn().mockResolvedValue(undefined),
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue('OK'),
+    setex: jest.fn().mockResolvedValue('OK'),
+    del: jest.fn().mockResolvedValue(0),
+    exists: jest.fn().mockResolvedValue(0),
+    mget: jest.fn().mockResolvedValue([]),
+    keys: jest.fn().mockResolvedValue([]),
+    flushdb: jest.fn().mockResolvedValue('OK'),
+    info: jest.fn().mockResolvedValue(''),
+    dbsize: jest.fn().mockResolvedValue(0),
+    ping: jest.fn().mockResolvedValue('PONG'),
+    pipeline: jest.fn().mockReturnValue({
+      setex: jest.fn().mockReturnThis(),
+      sadd: jest.fn().mockReturnThis(),
+      expire: jest.fn().mockReturnThis(),
+      del: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([]),
+    }),
+    incrby: jest.fn().mockResolvedValue(0),
+    decrby: jest.fn().mockResolvedValue(0),
+    expire: jest.fn().mockResolvedValue(1),
+    ttl: jest.fn().mockResolvedValue(-1),
+    sadd: jest.fn().mockResolvedValue(1),
+    smembers: jest.fn().mockResolvedValue([]),
+    publish: jest.fn().mockResolvedValue(0),
+    subscribe: jest.fn().mockResolvedValue(1),
+    quit: jest.fn().mockResolvedValue('OK'),
+    type: jest.fn().mockResolvedValue('string'),
+    call: jest.fn().mockResolvedValue(0),
+  }));
+});
+
 // Mock puppeteer (for PDF generation in PrintService)
 jest.mock('puppeteer', () => ({
   launch: jest.fn().mockResolvedValue({
@@ -104,6 +142,7 @@ export const globalMocks = {
   jwt: jest.requireMock('jsonwebtoken'),
   speakeasy: jest.requireMock('speakeasy'),
   qrcode: jest.requireMock('qrcode'),
+  ioredis: jest.requireMock('ioredis'),
   puppeteer: jest.requireMock('puppeteer'),
   fs: jest.requireMock('fs'),
 };

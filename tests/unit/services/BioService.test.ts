@@ -16,6 +16,7 @@ describe('BioService', () => {
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new BioService(mockPrisma as any);
+    mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
     jest.clearAllMocks();
   });
 
@@ -89,20 +90,12 @@ describe('BioService', () => {
 
       const result = await service.getContestantBios({});
 
-      expect(result).toEqual(mockContestants);
-      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith({
-        where: {},
-        select: expect.objectContaining({
-          id: true,
-          name: true,
-          bio: true,
-          imagePath: true,
-          gender: true,
-          pronouns: true,
-          contestantNumber: true
-        }),
-        orderBy: { contestantNumber: 'asc' }
-      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({ id: 'contestant1', name: 'John Doe', contests: [{ id: 'contest1', name: 'Test Contest' }] });
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { tenantId: undefined },
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
+      }));
     });
 
     it('should filter contestant bios by eventId', async () => {
@@ -111,19 +104,19 @@ describe('BioService', () => {
       const result = await service.getContestantBios({ eventId: 'event1' });
 
       expect(result).toHaveLength(1);
-      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith({
-        where: {
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
           contestContestants: {
-            some: {
+            some: expect.objectContaining({
               contest: {
                 eventId: 'event1'
-              }
-            }
+              },
+              tenantId: undefined,
+            })
           }
-        },
-        select: expect.any(Object),
-        orderBy: { contestantNumber: 'asc' }
-      });
+        }),
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
+      }));
     });
 
     it('should filter contestant bios by contestId', async () => {
@@ -132,17 +125,17 @@ describe('BioService', () => {
       const result = await service.getContestantBios({ contestId: 'contest1' });
 
       expect(result).toHaveLength(2);
-      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith({
-        where: {
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
           contestContestants: {
-            some: {
-              contestId: 'contest1'
-            }
+            some: expect.objectContaining({
+              contestId: 'contest1',
+              tenantId: undefined,
+            })
           }
-        },
-        select: expect.any(Object),
-        orderBy: { contestantNumber: 'asc' }
-      });
+        }),
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
+      }));
     });
 
     it('should filter contestant bios by categoryId', async () => {
@@ -151,17 +144,17 @@ describe('BioService', () => {
       const result = await service.getContestantBios({ categoryId: 'category1' });
 
       expect(result).toHaveLength(2);
-      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith({
-        where: {
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
           categoryContestants: {
-            some: {
-              categoryId: 'category1'
-            }
+            some: expect.objectContaining({
+              categoryId: 'category1',
+              tenantId: undefined,
+            })
           }
-        },
-        select: expect.any(Object),
-        orderBy: { contestantNumber: 'asc' }
-      });
+        }),
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
+      }));
     });
 
     it('should handle multiple filters', async () => {
@@ -191,7 +184,7 @@ describe('BioService', () => {
 
       expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: { contestantNumber: 'asc' }
+          orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
         })
       );
     });
@@ -256,20 +249,12 @@ describe('BioService', () => {
 
       const result = await service.getJudgeBios({});
 
-      expect(result).toEqual(mockJudges);
-      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith({
-        where: {},
-        select: expect.objectContaining({
-          id: true,
-          name: true,
-          bio: true,
-          imagePath: true,
-          gender: true,
-          pronouns: true,
-          isHeadJudge: true
-        }),
-        orderBy: { name: 'asc' }
-      });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({ id: 'judge1', name: 'Judge Alice', contests: [] });
+      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { tenantId: undefined },
+        orderBy: { name: 'asc' },
+      }));
     });
 
     it('should filter judge bios by eventId', async () => {
@@ -278,19 +263,17 @@ describe('BioService', () => {
       const result = await service.getJudgeBios({ eventId: 'event1' });
 
       expect(result).toHaveLength(1);
-      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith({
-        where: {
-          contestJudges: {
-            some: {
-              contest: {
-                eventId: 'event1'
-              }
-            }
+      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          assignments: {
+            some: expect.objectContaining({
+              eventId: 'event1',
+              tenantId: undefined,
+            })
           }
-        },
-        select: expect.any(Object),
-        orderBy: { name: 'asc' }
-      });
+        }),
+        orderBy: { name: 'asc' },
+      }));
     });
 
     it('should filter judge bios by contestId', async () => {
@@ -299,17 +282,17 @@ describe('BioService', () => {
       const result = await service.getJudgeBios({ contestId: 'contest1' });
 
       expect(result).toHaveLength(2);
-      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith({
-        where: {
-          contestJudges: {
-            some: {
-              contestId: 'contest1'
-            }
+      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          assignments: {
+            some: expect.objectContaining({
+              contestId: 'contest1',
+              tenantId: undefined,
+            })
           }
-        },
-        select: expect.any(Object),
-        orderBy: { name: 'asc' }
-      });
+        }),
+        orderBy: { name: 'asc' },
+      }));
     });
 
     it('should filter judge bios by categoryId', async () => {
@@ -318,17 +301,17 @@ describe('BioService', () => {
       const result = await service.getJudgeBios({ categoryId: 'category1' });
 
       expect(result).toHaveLength(2);
-      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith({
-        where: {
-          categoryJudges: {
-            some: {
-              categoryId: 'category1'
-            }
+      expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          assignments: {
+            some: expect.objectContaining({
+              categoryId: 'category1',
+              tenantId: undefined,
+            })
           }
-        },
-        select: expect.any(Object),
-        orderBy: { name: 'asc' }
-      });
+        }),
+        orderBy: { name: 'asc' },
+      }));
     });
 
     it('should handle multiple filters for judges', async () => {

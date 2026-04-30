@@ -4,32 +4,35 @@
  */
 
 import 'reflect-metadata';
-import { ExportService } from '../../../src/services/ExportService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
-import { NotFoundError } from '../../../src/services/BaseService';
 import * as path from 'path';
 
 // Mock ExcelJS
+const mockWorksheet = {
+  columns: [],
+  addRows: jest.fn(),
+  addRow: jest.fn(),
+  getRow: jest.fn().mockReturnValue({
+    font: {},
+    fill: {},
+  }),
+};
+
 const mockWorkbook = {
   creator: '',
   created: null as Date | null,
-  addWorksheet: jest.fn().mockReturnValue({
-    columns: [],
-    addRows: jest.fn(),
-    addRow: jest.fn(),
-    getRow: jest.fn().mockReturnValue({
-      font: {},
-      fill: {},
-    }),
-  }),
+  addWorksheet: jest.fn(),
   xlsx: {
     writeFile: jest.fn().mockResolvedValue(undefined),
   },
 };
 
+const MockWorkbook = jest.fn().mockImplementation(() => mockWorkbook);
 jest.mock('exceljs', () => ({
-  Workbook: jest.fn().mockImplementation(() => mockWorkbook),
+  __esModule: true,
+  default: { Workbook: MockWorkbook },
+  Workbook: MockWorkbook,
 }));
 
 // Mock csv-stringify
@@ -48,9 +51,11 @@ const mockPdfDoc = {
   page: { height: 800 },
 };
 
-jest.mock('pdfkit', () => {
-  return jest.fn().mockImplementation(() => mockPdfDoc);
-});
+const MockPDFDocument = jest.fn().mockImplementation(() => mockPdfDoc);
+jest.mock('pdfkit', () => ({
+  __esModule: true,
+  default: MockPDFDocument,
+}));
 
 // Mock fs module - both promises and createWriteStream
 const mockMkdir = jest.fn();
@@ -81,16 +86,25 @@ const mockFs = {
   readdir: mockReaddir,
 };
 
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: (...args: unknown[]) => mockMkdir(...args),
-    writeFile: (...args: unknown[]) => mockWriteFile(...args),
-    readFile: (...args: unknown[]) => mockReadFile(...args),
-    unlink: (...args: unknown[]) => mockUnlink(...args),
-    readdir: (...args: unknown[]) => mockReaddir(...args),
-  },
-  createWriteStream: jest.fn().mockReturnValue(mockWriteStream),
-}));
+jest.mock('fs', () => {
+  const actualFs = jest.requireActual('fs');
+  return {
+    ...actualFs,
+    promises: {
+      ...actualFs.promises,
+      mkdir: (...args: unknown[]) => mockMkdir(...args),
+      writeFile: (...args: unknown[]) => mockWriteFile(...args),
+      readFile: (...args: unknown[]) => mockReadFile(...args),
+      unlink: (...args: unknown[]) => mockUnlink(...args),
+      readdir: (...args: unknown[]) => mockReaddir(...args),
+    },
+    createWriteStream: jest.fn().mockReturnValue(mockWriteStream),
+  };
+});
+
+jest.resetModules();
+const { ExportService } = require('../../../src/services/ExportService') as typeof import('../../../src/services/ExportService');
+const { NotFoundError } = require('../../../src/services/BaseService') as typeof import('../../../src/services/BaseService');
 
 describe('ExportService', () => {
   let service: ExportService;
@@ -103,6 +117,27 @@ describe('ExportService', () => {
     // Reset all mocks
     jest.clearAllMocks();
 
+    MockWorkbook.mockImplementation(() => mockWorkbook);
+    mockWorkbook.addWorksheet.mockReturnValue(mockWorksheet);
+    mockWorksheet.addRows.mockReturnValue(undefined);
+    mockWorksheet.addRow.mockReturnValue(undefined);
+    mockWorksheet.getRow.mockReturnValue({ font: {}, fill: {} });
+
+    MockPDFDocument.mockImplementation(() => mockPdfDoc);
+    mockPdfDoc.pipe.mockReturnThis();
+    mockPdfDoc.fontSize.mockReturnThis();
+    mockPdfDoc.text.mockReturnThis();
+    mockPdfDoc.moveDown.mockReturnThis();
+    mockPdfDoc.addPage.mockReturnThis();
+
+    (require('fs').createWriteStream as jest.Mock).mockReturnValue(mockWriteStream);
+    mockWriteStream.on.mockImplementation((event: string, callback: () => void): MockWriteStream => {
+      if (event === 'finish') {
+        setImmediate(callback);
+      }
+      return mockWriteStream;
+    });
+
     // Setup default fs mock behavior
     mockMkdir.mockResolvedValue(undefined);
     mockWriteFile.mockResolvedValue(undefined);
@@ -112,9 +147,20 @@ describe('ExportService', () => {
 
     // Reset ExcelJS mock
     mockWorkbook.xlsx.writeFile.mockResolvedValue(undefined);
+
+    mockPrisma.score.findMany.mockResolvedValue([]);
+    mockPrisma.scoreFile.findMany.mockResolvedValue([]);
+    mockPrisma.event.count.mockResolvedValue(0);
+    mockPrisma.contest.count.mockResolvedValue(0);
+    mockPrisma.category.count.mockResolvedValue(0);
+    mockPrisma.score.count.mockResolvedValue(0);
+    mockPrisma.judge.count.mockResolvedValue(0);
+    mockPrisma.contestant.count.mockResolvedValue(0);
+    mockPrisma.event.findMany.mockResolvedValue([]);
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     mockReset(mockPrisma);
   });
 
@@ -216,6 +262,9 @@ describe('ExportService', () => {
 
     it('should generate unique filenames for concurrent exports', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
+      jest.spyOn(Date, 'now')
+        .mockReturnValueOnce(1777492800001)
+        .mockReturnValueOnce(1777492800002);
 
       const result1 = await service.exportEventToExcel('event-1');
       const result2 = await service.exportEventToExcel('event-1');
@@ -272,7 +321,12 @@ describe('ExportService', () => {
       expect(mockPrisma.contest.findUnique).toHaveBeenCalledWith({
         where: { id: 'contest-1' },
         include: {
-          categories: true,
+          event: true,
+          categories: {
+            include: {
+              criteria: true,
+            },
+          },
         },
       });
       expect(mockFs.writeFile).toHaveBeenCalled();
@@ -301,6 +355,9 @@ describe('ExportService', () => {
 
     it('should generate unique CSV filenames', async () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      jest.spyOn(Date, 'now')
+        .mockReturnValueOnce(1777492800003)
+        .mockReturnValueOnce(1777492800004);
 
       const result1 = await service.exportContestResultsToCSV('contest-1');
       const result2 = await service.exportContestResultsToCSV('contest-1');
@@ -362,6 +419,14 @@ describe('ExportService', () => {
       expect(mockFs.mkdir).toHaveBeenCalled();
       expect(mockPrisma.judge.findUnique).toHaveBeenCalledWith({
         where: { id: 'judge-1' },
+        include: {
+          users: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
       });
       expect(mockFs.writeFile).toHaveBeenCalled();
       expect(result).toContain('judge_judge-1_');
@@ -389,6 +454,9 @@ describe('ExportService', () => {
 
     it('should generate unique XML filenames', async () => {
       mockPrisma.judge.findUnique.mockResolvedValue(mockJudge as any);
+      jest.spyOn(Date, 'now')
+        .mockReturnValueOnce(1777492800005)
+        .mockReturnValueOnce(1777492800006);
 
       const result1 = await service.exportJudgePerformanceToXML('judge-1');
       const result2 = await service.exportJudgePerformanceToXML('judge-1');
@@ -403,7 +471,7 @@ describe('ExportService', () => {
 
       expect(mockFs.writeFile).toHaveBeenCalledWith(
         expect.any(String),
-        expect.stringContaining('XML export placeholder')
+        expect.stringContaining('<judge-performance-report>')
       );
     });
   });
@@ -418,7 +486,7 @@ describe('ExportService', () => {
       const result = await service.exportSystemAnalyticsToPDF();
 
       expect(mockFs.mkdir).toHaveBeenCalled();
-      expect(mockFs.writeFile).toHaveBeenCalled();
+      expect(require('fs').createWriteStream).toHaveBeenCalled();
       expect(result).toContain('analytics_');
       expect(result).toContain('.pdf');
     });
@@ -457,6 +525,10 @@ describe('ExportService', () => {
     });
 
     it('should generate unique PDF filenames', async () => {
+      jest.spyOn(Date, 'now')
+        .mockReturnValueOnce(1777492800007)
+        .mockReturnValueOnce(1777492800008);
+
       const result1 = await service.exportSystemAnalyticsToPDF();
       const result2 = await service.exportSystemAnalyticsToPDF();
 
@@ -464,6 +536,10 @@ describe('ExportService', () => {
     });
 
     it('should generate unique filenames for same date range', async () => {
+      jest.spyOn(Date, 'now')
+        .mockReturnValueOnce(1777492800009)
+        .mockReturnValueOnce(1777492800010);
+
       const result1 = await service.exportSystemAnalyticsToPDF('2025-01-01', '2025-12-31');
       const result2 = await service.exportSystemAnalyticsToPDF('2025-01-01', '2025-12-31');
 
@@ -494,7 +570,7 @@ describe('ExportService', () => {
     ];
 
     it('should retrieve export history successfully', async () => {
-      (mockPrisma as any).report = {
+      (mockPrisma as any).reportInstance = {
         findMany: jest.fn().mockResolvedValue(mockExports),
       };
 
@@ -506,25 +582,22 @@ describe('ExportService', () => {
 
     it('should query with correct parameters', async () => {
       const findMany = jest.fn().mockResolvedValue(mockExports);
-      (mockPrisma as any).report = { findMany };
+      (mockPrisma as any).reportInstance = { findMany };
 
       await service.getExportHistory('user-1', 25);
 
       expect(findMany).toHaveBeenCalledWith({
         where: {
-          generatedBy: 'user-1',
-          type: {
-            in: ['EXCEL_EXPORT', 'CSV_EXPORT', 'XML_EXPORT', 'PDF_EXPORT'],
-          },
+          generatedById: 'user-1',
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { generatedAt: 'desc' },
         take: 25,
       });
     });
 
     it('should use default limit of 50 when not provided', async () => {
       const findMany = jest.fn().mockResolvedValue(mockExports);
-      (mockPrisma as any).report = { findMany };
+      (mockPrisma as any).reportInstance = { findMany };
 
       await service.getExportHistory('user-1');
 
@@ -535,7 +608,7 @@ describe('ExportService', () => {
 
     it('should handle custom limit', async () => {
       const findMany = jest.fn().mockResolvedValue(mockExports);
-      (mockPrisma as any).report = { findMany };
+      (mockPrisma as any).reportInstance = { findMany };
 
       await service.getExportHistory('user-1', 100);
 
@@ -545,7 +618,7 @@ describe('ExportService', () => {
     });
 
     it('should return empty array when no exports found', async () => {
-      (mockPrisma as any).report = {
+      (mockPrisma as any).reportInstance = {
         findMany: jest.fn().mockResolvedValue([]),
       };
 
@@ -555,8 +628,8 @@ describe('ExportService', () => {
       expect(result.message).toBe('Export history retrieved successfully');
     });
 
-    it('should handle when report model does not exist', async () => {
-      (mockPrisma as any).report = undefined;
+    it('should return empty array when no report instances exist', async () => {
+      mockPrisma.reportInstance.findMany.mockResolvedValue([]);
 
       const result = await service.getExportHistory('user-1');
 
@@ -565,44 +638,40 @@ describe('ExportService', () => {
 
     it('should order exports by createdAt descending', async () => {
       const findMany = jest.fn().mockResolvedValue(mockExports);
-      (mockPrisma as any).report = { findMany };
+      (mockPrisma as any).reportInstance = { findMany };
 
       await service.getExportHistory('user-1');
 
       expect(findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: { createdAt: 'desc' },
+          orderBy: { generatedAt: 'desc' },
         })
       );
     });
 
-    it('should filter by export types only', async () => {
+    it('should not apply export type filtering', async () => {
       const findMany = jest.fn().mockResolvedValue(mockExports);
-      (mockPrisma as any).report = { findMany };
+      (mockPrisma as any).reportInstance = { findMany };
 
       await service.getExportHistory('user-1');
 
       expect(findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            type: {
-              in: ['EXCEL_EXPORT', 'CSV_EXPORT', 'XML_EXPORT', 'PDF_EXPORT'],
-            },
-          }),
+          where: { generatedById: 'user-1' },
         })
       );
     });
 
     it('should filter by user ID', async () => {
       const findMany = jest.fn().mockResolvedValue(mockExports);
-      (mockPrisma as any).report = { findMany };
+      (mockPrisma as any).reportInstance = { findMany };
 
       await service.getExportHistory('specific-user-123');
 
       expect(findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            generatedBy: 'specific-user-123',
+            generatedById: 'specific-user-123',
           }),
         })
       );
@@ -619,7 +688,7 @@ describe('ExportService', () => {
 
       mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
       mockFs.mkdir.mockResolvedValue(undefined);
-      mockFs.writeFile.mockRejectedValue(new Error('Disk full'));
+      mockWorkbook.xlsx.writeFile.mockRejectedValue(new Error('Disk full'));
 
       await expect(service.exportEventToExcel('event-1'))
         .rejects.toThrow('Disk full');
@@ -633,6 +702,7 @@ describe('ExportService', () => {
       };
 
       mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
+      mockPrisma.score.findMany.mockResolvedValue([]);
       mockFs.mkdir.mockResolvedValue(undefined);
       mockFs.writeFile.mockRejectedValue(new Error('Permission denied'));
 

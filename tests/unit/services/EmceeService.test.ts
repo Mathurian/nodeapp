@@ -164,12 +164,12 @@ describe('EmceeService', () => {
         category: { id: 'cat1', name: 'Solo Performance' },
       };
 
-      prismaMock.emceeScript.findUnique.mockResolvedValue(mockScript as any);
+      prismaMock.emceeScript.findFirst.mockResolvedValue(mockScript as any);
 
       const result = await service.getScript('s1');
 
       expect(result).toEqual(mockScript);
-      expect(prismaMock.emceeScript.findUnique).toHaveBeenCalledWith({
+      expect(prismaMock.emceeScript.findFirst).toHaveBeenCalledWith({
         where: { id: 's1' },
         include: {
           event: {
@@ -201,7 +201,7 @@ describe('EmceeService', () => {
     });
 
     it('should throw NotFoundError when script does not exist', async () => {
-      prismaMock.emceeScript.findUnique.mockResolvedValue(null);
+      prismaMock.emceeScript.findFirst.mockResolvedValue(null);
 
       await expect(service.getScript('nonexistent')).rejects.toThrow(NotFoundError);
       await expect(service.getScript('nonexistent')).rejects.toThrow("Script with identifier 'nonexistent' not found");
@@ -218,7 +218,7 @@ describe('EmceeService', () => {
         author: null,
       };
 
-      prismaMock.emceeScript.findUnique.mockResolvedValue(mockScript as any);
+      prismaMock.emceeScript.findFirst.mockResolvedValue(mockScript as any);
 
       const result = await service.getScript('s1');
 
@@ -310,9 +310,10 @@ describe('EmceeService', () => {
 
       const result = await service.getContestantBios({ categoryId: 'cat1' });
 
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(3);
       expect(result[0].id).toBe('cont1');
-      expect(result[1].id).toBe('cont2');
+      expect(result[1].id).toBe('cont1');
+      expect(result[2].id).toBe('cont2');
     });
 
     it('should sort contestants by name', async () => {
@@ -795,7 +796,7 @@ describe('EmceeService', () => {
         filePath: '/uploads/script.pdf',
       };
 
-      prismaMock.emceeScript.findUnique.mockResolvedValue(mockScript as any);
+      prismaMock.emceeScript.findFirst.mockResolvedValue(mockScript as any);
 
       const result = await service.getScriptFileInfo('s1');
 
@@ -803,7 +804,7 @@ describe('EmceeService', () => {
     });
 
     it('should throw NotFoundError when script does not exist', async () => {
-      prismaMock.emceeScript.findUnique.mockResolvedValue(null);
+      prismaMock.emceeScript.findFirst.mockResolvedValue(null);
 
       await expect(service.getScriptFileInfo('nonexistent')).rejects.toThrow(NotFoundError);
     });
@@ -815,7 +816,7 @@ describe('EmceeService', () => {
         filePath: null,
       };
 
-      prismaMock.emceeScript.findUnique.mockResolvedValue(mockScript as any);
+      prismaMock.emceeScript.findFirst.mockResolvedValue(mockScript as any);
 
       await expect(service.getScriptFileInfo('s1')).rejects.toThrow(NotFoundError);
       await expect(service.getScriptFileInfo('s1')).rejects.toThrow("Script file with identifier 's1' not found");

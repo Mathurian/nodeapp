@@ -31,6 +31,7 @@ import BackupMonitoringService, { BackupLogData } from '../../../src/services/Ba
 
 describe('BackupMonitoringService', () => {
   let service: BackupMonitoringService;
+  const defaultTenant = { id: 'default_tenant', slug: 'default' };
 
   const mockBackupLog = {
     id: 'backup-1',
@@ -52,7 +53,9 @@ describe('BackupMonitoringService', () => {
     // Reset the singleton's state for clean tests
     // Access singleton - it always returns the same instance
     service = BackupMonitoringService.getInstance();
+    (service as any).systemTenantId = null;
     jest.clearAllMocks();
+    mockPrisma.tenant.findUnique.mockResolvedValue(defaultTenant as any);
   });
 
   afterEach(() => {

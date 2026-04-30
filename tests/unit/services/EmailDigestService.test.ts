@@ -5,11 +5,17 @@
 
 import 'reflect-metadata';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
-import { EmailDigestService } from '../../../src/services/EmailDigestService';
-import { NotificationRepository } from '../../../src/repositories/NotificationRepository';
-import { NotificationPreferenceRepository } from '../../../src/repositories/NotificationPreferenceRepository';
-import { EmailService } from '../../../src/services/EmailService';
-import prisma from '../../../src/config/database';
+import type { EmailDigestService as EmailDigestServiceClass } from '../../../src/services/EmailDigestService';
+import type { NotificationRepository } from '../../../src/repositories/NotificationRepository';
+import type { EmailService } from '../../../src/services/EmailService';
+
+const mockGetUsersForDigest = jest.fn();
+
+jest.mock('../../../src/repositories/NotificationPreferenceRepository', () => ({
+  NotificationPreferenceRepository: class {
+    getUsersForDigest = mockGetUsersForDigest;
+  },
+}));
 
 jest.mock('../../../src/config/database', () => ({
   __esModule: true,
@@ -32,11 +38,23 @@ jest.mock('../../../src/utils/prismaRlsContext', () => ({
   ),
 }));
 
+jest.resetModules();
+const { EmailDigestService } = require('../../../src/services/EmailDigestService') as {
+  EmailDigestService: new (
+    notificationRepository: NotificationRepository,
+    emailService: EmailService
+  ) => EmailDigestServiceClass;
+};
+const prisma = require('../../../src/config/database').default;
+const { withTenantDbRlsContext } = require('../../../src/utils/prismaRlsContext') as {
+  withTenantDbRlsContext: jest.Mock;
+};
+
 describe('EmailDigestService', () => {
-  let service: EmailDigestService;
+  let service: EmailDigestServiceClass;
   let mockNotificationRepo: DeepMockProxy<NotificationRepository>;
   let mockEmailService: DeepMockProxy<EmailService>;
-  let getUsersForDigestSpy: jest.SpyInstance;
+  let getUsersForDigestSpy: jest.Mock;
 
   const mockedPrisma = prisma as unknown as {
     user: { findFirst: jest.Mock };
@@ -121,20 +139,26 @@ describe('EmailDigestService', () => {
   };
 
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(now);
+
+    withTenantDbRlsContext.mockReset();
+    withTenantDbRlsContext.mockImplementation(
+      async (db: unknown, _context: unknown, operation: (tx: unknown) => unknown) => operation(db)
+    );
+
     mockNotificationRepo = mockDeep<NotificationRepository>();
     mockEmailService = mockDeep<EmailService>();
 
     service = new EmailDigestService(mockNotificationRepo, mockEmailService);
-    getUsersForDigestSpy = jest.spyOn(
-      NotificationPreferenceRepository.prototype,
-      'getUsersForDigest'
-    );
+    getUsersForDigestSpy = mockGetUsersForDigest;
 
     mockedPrisma.user.findFirst.mockReset();
     mockedPrisma.notificationDigest.findFirst.mockReset();
     mockedPrisma.notificationDigest.create.mockReset();
     mockedPrisma.notificationDigest.update.mockReset();
     mockedPrisma.notificationDigest.findMany.mockReset();
+    getUsersForDigestSpy.mockReset();
 
     mockedPrisma.user.findFirst.mockResolvedValue(buildUser());
     mockedPrisma.notificationDigest.findFirst.mockResolvedValue(null);
@@ -149,7 +173,8 @@ describe('EmailDigestService', () => {
   afterEach(() => {
     mockReset(mockNotificationRepo);
     mockReset(mockEmailService);
-    getUsersForDigestSpy.mockRestore();
+    getUsersForDigestSpy.mockReset();
+    jest.useRealTimers();
   });
 
   describe('sendDailyDigests', () => {

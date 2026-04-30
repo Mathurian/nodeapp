@@ -260,7 +260,7 @@ describe('RedisCacheService', () => {
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         'user:1',
-        300,
+        900,
         JSON.stringify({ id: 1, name: 'John' })
       );
       expect(result).toBe(true);

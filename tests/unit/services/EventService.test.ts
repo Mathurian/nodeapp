@@ -98,6 +98,7 @@ describe('EventService', () => {
         endDate: new Date('2025-12-02'),
         location: 'Test Venue',
         description: 'Test Description',
+        tenantId: 'tenant-1',
       };
       const createdEvent = { id: '1', ...eventData };
       mockEventRepo.create.mockResolvedValue(createdEvent as any);
@@ -105,7 +106,7 @@ describe('EventService', () => {
       const result = await eventService.createEvent(eventData);
 
       expect(result).toEqual(createdEvent);
-      expect(mockEventRepo.create).toHaveBeenCalledWith(eventData);
+      expect(mockEventRepo.create).toHaveBeenCalledWith(expect.objectContaining(eventData));
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('events:list:*');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('events:stats:*');
     });
@@ -257,12 +258,12 @@ describe('EventService', () => {
         { id: '2', name: 'Event 2', startDate: new Date(), endDate: new Date() },
       ];
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findAll.mockResolvedValue(events as any);
+      mockEventRepo.findActiveEvents.mockResolvedValue(events as any);
 
       const result = await eventService.getAllEvents();
 
       expect(result).toEqual(events);
-      expect(mockEventRepo.findAll).toHaveBeenCalled();
+      expect(mockEventRepo.findActiveEvents).toHaveBeenCalled();
       expect(mockCacheService.set).toHaveBeenCalled();
     });
 
@@ -305,7 +306,7 @@ describe('EventService', () => {
 
       const result = await eventService.getAllEvents({ search: 'test' });
 
-      expect(mockEventRepo.searchEvents).toHaveBeenCalledWith('test');
+      expect(mockEventRepo.searchEvents).toHaveBeenCalledWith('test', undefined, false);
       expect(result).toEqual(events);
     });
   });
@@ -322,7 +323,7 @@ describe('EventService', () => {
 
       expect(result).toEqual(events);
       expect(mockEventRepo.findUpcomingEvents).toHaveBeenCalled();
-      expect(mockCacheService.set).toHaveBeenCalledWith('events:upcoming', events, 300);
+      expect(mockCacheService.set).toHaveBeenCalledWith('events:upcoming:tenant', events, 300);
     });
 
     it('should return cached upcoming events', async () => {
@@ -345,7 +346,7 @@ describe('EventService', () => {
       const result = await eventService.getOngoingEvents();
 
       expect(result).toEqual(events);
-      expect(mockCacheService.set).toHaveBeenCalledWith('events:ongoing', events, 120);
+      expect(mockCacheService.set).toHaveBeenCalledWith('events:ongoing:tenant', events, 120);
     });
   });
 
@@ -358,7 +359,7 @@ describe('EventService', () => {
       const result = await eventService.getPastEvents();
 
       expect(result).toEqual(events);
-      expect(mockCacheService.set).toHaveBeenCalledWith('events:past', events, 3600);
+      expect(mockCacheService.set).toHaveBeenCalledWith('events:past:tenant', events, 3600);
     });
   });
 
@@ -374,7 +375,7 @@ describe('EventService', () => {
       const updatedEvent = { ...existingEvent, ...updateData };
 
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findById.mockResolvedValue(existingEvent as any);
+      mockEventRepo.findByIdScoped.mockResolvedValue(existingEvent as any);
       mockEventRepo.update.mockResolvedValue(updatedEvent as any);
 
       const result = await eventService.updateEvent('1', updateData);
@@ -393,7 +394,7 @@ describe('EventService', () => {
         endDate: new Date('2025-12-02'),
       };
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findById.mockResolvedValue(existingEvent as any);
+      mockEventRepo.findByIdScoped.mockResolvedValue(existingEvent as any);
 
       const invalidUpdate = {
         startDate: new Date('2025-12-03'),
@@ -411,7 +412,7 @@ describe('EventService', () => {
         endDate: new Date(),
       };
       mockCacheService.get.mockResolvedValue(null);
-      mockEventRepo.findById.mockResolvedValue(existingEvent as any);
+      mockEventRepo.findByIdScoped.mockResolvedValue(existingEvent as any);
 
       await expect(
         eventService.updateEvent('1', { startDate: 'invalid' as any })
@@ -422,12 +423,14 @@ describe('EventService', () => {
   describe('archiveEvent', () => {
     it('should archive event and invalidate cache', async () => {
       const archivedEvent = { id: '1', name: 'Event', archived: true };
+      mockCacheService.get.mockResolvedValue(null);
+      mockEventRepo.findByIdScoped.mockResolvedValue({ id: '1', name: 'Event' } as any);
       mockEventRepo.archiveEvent.mockResolvedValue(archivedEvent as any);
 
       const result = await eventService.archiveEvent('1');
 
       expect(result).toEqual(archivedEvent);
-      expect(mockEventRepo.archiveEvent).toHaveBeenCalledWith('1');
+      expect(mockEventRepo.archiveEvent).toHaveBeenCalledWith('1', undefined, false);
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('event:*:1');
     });
   });
@@ -435,12 +438,14 @@ describe('EventService', () => {
   describe('unarchiveEvent', () => {
     it('should unarchive event and invalidate cache', async () => {
       const unarchivedEvent = { id: '1', name: 'Event', archived: false };
+      mockCacheService.get.mockResolvedValue(null);
+      mockEventRepo.findByIdScoped.mockResolvedValue({ id: '1', name: 'Event' } as any);
       mockEventRepo.unarchiveEvent.mockResolvedValue(unarchivedEvent as any);
 
       const result = await eventService.unarchiveEvent('1');
 
       expect(result).toEqual(unarchivedEvent);
-      expect(mockEventRepo.unarchiveEvent).toHaveBeenCalledWith('1');
+      expect(mockEventRepo.unarchiveEvent).toHaveBeenCalledWith('1', undefined, false);
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('event:*:1');
     });
   });
@@ -555,7 +560,7 @@ describe('EventService', () => {
       const result = await eventService.searchEvents('test query');
 
       expect(result).toEqual(events);
-      expect(mockEventRepo.searchEvents).toHaveBeenCalledWith('test query');
+      expect(mockEventRepo.searchEvents).toHaveBeenCalledWith('test query', undefined, false);
       expect(mockCacheService.set).toHaveBeenCalled();
     });
   });
@@ -571,7 +576,7 @@ describe('EventService', () => {
       const result = await eventService.getEventsByDateRange(startDate, endDate);
 
       expect(result).toEqual(events);
-      expect(mockEventRepo.findEventsByDateRange).toHaveBeenCalledWith(startDate, endDate);
+      expect(mockEventRepo.findEventsByDateRange).toHaveBeenCalledWith(startDate, endDate, undefined, false);
       expect(mockCacheService.set).toHaveBeenCalled();
     });
   });
@@ -585,7 +590,7 @@ describe('EventService', () => {
       const result = await eventService.getEventsRequiringAttention();
 
       expect(result).toEqual(events);
-      expect(mockCacheService.set).toHaveBeenCalledWith('events:attention', events, 3600);
+      expect(mockCacheService.set).toHaveBeenCalledWith('events:attention:tenant', events, 3600);
     });
   });
 });

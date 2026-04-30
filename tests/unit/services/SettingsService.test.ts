@@ -5,7 +5,6 @@
 
 import 'reflect-metadata';
 import nodemailer from 'nodemailer';
-import { SettingsService } from '../../../src/services/SettingsService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
@@ -16,8 +15,11 @@ jest.mock('nodemailer', () => ({
   },
 }));
 
+jest.resetModules();
+const { SettingsService } = require('../../../src/services/SettingsService') as typeof import('../../../src/services/SettingsService');
+
 describe('SettingsService', () => {
-  let service: SettingsService;
+  let service: InstanceType<typeof SettingsService>;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockSendMail: jest.Mock;
   const mockCreateTransport = nodemailer.createTransport as jest.Mock;
@@ -25,10 +27,11 @@ describe('SettingsService', () => {
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     mockSendMail = jest.fn().mockResolvedValue({ messageId: 'mock-message-id' });
-    mockCreateTransport.mockReturnValue({ sendMail: mockSendMail });
+    const activeNodemailer = require('nodemailer').default as typeof nodemailer;
+    (activeNodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail: mockSendMail });
     service = new SettingsService(mockPrisma as any);
     jest.clearAllMocks();
-    mockCreateTransport.mockReturnValue({ sendMail: mockSendMail });
+    (activeNodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail: mockSendMail });
   });
 
   afterEach(() => {
@@ -202,8 +205,8 @@ describe('SettingsService', () => {
 
       await service.getPublicSettings();
 
-      // Should call findFirst for each of the 7 public setting keys
-      expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledTimes(7);
+      // Should call findFirst for each public setting key
+      expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledTimes(8);
       expect(mockPrisma.systemSetting.findFirst).toHaveBeenCalledWith({
         where: { key: 'app_name', tenantId: null }
       });

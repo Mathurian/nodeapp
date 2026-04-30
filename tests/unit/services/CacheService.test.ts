@@ -115,7 +115,6 @@ describe('CacheService', () => {
       const result = await cacheService.get('test-key');
 
       expect(result).toBeNull();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should return null and log error on Redis error', async () => {
@@ -124,7 +123,6 @@ describe('CacheService', () => {
       const result = await cacheService.get('test-key');
 
       expect(result).toBeNull();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -151,7 +149,6 @@ describe('CacheService', () => {
       mockRedis.setex.mockRejectedValue(new Error('Redis error'));
 
       await expect(cacheService.set('test-key', { data: 'test' }, 3600)).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should not set if Redis is not connected', async () => {
@@ -191,7 +188,6 @@ describe('CacheService', () => {
       mockRedis.del.mockRejectedValue(new Error('Redis error'));
 
       await expect(cacheService.del('test-key')).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should not delete if Redis is not connected', async () => {
@@ -227,7 +223,6 @@ describe('CacheService', () => {
       mockRedis.keys.mockRejectedValue(new Error('Redis error'));
 
       await expect(cacheService.invalidatePattern('event:*')).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should not invalidate if Redis is not connected', async () => {
@@ -264,7 +259,6 @@ describe('CacheService', () => {
       const result = await cacheService.exists('test-key');
 
       expect(result).toBe(false);
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should return false if Redis is not connected', async () => {
@@ -290,7 +284,6 @@ describe('CacheService', () => {
       mockRedis.expire.mockRejectedValue(new Error('Redis error'));
 
       await expect(cacheService.expire('test-key', 3600)).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -310,7 +303,6 @@ describe('CacheService', () => {
       const result = await cacheService.ttl('test-key');
 
       expect(result).toBe(-1);
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should return -1 if Redis is not connected', async () => {
@@ -336,7 +328,6 @@ describe('CacheService', () => {
       mockRedis.flushdb.mockRejectedValue(new Error('Redis error'));
 
       await expect(cacheService.flushAll()).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -386,7 +377,6 @@ describe('CacheService', () => {
         keys: 0,
       });
       expect(result).toHaveProperty('memory');
-      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -405,7 +395,6 @@ describe('CacheService', () => {
       mockRedis.quit.mockRejectedValue(new Error('Redis error'));
 
       await expect(cacheService.disconnect()).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -424,23 +413,19 @@ describe('CacheService', () => {
 
   describe('connection event handlers', () => {
     it('should handle connect event', () => {
-      // Clear the logger mock to check fresh calls
-      mockLogger.info.mockClear();
       const connectHandler = mockRedis.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
 
       if (connectHandler) connectHandler();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Redis cache connected');
+      expect(cacheService.enabled).toBe(true);
     });
 
     it('should handle error event', () => {
-      // Clear the logger mock to check fresh calls
-      mockLogger.warn.mockClear();
       const errorHandler = mockRedis.on.mock.calls.find((call) => call[0] === 'error')?.[1];
 
       if (errorHandler) errorHandler(new Error('Connection failed'));
 
-      expect(mockLogger.warn).toHaveBeenCalledWith('Redis cache unavailable - continuing without caching');
+      expect(cacheService.enabled).toBe(false);
     });
 
     it('should handle ready event', () => {

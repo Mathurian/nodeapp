@@ -9,6 +9,10 @@ import prisma from '../../../src/config/database';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
+jest.mock('../../../src/middleware/correlationId', () => ({
+  getRequestContext: jest.fn(() => ({ isSuperAdmin: true, tenantId: null })),
+}));
+
 // Mock the database module
 jest.mock('../../../src/config/database', () => {
   const { mockDeep } = require('jest-mock-extended');
@@ -25,6 +29,7 @@ describe('BulkOperationService', () => {
   beforeEach(() => {
     mockReset(mockPrisma);
     service = new BulkOperationService();
+    jest.spyOn(service as any, 'resolveScope').mockReturnValue({ mode: 'global' });
     jest.clearAllMocks();
   });
 

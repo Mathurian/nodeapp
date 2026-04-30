@@ -145,9 +145,9 @@ export class CacheService {
   /**
    * Set cached value with TTL
    */
-  async set(key: string, value: any, ttlSeconds: number = 3600): Promise<void> {
+  async set(key: string, value: any, ttlSeconds: number = 3600): Promise<boolean> {
     if (!this.isEnabled) {
-      return;
+      return false;
     }
 
     try {
@@ -157,24 +157,26 @@ export class CacheService {
       await this.circuitBreaker.execute(async () => {
         return await this.redis.setex(key, ttlSeconds, serialized);
       });
+      return true;
     } catch (error) {
       // S4-1: If circuit breaker is open, fail gracefully (no-op)
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Circuit breaker')) {
         logger.warn('Redis circuit breaker is OPEN - cache set skipped', { key });
-        return;
+        return false;
       }
 
       logger.error(`Cache set error for key "${key}"`, { error });
+      return false;
     }
   }
 
   /**
    * Delete cached value(s)
    */
-  async del(key: string | string[]): Promise<void> {
+  async del(key: string | string[]): Promise<boolean> {
     if (!this.isEnabled) {
-      return;
+      return false;
     }
 
     try {
@@ -189,24 +191,30 @@ export class CacheService {
         }
         return 0;
       });
+      return true;
     } catch (error) {
       // S4-1: If circuit breaker is open, fail gracefully (no-op)
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Circuit breaker')) {
         logger.warn('Redis circuit breaker is OPEN - cache delete skipped', { key });
-        return;
+        return false;
       }
 
       logger.error('Cache delete error', { error });
+      return false;
     }
+  }
+
+  async delete(key: string | string[]): Promise<boolean> {
+    return this.del(key);
   }
 
   /**
    * Invalidate cache by pattern
    */
-  async invalidatePattern(pattern: string): Promise<void> {
+  async invalidatePattern(pattern: string): Promise<boolean> {
     if (!this.isEnabled) {
-      return;
+      return false;
     }
 
     try {
@@ -218,16 +226,33 @@ export class CacheService {
         }
         return 0;
       });
+      return true;
     } catch (error) {
       // S4-1: If circuit breaker is open, fail gracefully (no-op)
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Circuit breaker')) {
         logger.warn('Redis circuit breaker is OPEN - pattern invalidation skipped', { pattern });
-        return;
+        return false;
       }
 
       logger.error(`Cache invalidate pattern error for "${pattern}"`, { error });
+      return false;
     }
+  }
+
+  async deletePattern(pattern: string): Promise<boolean> {
+    return this.invalidatePattern(pattern);
+  }
+
+  async remember<T>(key: string, ttlSeconds: number, callback: () => Promise<T> | T): Promise<T> {
+    const cached = await this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    const fresh = await callback();
+    await this.set(key, fresh, ttlSeconds);
+    return fresh;
   }
 
   /**
@@ -281,16 +306,22 @@ export class CacheService {
   /**
    * Clear all cache
    */
-  async flushAll(): Promise<void> {
+  async flushAll(): Promise<boolean> {
     if (!this.isEnabled) {
-      return;
+      return false;
     }
 
     try {
       await this.redis.flushdb();
+      return true;
     } catch (error) {
       logger.error('Cache flush error', { error });
+      return false;
     }
+  }
+
+  async flush(): Promise<boolean> {
+    return this.flushAll();
   }
 
   /**
