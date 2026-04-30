@@ -180,8 +180,7 @@ describe('UserService', () => {
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
     });
 
-    // Skipped: bcrypt mock not working correctly in test environment
-    it.skip('should create user with valid data', async () => {
+    it('should create user with valid data', async () => {
       mockUserRepository.findByName.mockResolvedValue(null);
       mockUserRepository.findByEmail.mockResolvedValue(null);
       mockUserRepository.create.mockResolvedValue(mockUser);
@@ -191,14 +190,16 @@ describe('UserService', () => {
       expect(mockUserRepository.findByName).toHaveBeenCalledWith('newuser');
       expect(mockUserRepository.findByEmail).toHaveBeenCalledWith('new@example.com');
       expect(bcrypt.hash).toHaveBeenCalledWith('Password123!', 10);
-      expect(mockUserRepository.create).toHaveBeenCalledWith({
+      expect(mockUserRepository.create).toHaveBeenCalledWith(expect.objectContaining({
         name: 'newuser',
         email: 'new@example.com',
         password: 'hashed-password',
         preferredName: 'New User',
         role: UserRole.JUDGE,
+        tenantId: 'tenant-1',
+        boardRole: null,
         isActive: true
-      });
+      }));
       expect(result).not.toHaveProperty('password');
     });
 
@@ -309,8 +310,7 @@ describe('UserService', () => {
       (bcrypt.hash as jest.Mock).mockImplementation(() => Promise.resolve('new-hashed-password'));
     });
 
-    // Skipped: bcrypt mock not working correctly in test environment
-    it.skip('should change password successfully', async () => {
+    it('should change password successfully', async () => {
       mockUserRepository.findById.mockResolvedValue(mockUser);
       mockUserRepository.updatePassword.mockResolvedValue(mockUser);
 

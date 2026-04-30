@@ -589,8 +589,24 @@ describe('PerformanceService', () => {
   });
 
   describe('getHealthCheck', () => {
+    let memoryUsageSpy: jest.SpyInstance;
+    let uptimeSpy: jest.SpyInstance;
+
     beforeEach(() => {
       (fs.access as jest.Mock).mockResolvedValue(undefined);
+      memoryUsageSpy = jest.spyOn(process, 'memoryUsage').mockReturnValue({
+        rss: 128 * 1024 * 1024,
+        heapTotal: 128 * 1024 * 1024,
+        heapUsed: 64 * 1024 * 1024,
+        external: 0,
+        arrayBuffers: 0,
+      } as NodeJS.MemoryUsage);
+      uptimeSpy = jest.spyOn(process, 'uptime').mockReturnValue(120);
+    });
+
+    afterEach(() => {
+      memoryUsageSpy.mockRestore();
+      uptimeSpy.mockRestore();
     });
 
     it('should return healthy status when all checks pass', async () => {

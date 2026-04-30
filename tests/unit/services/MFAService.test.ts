@@ -246,18 +246,17 @@ describe('MFAService', () => {
       });
     });
 
-    // Skipped: Test logic expects user.update call but service implementation doesn't match
-    it.skip('should verify valid backup code and remove it', async () => {
-      (mockCrypto.createHash as jest.Mock).mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          digest: jest.fn().mockReturnValue('hashedbackupcode')
-        })
-      });
+    it('should verify valid backup code and remove it', async () => {
+      const realCrypto = jest.requireActual<typeof import('crypto')>('crypto');
+      const hashedBackupCode = realCrypto
+        .createHash('sha256')
+        .update('12345678')
+        .digest('hex');
 
       const userWithMFA = {
         mfaEnabled: true,
         mfaSecret: 'TESTSECRET',
-        mfaBackupCodes: JSON.stringify(['hashedbackupcode', 'anothercode'])
+        mfaBackupCodes: JSON.stringify([hashedBackupCode, 'anothercode'])
       };
 
       mockPrisma.user.findUnique.mockResolvedValue(userWithMFA as any);

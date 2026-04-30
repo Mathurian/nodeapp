@@ -56,7 +56,7 @@ jest.mock('../../../src/utils/passwordValidator', () => ({
 const permissionMocks = {
   getRolePermissions: jest.fn(async (role: string, _tenantId?: string) => {
     if (role === 'ADMIN') return ['MANAGE_USERS', 'MANAGE_EVENTS'];
-    if (role === 'JUDGE') return ['SUBMIT_SCORES', 'VIEW_RESULTS'];
+    if (role === 'JUDGE') return ['SUBMIT_SCORES', 'VIEW_RESULTS', 'scores:write'];
     return [];
   }),
   isAdmin: jest.fn((role: string) => role === 'ADMIN' || role === 'SUPER_ADMIN'),
@@ -140,7 +140,7 @@ describe('AuthService', () => {
     // Reset permission mock implementation after clearAllMocks
     permissionMocks.getRolePermissions.mockImplementation(async (role: string, _tenantId?: string) => {
       if (role === 'ADMIN') return ['MANAGE_USERS', 'MANAGE_EVENTS'];
-      if (role === 'JUDGE') return ['SUBMIT_SCORES', 'VIEW_RESULTS'];
+      if (role === 'JUDGE') return ['SUBMIT_SCORES', 'VIEW_RESULTS', 'scores:write'];
       return [];
     });
 
@@ -167,8 +167,7 @@ describe('AuthService', () => {
       password: 'password123'
     };
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should successfully login with valid credentials', async () => {
+    it('should successfully login with valid credentials', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
@@ -224,8 +223,7 @@ describe('AuthService', () => {
       await expect(service.login(credentials, tenantId)).rejects.toThrow('Invalid credentials');
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should throw error when account is inactive', async () => {
+    it('should throw error when account is inactive', async () => {
       mockPrisma.user.findFirst.mockResolvedValue({
         ...mockUser,
         isActive: false
@@ -235,8 +233,7 @@ describe('AuthService', () => {
       await expect(service.login(credentials, tenantId)).rejects.toThrow('Account is inactive');
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should generate token with correct payload', async () => {
+    it('should generate token with correct payload', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
@@ -258,8 +255,7 @@ describe('AuthService', () => {
       );
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should use longer expiration for admin users', async () => {
+    it('should use longer expiration for admin users', async () => {
       const adminUser = { ...mockUser, role: 'ADMIN' };
       mockPrisma.user.findFirst.mockResolvedValue(adminUser as any);
       mockPrisma.user.update.mockResolvedValue(adminUser as any);
@@ -276,8 +272,7 @@ describe('AuthService', () => {
       );
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should log login activity', async () => {
+    it('should log login activity', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
@@ -299,8 +294,7 @@ describe('AuthService', () => {
       });
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should not fail login if activity logging fails', async () => {
+    it('should not fail login if activity logging fails', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockRejectedValue(new Error('Logging failed'));
@@ -312,8 +306,7 @@ describe('AuthService', () => {
       expect(result.token).toBe('token');
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should include user profile data in response', async () => {
+    it('should include user profile data in response', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
@@ -385,8 +378,7 @@ describe('AuthService', () => {
   });
 
   describe('verifyToken', () => {
-    // Skipped: jwt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should verify valid token', () => {
+    it('should verify valid token', () => {
       const payload = {
         userId: 'user-1',
         email: 'test@example.com',
@@ -420,19 +412,16 @@ describe('AuthService', () => {
   });
 
   describe('generatePasswordResetToken', () => {
-    // Skipped: crypto mock not working - module loaded in setup.ts before mock applied
-    it.skip('should generate reset token for valid email', async () => {
+    it('should generate reset token for valid email', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
-      mockCrypto.randomBytes.mockReturnValue({
-        toString: () => 'random-token-hex'
-      } as any);
 
       const result = await service.generatePasswordResetToken('test@example.com');
 
       expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
         where: { email: 'test@example.com' }
       });
-      expect(result).toBe('random-token-hex');
+      expect(result).toMatch(/^[a-f0-9]{64}$/);
+      expect(service.validatePasswordResetToken(result)).toBe(mockUser.id);
     });
 
     it('should throw error for non-existent email', async () => {
@@ -465,8 +454,7 @@ describe('AuthService', () => {
   });
 
   describe('resetPassword', () => {
-    // Skipped: bcrypt/crypto mock not working - module loaded in setup.ts before mock applied
-    it.skip('should reset password with valid token', async () => {
+    it('should reset password with valid token', async () => {
       // Generate a token first
       mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
       mockCrypto.randomBytes.mockReturnValue({
@@ -547,8 +535,7 @@ describe('AuthService', () => {
   });
 
   describe('changePassword', () => {
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should change password with valid current password', async () => {
+    it('should change password with valid current password', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
       // First compare is for current password verification, second is for same-password check
       mockBcryptCompare
@@ -589,8 +576,7 @@ describe('AuthService', () => {
       ).rejects.toThrow('Current password is incorrect');
     });
 
-    // Skipped: bcrypt mock not working - module loaded in setup.ts before mock applied
-    it.skip('should increment session version on password change', async () => {
+    it('should increment session version on password change', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
       mockBcryptCompare
         .mockResolvedValueOnce(true)   // current password matches
@@ -628,11 +614,10 @@ describe('AuthService', () => {
   });
 
   describe('hasPermission', () => {
-    // Skipped: permissions mock not working - module loaded in setup.ts before mock applied
-    it.skip('should return true for valid permission', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUser, role: 'ADMIN' } as any);
+    it('should return true for valid permission', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUser, role: 'JUDGE' } as any);
 
-      const result = await service.hasPermission('user-1', 'MANAGE_USERS');
+      const result = await service.hasPermission('user-1', 'scores:write');
 
       expect(result).toBe(true);
     });
