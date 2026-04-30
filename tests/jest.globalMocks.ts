@@ -63,7 +63,7 @@ jest.mock('qrcode', () => ({
 // Mock ioredis globally because the DI container imports cache-backed services
 // during test setup, before individual test files can install local mocks.
 jest.mock('ioredis', () => {
-  return jest.fn().mockImplementation(() => ({
+  const RedisMock = jest.fn().mockImplementation(() => ({
     on: jest.fn().mockReturnThis(),
     connect: jest.fn().mockResolvedValue(undefined),
     get: jest.fn().mockResolvedValue(null),
@@ -96,6 +96,12 @@ jest.mock('ioredis', () => {
     type: jest.fn().mockResolvedValue('string'),
     call: jest.fn().mockResolvedValue(0),
   }));
+
+  return Object.assign(RedisMock, {
+    __esModule: true,
+    default: RedisMock,
+    Redis: RedisMock,
+  });
 });
 
 // Mock puppeteer (for PDF generation in PrintService)

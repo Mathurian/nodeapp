@@ -4,11 +4,13 @@
  */
 
 import 'reflect-metadata';
-import { ReportEmailService, type EmailReportDTO } from '../../../src/services/ReportEmailService';
-import { ReportExportService } from '../../../src/services/ReportExportService';
-import { EmailService } from '../../../src/services/EmailService';
+import type {
+  ReportEmailService as ReportEmailServiceClass,
+  EmailReportDTO,
+} from '../../../src/services/ReportEmailService';
+import type { ReportExportService } from '../../../src/services/ReportExportService';
+import type { EmailService } from '../../../src/services/EmailService';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
-import { ValidationError } from '../../../src/services/BaseService';
 import { type ReportData } from '../../../src/services/ReportGenerationService';
 
 // Mock QueueService to prevent actual queue operations
@@ -19,8 +21,17 @@ jest.mock('../../../src/services/QueueService', () => ({
   },
 }));
 
+jest.resetModules();
+const { ReportEmailService } = require('../../../src/services/ReportEmailService') as {
+  ReportEmailService: new (
+    exportService: ReportExportService,
+    emailService: EmailService
+  ) => ReportEmailServiceClass;
+};
+const { ValidationError } = require('../../../src/services/BaseService');
+
 describe('ReportEmailService', () => {
-  let service: ReportEmailService;
+  let service: ReportEmailServiceClass;
   let mockExportService: DeepMockProxy<ReportExportService>;
   let mockEmailService: DeepMockProxy<EmailService>;
   const TEST_TENANT_ID = 'tenant-1';
