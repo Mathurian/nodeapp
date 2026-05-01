@@ -66,7 +66,16 @@ export class UsersController {
     const log = createRequestLogger(req, 'users');
     try {
       const authReq = req as AuthenticatedRequest;
-      const { includeInactive, search, createdAfter, createdBefore, sortBy, sortDirection, tenantId: queryTenantId } = req.query;
+      const {
+        includeInactive,
+        search,
+        role,
+        createdAfter,
+        createdBefore,
+        sortBy,
+        sortDirection,
+        tenantId: queryTenantId,
+      } = req.query;
 
       log.debug('Fetching all users');
 
@@ -103,6 +112,10 @@ export class UsersController {
         ];
       }
 
+      if (role && typeof role === 'string') {
+        where.role = role;
+      }
+
       // Date filters
       if (createdAfter && typeof createdAfter === 'string') {
         where.createdAt = { ...where.createdAt, gte: new Date(createdAfter) };
@@ -135,9 +148,10 @@ export class UsersController {
         },
         orderBy
       });
+      const safeUsers = usersWithRelations.map(({ password: _password, ...user }) => user);
 
-      log.info('Users retrieved successfully', { count: usersWithRelations.length, isSuperAdmin });
-      sendSuccess(res, usersWithRelations);
+      log.info('Users retrieved successfully', { count: safeUsers.length, isSuperAdmin });
+      sendSuccess(res, safeUsers);
     } catch (error) {
       log.error('Get users error', { error: (error as Error).message });
       return next(error);

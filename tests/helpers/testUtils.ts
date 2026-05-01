@@ -9,6 +9,7 @@ import bcrypt from 'bcrypt';
 
 export const prisma = new PrismaClient();
 const TEST_TENANT_SLUG = 'test-utils-tenant';
+const testUserTenantIds = new Map<string, string>();
 
 export const ensureTestTenant = async () => {
   return prisma.tenant.upsert({
@@ -39,6 +40,7 @@ export const generateAuthToken = (userId: string, role: UserRole = UserRole.ADMI
       userId,
       role,
       sessionVersion: 1,
+      tenantId: testUserTenantIds.get(userId),
     },
     secret,
     { expiresIn: '24h' }
@@ -61,7 +63,7 @@ export const createTestUser = async (
   const hashedPassword = await bcrypt.hash(overrides.password || 'TestPass123!', 10);
   const tenant = await ensureTestTenant();
 
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       email: overrides.email || `test-${timestamp}@example.com`,
       name: overrides.name || `test-user-${timestamp}`,
@@ -73,6 +75,8 @@ export const createTestUser = async (
       tenantId: tenant.id,
     },
   });
+  testUserTenantIds.set(user.id, user.tenantId);
+  return user;
 };
 
 /**

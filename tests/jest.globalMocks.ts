@@ -9,6 +9,10 @@
 
 import * as path from 'path';
 
+const isIntegrationLikeJestRun = process.argv.some((arg) =>
+  arg.includes('tests/integration') || arg.includes('tests/contracts'),
+);
+
 // Prisma Query Engine Fix: Set the path BEFORE any Prisma imports
 // This resolves Jest module resolution issues with native .node modules
 const projectRoot = path.resolve(__dirname, '..');
@@ -17,28 +21,36 @@ process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(
   'node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node'
 );
 
-// Mock bcrypt globally
-jest.mock('bcrypt', () => ({
-  compare: jest.fn().mockResolvedValue(true),
-  hash: jest.fn().mockResolvedValue('hashed-password'),
-  genSalt: jest.fn().mockResolvedValue('salt'),
-}));
+if (isIntegrationLikeJestRun) {
+  jest.unmock('bcrypt');
+} else {
+  // Mock bcrypt globally
+  jest.mock('bcrypt', () => ({
+    compare: jest.fn().mockResolvedValue(true),
+    hash: jest.fn().mockResolvedValue('hashed-password'),
+    genSalt: jest.fn().mockResolvedValue('salt'),
+  }));
+}
 
-// Mock jsonwebtoken globally
-jest.mock('jsonwebtoken', () => ({
-  sign: jest.fn().mockReturnValue('mock-jwt-token'),
-  verify: jest.fn().mockReturnValue({
-    userId: 'mock-user-id',
-    email: 'test@example.com',
-    role: 'ADMIN',
-    sessionVersion: 1,
-    tenantId: 'mock-tenant-id',
-  }),
-  decode: jest.fn().mockReturnValue({
-    userId: 'mock-user-id',
-    email: 'test@example.com',
-  }),
-}));
+if (isIntegrationLikeJestRun) {
+  jest.unmock('jsonwebtoken');
+} else {
+  // Mock jsonwebtoken globally
+  jest.mock('jsonwebtoken', () => ({
+    sign: jest.fn().mockReturnValue('mock-jwt-token'),
+    verify: jest.fn().mockReturnValue({
+      userId: 'mock-user-id',
+      email: 'test@example.com',
+      role: 'ADMIN',
+      sessionVersion: 1,
+      tenantId: 'mock-tenant-id',
+    }),
+    decode: jest.fn().mockReturnValue({
+      userId: 'mock-user-id',
+      email: 'test@example.com',
+    }),
+  }));
+}
 
 // NOTE: crypto is NOT mocked globally because it breaks LocalSecretStore and other
 // services that need real crypto operations (createCipheriv, etc.).
@@ -144,8 +156,10 @@ jest.mock('fs', () => {
 
 // Export mock references for tests to customize behavior
 export const globalMocks = {
-  bcrypt: jest.requireMock('bcrypt'),
-  jwt: jest.requireMock('jsonwebtoken'),
+  bcrypt: isIntegrationLikeJestRun ? jest.requireActual('bcrypt') : jest.requireMock('bcrypt'),
+  jwt: isIntegrationLikeJestRun
+    ? jest.requireActual('jsonwebtoken')
+    : jest.requireMock('jsonwebtoken'),
   speakeasy: jest.requireMock('speakeasy'),
   qrcode: jest.requireMock('qrcode'),
   ioredis: jest.requireMock('ioredis'),

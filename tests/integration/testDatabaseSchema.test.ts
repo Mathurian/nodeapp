@@ -1,6 +1,5 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { AuthService } from '../../src/services/AuthService';
 import { getTestPrismaClient } from '../setup';
 
@@ -34,11 +33,6 @@ describe('Test database schema alignment', () => {
         email: userEmail,
       },
     });
-  });
-
-  beforeEach(() => {
-    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-    (jwt.sign as jest.Mock).mockReturnValue('schema-alignment-test-token');
   });
 
   afterAll(async () => {
@@ -77,11 +71,13 @@ describe('Test database schema alignment', () => {
   });
 
   it('creates a board user and lets AuthService read boardRole during login', async () => {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
     await prisma.user.create({
       data: {
         email: userEmail,
         name: 'Board Role Schema User',
-        password: 'hashed-password',
+        password: hashedPassword,
         role: UserRole.BOARD,
         boardRole: 'Chair',
         isActive: true,

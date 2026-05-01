@@ -11,6 +11,9 @@ process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-session-secret';
 process.env.CSRF_SECRET = process.env.CSRF_SECRET || 'test-csrf-secret';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public';
+process.env.TENANT_DEFAULT_SLUGS = process.env.TENANT_DEFAULT_SLUGS
+  ? `${process.env.TENANT_DEFAULT_SLUGS},test-utils-tenant`
+  : 'test-utils-tenant';
 
 // Disable file logging in tests to avoid permission issues
 process.env.DISABLE_FILE_LOGGING = 'true';

@@ -63,7 +63,9 @@ describe('Users API Integration Tests', () => {
 
     if (loginResponse.status === 200 || loginResponse.status === 201) {
       adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-    } else {
+    }
+
+    if (!adminToken) {
       // Fallback: generate token manually
       adminToken = jwt.sign(
         { userId: adminUser.id, role: adminUser.role, tenantId },
