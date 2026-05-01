@@ -338,6 +338,7 @@ export const createIdempotencyMiddleware = (
       const heartbeatHandle = setInterval(() => {
         void store.touch(activeRecord.id);
       }, heartbeatIntervalMs);
+      heartbeatHandle.unref?.();
       const originalJson = res.json.bind(res);
       const originalSend = res.send.bind(res);
       const clearHeartbeat = (): void => {

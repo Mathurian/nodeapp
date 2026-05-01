@@ -44,6 +44,7 @@ export class EnhancedRateLimitService {
   private configCache: Map<string, ConfigCacheEntry> = new Map();
   private bucketCache: Map<string, BucketCacheEntry> = new Map();
   private redisAvailable: boolean = false;
+  private cleanupInterval: NodeJS.Timeout | null = null;
   private configCacheTTL: number = 300000; // 5 minutes
   private bucketCacheTTL: number = 3600000; // 1 hour
 
@@ -73,10 +74,20 @@ export class EnhancedRateLimitService {
     }
 
     // Cleanup expired cache entries periodically
-    setInterval(() => this.cleanupCache(), 60000); // Every minute
+    this.cleanupInterval = setInterval(() => this.cleanupCache(), 60000); // Every minute
+    this.cleanupInterval.unref?.();
   }
 
   private redis: Redis | null = null;
+
+  stop(): void {
+    if (!this.cleanupInterval) {
+      return;
+    }
+
+    clearInterval(this.cleanupInterval);
+    this.cleanupInterval = null;
+  }
 
   /**
    * Check Redis connection status

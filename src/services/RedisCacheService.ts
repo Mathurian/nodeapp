@@ -157,6 +157,7 @@ export class RedisCacheService {
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredMemoryEntries();
     }, 60000);
+    this.cleanupInterval.unref?.();
   }
 
   /**
@@ -812,6 +813,7 @@ export class RedisCacheService {
     // Clear cleanup interval
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
     }
 
     // Clear in-memory cache
@@ -824,6 +826,7 @@ export class RedisCacheService {
       try {
         await this.client.quit();
         this.isConnected = false;
+        this.client = null;
         logger.info('Redis cache client closed');
       } catch (error) {
         logger.error('Error disconnecting Redis cache client', { error });
@@ -833,6 +836,7 @@ export class RedisCacheService {
     if (this.subscriber) {
       try {
         await this.subscriber.quit();
+        this.subscriber = null;
         logger.info('Redis cache subscriber closed');
       } catch (error) {
         logger.error('Error disconnecting Redis cache subscriber', { error });
@@ -876,6 +880,15 @@ export const getCacheService = (): RedisCacheService => {
     cacheServiceInstance = new RedisCacheService();
   }
   return cacheServiceInstance;
+};
+
+export const disconnectCacheService = async (): Promise<void> => {
+  if (!cacheServiceInstance) {
+    return;
+  }
+
+  await cacheServiceInstance.disconnect();
+  cacheServiceInstance = null;
 };
 
 export default RedisCacheService;

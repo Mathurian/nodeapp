@@ -36,6 +36,7 @@ export class ServiceMonitor {
     this.monitorInterval = setInterval(() => {
       this.updateMetrics();
     }, intervalMs);
+    this.monitorInterval.unref?.();
   }
 
   /**

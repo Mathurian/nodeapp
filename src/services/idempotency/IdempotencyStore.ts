@@ -42,7 +42,15 @@ type IdempotencyRow = {
   lastSeenAt: Date;
 };
 
-const redisCache = new RedisCacheService();
+let redisCache: RedisCacheService | null = null;
+
+const getRedisCache = (): RedisCacheService => {
+  if (!redisCache) {
+    redisCache = new RedisCacheService();
+  }
+
+  return redisCache;
+};
 
 const getMetricsService = (): MetricsService | null => {
   try {
@@ -170,7 +178,7 @@ const normalizeStoredRecord = async (
 export class IdempotencyStore {
   async getByScope(scope: IdempotencyResolvedRequest): Promise<IdempotencyReplayRecord | null> {
     const cacheKey = buildScopeCacheKey(scope);
-    const cached = await redisCache.get<IdempotencyReplayRecord>(cacheKey, {
+    const cached = await getRedisCache().get<IdempotencyReplayRecord>(cacheKey, {
       namespace: CACHE_NAMESPACE,
     });
 
@@ -438,7 +446,7 @@ export class IdempotencyStore {
     if (this.isReplayable(normalized)) {
       await this.cacheReplayable(record, normalized);
     } else {
-      await redisCache.delete(buildScopeCacheKey(record), CACHE_NAMESPACE);
+      await getRedisCache().delete(buildScopeCacheKey(record), CACHE_NAMESPACE);
     }
 
     getMetricsService()?.recordIdempotencyFinalization(finalStatus);
@@ -497,7 +505,7 @@ export class IdempotencyStore {
     const cacheKey = buildScopeCacheKey(scope);
     const ttlSeconds = Math.max(1, Math.floor((record.expiresAt.getTime() - Date.now()) / 1000));
 
-    await redisCache
+    await getRedisCache()
       .set(
         cacheKey,
         {
@@ -530,4 +538,13 @@ export const getIdempotencyStore = (): IdempotencyStore => {
 
 export const resetIdempotencyStoreForTests = (): void => {
   storeInstance = null;
+};
+
+export const disconnectIdempotencyStoreCache = async (): Promise<void> => {
+  if (!redisCache) {
+    return;
+  }
+
+  await redisCache.disconnect();
+  redisCache = null;
 };

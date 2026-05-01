@@ -10,7 +10,7 @@
     "sign:offline-write-ownership": "node scripts/build/sign-offline-write-ownership-manifest.js",
     "build": "npm run build:offline-write-ownership && tsc",
     "test": "bash scripts/test-backend-jest.sh",
-    "test:unit": "jest --testPathPatterns=tests/unit",
+    "test:unit": "node --max-old-space-size=4096 node_modules/.bin/jest --runInBand --no-forceExit --openHandlesTimeout=10000 --testPathPatterns=tests/unit",
     "test:integration": "bash scripts/test-backend-jest.sh --prepare-db --testPathPatterns=tests/integration",
     "test:contracts": "bash scripts/test-backend-jest.sh --prepare-db tests/contracts",
     "test:e2e": "bash scripts/test-backend-jest.sh --prepare-db --testPathPatterns=tests/e2e",

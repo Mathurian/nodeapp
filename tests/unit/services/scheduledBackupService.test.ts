@@ -90,7 +90,8 @@ describe('ScheduledBackupService', () => {
     (fs.unlinkSync as jest.Mock).mockImplementation();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await service.stop();
     mockReset(mockPrisma);
   });
 
@@ -131,6 +132,21 @@ describe('ScheduledBackupService', () => {
       await service.start();
 
       expect(mockPrisma.backupSetting.findMany).toHaveBeenCalled();
+    });
+
+    it('should unref the settings refresh interval so tests can exit cleanly', async () => {
+      mockEnv.isTest.mockReturnValue(true);
+      const unref = jest.fn();
+      const setIntervalSpy = jest
+        .spyOn(global, 'setInterval')
+        .mockReturnValue({ unref } as unknown as NodeJS.Timeout);
+
+      await service.start();
+
+      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 60 * 1000);
+      expect(unref).toHaveBeenCalled();
+
+      setIntervalSpy.mockRestore();
     });
   });
 

@@ -217,6 +217,7 @@ export class BusinessMetricsCollector {
         this.log.error('Error during periodic metrics collection:', err)
       );
     }, intervalMs);
+    this.collectionInterval.unref?.();
   }
 
   /**

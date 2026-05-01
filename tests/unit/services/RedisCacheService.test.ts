@@ -153,6 +153,20 @@ describe('RedisCacheService', () => {
       consoleErrorSpy.mockRestore();
       consoleWarnSpy.mockRestore();
     });
+
+    it('should unref the in-memory cleanup interval so tests can exit cleanly', async () => {
+      const unref = jest.fn();
+      const setIntervalSpy = jest
+        .spyOn(global, 'setInterval')
+        .mockReturnValue({ unref } as unknown as NodeJS.Timeout);
+
+      (service as any).startMemoryCacheCleanup();
+
+      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+      expect(unref).toHaveBeenCalledTimes(1);
+
+      setIntervalSpy.mockRestore();
+    });
   });
 
   describe('healthCheck()', () => {

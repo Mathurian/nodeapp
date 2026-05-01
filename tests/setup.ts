@@ -83,6 +83,20 @@ async function cleanupBackgroundResources(): Promise<void> {
     cleanupTasks.push(queueServiceModule.default.shutdown());
   }
 
+  const redisCacheModule = requireLoadedModule<{
+    disconnectCacheService?: () => Promise<void>;
+  }>('../src/services/RedisCacheService');
+  if (redisCacheModule?.disconnectCacheService) {
+    cleanupTasks.push(redisCacheModule.disconnectCacheService());
+  }
+
+  const idempotencyStoreModule = requireLoadedModule<{
+    disconnectIdempotencyStoreCache?: () => Promise<void>;
+  }>('../src/services/idempotency/IdempotencyStore');
+  if (idempotencyStoreModule?.disconnectIdempotencyStoreCache) {
+    cleanupTasks.push(idempotencyStoreModule.disconnectIdempotencyStoreCache());
+  }
+
   const databaseModule = requireLoadedModule<{
     rawPrisma?: { $disconnect?: () => Promise<void> };
   }>('../src/config/database');

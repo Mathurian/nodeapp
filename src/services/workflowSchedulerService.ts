@@ -13,6 +13,7 @@ export default class WorkflowSchedulerService {
     this.intervalHandle = setInterval(() => {
       void this.runCycle();
     }, intervalMs);
+    this.intervalHandle.unref?.();
     logger.info('Workflow scheduler started', { intervalMs });
   }
 
@@ -38,4 +39,3 @@ export default class WorkflowSchedulerService {
     }
   }
 }
-

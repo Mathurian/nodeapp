@@ -29,6 +29,10 @@ describe('Webhook Verification Middleware', () => {
   const testSecret = 'test-webhook-secret-12345';
   const testPayload = { event: 'test.event', data: { id: '123' } };
   const testPayloadString = JSON.stringify(testPayload);
+  const flipLastHexDigit = (value: string): string => {
+    const last = value.slice(-1);
+    return `${value.slice(0, -1)}${last === '0' ? '1' : '0'}`;
+  };
 
   describe('calculateWebhookSignature', () => {
     it('should generate a signature in the correct format', () => {
@@ -181,7 +185,7 @@ describe('Webhook Verification Middleware', () => {
       const timestamp = Date.now().toString();
       const validSignature = calculateWebhookSignature(testPayloadString, timestamp, testSecret);
       // Tamper with the signature
-      const tamperedSignature = validSignature.slice(0, -1) + '0';
+      const tamperedSignature = flipLastHexDigit(validSignature);
 
       const result = verifyWebhookSignature(testPayloadString, tamperedSignature, timestamp, testSecret);
 
@@ -634,8 +638,8 @@ describe('Webhook Verification Middleware', () => {
 
       // Create signatures that differ at different positions
       const hash = validSignature.substring(7);
-      const wrongFirst = `sha256=0${hash.substring(1)}`;
-      const wrongLast = `sha256=${hash.substring(0, hash.length - 1)}0`;
+      const wrongFirst = `sha256=${hash[0] === '0' ? '1' : '0'}${hash.substring(1)}`;
+      const wrongLast = flipLastHexDigit(validSignature);
 
       // Both should fail, and timing should be similar
       // (We can't easily test timing in unit tests, but we verify both fail)

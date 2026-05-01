@@ -261,6 +261,46 @@ describe('idempotencyMiddleware', () => {
     expect(store.finalize).toHaveBeenCalled();
   });
 
+  it('unrefs the pending lease heartbeat so unfinished requests do not hold Jest open', async () => {
+    const req = buildReq('valid-key-12345678');
+    const pendingRecord = {
+      ...buildReplayRecord(
+        buildIdempotencyRequestHash(req, '/scoring/category/:categoryId/contestant/:contestantId'),
+      ),
+      status: 'PENDING' as const,
+      statusCode: null,
+      responseBody: null,
+      digest: null,
+      leaseExpiresAt: new Date(Date.now() + IDEMPOTENCY_CONFIG.pendingStaleMs),
+    };
+    const unref = jest.fn();
+    const setIntervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockReturnValue({ unref } as unknown as NodeJS.Timeout);
+    const store = {
+      reserve: jest.fn().mockResolvedValue({ record: pendingRecord, wasCreated: true }),
+      isExpired: jest.fn().mockReturnValue(false),
+      releaseExpired: jest.fn(),
+      isReplayable: jest.fn().mockReturnValue(false),
+      touch: jest.fn().mockResolvedValue(undefined),
+      isReclaimable: jest.fn().mockReturnValue(false),
+      reclaim: jest.fn(),
+      finalize: jest.fn(),
+    } as any;
+
+    const middleware = createIdempotencyMiddleware(store);
+    const res = buildRes();
+    const next = jest.fn();
+
+    await middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), expect.any(Number));
+    expect(unref).toHaveBeenCalledTimes(1);
+
+    setIntervalSpy.mockRestore();
+  });
+
   it('uses legacy concrete paths as the reservation scope when canonical enforcement is disabled', async () => {
     jest.resetModules();
     process.env.IDEMPOTENCY_CANONICAL_ENFORCE = 'false';

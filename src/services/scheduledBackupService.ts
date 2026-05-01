@@ -246,6 +246,7 @@ class ScheduledBackupService {
         logger.error('Failed to refresh backup schedules', { error });
       });
     }, 60 * 1000);
+    this.settingsRefreshInterval.unref?.();
   }
 
   async stop() {
