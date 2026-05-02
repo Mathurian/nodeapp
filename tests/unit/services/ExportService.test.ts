@@ -107,7 +107,7 @@ const { ExportService } = require('../../../src/services/ExportService') as type
 const { NotFoundError } = require('../../../src/services/BaseService') as typeof import('../../../src/services/BaseService');
 
 describe('ExportService', () => {
-  let service: ExportService;
+  let service: InstanceType<typeof ExportService>;
   let mockPrisma: DeepMockProxy<PrismaClient>;
 
   beforeEach(() => {

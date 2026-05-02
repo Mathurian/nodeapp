@@ -74,7 +74,7 @@ describe('AuditorService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    prismaMock.certification.update.mockImplementation(({ data }: any) =>
+    ((prismaMock.certification.update as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve({
         id: 'certification-1',
         categoryId: 'cat1',
@@ -105,20 +105,20 @@ describe('AuditorService', () => {
       contest: { eventId: 'e1' },
     } as any);
     prismaMock.categoryJudge.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
-    prismaMock.assignment.groupBy.mockResolvedValue([] as any);
+    (prismaMock.assignment.groupBy as unknown as jest.Mock).mockResolvedValue([] as any);
     prismaMock.judgeCertification.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
     prismaMock.systemSetting.findFirst.mockResolvedValue(null);
     prismaMock.event.findFirst.mockResolvedValue({} as any);
     prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
     prismaMock.auditorAssignment.findMany.mockResolvedValue([] as any);
     prismaMock.categoryCertification.findFirst.mockResolvedValue(null);
-    prismaMock.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+    ((prismaMock.categoryCertification.findMany as unknown as jest.Mock).mockImplementation)(({ where }: any) => {
       if (where?.role === 'TALLY_MASTER') {
         return Promise.resolve([{ userId: 'tally-1' }] as any);
       }
       return Promise.resolve([] as any);
     });
-    prismaMock.categoryCertification.create.mockImplementation(({ data }: any) =>
+    ((prismaMock.categoryCertification.create as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve({ id: 'cert1', ...data } as any)
     );
     prismaMock.user.findMany.mockResolvedValue([] as any);

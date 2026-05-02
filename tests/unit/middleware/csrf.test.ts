@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { csrf } from '../../../src/middleware/csrf';
 
 describe('csrf middleware', () => {
   let req: Partial<Request>;

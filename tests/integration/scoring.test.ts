@@ -9,10 +9,16 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { ensureTestTenant } from '../helpers/testUtils';
+import { initializeOfflineWriteOwnershipManifest } from '../../src/config/offlineWriteOwnership.config';
 
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
+const idempotencyKey = (name: string) => `scoring-${name}-${Date.now()}`;
+const fallbackTokenFor = (user: any, tenantId: string) =>
+  jwt.sign({ userId: user.id, role: user.role, tenantId }, JWT_SECRET, { expiresIn: '1h' });
+const loginTokenOrFallback = (response: any, user: any, tenantId: string) =>
+  response.body.data?.token || response.body.token || fallbackTokenFor(user, tenantId);
 
 describe('Scoring API Integration Tests', () => {
   let adminUser: any;
@@ -33,6 +39,8 @@ describe('Scoring API Integration Tests', () => {
   // ============================================================================
 
   beforeAll(async () => {
+    await initializeOfflineWriteOwnershipManifest();
+
     const tenant = await ensureTestTenant();
     tenantId = tenant.id;
 
@@ -203,6 +211,26 @@ describe('Scoring API Integration Tests', () => {
       }).catch(() => {}); // Ignore if already updated
     }
 
+    await prisma.assignment.upsert({
+      where: {
+        tenantId_judgeId_categoryId: {
+          tenantId,
+          judgeId: testJudge.id,
+          categoryId: testCategory.id,
+        },
+      },
+      update: { status: 'ACTIVE' },
+      create: {
+        judgeId: testJudge.id,
+        categoryId: testCategory.id,
+        contestId: testContest.id,
+        eventId: testEvent.id,
+        assignedBy: adminUser.id,
+        status: 'ACTIVE',
+        tenantId,
+      },
+    });
+
     // Login as admin and judge to get tokens
     const adminLoginResponse = await request(app)
       .post('/api/auth/login')
@@ -211,15 +239,7 @@ describe('Scoring API Integration Tests', () => {
         password: 'password123'
       });
 
-    if (adminLoginResponse.status === 200 || adminLoginResponse.status === 201) {
-      adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
-    } else {
-      adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    }
+    adminToken = loginTokenOrFallback(adminLoginResponse, adminUser, tenantId);
 
     const judgeLoginResponse = await request(app)
       .post('/api/auth/login')
@@ -228,15 +248,7 @@ describe('Scoring API Integration Tests', () => {
         password: 'password123'
       });
 
-    if (judgeLoginResponse.status === 200 || judgeLoginResponse.status === 201) {
-      judgeToken = judgeLoginResponse.body.data?.token || judgeLoginResponse.body.token;
-    } else {
-      judgeToken = jwt.sign(
-        { userId: judgeUser.id, role: judgeUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    }
+    judgeToken = loginTokenOrFallback(judgeLoginResponse, judgeUser, tenantId);
   });
 
   afterAll(async () => {
@@ -297,9 +309,9 @@ describe('Scoring API Integration Tests', () => {
           .send({
             email: 'judge@scoringtest.com',
             password: 'password123'
-          });
+        });
         if (loginResponse.status === 200 || loginResponse.status === 201) {
-          judgeToken = loginResponse.body.data?.token || loginResponse.body.token;
+          judgeToken = loginTokenOrFallback(loginResponse, judgeUser, tenantId);
         }
       }
     });
@@ -313,6 +325,7 @@ describe('Scoring API Integration Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategory.id}/contestant/${testContestant.id}`)
         .set('Authorization', `Bearer ${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-valid'))
         .send(scoreData);
 
       // Handle auth failures by refreshing token
@@ -322,12 +335,13 @@ describe('Scoring API Integration Tests', () => {
           .send({
             email: 'judge@scoringtest.com',
             password: 'password123'
-          });
+        });
         if (loginResponse.status === 200 || loginResponse.status === 201) {
-          judgeToken = loginResponse.body.data?.token || loginResponse.body.token;
+          judgeToken = loginTokenOrFallback(loginResponse, judgeUser, tenantId);
           const retryResponse = await request(app)
             .post(`/api/scoring/category/${testCategory.id}/contestant/${testContestant.id}`)
             .set('Authorization', `Bearer ${judgeToken}`)
+            .set('X-Idempotency-Key', idempotencyKey('submit-retry'))
             .send(scoreData);
           // Accept 200, 201, or handle 401 gracefully
           if (retryResponse.status === 401 || retryResponse.status === 403) {
@@ -363,6 +377,7 @@ describe('Scoring API Integration Tests', () => {
 
       const response = await request(app)
         .post(`/api/scoring/category/${testCategory.id}/contestant/${testContestant.id}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-unauthenticated'))
         .send(scoreData);
 
       expect([401, 403]).toContain(response.status);
@@ -372,6 +387,7 @@ describe('Scoring API Integration Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategory.id}/contestant/${testContestant.id}`)
         .set('Authorization', `Bearer ${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-missing-fields'))
         .send({ comments: 'Missing score' });
 
       // May return 400/422 for validation or 401 if auth fails
@@ -389,13 +405,9 @@ describe('Scoring API Integration Tests', () => {
 
       let contestantToken: string;
       if (contestantLoginResponse.status === 200 || contestantLoginResponse.status === 201) {
-        contestantToken = contestantLoginResponse.body.data?.token || contestantLoginResponse.body.token;
+        contestantToken = loginTokenOrFallback(contestantLoginResponse, contestantUser, tenantId);
       } else {
-      contestantToken = jwt.sign(
-        { userId: contestantUser.id, role: contestantUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+        contestantToken = fallbackTokenFor(contestantUser, tenantId);
       }
 
       const scoreData = {
@@ -405,6 +417,7 @@ describe('Scoring API Integration Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategory.id}/contestant/${testContestant.id}`)
         .set('Authorization', `Bearer ${contestantToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-wrong-role'))
         .send(scoreData);
 
       expect([401, 403]).toContain(response.status);
@@ -426,6 +439,7 @@ describe('Scoring API Integration Tests', () => {
             contestantId: testContestant.id,
             score: 85, // Int
             comment: 'Test score',
+            tenantId,
           },
         });
         testScoreId = score.id;
@@ -481,6 +495,7 @@ describe('Scoring API Integration Tests', () => {
             contestantId: testContestant.id,
             score: 85, // Int
             comment: 'Test score',
+            tenantId,
           },
         });
         testScoreId = score.id;
@@ -496,6 +511,7 @@ describe('Scoring API Integration Tests', () => {
       const response = await request(app)
         .put(`/api/scoring/${testScoreId}`)
         .set('Authorization', `Bearer ${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('update-score'))
         .send(updateData);
 
       expect([200, 401, 403, 404]).toContain(response.status);
@@ -513,6 +529,7 @@ describe('Scoring API Integration Tests', () => {
 
       const response = await request(app)
         .put(`/api/scoring/${testScoreId}`)
+        .set('X-Idempotency-Key', idempotencyKey('update-unauthenticated'))
         .send(updateData);
 
       expect([401, 403]).toContain(response.status);
@@ -527,6 +544,7 @@ describe('Scoring API Integration Tests', () => {
       const response = await request(app)
         .put(`/api/scoring/${fakeId}`)
         .set('Authorization', `Bearer ${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('update-missing-score'))
         .send(updateData);
 
       // May return 404 for not found or 401 if auth fails
@@ -548,12 +566,14 @@ describe('Scoring API Integration Tests', () => {
           contestantId: testContestant.id,
           score: 75, // Int
           comment: 'Score to delete',
+          tenantId,
         },
       });
 
       const response = await request(app)
         .delete(`/api/scoring/${tempScore.id}`)
-        .set('Authorization', `Bearer ${judgeToken}`);
+        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('delete-score'));
 
       expect([200, 204, 401, 403, 404]).toContain(response.status);
 
@@ -573,7 +593,8 @@ describe('Scoring API Integration Tests', () => {
       const fakeId = 'clx00000000000000000000000';
       const response = await request(app)
         .delete(`/api/scoring/${fakeId}`)
-        .set('Authorization', `Bearer ${judgeToken}`);
+        .set('Authorization', `Bearer ${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('delete-missing-score'));
 
       // May return 404 for not found or 401 if auth fails
       expect([401, 403, 404]).toContain(response.status);
@@ -581,7 +602,8 @@ describe('Scoring API Integration Tests', () => {
 
     it('should reject deletion without authentication', async () => {
       const response = await request(app)
-        .delete(`/api/scoring/${testScoreId}`);
+        .delete(`/api/scoring/${testScoreId}`)
+        .set('X-Idempotency-Key', idempotencyKey('delete-unauthenticated'));
 
       expect([401, 403]).toContain(response.status);
     });
@@ -602,6 +624,7 @@ describe('Scoring API Integration Tests', () => {
             contestantId: testContestant.id,
             score: 85, // Int
             comment: 'Test score',
+            tenantId,
           },
         });
         testScoreId = score.id;

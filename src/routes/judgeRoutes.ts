@@ -4,6 +4,7 @@ import {
   getAssignments,
   getScoringInterface,
   submitScore,
+  getJudgeHistory,
   getCertificationWorkflow,
   getContestantBios,
   getContestantBio
@@ -84,6 +85,8 @@ router.get('/scoring/:categoryId', getScoringInterface)
  *         description: Score submitted successfully
  */
 router.post('/scoring/submit', logActivity('SUBMIT_SCORE', 'SCORE'), submitScore)
+
+router.get('/history', getJudgeHistory)
 
 // Certification workflow
 router.get('/certification-workflow/:categoryId', getCertificationWorkflow)

@@ -268,7 +268,8 @@ describe('WinnerService - Publication Control', () => {
         mockContestId,
         mockUserId,
         'SUPER_ADMIN',
-        'Data correction needed'
+        'Data correction needed',
+        mockTenantId
       );
 
       expect(result.message).toContain('Winners unpublished successfully');
@@ -282,19 +283,19 @@ describe('WinnerService - Publication Control', () => {
       } as any);
 
       await expect(
-        service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Error correction')
+        service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Error correction', mockTenantId)
       ).resolves.toBeDefined();
     });
 
     it('should BLOCK BOARD from unpublishing', async () => {
       await expect(
-        service.unpublishWinners(mockContestId, mockUserId, 'BOARD', 'Reason')
+        service.unpublishWinners(mockContestId, mockUserId, 'BOARD', 'Reason', mockTenantId)
       ).rejects.toThrow('Only SUPER_ADMIN or ADMIN can unpublish winners');
     });
 
     it('should BLOCK ORGANIZER from unpublishing', async () => {
       await expect(
-        service.unpublishWinners(mockContestId, mockUserId, 'ORGANIZER', 'Reason')
+        service.unpublishWinners(mockContestId, mockUserId, 'ORGANIZER', 'Reason', mockTenantId)
       ).rejects.toThrow('Only SUPER_ADMIN or ADMIN can unpublish winners');
     });
 
@@ -302,7 +303,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContest as any);
 
       await expect(
-        service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Reason')
+        service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Reason', mockTenantId)
       ).rejects.toThrow('Winners are not currently published');
     });
 
@@ -315,7 +316,7 @@ describe('WinnerService - Publication Control', () => {
         publishedBy: null
       } as any);
 
-      await service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Correction');
+      await service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Correction', mockTenantId);
 
       expect(mockPrisma.contest.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -429,7 +430,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.judgeCertification.findMany.mockResolvedValue([]);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'SUPER_ADMIN')
+        service.getWinnersByContest(mockContestId, 'SUPER_ADMIN', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -441,7 +442,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.judgeCertification.findMany.mockResolvedValue([]);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'ADMIN')
+        service.getWinnersByContest(mockContestId, 'ADMIN', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -453,7 +454,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.judgeCertification.findMany.mockResolvedValue([]);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'BOARD')
+        service.getWinnersByContest(mockContestId, 'BOARD', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -465,7 +466,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.judgeCertification.findMany.mockResolvedValue([]);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'ORGANIZER')
+        service.getWinnersByContest(mockContestId, 'ORGANIZER', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -473,7 +474,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'JUDGE')
+        service.getWinnersByContest(mockContestId, 'JUDGE', true, mockTenantId)
       ).rejects.toThrow('Winners have not been published yet');
     });
 
@@ -481,7 +482,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'TALLY_MASTER')
+        service.getWinnersByContest(mockContestId, 'TALLY_MASTER', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -489,7 +490,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'AUDITOR')
+        service.getWinnersByContest(mockContestId, 'AUDITOR', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -497,7 +498,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'EMCEE')
+        service.getWinnersByContest(mockContestId, 'EMCEE', true, mockTenantId)
       ).rejects.toThrow('Winners have not been published yet');
     });
 
@@ -505,7 +506,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'CONTESTANT')
+        service.getWinnersByContest(mockContestId, 'CONTESTANT', true, mockTenantId)
       ).rejects.toThrow('Winners have not been published yet');
     });
 
@@ -527,7 +528,7 @@ describe('WinnerService - Publication Control', () => {
 
       for (const role of roles) {
         await expect(
-          service.getWinnersByContest(mockContestId, role)
+          service.getWinnersByContest(mockContestId, role, true, mockTenantId)
         ).resolves.toBeDefined();
       }
     });
@@ -536,7 +537,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.contest.findUnique.mockResolvedValue(mockContestWithWinners as any);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'JUDGE')
+        service.getWinnersByContest(mockContestId, 'JUDGE', true, mockTenantId)
       ).rejects.toThrow(/Only Board members and administrators can view unpublished results/);
     });
   });
@@ -573,7 +574,7 @@ describe('WinnerService - Publication Control', () => {
       mockPrisma.judgeCertification.findMany.mockResolvedValue([]);
 
       await expect(
-        service.getWinnersByContest(mockContestId, 'CONTESTANT')
+        service.getWinnersByContest(mockContestId, 'CONTESTANT', true, mockTenantId)
       ).resolves.toBeDefined();
     });
 
@@ -588,7 +589,7 @@ describe('WinnerService - Publication Control', () => {
 
       // Board cannot unpublish
       await expect(
-        service.unpublishWinners(mockContestId, mockUserId, 'BOARD', 'Reason')
+        service.unpublishWinners(mockContestId, mockUserId, 'BOARD', 'Reason', mockTenantId)
       ).rejects.toThrow();
 
       // Only Admin can unpublish
@@ -598,7 +599,7 @@ describe('WinnerService - Publication Control', () => {
       } as any);
 
       await expect(
-        service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Correction')
+        service.unpublishWinners(mockContestId, mockUserId, 'ADMIN', 'Correction', mockTenantId)
       ).resolves.toBeDefined();
     });
   });

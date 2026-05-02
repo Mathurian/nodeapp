@@ -92,7 +92,7 @@ describe('TallyMasterService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    prismaMock.certification.update.mockImplementation(({ data }: any) =>
+    ((prismaMock.certification.update as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve({
         id: 'certification-1',
         categoryId: 'cat1',
@@ -123,7 +123,7 @@ describe('TallyMasterService', () => {
       contest: { eventId: 'e1' },
     } as any);
     prismaMock.categoryJudge.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
-    prismaMock.assignment.groupBy.mockResolvedValue([] as any);
+    (prismaMock.assignment.groupBy as unknown as jest.Mock).mockResolvedValue([] as any);
     prismaMock.judgeCertification.findMany.mockResolvedValue([{ judgeId: 'judge-1' }] as any);
     prismaMock.systemSetting.findFirst.mockResolvedValue(null);
     prismaMock.event.findFirst.mockResolvedValue({} as any);

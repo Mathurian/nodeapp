@@ -270,8 +270,8 @@ describe('DeductionService', () => {
       deductionRepoMock.hasUserApproved.mockResolvedValue(false);
       deductionRepoMock.createApproval.mockResolvedValue(mockApproval as any);
       deductionRepoMock.getApprovals.mockResolvedValue(mockApprovals as any);
-      deductionRepoMock.updateStatus.mockResolvedValue(undefined);
-      deductionRepoMock.applyDeductionToScores.mockResolvedValue(undefined);
+      deductionRepoMock.updateStatus.mockResolvedValue(undefined as any);
+      deductionRepoMock.applyDeductionToScores.mockResolvedValue(undefined as any);
 
       const result = await service.approveDeduction('ded1', 'u1', 'TALLY_MASTER', tenantId, 'Signature');
 
@@ -379,8 +379,8 @@ describe('DeductionService', () => {
       deductionRepoMock.hasUserApproved.mockResolvedValue(false);
       deductionRepoMock.createApproval.mockResolvedValue({} as any);
       deductionRepoMock.getApprovals.mockResolvedValue(mockApprovals as any);
-      deductionRepoMock.updateStatus.mockResolvedValue(undefined);
-      deductionRepoMock.applyDeductionToScores.mockResolvedValue(undefined);
+      deductionRepoMock.updateStatus.mockResolvedValue(undefined as any);
+      deductionRepoMock.applyDeductionToScores.mockResolvedValue(undefined as any);
 
       await service.approveDeduction('ded1', 'u1', 'BOARD', tenantId, 'Signature');
 
@@ -405,7 +405,7 @@ describe('DeductionService', () => {
       const mockDeduction = { id: 'ded1', status: 'PENDING' };
 
       deductionRepoMock.findByIdWithRelations.mockResolvedValue(mockDeduction as any);
-      deductionRepoMock.updateStatus.mockResolvedValue(undefined);
+      deductionRepoMock.updateStatus.mockResolvedValue(undefined as any);
 
       await service.rejectDeduction('ded1', 'u1', 'Invalid request', tenantId);
 

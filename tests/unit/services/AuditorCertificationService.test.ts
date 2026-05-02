@@ -173,7 +173,7 @@ describe('AuditorCertificationService', () => {
     tallyCertifications: unknown[] = mockTallyCertifications,
     auditorCertifications: unknown[] = []
   ) => {
-    mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+    ((mockPrisma.categoryCertification.findMany as unknown as jest.Mock).mockImplementation)(({ where }: any) => {
       if (where?.role === 'TALLY_MASTER') {
         return Promise.resolve(tallyCertifications as any);
       }
@@ -202,14 +202,14 @@ describe('AuditorCertificationService', () => {
       contest: { eventId: 'event-123' },
     } as any);
     mockPrisma.certification.upsert.mockResolvedValue(mockPipelineCertification as any);
-    mockPrisma.certification.update.mockImplementation(({ data }: any) =>
+    ((mockPrisma.certification.update as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve({
         ...mockPipelineCertification,
         ...data,
       } as any)
     );
     mockPrisma.categoryJudge.findMany.mockResolvedValue(mockCategoryJudges as any);
-    mockPrisma.assignment.groupBy.mockResolvedValue([] as any);
+    (mockPrisma.assignment.groupBy as unknown as jest.Mock).mockResolvedValue([] as any);
     mockPrisma.judgeCertification.findMany.mockResolvedValue([
       { judgeId: mockJudgeId1 },
       { judgeId: mockJudgeId2 },
@@ -220,7 +220,7 @@ describe('AuditorCertificationService', () => {
     mockPrisma.auditorAssignment.findMany.mockResolvedValue([] as any);
     mockPrisma.user.findMany.mockResolvedValue([] as any);
     setRoleCertifications();
-    mockPrisma.categoryCertification.create.mockImplementation(({ data }: any) =>
+    ((mockPrisma.categoryCertification.create as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve({
         ...mockAuditorCertification,
         ...data,

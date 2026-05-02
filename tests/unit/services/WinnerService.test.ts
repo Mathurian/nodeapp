@@ -486,21 +486,21 @@ describe('WinnerService', () => {
     });
 
     it('should get winners by contest when contestId provided', async () => {
-      const result = await service.getWinners(undefined, 'contest-1', 'ADMIN', tenantId);
+      const result = await service.getWinners(undefined, 'contest-1', 'ADMIN', tenantId) as any;
 
       expect(result.contest).toBeDefined();
       expect(result.contestants).toBeDefined();
     });
 
     it('should get winners by event when eventId provided', async () => {
-      const result = await service.getWinners('event-1', undefined, 'ADMIN', tenantId);
+      const result = await service.getWinners('event-1', undefined, 'ADMIN', tenantId) as any;
 
       expect(result.event).toBeDefined();
       expect(result.contests).toBeDefined();
     });
 
     it('should return empty result when no filters provided', async () => {
-      const result = await service.getWinners();
+      const result = await service.getWinners() as any;
 
       expect(result.winners).toEqual([]);
       expect(result.message).toContain('No filters provided');
@@ -513,7 +513,7 @@ describe('WinnerService', () => {
         contests: []
       });
 
-      const result = await service.getWinners('event-1', undefined, 'ADMIN', tenantId);
+      const result = await service.getWinners('event-1', undefined, 'ADMIN', tenantId) as any;
 
       expect(result.contests).toEqual([]);
     });

@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { permissions } from '../../../src/middleware/permissions';
 
 describe('permissions middleware', () => {
   let req: Partial<Request>;

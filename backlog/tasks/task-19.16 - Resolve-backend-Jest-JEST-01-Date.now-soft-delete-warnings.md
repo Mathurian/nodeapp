@@ -1,10 +1,11 @@
 ---
 id: TASK-19.16
 title: Resolve backend Jest JEST-01 Date.now soft-delete warnings
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-01 01:00'
-updated_date: '2026-05-01 01:00'
+updated_date: '2026-05-02 01:55'
 labels:
   - tests
   - jest
@@ -27,6 +28,15 @@ Full backend unit runs still emit Jest JEST-01 deprecation warnings that the `no
 - [ ] #3 Verification records final suite/test counts and confirms no worker teardown warning or CircuitBreaker MaxListenersExceededWarning regression.
 - [ ] #4 Full backend unit suite output no longer contains Jest JEST-01 `now` soft-delete deprecation warnings.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Reproduce the backend unit warning with the full unit command and capture output.
+2. Search test setup and helpers for Date/timer mocks or references retained across Jest environments.
+3. Fix the offending lifecycle or setup path without globally suppressing the warning.
+4. Rerun full backend unit tests, record suite/test counts and warning absence, then update AC/DoD/final summary.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

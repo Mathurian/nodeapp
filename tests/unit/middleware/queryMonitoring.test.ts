@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { queryMonitoring } from '../../../src/middleware/queryMonitoring';
 
 describe('queryMonitoring middleware', () => {
   let req: Partial<Request>;

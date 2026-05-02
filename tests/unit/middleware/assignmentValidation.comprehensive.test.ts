@@ -262,7 +262,7 @@ describe('Assignment Validation Middleware', () => {
 
       req.params = { id: 'assignment-123' };
       req.body = { status: 'ACTIVE' };
-      req.user = { id: 'user-123', role: 'ADMIN' } as any;
+      req.user = { id: 'user-123', role: 'ADMIN', tenantId: 'tenant-1' } as any;
 
       mockPrisma.assignment.findUnique.mockResolvedValue(assignment);
 
@@ -283,7 +283,7 @@ describe('Assignment Validation Middleware', () => {
 
       req.params = { id: 'assignment-123' };
       req.body = { status: 'ACTIVE' }; // Can't go from COMPLETED to ACTIVE
-      req.user = { id: 'admin-123', role: 'ADMIN' } as any;
+      req.user = { id: 'admin-123', role: 'ADMIN', tenantId: 'tenant-1' } as any;
 
       mockPrisma.assignment.findUnique.mockResolvedValue(assignment);
 
@@ -309,7 +309,7 @@ describe('Assignment Validation Middleware', () => {
 
       req.params = { id: 'assignment-123' };
       req.body = { status: 'ACTIVE' };
-      req.user = { id: 'current-user', role: 'JUDGE' } as any;
+      req.user = { id: 'current-user', role: 'JUDGE', tenantId: 'tenant-1' } as any;
 
       mockPrisma.assignment.findUnique.mockResolvedValue(assignment);
 
@@ -340,7 +340,7 @@ describe('Assignment Validation Middleware', () => {
       };
 
       req.params = { id: 'assignment-123' };
-      req.user = { id: 'admin-123', role: 'ADMIN' } as any;
+      req.user = { id: 'admin-123', role: 'ADMIN', tenantId: 'tenant-1' } as any;
 
       mockPrisma.assignment.findUnique.mockResolvedValue(assignment);
       mockPrisma.score.count.mockResolvedValue(0);
@@ -360,7 +360,7 @@ describe('Assignment Validation Middleware', () => {
       };
 
       req.params = { id: 'assignment-123' };
-      req.user = { id: 'admin-123', role: 'ADMIN' } as any;
+      req.user = { id: 'admin-123', role: 'ADMIN', tenantId: 'tenant-1' } as any;
 
       mockPrisma.assignment.findUnique.mockResolvedValue(assignment);
 
@@ -386,7 +386,7 @@ describe('Assignment Validation Middleware', () => {
       };
 
       req.params = { id: 'assignment-123' };
-      req.user = { id: 'admin-123', role: 'ADMIN' } as any;
+      req.user = { id: 'admin-123', role: 'ADMIN', tenantId: 'tenant-1' } as any;
 
       mockPrisma.assignment.findUnique.mockResolvedValue(assignment);
       mockPrisma.score.count.mockResolvedValue(5); // Scores exist

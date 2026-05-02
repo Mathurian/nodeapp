@@ -92,6 +92,44 @@ router.post(
   customFieldsController.createCustomField
 );
 
+router.post(
+  '/:entityType',
+  requireRole([UserRole.ADMIN]),
+  customFieldsController.createLegacyCustomField
+);
+
+router.put(
+  '/:entityType/:id',
+  requireRole([UserRole.ADMIN]),
+  customFieldsController.updateLegacyCustomField
+);
+
+router.delete(
+  '/:entityType/:id',
+  requireRole([UserRole.ADMIN]),
+  customFieldsController.deleteLegacyCustomField
+);
+
+router.post(
+  '/:entityType/:entityId/values',
+  customFieldsController.setLegacyCustomFieldValue
+);
+
+router.post(
+  '/:entityType/:entityId/values/validate',
+  customFieldsController.validateLegacyCustomFieldValues
+);
+
+router.get(
+  '/:entityType/:entityId/values',
+  customFieldsController.getLegacyCustomFieldValues
+);
+
+router.post(
+  '/:entityType/:entityId/values/bulk',
+  customFieldsController.bulkSetLegacyCustomFieldValues
+);
+
 /**
  * @swagger
  * /api/custom-fields/{entityType}:

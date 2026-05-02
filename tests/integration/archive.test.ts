@@ -53,7 +53,8 @@ describe('Archive API Integration Tests', () => {
         .get('/api/archive/events')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect([200, 401, 403]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 
@@ -73,7 +74,8 @@ describe('Archive API Integration Tests', () => {
         .delete('/api/archive/event/test-event-id')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 });

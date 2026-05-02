@@ -575,7 +575,10 @@ describe('BoardCertificationService', () => {
   describe('Workflow Integration', () => {
     it('should enforce complete workflow: Auditors sign → Board can approve', async () => {
       // Initial state: no certifications
-      let categoryState = { ...mockCategory, categoryCertifications: [] };
+      let categoryState: any = {
+        ...mockCategory,
+        categoryCertifications: [],
+      };
       mockPrisma.category.findUnique.mockResolvedValue(categoryState as any);
       mockPrisma.auditorAssignment.findMany.mockResolvedValue(mockAuditorAssignments as any);
       mockedRefreshRoleStages.mockResolvedValueOnce({

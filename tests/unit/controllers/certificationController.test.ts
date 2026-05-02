@@ -123,7 +123,7 @@ describe('CertificationController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: UserRole.ADMIN },
+      user: { id: 'user-1', role: UserRole.ADMIN, tenantId: 'tenant-1' },
       tenantId: 'tenant-1',
     } as any;
 
@@ -239,7 +239,7 @@ describe('CertificationController', () => {
         eventId: 'event-1',
         comments: 'Test comment',
       };
-      mockReq.user = { id: 'user-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'user-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
 
       mockPrisma.certification.findUnique.mockResolvedValue(null);
       mockPrisma.category.findFirst.mockResolvedValue({ id: 'cat-1' } as any);
@@ -771,7 +771,7 @@ describe('CertificationController', () => {
     it('should approve by board and finalize certification', async () => {
       mockReq.params = { id: 'cert-1' };
       mockReq.body = { comments: 'Board approved', typedSignature: 'Board User' };
-      mockReq.user = { id: 'board-user', role: UserRole.ADMIN };
+      mockReq.user = { id: 'board-user', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockPrisma.certification.findUnique.mockResolvedValue({
         ...mockCertification,
         judgeCertified: true,
@@ -881,7 +881,7 @@ describe('CertificationController', () => {
     it('should reject certification with reason', async () => {
       mockReq.params = { id: 'cert-1' };
       mockReq.body = { rejectionReason: 'Scores inconsistent' };
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockPrisma.certification.findUnique.mockResolvedValue(mockCertification as any);
       mockPrisma.certification.update.mockResolvedValue({
         ...mockCertification,
@@ -969,7 +969,7 @@ describe('CertificationController', () => {
   describe('getCertificationStats', () => {
     it('should return certification statistics', async () => {
       mockReq.query = {};
-      mockPrisma.certification.count.mockImplementation((args: any) => {
+      ((mockPrisma.certification.count as unknown as jest.Mock).mockImplementation)((args: any) => {
         if (args.where?.status === 'PENDING') return Promise.resolve(3);
         if (args.where?.status === 'IN_PROGRESS') return Promise.resolve(2);
         if (args.where?.status === 'CERTIFIED') return Promise.resolve(5);

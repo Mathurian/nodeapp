@@ -230,7 +230,7 @@ describe('ScoringController', () => {
     certificationPipeline.refreshJudgeStage.mockResolvedValue(undefined);
 
     // By default, requireAuthAndTenant passes
-    (requireAuthAndTenant as jest.Mock).mockReturnValue(true);
+    (requireAuthAndTenant as unknown as jest.Mock).mockReturnValue(true);
   });
 
   describe('getScores', () => {
@@ -294,7 +294,7 @@ describe('ScoringController', () => {
       mockReq.body = { criteriaId: 'crit-1', score: 85 };
       mockReq.user = undefined;
       // requireAuthAndTenant returns false when no user
-      (requireAuthAndTenant as jest.Mock).mockReturnValue(false);
+      (requireAuthAndTenant as unknown as jest.Mock).mockReturnValue(false);
 
       await controller.submitScore(mockReq as Request, mockRes as Response, mockNext);
 

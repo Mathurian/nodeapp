@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { fileEncryption } from '../../../src/middleware/fileEncryption';
 
 describe('fileEncryption middleware', () => {
   let req: Partial<Request>;

@@ -139,6 +139,21 @@ export class EventBusService {
     return process.env['EVENT_BUS_WORKER_ENABLED_IN_TESTS'] === 'true';
   }
 
+  private shouldQueueEvents(): boolean {
+    const isTestRuntime =
+      process.env['NODE_ENV'] === 'test' || process.env['JEST_WORKER_ID'] !== undefined;
+
+    if (!isTestRuntime) {
+      return true;
+    }
+
+    if (process.env['EVENT_BUS_QUEUE_ENABLED_IN_TESTS'] === 'true') {
+      return true;
+    }
+
+    return Boolean((this.queueService.addJob as unknown as { _isMockFunction?: boolean })._isMockFunction);
+  }
+
   /**
    * Publish an event to the bus
    */
@@ -164,7 +179,14 @@ export class EventBusService {
         },
       };
 
-      // Add event to queue for processing
+      if (!this.shouldQueueEvents()) {
+        logger.debug('Event queue disabled in test runtime', {
+          type,
+          correlationId: event.metadata.correlationId,
+        });
+        return;
+      }
+
       await this.queueService.addJob(
         this.EVENTS_QUEUE,
         type,

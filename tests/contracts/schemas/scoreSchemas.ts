@@ -19,14 +19,21 @@ export const ScoreSchema = z.object({
   categoryId: IdSchema,
   contestantId: IdSchema,
   judgeId: IdSchema,
-  criterionId: IdSchema.optional(), // May not always be present
-  value: z.number(),
+  criterionId: IdSchema.nullable().optional(), // May not always be present
+  value: z.number().nullable().optional(),
+  score: z.number().nullable().optional(),
+  comment: z.string().nullable().optional(),
   comments: z.string().nullable().optional(),
   certified: z.boolean().optional(),
+  isCertified: z.boolean().optional(),
   certifiedAt: DateOrStringSchema.nullable().optional(),
+  certifiedBy: IdSchema.nullable().optional(),
   createdAt: DateOrStringSchema.optional(),
   updatedAt: DateOrStringSchema.optional(),
-});
+}).passthrough().refine(
+  data => data.value !== undefined || data.score !== undefined,
+  { message: 'Either value or score must be present' }
+);
 
 /**
  * Score list item schema (may include related data).
@@ -36,8 +43,10 @@ export const ScoreListItemSchema = z.object({
   categoryId: IdSchema.optional(),
   contestantId: IdSchema.optional(),
   judgeId: IdSchema.optional(),
-  value: z.number(),
+  value: z.number().nullable().optional(),
+  score: z.number().nullable().optional(),
   certified: z.boolean().optional(),
+  isCertified: z.boolean().optional(),
 }).passthrough(); // Allow additional fields
 
 /**
@@ -182,7 +191,13 @@ export const DeductionSchema = z.object({
  * GET /api/scoring/deductions
  */
 export const DeductionListResponseSchema = ApiSuccessResponseSchema(
-  z.array(DeductionSchema)
+  z.union([
+    z.array(DeductionSchema),
+    z.object({
+      data: z.array(DeductionSchema),
+      pagination: z.unknown().optional(),
+    }).passthrough(),
+  ])
 );
 
 /**

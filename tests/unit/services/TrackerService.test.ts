@@ -365,7 +365,7 @@ describe('TrackerService', () => {
 
         mockPrisma.contest.findUnique.mockResolvedValue(largeContest as any);
         mockPrisma.event.findUnique.mockResolvedValue(mockEvent as any);
-        mockPrisma.judge.findUnique.mockImplementation((args: any) =>
+        ((mockPrisma.judge.findUnique as unknown as jest.Mock).mockImplementation)((args: any) =>
           Promise.resolve({ id: args.where.id, name: `Judge ${args.where.id}` } as any)
         );
 

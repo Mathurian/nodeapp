@@ -96,7 +96,7 @@ const generateToken = (
       sessionVersion,
     },
     secret,
-    { expiresIn }
+    { expiresIn } as jwt.SignOptions
   );
 };
 
@@ -114,7 +114,7 @@ const generateExpiredToken = (
       sessionVersion: 1,
     },
     secret,
-    { expiresIn: '-1h' }
+    { expiresIn: '-1h' } as jwt.SignOptions
   );
 };
 

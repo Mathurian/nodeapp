@@ -93,7 +93,7 @@ describe('AssignmentsController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: UserRole.ADMIN },
+      user: { id: 'user-1', role: UserRole.ADMIN, tenantId: 'tenant-1' },
     };
 
     mockRes = {
@@ -188,7 +188,7 @@ describe('AssignmentsController', () => {
         judgeId: 'judge-1',
         categoryId: 'cat-1',
       };
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockAssignmentService.createAssignment.mockResolvedValue(mockAssignment as any);
 
       await controller.createAssignment(
@@ -417,7 +417,7 @@ describe('AssignmentsController', () => {
     it('should bulk assign judges to category', async () => {
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.body = { judgeIds: ['judge-1', 'judge-2', 'judge-3'] };
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockAssignmentService.bulkAssignJudges.mockResolvedValue(3);
 
       await controller.bulkAssignJudges(
@@ -441,7 +441,7 @@ describe('AssignmentsController', () => {
     it('should handle empty judgeIds array', async () => {
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.body = { judgeIds: [] };
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockAssignmentService.bulkAssignJudges.mockResolvedValue(0);
 
       await controller.bulkAssignJudges(
@@ -890,7 +890,7 @@ describe('AssignmentsController', () => {
 
     it('assignJudge should delegate to createAssignment', async () => {
       mockReq.body = { judgeId: 'judge-1', categoryId: 'cat-1' };
-      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN };
+      mockReq.user = { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' };
       mockAssignmentService.createAssignment.mockResolvedValue(mockAssignment as any);
 
       await controller.assignJudge(mockReq as Request, mockRes as Response, mockNext);

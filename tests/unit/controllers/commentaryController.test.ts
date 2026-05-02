@@ -90,7 +90,7 @@ describe('CommentaryController', () => {
         contestantId: 'cont-1',
         comment: 'Great performance',
       };
-      mockReq.user = { id: 'admin-1', role: 'ADMIN' } as any;
+      mockReq.user = { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
 
       await controller.createComment(mockReq as Request, mockRes as Response, mockNext);
 
@@ -129,7 +129,7 @@ describe('CommentaryController', () => {
 
     it('should pass user role to service', async () => {
       mockReq.params = { scoreId: 'score-1' };
-      mockReq.user = { id: 'admin-1', role: 'ADMIN' };
+      mockReq.user = { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockService.getCommentsForScore.mockResolvedValue([]);
 
       await controller.getCommentsForScore(mockReq as Request, mockRes as Response, mockNext);
@@ -164,7 +164,7 @@ describe('CommentaryController', () => {
 
     it('should pass user role to service', async () => {
       mockReq.params = { contestantId: 'cont-1' };
-      mockReq.user = { id: 'tally-1', role: 'TALLY_MASTER' };
+      mockReq.user = { id: 'tally-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' };
       mockService.getCommentsByContestant.mockResolvedValue([]);
 
       await controller.getCommentsByContestant(mockReq as Request, mockRes as Response, mockNext);
@@ -188,7 +188,7 @@ describe('CommentaryController', () => {
       mockReq.params = { id: 'comment-1' };
       mockReq.method = 'PUT';
       mockReq.originalUrl = '/commentary/comment-1';
-      mockReq.path = '/commentary/comment-1';
+      (mockReq as any).path = '/commentary/comment-1';
       mockReq.body = { comment: 'Updated feedback', isPrivate: true };
       const mockUpdated = { id: 'comment-1', comment: 'Updated feedback', isPrivate: true };
       mockService.update.mockResolvedValue(mockUpdated as any);
@@ -209,9 +209,9 @@ describe('CommentaryController', () => {
       mockReq.params = { id: 'comment-1' };
       mockReq.method = 'PUT';
       mockReq.originalUrl = '/commentary/comment-1';
-      mockReq.path = '/commentary/comment-1';
+      (mockReq as any).path = '/commentary/comment-1';
       mockReq.body = { comment: 'Update' };
-      mockReq.user = { id: 'admin-1', role: 'ADMIN' };
+      mockReq.user = { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockService.update.mockResolvedValue({ id: 'comment-1' } as any);
 
       await controller.updateComment(mockReq as Request, mockRes as Response, mockNext);
@@ -229,7 +229,7 @@ describe('CommentaryController', () => {
       mockReq.params = { id: 'comment-1' };
       mockReq.method = 'PUT';
       mockReq.originalUrl = '/commentary/comment-1';
-      mockReq.path = '/commentary/comment-1';
+      (mockReq as any).path = '/commentary/comment-1';
       mockReq.body = { comment: 'Update' };
       const error = new Error('Update failed');
       mockService.update.mockRejectedValue(error);
@@ -245,7 +245,7 @@ describe('CommentaryController', () => {
       mockReq.params = { id: 'comment-1' };
       mockReq.method = 'DELETE';
       mockReq.originalUrl = '/commentary/comment-1';
-      mockReq.path = '/commentary/comment-1';
+      (mockReq as any).path = '/commentary/comment-1';
       mockService.delete.mockResolvedValue(undefined);
 
       await controller.deleteComment(mockReq as Request, mockRes as Response, mockNext);
@@ -263,8 +263,8 @@ describe('CommentaryController', () => {
       mockReq.params = { id: 'comment-1' };
       mockReq.method = 'DELETE';
       mockReq.originalUrl = '/commentary/comment-1';
-      mockReq.path = '/commentary/comment-1';
-      mockReq.user = { id: 'board-1', role: 'BOARD_MEMBER' };
+      (mockReq as any).path = '/commentary/comment-1';
+      mockReq.user = { id: 'board-1', role: 'BOARD', tenantId: 'tenant-1' };
       mockService.delete.mockResolvedValue(undefined);
 
       await controller.deleteComment(mockReq as Request, mockRes as Response, mockNext);
@@ -281,7 +281,7 @@ describe('CommentaryController', () => {
       mockReq.params = { id: 'comment-1' };
       mockReq.method = 'DELETE';
       mockReq.originalUrl = '/commentary/comment-1';
-      mockReq.path = '/commentary/comment-1';
+      (mockReq as any).path = '/commentary/comment-1';
       const error = new Error('Delete failed');
       mockService.delete.mockRejectedValue(error);
 

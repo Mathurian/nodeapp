@@ -195,7 +195,7 @@ describe('VirusScanService', () => {
 
     it('should return TOO_LARGE status for files exceeding max size', async () => {
       // Enable scanning for this test
-      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'clamav' }));
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'native-tcp' }));
       const enabledService = new VirusScanService();
 
       mockFs.statSync.mockReturnValue({ size: 100000000000 } as any);
@@ -208,7 +208,7 @@ describe('VirusScanService', () => {
 
     it('should handle scan errors gracefully', async () => {
       // Enable scanning so errors are captured
-      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'clamav' }));
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'native-tcp' }));
       const enabledService = new VirusScanService();
 
       // Mock statSync to return size for error handling, but file read will fail
@@ -247,7 +247,7 @@ describe('VirusScanService', () => {
 
     it('should return TOO_LARGE status for buffers exceeding max size', async () => {
       // Enable scanning for this test
-      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'clamav' }));
+      mockGetVirusScanConfig.mockReturnValue(createMockConfig({ enabled: true, mode: 'native-tcp' }));
       const enabledService = new VirusScanService();
 
       // Create a buffer that appears large by mocking the length property
@@ -461,8 +461,8 @@ describe('VirusScanService', () => {
       service.deleteQuarantinedFile('infected.exe');
 
       const calls = mockFs.unlinkSync.mock.calls;
-      expect(calls.some(call => call[0].includes('infected.exe'))).toBe(true);
-      expect(calls.some(call => call[0].includes('infected.exe.json'))).toBe(true);
+      expect(calls.some(call => String(call[0]).includes('infected.exe'))).toBe(true);
+      expect(calls.some(call => String(call[0]).includes('infected.exe.json'))).toBe(true);
     });
   });
 

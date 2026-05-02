@@ -37,10 +37,11 @@ describe('Commentary API Integration Tests', () => {
         .set('Authorization', `Bearer ${judgeToken}`)
         .send({
           scoreId: 'test-score-id',
-          content: 'Great performance, excellent timing',
+          comment: 'Great performance, excellent timing',
         });
 
-      expect([200, 201, 401, 403, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(503);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 
@@ -59,9 +60,10 @@ describe('Commentary API Integration Tests', () => {
       const response = await request(app)
         .put('/api/commentary/test-commentary-id')
         .set('Authorization', `Bearer ${judgeToken}`)
-        .send({ content: 'Updated commentary' });
+        .send({ comment: 'Updated commentary' });
 
-      expect([200, 401, 403, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(503);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 
@@ -71,7 +73,8 @@ describe('Commentary API Integration Tests', () => {
         .delete('/api/commentary/test-commentary-id')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(503);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { DRAutomationService, type BackupScheduleInput } from '../services/DRAutomationService';
+import { DRAutomationService, type BackupScheduleInput, type DRConfigInput } from '../services/DRAutomationService';
 import { sendError, sendSuccess } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 
@@ -34,6 +34,70 @@ const normalizeFrequency = (frequency?: unknown, backupFrequency?: unknown): str
   return 'daily';
 };
 
+const isSupportedFrequency = (frequency?: unknown, backupFrequency?: unknown): boolean => {
+  const value = String(frequency ?? backupFrequency ?? '').trim().toLowerCase();
+  if (!value) return true;
+  return ['hourly', '1 hour', 'daily', '1 day', 'weekly', '1 week', 'monthly', '1 month'].includes(value);
+};
+
+const normalizeDRConfigPayload = (raw: Record<string, unknown>): Partial<DRConfigInput> => {
+  const payload: Partial<DRConfigInput> = {};
+
+  const numberFields: Array<[string, keyof DRConfigInput, (value: number) => number]> = [
+    ['backupRetentionDays', 'backupRetentionDays', value => value],
+    ['rtoMinutes', 'rtoMinutes', value => value],
+    ['rpoMinutes', 'rpoMinutes', value => value],
+    ['rto', 'rtoMinutes', value => Math.round(value * 60)],
+    ['rpo', 'rpoMinutes', value => Math.round(value * 60)],
+    ['healthCheckInterval', 'healthCheckInterval', value => value],
+  ];
+
+  for (const [source, target, transform] of numberFields) {
+    if (raw[source] === undefined) continue;
+    const value = Number(raw[source]);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`${source} must be a positive number`);
+    }
+    (payload as Record<string, unknown>)[target] = transform(value);
+  }
+
+  const booleanFields: Array<[string, keyof DRConfigInput]> = [
+    ['enableAutoBackup', 'enableAutoBackup'],
+    ['enablePITR', 'enablePITR'],
+    ['enableDRTesting', 'enableDRTesting'],
+    ['enableFailover', 'enableFailover'],
+    ['autoFailover', 'enableFailover'],
+  ];
+
+  for (const [source, target] of booleanFields) {
+    if (raw[source] !== undefined) {
+      (payload as Record<string, unknown>)[target] = Boolean(raw[source]);
+    }
+  }
+
+  if (raw['backupFrequency'] !== undefined) {
+    if (!isSupportedFrequency(raw['backupFrequency'])) {
+      throw new Error('backupFrequency is not supported');
+    }
+    payload.backupFrequency = normalizeFrequency(raw['backupFrequency']);
+  }
+
+  if (raw['drTestFrequency'] !== undefined) {
+    if (!isSupportedFrequency(raw['drTestFrequency'])) {
+      throw new Error('drTestFrequency is not supported');
+    }
+    payload.drTestFrequency = normalizeFrequency(raw['drTestFrequency']);
+  }
+
+  if (raw['backupLocations'] !== undefined) payload.backupLocations = raw['backupLocations'] as any;
+  if (raw['alertEmail'] !== undefined) payload.alertEmail = String(raw['alertEmail']);
+  if (Array.isArray(raw['notificationEmails']) && raw['notificationEmails'].length > 0) {
+    payload.alertEmail = String(raw['notificationEmails'][0]);
+  }
+
+  return payload;
+};
+
 const getRequestPrisma = (req: Request, res: Response) => {
   if (!req.prisma) {
     res.status(500).json({
@@ -43,6 +107,30 @@ const getRequestPrisma = (req: Request, res: Response) => {
     return null;
   }
   return req.prisma;
+};
+
+/**
+ * Create DR configuration
+ */
+export const createDRConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const requestPrisma = getRequestPrisma(req, res);
+    if (!requestPrisma) return;
+
+    let input: Partial<DRConfigInput>;
+    try {
+      input = normalizeDRConfigPayload(req.body || {});
+    } catch (error) {
+      sendError(res, error instanceof Error ? error.message : 'Invalid DR configuration', 400);
+      return;
+    }
+
+    const existingConfig = await DRAutomationService.getDRConfig(req.tenantId, requestPrisma);
+    const config = await DRAutomationService.updateDRConfig(existingConfig.id, input, requestPrisma);
+    sendSuccess(res, config, 'DR configuration created successfully', 201);
+  } catch (error) {
+    return next(error);
+  }
 };
 
 /**
@@ -68,7 +156,14 @@ export const updateDRConfig = async (req: Request, res: Response, next: NextFunc
     const requestPrisma = getRequestPrisma(req, res);
     if (!requestPrisma) return;
     const id = getRequiredParam(req, 'id');
-    const config = await DRAutomationService.updateDRConfig(id, req.body, requestPrisma);
+    let input: Partial<DRConfigInput>;
+    try {
+      input = normalizeDRConfigPayload(req.body || {});
+    } catch (error) {
+      sendError(res, error instanceof Error ? error.message : 'Invalid DR configuration', 400);
+      return;
+    }
+    const config = await DRAutomationService.updateDRConfig(id, input, requestPrisma);
     sendSuccess(res, config, 'DR configuration updated successfully');
   } catch (error) {
     return next(error);
@@ -88,6 +183,11 @@ export const createBackupSchedule = async (req: Request, res: Response, next: Ne
 
     if (!name) {
       sendError(res, 'Plan name is required', 400);
+      return;
+    }
+
+    if (!isSupportedFrequency(raw.frequency, raw.backupFrequency)) {
+      sendError(res, 'Unsupported backup frequency', 400);
       return;
     }
 
@@ -139,6 +239,10 @@ export const updateBackupSchedule = async (req: Request, res: Response, next: Ne
     }
 
     if (raw.frequency !== undefined || raw.backupFrequency !== undefined) {
+      if (!isSupportedFrequency(raw.frequency, raw.backupFrequency)) {
+        sendError(res, 'Unsupported backup frequency', 400);
+        return;
+      }
       updateData.frequency = normalizeFrequency(raw.frequency, raw.backupFrequency);
     }
 
@@ -303,7 +407,7 @@ export const executeDRTest = async (req: Request, res: Response, next: NextFunct
     const requestPrisma = getRequestPrisma(req, res);
     if (!requestPrisma) return;
     let backupId = String(req.body?.backupId || '').trim();
-    const testType = String(req.body?.testType || 'restore');
+    const testType = String(req.body?.testType || 'restore').trim().toLowerCase();
 
     // Backward compatibility with legacy DR UI that sends planId/scheduleId.
     if (!backupId) {

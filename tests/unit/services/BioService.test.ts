@@ -88,12 +88,12 @@ describe('BioService', () => {
     it('should retrieve contestant bios without filters', async () => {
       mockPrisma.contestant.findMany.mockResolvedValue(mockContestants as any);
 
-      const result = await service.getContestantBios({});
+      const result = await service.getContestantBios({}, 'tenant-1');
 
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({ id: 'contestant1', name: 'John Doe', contests: [{ id: 'contest1', name: 'Test Contest' }] });
       expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { tenantId: undefined },
+        where: { tenantId: 'tenant-1' },
         orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
       }));
     });
@@ -101,7 +101,7 @@ describe('BioService', () => {
     it('should filter contestant bios by eventId', async () => {
       mockPrisma.contestant.findMany.mockResolvedValue([mockContestants[0]] as any);
 
-      const result = await service.getContestantBios({ eventId: 'event1' });
+      const result = await service.getContestantBios({ eventId: 'event1' }, 'tenant-1');
 
       expect(result).toHaveLength(1);
       expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -111,7 +111,7 @@ describe('BioService', () => {
               contest: {
                 eventId: 'event1'
               },
-              tenantId: undefined,
+              tenantId: 'tenant-1',
             })
           }
         }),
@@ -122,7 +122,7 @@ describe('BioService', () => {
     it('should filter contestant bios by contestId', async () => {
       mockPrisma.contestant.findMany.mockResolvedValue(mockContestants as any);
 
-      const result = await service.getContestantBios({ contestId: 'contest1' });
+      const result = await service.getContestantBios({ contestId: 'contest1' }, 'tenant-1');
 
       expect(result).toHaveLength(2);
       expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -130,7 +130,7 @@ describe('BioService', () => {
           contestContestants: {
             some: expect.objectContaining({
               contestId: 'contest1',
-              tenantId: undefined,
+              tenantId: 'tenant-1',
             })
           }
         }),
@@ -141,7 +141,7 @@ describe('BioService', () => {
     it('should filter contestant bios by categoryId', async () => {
       mockPrisma.contestant.findMany.mockResolvedValue(mockContestants as any);
 
-      const result = await service.getContestantBios({ categoryId: 'category1' });
+      const result = await service.getContestantBios({ categoryId: 'category1' }, 'tenant-1');
 
       expect(result).toHaveLength(2);
       expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -149,7 +149,7 @@ describe('BioService', () => {
           categoryContestants: {
             some: expect.objectContaining({
               categoryId: 'category1',
-              tenantId: undefined,
+              tenantId: 'tenant-1',
             })
           }
         }),
@@ -164,7 +164,7 @@ describe('BioService', () => {
         eventId: 'event1',
         contestId: 'contest1',
         categoryId: 'category1'
-      });
+      }, 'tenant-1');
 
       expect(mockPrisma.contestant.findMany).toHaveBeenCalled();
     });
@@ -172,7 +172,7 @@ describe('BioService', () => {
     it('should return empty array when no contestants found', async () => {
       mockPrisma.contestant.findMany.mockResolvedValue([]);
 
-      const result = await service.getContestantBios({ eventId: 'nonexistent' });
+      const result = await service.getContestantBios({ eventId: 'nonexistent' }, 'tenant-1');
 
       expect(result).toEqual([]);
     });
@@ -180,7 +180,7 @@ describe('BioService', () => {
     it('should sort contestants by contestantNumber ascending', async () => {
       mockPrisma.contestant.findMany.mockResolvedValue(mockContestants as any);
 
-      await service.getContestantBios({});
+      await service.getContestantBios({}, 'tenant-1');
 
       expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -247,12 +247,12 @@ describe('BioService', () => {
     it('should retrieve judge bios without filters', async () => {
       mockPrisma.judge.findMany.mockResolvedValue(mockJudges as any);
 
-      const result = await service.getJudgeBios({});
+      const result = await service.getJudgeBios({}, 'tenant-1');
 
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({ id: 'judge1', name: 'Judge Alice', contests: [] });
       expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { tenantId: undefined },
+        where: { tenantId: 'tenant-1' },
         orderBy: { name: 'asc' },
       }));
     });
@@ -260,7 +260,7 @@ describe('BioService', () => {
     it('should filter judge bios by eventId', async () => {
       mockPrisma.judge.findMany.mockResolvedValue([mockJudges[0]] as any);
 
-      const result = await service.getJudgeBios({ eventId: 'event1' });
+      const result = await service.getJudgeBios({ eventId: 'event1' }, 'tenant-1');
 
       expect(result).toHaveLength(1);
       expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -268,7 +268,7 @@ describe('BioService', () => {
           assignments: {
             some: expect.objectContaining({
               eventId: 'event1',
-              tenantId: undefined,
+              tenantId: 'tenant-1',
             })
           }
         }),
@@ -279,7 +279,7 @@ describe('BioService', () => {
     it('should filter judge bios by contestId', async () => {
       mockPrisma.judge.findMany.mockResolvedValue(mockJudges as any);
 
-      const result = await service.getJudgeBios({ contestId: 'contest1' });
+      const result = await service.getJudgeBios({ contestId: 'contest1' }, 'tenant-1');
 
       expect(result).toHaveLength(2);
       expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -287,7 +287,7 @@ describe('BioService', () => {
           assignments: {
             some: expect.objectContaining({
               contestId: 'contest1',
-              tenantId: undefined,
+              tenantId: 'tenant-1',
             })
           }
         }),
@@ -298,7 +298,7 @@ describe('BioService', () => {
     it('should filter judge bios by categoryId', async () => {
       mockPrisma.judge.findMany.mockResolvedValue(mockJudges as any);
 
-      const result = await service.getJudgeBios({ categoryId: 'category1' });
+      const result = await service.getJudgeBios({ categoryId: 'category1' }, 'tenant-1');
 
       expect(result).toHaveLength(2);
       expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -306,7 +306,7 @@ describe('BioService', () => {
           assignments: {
             some: expect.objectContaining({
               categoryId: 'category1',
-              tenantId: undefined,
+              tenantId: 'tenant-1',
             })
           }
         }),
@@ -321,7 +321,7 @@ describe('BioService', () => {
         eventId: 'event1',
         contestId: 'contest1',
         categoryId: 'category1'
-      });
+      }, 'tenant-1');
 
       expect(mockPrisma.judge.findMany).toHaveBeenCalled();
     });
@@ -329,7 +329,7 @@ describe('BioService', () => {
     it('should return empty array when no judges found', async () => {
       mockPrisma.judge.findMany.mockResolvedValue([]);
 
-      const result = await service.getJudgeBios({ eventId: 'nonexistent' });
+      const result = await service.getJudgeBios({ eventId: 'nonexistent' }, 'tenant-1');
 
       expect(result).toEqual([]);
     });
@@ -337,7 +337,7 @@ describe('BioService', () => {
     it('should sort judges by name ascending', async () => {
       mockPrisma.judge.findMany.mockResolvedValue(mockJudges as any);
 
-      await service.getJudgeBios({});
+      await service.getJudgeBios({}, 'tenant-1');
 
       expect(mockPrisma.judge.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -227,7 +227,7 @@ describe('NotificationsController', () => {
   describe('deleteNotification', () => {
     it('should delete notification successfully', async () => {
       mockReq.params = { id: 'notif-1' };
-      mockNotificationService.deleteNotification.mockResolvedValue(undefined);
+      mockNotificationService.deleteNotification.mockResolvedValue(undefined as any);
 
       await controller.deleteNotification(mockReq as Request, mockRes as Response, mockNext);
 
@@ -239,7 +239,7 @@ describe('NotificationsController', () => {
     it('should use authenticated user ID', async () => {
       mockReq.params = { id: 'notif-2' };
       mockReq.user = { id: 'user-456', role: 'CONTESTANT', tenantId: 'tenant-1' };
-      mockNotificationService.deleteNotification.mockResolvedValue(undefined);
+      mockNotificationService.deleteNotification.mockResolvedValue(undefined as any);
 
       await controller.deleteNotification(mockReq as Request, mockRes as Response, mockNext);
 
@@ -260,7 +260,7 @@ describe('NotificationsController', () => {
   describe('markAsRead', () => {
     it('should mark notification as read successfully', async () => {
       mockReq.params = { id: 'notif-1' };
-      mockNotificationService.markAsRead.mockResolvedValue(undefined);
+      mockNotificationService.markAsRead.mockResolvedValue(undefined as any);
 
       await controller.markAsRead(mockReq as Request, mockRes as Response, mockNext);
 
@@ -275,7 +275,7 @@ describe('NotificationsController', () => {
     it('should use authenticated user ID', async () => {
       mockReq.params = { id: 'notif-3' };
       mockReq.user = { id: 'user-789', role: 'JUDGE', tenantId: 'tenant-1' };
-      mockNotificationService.markAsRead.mockResolvedValue(undefined);
+      mockNotificationService.markAsRead.mockResolvedValue(undefined as any);
 
       await controller.markAsRead(mockReq as Request, mockRes as Response, mockNext);
 

@@ -37,6 +37,7 @@ export {
   UnauthorizedError,
   ForbiddenError,
   ConflictError,
+  BadRequestError,
 }
 
 // Type definitions

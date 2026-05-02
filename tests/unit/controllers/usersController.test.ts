@@ -789,7 +789,7 @@ describe('UsersController', () => {
       };
 
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'ADMIN' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = mockFile as any;
 
       const updatedUser = {
@@ -810,7 +810,7 @@ describe('UsersController', () => {
 
     it('should return 403 if user lacks permission to upload for others', async () => {
       mockReq.params = { id: 'user-2' };
-      mockReq.user = { id: 'user-1', role: 'JUDGE' }; // Not ADMIN/ORGANIZER/BOARD
+      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' }; // Not ADMIN/ORGANIZER/BOARD
       mockReq.file = { filename: 'test.jpg', mimetype: 'image/jpeg' } as any;
 
       await controller.uploadUserImage(mockReq as Request, mockRes as Response, mockNext);
@@ -820,7 +820,7 @@ describe('UsersController', () => {
 
     it('should allow user to upload their own image', async () => {
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'CONTESTANT' };
+      mockReq.user = { id: 'user-1', role: 'CONTESTANT', tenantId: 'tenant-1' };
       mockReq.file = { filename: 'test.jpg', mimetype: 'image/jpeg', size: 1024 } as any;
 
       mockUserService.updateUserImage.mockResolvedValue({ id: 'user-1' } as any);
@@ -832,7 +832,7 @@ describe('UsersController', () => {
 
     it('should return 400 if no file provided', async () => {
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'ADMIN' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = undefined;
 
       await controller.uploadUserImage(mockReq as Request, mockRes as Response, mockNext);
@@ -842,7 +842,7 @@ describe('UsersController', () => {
 
     it('should return 400 if file type is invalid', async () => {
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'ADMIN' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = { filename: 'test.pdf', mimetype: 'application/pdf' } as any;
 
       await controller.uploadUserImage(mockReq as Request, mockRes as Response, mockNext);
@@ -853,7 +853,7 @@ describe('UsersController', () => {
     it('should handle errors and call next', async () => {
       const error = new Error('Upload error');
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'ADMIN' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = { filename: 'test.jpg', mimetype: 'image/jpeg' } as any;
       mockUserService.updateUserImage.mockRejectedValue(error);
 
@@ -981,7 +981,7 @@ describe('UsersController', () => {
       };
 
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'JUDGE' };
+      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' };
       mockReq.file = mockFile as any;
 
       mockPrisma.user.findUnique.mockResolvedValue(currentUser as any);
@@ -1011,7 +1011,7 @@ describe('UsersController', () => {
 
     it('should return 403 if user lacks permission', async () => {
       mockReq.params = { id: 'user-2' };
-      mockReq.user = { id: 'user-1', role: 'CONTESTANT' };
+      mockReq.user = { id: 'user-1', role: 'CONTESTANT', tenantId: 'tenant-1' };
       mockReq.file = { filename: 'bio.pdf', mimetype: 'application/pdf' } as any;
 
       await controller.uploadUserBioFile(mockReq as Request, mockRes as Response, mockNext);
@@ -1021,7 +1021,7 @@ describe('UsersController', () => {
 
     it('should return 400 if no file provided', async () => {
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'ADMIN' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = undefined;
 
       await controller.uploadUserBioFile(mockReq as Request, mockRes as Response, mockNext);
@@ -1031,7 +1031,7 @@ describe('UsersController', () => {
 
     it('should return 400 if file type is invalid', async () => {
       mockReq.params = { id: 'user-1' };
-      mockReq.user = { id: 'user-1', role: 'ADMIN' };
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = { filename: 'bio.jpg', mimetype: 'image/jpeg' } as any;
 
       await controller.uploadUserBioFile(mockReq as Request, mockRes as Response, mockNext);
@@ -1041,7 +1041,7 @@ describe('UsersController', () => {
 
     it('should return 404 if user not found', async () => {
       mockReq.params = { id: 'nonexistent' };
-      mockReq.user = { id: 'admin-1', role: 'ADMIN' };
+      mockReq.user = { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' };
       mockReq.file = { filename: 'bio.pdf', mimetype: 'application/pdf' } as any;
 
       mockPrisma.user.findUnique.mockResolvedValue(null);

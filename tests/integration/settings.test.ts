@@ -65,7 +65,7 @@ describe('Settings API Integration Tests', () => {
         password: 'password123'
       });
 
-    if (adminLoginResponse.status === 200 || adminLoginResponse.status === 201) {
+    if ((adminLoginResponse.status === 200 || adminLoginResponse.status === 201) && (adminLoginResponse.body.data?.token || adminLoginResponse.body.token)) {
       adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
     } else {
       adminToken = jwt.sign(
@@ -82,7 +82,7 @@ describe('Settings API Integration Tests', () => {
         password: 'password123'
       });
 
-    if (userLoginResponse.status === 200 || userLoginResponse.status === 201) {
+    if ((userLoginResponse.status === 200 || userLoginResponse.status === 201) && (userLoginResponse.body.data?.token || userLoginResponse.body.token)) {
       userToken = userLoginResponse.body.data?.token || userLoginResponse.body.token;
     } else {
       userToken = jwt.sign(

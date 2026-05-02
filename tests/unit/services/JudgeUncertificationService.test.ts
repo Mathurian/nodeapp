@@ -112,7 +112,7 @@ describe('JudgeUncertificationService', () => {
           tenantId: undefined,
         },
         include: expect.any(Object),
-      });
+      } as any);
     });
 
     it('should throw ValidationError when required fields are missing', async () => {

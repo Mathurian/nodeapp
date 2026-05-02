@@ -168,9 +168,14 @@ export class MFAController {
       });
     } catch (error) {
       this.errorHandler.logError(error, { method: 'regenerateBackupCodes', userId: req.user?.id });
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (message.includes('MFA is not enabled')) {
+        res.status(400).json({ error: message });
+        return;
+      }
       res.status(500).json({
         error: 'Failed to regenerate backup codes',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message
       });
     }
   }

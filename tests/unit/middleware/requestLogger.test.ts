@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requestLogger } from '../../../src/middleware/requestLogger';
 
 describe('requestLogger middleware', () => {
   let req: Partial<Request>;

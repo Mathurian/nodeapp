@@ -23,8 +23,8 @@ jest.mock('../../../src/services/RedisCacheService', () => ({
 }));
 
 // Mock crypto for consistent cache key generation in tests
-const mockHash = {
-  update: jest.fn(function () {
+const mockHash: { update: jest.Mock; digest: jest.Mock } = {
+  update: jest.fn(function (): typeof mockHash {
     return mockHash;
   }),
   digest: jest.fn(() => 'mock-hash-key'),
@@ -239,7 +239,7 @@ describe('Cache Middleware', () => {
     });
 
     it('should cache for authenticated users', async () => {
-      req.user = { id: 'user-123', role: 'ADMIN' } as any;
+      req.user = { id: 'user-123', role: 'ADMIN', tenantId: 'tenant-1' } as any;
       mockGet.mockResolvedValue(null);
 
       const middleware = cacheAuthenticated();

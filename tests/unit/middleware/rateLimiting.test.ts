@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { rateLimiting } from '../../../src/middleware/rateLimiting';
 
 describe('rateLimiting middleware', () => {
   let req: Partial<Request>;

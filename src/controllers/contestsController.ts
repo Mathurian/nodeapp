@@ -216,6 +216,17 @@ export class ContestsController {
       if (!tenantId) {
         return sendError(res, 'Tenant context is required to create a contest', 400);
       }
+      const event = await this.prisma.event.findFirst({
+        where: {
+          id: eventId,
+          tenantId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!event) {
+        return sendError(res, 'Event not found', 404);
+      }
       const { name, description, contestantNumberingMode } = req.body;
 
       const contest = await this.contestService.createContest({

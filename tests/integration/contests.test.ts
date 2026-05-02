@@ -21,6 +21,13 @@ describe('Contests API Integration Tests', () => {
   let testContestId: string;
   let tenantId: string;
 
+  const signTestToken = (user: { id: string; role: string }) =>
+    jwt.sign(
+      { userId: user.id, role: user.role, tenantId },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
   // ============================================================================
   // SETUP & TEARDOWN
   // ============================================================================
@@ -90,13 +97,10 @@ describe('Contests API Integration Tests', () => {
 
     if (loginResponse.status === 200 || loginResponse.status === 201) {
       adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-    } else {
-      // Fallback: generate token manually
-      adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+    }
+
+    if (!adminToken) {
+      adminToken = signTestToken(adminUser);
     }
   });
 
@@ -145,6 +149,9 @@ describe('Contests API Integration Tests', () => {
           });
         if (loginResponse.status === 200 || loginResponse.status === 201) {
           adminToken = loginResponse.body.data?.token || loginResponse.body.token;
+        }
+        if (!adminToken) {
+          adminToken = signTestToken(adminUser);
         }
       }
     });
@@ -257,6 +264,7 @@ describe('Contests API Integration Tests', () => {
             name: `contest-test-${Date.now()}`,
             eventId: testEvent.id,
             description: 'Test contest',
+            tenantId,
           },
         });
         testContestId = contest.id;
@@ -298,6 +306,7 @@ describe('Contests API Integration Tests', () => {
             name: `contest-test-${Date.now()}`,
             eventId: testEvent.id,
             description: 'Test contest',
+            tenantId,
           },
         });
         testContestId = contest.id;
@@ -348,6 +357,7 @@ describe('Contests API Integration Tests', () => {
             name: `contest-test-${Date.now()}`,
             eventId: testEvent.id,
             description: 'Test contest',
+            tenantId,
           },
         });
         testContestId = contest.id;
@@ -413,6 +423,7 @@ describe('Contests API Integration Tests', () => {
           name: `contest-test-delete-${Date.now()}`,
           eventId: testEvent.id,
           description: 'Test contest to delete',
+          tenantId,
         },
       });
 
@@ -465,6 +476,7 @@ describe('Contests API Integration Tests', () => {
             name: `contest-test-${Date.now()}`,
             eventId: testEvent.id,
             description: 'Test contest',
+            tenantId,
           },
         });
         testContestId = contest.id;
@@ -502,6 +514,7 @@ describe('Contests API Integration Tests', () => {
             eventId: testEvent.id,
             description: 'Test contest',
             archived: true,
+            tenantId,
           },
         });
         testContestId = contest.id;

@@ -16,6 +16,9 @@ src/routes/publicTenantRoutes.ts
 src/services/BackupMonitoringService.ts
 src/services/BulkOperationService.ts
 src/services/CategoryTypeService.ts
+# Reviewed: contestant numbering operates through the context-aware Prisma export
+# and all reads/writes are constrained by contestId or contest membership.
+src/services/contestantNumberingService.ts
 src/services/DRAutomationService.ts
 src/services/DatabaseHealthService.ts
 src/services/DeductionService.ts

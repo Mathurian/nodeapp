@@ -67,7 +67,7 @@ describe('TallyMasterController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'TALLY_MASTER' },
+      user: { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {

@@ -25,7 +25,7 @@ class PrometheusReporter implements Reporter {
   private apiBaseUrl: string;
   private startTime: number = 0;
   private suiteName: string = 'playwright-tests';
-  private testResults: Map<string, 'passed' | 'failed' | 'skipped' | 'timedOut'> = new Map();
+  private testResults: Map<string, TestResult['status']> = new Map();
 
   constructor(options: { apiUrl?: string; suiteName?: string } = {}) {
     // Default to localhost:3000, can be overridden in playwright.config.ts
@@ -67,7 +67,7 @@ class PrometheusReporter implements Reporter {
     for (const status of this.testResults.values()) {
       if (status === 'passed') {
         passed++;
-      } else if (status === 'failed' || status === 'timedOut') {
+      } else if (status === 'failed' || status === 'timedOut' || status === 'interrupted') {
         failed++;
       } else if (status === 'skipped') {
         skipped++;

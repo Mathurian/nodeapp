@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { fileAccessControl } from '../../../src/middleware/fileAccessControl';
 
 describe('fileAccessControl middleware', () => {
   let req: Partial<Request>;

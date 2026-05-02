@@ -510,7 +510,7 @@ describe('Auth API Integration Tests', () => {
           password: 'password123'
         });
 
-      let adminToken: string;
+      let adminToken = '';
       if (loginResponse.status === 200 || loginResponse.status === 201) {
         adminToken = loginResponse.body.data?.token || loginResponse.body.token;
       }
@@ -546,7 +546,7 @@ describe('Auth API Integration Tests', () => {
           password: 'password123'
         });
 
-      let contestantToken: string;
+      let contestantToken = '';
       if (loginResponse.status === 200 || loginResponse.status === 201) {
         contestantToken = loginResponse.body.data?.token || loginResponse.body.token;
       }

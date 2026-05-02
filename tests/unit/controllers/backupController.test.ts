@@ -78,7 +78,7 @@ describe('BackupController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'ADMIN' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {
@@ -661,7 +661,7 @@ describe('BackupController', () => {
         enabled: true,
         frequency: 'DAILY',
       };
-      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN' } as any;
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
       mockPrisma.backupSetting.findFirst.mockResolvedValue(null);
       mockPrisma.backupSetting.create.mockResolvedValue({ id: 'setting-1', ...mockReq.body } as any);
 
@@ -676,7 +676,7 @@ describe('BackupController', () => {
 
     it('should handle errors gracefully', async () => {
       const error = new Error('Database error');
-      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN' } as any;
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
       mockReq.body = {
         backupType: 'FULL',
         enabled: true,

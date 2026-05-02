@@ -335,7 +335,7 @@ describe('FileController', () => {
     it('should return file statistics', async () => {
       mockPrisma.file.count.mockResolvedValue(100);
       mockPrisma.file.aggregate.mockResolvedValue({ _sum: { size: 1048576 } } as any);
-      mockPrisma.file.groupBy.mockResolvedValue([
+      (mockPrisma.file.groupBy as unknown as jest.Mock).mockResolvedValue([
         { category: 'DOCUMENT', _count: { id: 50 }, _sum: { size: 524288 } },
       ] as any);
       mockPrisma.file.findMany.mockResolvedValue([

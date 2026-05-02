@@ -10,6 +10,7 @@ import request from 'supertest';
 import app from '../../src/server';
 import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
+import { initializeOfflineWriteOwnershipManifest } from '../../src/config/offlineWriteOwnership.config';
 
 import {
   expectResponseToMatchSchema,
@@ -33,6 +34,7 @@ import {
 } from './testSetup';
 
 const prisma = container.resolve<PrismaClient>('PrismaClient');
+const idempotencyKey = (name: string) => `scoring-contract-${name}-${Date.now()}`;
 
 describe('Scoring API Contract Tests', () => {
   let adminToken: string;
@@ -48,6 +50,8 @@ describe('Scoring API Contract Tests', () => {
   const TEST_PATTERN = 'scoring-contract-test';
 
   beforeAll(async () => {
+    await initializeOfflineWriteOwnershipManifest();
+
     // Clean up existing test data
     await cleanupAllTestData(prisma, TEST_PATTERN);
 
@@ -68,8 +72,8 @@ describe('Scoring API Contract Tests', () => {
     judgeUserId = judgeUser.id;
 
     // Generate tokens
-    adminToken = generateTestToken(adminUserId, 'ADMIN');
-    judgeToken = generateTestToken(judgeUserId, 'JUDGE');
+    adminToken = generateTestToken(adminUserId, 'ADMIN', adminUser.tenantId);
+    judgeToken = generateTestToken(judgeUserId, 'JUDGE', judgeUser.tenantId);
 
     // Create test event, contest, and category
     const testEvent = await createTestEvent(prisma, {
@@ -103,12 +107,30 @@ describe('Scoring API Contract Tests', () => {
     });
     testJudgeId = testJudge.id;
 
+    await prisma.user.update({
+      where: { id: judgeUserId },
+      data: { judgeId: testJudgeId },
+    });
+
     // Create contestant record
     const testContestant = await createTestContestant(prisma, {
       name: 'Scoring Contract Test Contestant',
-      eventId: testEventId,
+      email: 'contestant@scoring-contract-test.com',
+      contestantNumber: 1,
     });
     testContestantId = testContestant.id;
+
+    await prisma.assignment.create({
+      data: {
+        judgeId: testJudgeId,
+        categoryId: testCategoryId,
+        contestId: testContestId,
+        eventId: testEventId,
+        assignedBy: adminUserId,
+        status: 'ACTIVE',
+        tenantId: judgeUser.tenantId,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -179,6 +201,7 @@ describe('Scoring API Contract Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/contestant/${testContestantId}`)
         .set('Cookie', `access_token=${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-valid'))
         .send(scoreData);
 
       if (response.status === 401 || response.status === 403) {
@@ -205,6 +228,7 @@ describe('Scoring API Contract Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/contestant/${testContestantId}`)
         .set('Cookie', `access_token=${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-invalid-score'))
         .send(invalidScoreData);
 
       if (response.status === 401 || response.status === 403) {
@@ -225,6 +249,7 @@ describe('Scoring API Contract Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${fakeId}/contestant/${testContestantId}`)
         .set('Cookie', `access_token=${judgeToken}`)
+        .set('X-Idempotency-Key', idempotencyKey('submit-missing-category'))
         .send(scoreData);
 
       if (response.status === 401 || response.status === 403) {
@@ -311,7 +336,10 @@ describe('Scoring API Contract Tests', () => {
 
       expect(response.body).toHaveProperty('success', true);
       expect(response.body).toHaveProperty('data');
-      expect(Array.isArray(response.body.data)).toBe(true);
+      const deductions = Array.isArray(response.body.data)
+        ? response.body.data
+        : response.body.data?.data;
+      expect(Array.isArray(deductions)).toBe(true);
     });
   });
 

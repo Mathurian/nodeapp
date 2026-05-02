@@ -44,6 +44,38 @@ const getCustomFieldService = (req: Request, res: Response): CustomFieldService 
   return new CustomFieldService(req.prisma);
 };
 
+const parseJsonField = <T>(value: unknown): T | null => {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return null;
+    }
+  }
+  return value as T;
+};
+
+const toLegacyField = (field: any): Record<string, unknown> => ({
+  ...field,
+  fieldName: field.key,
+  fieldLabel: field.name,
+  fieldType: field.type,
+  displayOrder: field.order,
+  helpText: field.helpText,
+  options: parseJsonField(field.options),
+  validation: parseJsonField(field.validation),
+});
+
+const mapLegacyFieldBody = (entityType: string, body: Record<string, unknown>): Record<string, unknown> => ({
+  ...body,
+  entityType,
+  name: body['fieldLabel'] ?? body['name'],
+  key: body['fieldName'] ?? body['key'],
+  type: body['fieldType'] ?? body['type'],
+  order: body['displayOrder'] ?? body['order'],
+});
+
 /**
  * Create custom field
  * POST /api/custom-fields
@@ -78,6 +110,14 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
       res.status(400).json({
         success: false,
         message: `Invalid field type. Must be one of: ${VALID_FIELD_TYPES.join(', ')}`
+      });
+      return;
+    }
+
+    if ((type === 'SELECT' || type === 'MULTI_SELECT') && (!options || (Array.isArray(options) && options.length === 0))) {
+      res.status(400).json({
+        success: false,
+        message: 'SELECT and MULTI_SELECT fields require options'
       });
       return;
     }
@@ -118,6 +158,21 @@ export const createCustomField = async (req: Request, res: Response): Promise<vo
       message: err.message || 'Failed to create custom field'
     });
   }
+};
+
+export const createLegacyCustomField = async (req: Request, res: Response): Promise<void> => {
+  const entityType = getRequiredParam(req, 'entityType');
+  req.body = mapLegacyFieldBody(entityType, req.body);
+
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (res.statusCode === 201 && body && typeof body === 'object' && 'data' in body) {
+      return originalJson(toLegacyField((body as { data: unknown }).data));
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+
+  await createCustomField(req, res);
 };
 
 /**
@@ -220,10 +275,7 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
 
     const fields = await customFieldService.getCustomFieldsByEntityType(entityType, tenantId, activeOnly);
 
-    res.json({
-      success: true,
-      data: fields
-    });
+    res.json(fields.map(toLegacyField));
   } catch (error) {
     const err = error as Error;
     logger.error('Error getting custom fields:', error);
@@ -232,6 +284,41 @@ export const getCustomFieldsByEntityType = async (req: Request, res: Response): 
       message: err.message || 'Failed to get custom fields'
     });
   }
+};
+
+export const updateLegacyCustomField = async (req: Request, res: Response): Promise<void> => {
+  req.params['id'] = getRequiredParam(req, 'id');
+  req.body = {
+    ...req.body,
+    name: req.body['fieldLabel'] ?? req.body['name'],
+    type: req.body['fieldType'] ?? req.body['type'],
+    order: req.body['displayOrder'] ?? req.body['order'],
+  };
+
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (res.statusCode === 200 && body && typeof body === 'object' && 'data' in body) {
+      return originalJson({
+        ...toLegacyField((body as { data: unknown }).data),
+        helpText: req.body['helpText'],
+      });
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+
+  await updateCustomField(req, res);
+};
+
+export const deleteLegacyCustomField = async (req: Request, res: Response): Promise<void> => {
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (res.statusCode === 200 && body && typeof body === 'object' && (body as { success?: boolean }).success) {
+      return res.status(204).send();
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+
+  await deleteCustomField(req, res);
 };
 
 /**
@@ -273,6 +360,79 @@ export const getCustomFieldById = async (req: Request, res: Response): Promise<v
       message: err.message || 'Failed to get custom field'
     });
   }
+};
+
+export const setLegacyCustomFieldValue = async (req: Request, res: Response): Promise<void> => {
+  req.body = {
+    customFieldId: req.body['fieldId'] ?? req.body['customFieldId'],
+    entityId: getRequiredParam(req, 'entityId'),
+    value: req.body['value'],
+  };
+
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (res.statusCode === 200 && body && typeof body === 'object' && 'data' in body) {
+      res.status(201);
+      return originalJson((body as { data: unknown }).data);
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+
+  await setCustomFieldValue(req, res);
+};
+
+export const validateLegacyCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
+  const entityType = getRequiredParam(req, 'entityType');
+  const tenantId = getTenantIdOrRespond(authReq, res);
+  if (!tenantId) return;
+  const customFieldService = getCustomFieldService(authReq, res);
+  if (!customFieldService) return;
+
+  const fields = await customFieldService.getCustomFieldsByEntityType(entityType, tenantId, true);
+  const values = (req.body['values'] ?? {}) as Record<string, string>;
+  const errors = fields
+    .filter((field) => field.required && !values[field.key])
+    .map((field) => field.key);
+
+  if (errors.length > 0) {
+    res.status(400).json({ errors });
+    return;
+  }
+
+  res.json({ valid: true });
+};
+
+export const getLegacyCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
+  req.query['entityType'] = getRequiredParam(req, 'entityType');
+
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (res.statusCode === 200 && body && typeof body === 'object' && 'data' in body) {
+      return originalJson((body as { data: unknown }).data);
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+
+  await getCustomFieldValues(req, res);
+};
+
+export const bulkSetLegacyCustomFieldValues = async (req: Request, res: Response): Promise<void> => {
+  const fieldValues = Array.isArray(req.body['fieldValues']) ? req.body['fieldValues'] as Array<{ fieldId: string; value: string }> : [];
+  req.body = {
+    entityId: getRequiredParam(req, 'entityId'),
+    values: Object.fromEntries(fieldValues.map((item) => [item.fieldId, item.value])),
+  };
+
+  const originalJson = res.json.bind(res);
+  res.json = ((body: unknown) => {
+    if (res.statusCode === 200 && body && typeof body === 'object' && (body as { success?: boolean }).success) {
+      return originalJson({ saved: fieldValues.length });
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+
+  await bulkSetCustomFieldValues(req, res);
 };
 
 /**

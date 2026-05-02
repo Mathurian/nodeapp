@@ -14,7 +14,7 @@ process.env.REDIS_PORT = '6379';
 
 // Mock Prisma Client
 jest.mock('@prisma/client', () => {
-  const mockPrismaClient = {
+  const mockPrismaClient: any = {
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
     $queryRaw: jest.fn().mockResolvedValue([]),

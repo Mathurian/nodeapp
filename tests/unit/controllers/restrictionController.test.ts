@@ -18,7 +18,7 @@ describe('RestrictionController', () => {
       body: {},
       params: {},
       query: {},
-      user: { id: 'user-1', role: 'ADMIN' }
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' }
     };
     res = {
       status: jest.fn().mockReturnThis(),

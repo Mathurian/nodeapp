@@ -69,7 +69,7 @@ describe('WinnersController', () => {
       get: jest.fn((header: string) => {
         if (header === 'user-agent') return 'Mozilla/5.0 Test Agent';
         return undefined;
-      }),
+      }) as any,
     };
 
     mockRes = {
@@ -274,7 +274,7 @@ describe('WinnersController', () => {
     it('should sign winners for a category', async () => {
       mockReq.body = { categoryId: 'cat-1' };
       mockReq.user = { id: 'tally-1', role: UserRole.TALLY_MASTER, tenantId: 'tenant-1' };
-      mockReq.ip = '192.168.1.100';
+      (mockReq as any).ip = '192.168.1.100';
       const mockResult = {
         categoryId: 'cat-1',
         signedBy: 'tally-1',
@@ -313,7 +313,7 @@ describe('WinnersController', () => {
 
     it('should capture IP address and user agent', async () => {
       mockReq.body = { categoryId: 'cat-1' };
-      mockReq.ip = '10.0.0.5';
+      (mockReq as any).ip = '10.0.0.5';
       (mockReq.get as jest.Mock).mockImplementation((header: string) => {
         if (header === 'user-agent') return 'Custom/1.0 Agent';
         return undefined;

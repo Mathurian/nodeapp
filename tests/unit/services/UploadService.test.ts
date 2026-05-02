@@ -84,8 +84,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
 
       const result = await service.processUploadedFile(mockFile, userId, { tenantId });
@@ -123,8 +124,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
 
       await service.processUploadedFile(mockFile, userId, { tenantId });
@@ -159,8 +161,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
 
       await service.processUploadedFile(mockFile, userId, {
@@ -195,8 +198,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
 
       await service.processUploadedFile(mockFile, userId, { eventId, tenantId });
@@ -226,8 +230,9 @@ describe('UploadService', () => {
         contestId,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
 
       await service.processUploadedFile(mockFile, userId, { contestId, tenantId });
@@ -256,8 +261,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
 
       const result = await service.processUploadedFile(mockFile, userId, { tenantId });
@@ -416,8 +422,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
       unlinkSpy.mockResolvedValue(undefined);
       mockPrisma.file.delete.mockResolvedValue({} as any);
@@ -449,8 +456,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       });
       unlinkSpy.mockRejectedValue(new Error('ENOENT'));
       mockPrisma.file.delete.mockResolvedValue({} as any);
@@ -497,8 +505,9 @@ describe('UploadService', () => {
         contestId: null,
         categoryId: null,
         tenantId: 'default_tenant',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        uploadedAt: new Date(),
+        isPublic: false,
+        metadata: null,
       };
 
       mockPrisma.file.findUnique.mockResolvedValue(mockFileRecord);

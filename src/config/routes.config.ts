@@ -88,6 +88,7 @@ import scoreGovernanceRoutes from '../routes/scoreGovernanceRoutes'
 import databaseHealthRoutes from '../routes/databaseHealthRoutes'
 import monitoringRoutes from '../routes/monitoringRoutes'
 import telemetryRoutes from '../routes/telemetryRoutes'
+import searchRoutes from '../routes/searchRoutes'
 
 /**
  * Helper to register routes for both legacy and versioned paths
@@ -188,6 +189,7 @@ export const registerRoutes = (app: Application): void => {
   // System and settings
   registerRoute(app, '/settings', settingsRoutes);
   registerRoute(app, '/restrictions', restrictionRoutes);
+  registerRoute(app, '/search', searchRoutes);
   registerRoute(app, '/custom-fields', customFieldsRoutes);
   registerRoute(app, '/backups', backupRoutes);
   registerRoute(app, '/feature-flags', featureFlagsRoutes); // Backlog enhancement

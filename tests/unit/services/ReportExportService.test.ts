@@ -20,7 +20,7 @@ jest.resetModules();
 const { ReportExportService } = require('../../../src/services/ReportExportService') as typeof import('../../../src/services/ReportExportService');
 
 describe('ReportExportService', () => {
-  let service: ReportExportService;
+  let service: InstanceType<typeof ReportExportService>;
   const mockWorksheet = {
     columns: [],
     addRow: jest.fn(),
@@ -178,12 +178,13 @@ describe('ReportExportService', () => {
     },
     metadata: BASE_METADATA,
     ...overrides,
-  });
+  } as any);
 
   beforeEach(() => {
     MockPDFDocument.mockImplementation(() => {
       const handlers: Record<string, Function> = {};
-      const doc = {
+      let doc: any;
+      doc = {
         on: jest.fn((event: string, callback: Function) => {
           handlers[event] = callback;
           return doc;

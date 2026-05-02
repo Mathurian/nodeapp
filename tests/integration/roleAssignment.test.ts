@@ -16,11 +16,14 @@ import { UserRole } from '@prisma/client';
 describe('Role Assignment API Integration Tests', () => {
   let adminToken: string;
   let testUser: any;
+  let testEvent: any;
 
   beforeAll(async () => {
     await cleanupTestData('role-test-');
     const admin = await createTestUser({ role: UserRole.ADMIN, email: `role-test-admin-${uniqueTestId()}@example.com` });
     testUser = await createTestUser({ role: UserRole.CONTESTANT, email: `role-test-user-${uniqueTestId()}@example.com` });
+    const { createTestEvent } = await import('../helpers/testUtils');
+    testEvent = await createTestEvent({ name: `role-test-event-${uniqueTestId()}` });
     adminToken = generateAuthToken(admin.id, UserRole.ADMIN);
   });
 
@@ -36,10 +39,17 @@ describe('Role Assignment API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           userId: testUser.id,
-          role: 'JUDGE',
+          role: 'BOARD',
+          eventId: testEvent.id,
         });
 
-      expect([200, 201, 401, 403, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toMatchObject({
+        userId: testUser.id,
+        role: 'BOARD',
+        eventId: testEvent.id,
+      });
     });
 
     it('should reject role assignment by non-admin', async () => {
@@ -93,8 +103,8 @@ describe('Role Assignment API Integration Tests', () => {
         .get('/api/role-assignments/role/JUDGE')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      // May return 200, 404, 500, or 401/403 if auth fails
-      expect([200, 401, 403, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 });

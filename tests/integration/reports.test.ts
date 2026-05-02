@@ -133,28 +133,43 @@ describe('Reports API Integration Tests', () => {
       expect([200, 201, 401, 403]).toContain(response.status);
 
       if (response.status === 200 || response.status === 201) {
-        expect(response.body).toHaveProperty('data');
-        expect(response.body.data).toHaveProperty('id');
+        const createdTemplate = response.body.data ?? response.body;
+        expect(createdTemplate).toHaveProperty('id');
+        expect(createdTemplate).toMatchObject({
+          name: newTemplate.name,
+          type: newTemplate.type,
+        });
 
         // Cleanup created template
         await prisma.reportTemplate.delete({
-          where: { id: response.body.data.id },
+          where: { id: createdTemplate.id },
         }).catch(() => {});
       }
     });
 
-    it('should reject template creation without required fields', async () => {
-      const invalidTemplate = {
-        name: 'Invalid Template',
-        // Missing required fields: type, template
+    it('should create a minimal report template with defaulted fields', async () => {
+      const minimalTemplate = {
+        name: `Minimal Template ${Date.now()}`,
       };
 
       const response = await request(app)
         .post('/api/reports/templates')
         .set('Authorization', `Bearer ${authToken}`)
-        .send(invalidTemplate);
+        .send(minimalTemplate);
 
-      expect([400, 401, 403, 500]).toContain(response.status);
+      expect([201, 401, 403]).toContain(response.status);
+      if (response.status === 201) {
+        const createdTemplate = response.body.data ?? response.body;
+        expect(createdTemplate).toMatchObject({
+          name: minimalTemplate.name,
+          type: 'event',
+          template: '{}',
+          parameters: '{}',
+        });
+        await prisma.reportTemplate.delete({
+          where: { id: createdTemplate.id },
+        }).catch(() => {});
+      }
     });
   });
 

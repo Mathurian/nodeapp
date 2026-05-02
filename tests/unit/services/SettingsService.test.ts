@@ -400,7 +400,7 @@ describe('SettingsService', () => {
     });
 
     it('should return configured email settings', async () => {
-      mockPrisma.systemSetting.findFirst
+      (mockPrisma.systemSetting.findFirst as unknown as jest.Mock)
         .mockImplementation(async (args: any) => {
           const keyMap: Record<string, string> = {
             email_smtpHost: 'smtp.gmail.com',
@@ -566,7 +566,7 @@ describe('SettingsService', () => {
 
   describe('testEmailSettings', () => {
     it('should trim and format sender/reply-to headers in test email flow', async () => {
-      mockPrisma.systemSetting.findFirst.mockImplementation(async (args: any) => {
+      ((mockPrisma.systemSetting.findFirst as unknown as jest.Mock).mockImplementation)(async (args: any) => {
         const keyMap: Record<string, string> = {
           email_smtpHost: 'smtp.example.com',
           email_smtpPort: '587',
@@ -601,7 +601,7 @@ describe('SettingsService', () => {
         'testEmail must be a valid email address'
       );
 
-      mockPrisma.systemSetting.findFirst.mockImplementation(async (args: any) => {
+      ((mockPrisma.systemSetting.findFirst as unknown as jest.Mock).mockImplementation)(async (args: any) => {
         const key = args?.where?.key;
         return key === 'email_fromEmail'
           ? ({ id: '1', key, value: 'invalid-from' } as any)

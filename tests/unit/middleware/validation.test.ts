@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { validation } from '../../../src/middleware/validation';
 
 describe('validation middleware', () => {
   let req: Partial<Request>;

@@ -217,7 +217,8 @@ export async function createTestContestant(
   prisma: PrismaClient,
   options: {
     name: string;
-    eventId: string;
+    email?: string;
+    contestantNumber?: number;
   }
 ): Promise<{ id: string; name: string }> {
   const tenantId = await ensureDefaultTenant(prisma);
@@ -226,7 +227,8 @@ export async function createTestContestant(
   const contestant = await (prisma.contestant.create as any)({
     data: {
       name: options.name,
-      eventId: options.eventId,
+      email: options.email || null,
+      contestantNumber: options.contestantNumber,
       tenantId,
     },
   });

@@ -76,7 +76,7 @@ describe('AdminController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'admin-1', role: UserRole.ADMIN },
+      user: { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' },
       get: jest.fn().mockReturnValue(undefined),
       isSuperAdmin: false,
     };
@@ -703,7 +703,7 @@ describe('AdminController', () => {
 
   describe('forceLogoutAllUsers', () => {
     it('should force logout all users', async () => {
-      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN };
+      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN, tenantId: 'tenant-1' };
       mockPrisma.user.updateMany.mockResolvedValue({ count: 50 } as any);
       mockPrisma.user.count.mockResolvedValue(50);
 
@@ -724,7 +724,7 @@ describe('AdminController', () => {
     });
 
     it('should handle zero users', async () => {
-      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN };
+      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN, tenantId: 'tenant-1' };
       mockPrisma.user.updateMany.mockResolvedValue({ count: 0 } as any);
       mockPrisma.user.count.mockResolvedValue(0);
 
@@ -738,7 +738,7 @@ describe('AdminController', () => {
     });
 
     it('should call next with error when operation fails', async () => {
-      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN };
+      mockReq.user = { id: 'super-admin-1', role: UserRole.SUPER_ADMIN, tenantId: 'tenant-1' };
       const error = new Error('Database error');
       mockPrisma.user.updateMany.mockRejectedValue(error);
 

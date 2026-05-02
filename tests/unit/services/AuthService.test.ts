@@ -45,8 +45,8 @@ jest.mock('../../../src/utils/cache', () => ({
   }
 }));
 
-const mockValidatePassword = jest.fn(() => ({ isValid: true, errors: [] }));
-const mockIsPasswordSimilarToUserInfo = jest.fn(() => false);
+const mockValidatePassword = jest.fn((..._args: unknown[]) => ({ isValid: true, errors: [] }));
+const mockIsPasswordSimilarToUserInfo = jest.fn((..._args: unknown[]) => false);
 jest.mock('../../../src/utils/passwordValidator', () => ({
   validatePassword: (...args: unknown[]) => mockValidatePassword(...args),
   isPasswordSimilarToUserInfo: (...args: unknown[]) => mockIsPasswordSimilarToUserInfo(...args)
@@ -147,7 +147,7 @@ describe('AuthService', () => {
     // Reset crypto mock implementation after clearAllMocks
     mockCrypto.setReturnValue({ toString: () => 'mock-reset-token' });
 
-    service = new AuthService(mockPrisma as any, mockEmailService as any);
+    service = new AuthService(mockPrisma as any, mockEmailService as any, {} as any, {} as any);
   });
 
   afterEach(() => {

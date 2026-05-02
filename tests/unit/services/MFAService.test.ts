@@ -64,9 +64,9 @@ describe('MFAService', () => {
         otpauth_url: 'otpauth://totp/EventManager:test@example.com?secret=TESTSECRET12345&issuer=EventManager'
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
       mockSpeakeasy.generateSecret.mockReturnValue(mockSecret as any);
-      mockQRCode.toDataURL.mockResolvedValue('data:image/png;base64,mockqrcode');
+      (mockQRCode.toDataURL as jest.Mock).mockResolvedValue('data:image/png;base64,mockqrcode');
 
       (crypto.randomBytes as jest.Mock)
         .mockReturnValueOnce(Buffer.from('12345678'))

@@ -143,7 +143,7 @@ describe('RateLimitService', () => {
 
     it('should return admin tier for admin users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'ADMIN' },
+        user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -153,7 +153,7 @@ describe('RateLimitService', () => {
 
     it('should return admin tier for organizer users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'ORGANIZER' },
+        user: { id: 'user-1', role: 'ORGANIZER', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -163,7 +163,7 @@ describe('RateLimitService', () => {
 
     it('should return judge tier for judge users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'JUDGE' },
+        user: { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -173,7 +173,7 @@ describe('RateLimitService', () => {
 
     it('should return admin tier for board users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'BOARD' },
+        user: { id: 'user-1', role: 'BOARD', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -183,7 +183,7 @@ describe('RateLimitService', () => {
 
     it('should return admin tier for tally master users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'TALLY_MASTER' },
+        user: { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -193,7 +193,7 @@ describe('RateLimitService', () => {
 
     it('should return admin tier for auditor users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'AUDITOR' },
+        user: { id: 'user-1', role: 'AUDITOR', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -203,7 +203,7 @@ describe('RateLimitService', () => {
 
     it('should return authenticated tier for emcee users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'EMCEE' },
+        user: { id: 'user-1', role: 'EMCEE', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -213,7 +213,7 @@ describe('RateLimitService', () => {
 
     it('should return authenticated tier for contestant users', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'CONTESTANT' },
+        user: { id: 'user-1', role: 'CONTESTANT', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);
@@ -223,7 +223,7 @@ describe('RateLimitService', () => {
 
     it('should return authenticated tier for unknown roles', () => {
       const mockRequest = {
-        user: { id: 'user-1', role: 'UNKNOWN_ROLE' },
+        user: { id: 'user-1', role: 'UNKNOWN_ROLE', tenantId: 'tenant-1' },
       } as any as Request;
 
       const tier = rateLimitService.getTierFromRequest(mockRequest);

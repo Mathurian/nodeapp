@@ -703,7 +703,7 @@ describe('SettingsController', () => {
         path: '/uploads/logo-123.png',
       } as any;
 
-      mockSettingsService.updateSetting.mockResolvedValue(undefined);
+      mockSettingsService.updateSetting.mockResolvedValue(undefined as any);
 
       await controller.uploadThemeLogo(mockReq as Request, mockRes as Response, mockNext);
 
@@ -749,7 +749,7 @@ describe('SettingsController', () => {
         path: '/uploads/favicon-123.ico',
       } as any;
 
-      mockSettingsService.updateSetting.mockResolvedValue(undefined);
+      mockSettingsService.updateSetting.mockResolvedValue(undefined as any);
 
       await controller.uploadThemeFavicon(mockReq as Request, mockRes as Response, mockNext);
 

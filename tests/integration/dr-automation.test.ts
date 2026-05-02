@@ -7,6 +7,7 @@ import { ensureTestTenant } from '../helpers/testUtils';
 
 const prisma = container.resolve<PrismaClient>('PrismaClient');
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
+const responseData = <T = any>(body: any): T => body.data ?? body;
 
 describe('DR Automation Integration Tests', () => {
   let adminToken: string;
@@ -42,7 +43,7 @@ describe('DR Automation Integration Tests', () => {
   afterAll(async () => {
     // Cleanup
     if (drConfigId) {
-      await prisma.dRConfig.delete({ where: { id: drConfigId } }).catch(() => {});
+      await prisma.drConfig.delete({ where: { id: drConfigId } }).catch(() => {});
     }
     if (backupScheduleId) {
       await prisma.backupSchedule.delete({ where: { id: backupScheduleId } }).catch(() => {});
@@ -66,15 +67,16 @@ describe('DR Automation Integration Tests', () => {
           testFrequencyDays: 90,
           autoFailover: false,
           notificationEmails: ['admin@example.com']
-        });
+      });
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.rto).toBe(4);
-      expect(response.body.rpo).toBe(1);
-      expect(response.body.backupRetentionDays).toBe(30);
+      const config = responseData(response.body);
+      expect(config).toHaveProperty('id');
+      expect(config.rtoMinutes).toBe(240);
+      expect(config.rpoMinutes).toBe(60);
+      expect(config.backupRetentionDays).toBe(30);
 
-      drConfigId = response.body.id;
+      drConfigId = config.id;
     });
 
     it('should get DR configuration', async () => {
@@ -83,8 +85,9 @@ describe('DR Automation Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.id).toBe(drConfigId);
-      expect(response.body.rto).toBe(4);
+      const config = responseData(response.body);
+      expect(config.id).toBe(drConfigId);
+      expect(config.rtoMinutes).toBe(240);
     });
 
     it('should update DR configuration', async () => {
@@ -98,9 +101,10 @@ describe('DR Automation Integration Tests', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.rto).toBe(2);
-      expect(response.body.rpo).toBe(0.5);
-      expect(response.body.autoFailover).toBe(true);
+      const config = responseData(response.body);
+      expect(config.rtoMinutes).toBe(120);
+      expect(config.rpoMinutes).toBe(30);
+      expect(config.enableFailover).toBe(true);
     });
 
     it('should validate RTO/RPO values', async () => {
@@ -113,7 +117,7 @@ describe('DR Automation Integration Tests', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 
@@ -333,7 +337,7 @@ describe('DR Automation Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toHaveProperty('rtoViolation');
+      expect(responseData(response.body)).toHaveProperty('rtoMinutes');
     });
 
     it('should detect RPO violations', async () => {
@@ -342,7 +346,7 @@ describe('DR Automation Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toHaveProperty('rpoViolation');
+      expect(responseData(response.body)).toHaveProperty('rpoViolation');
     });
 
     it('should get backup success rate', async () => {

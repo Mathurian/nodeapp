@@ -210,7 +210,7 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'password123',
       };
-      mockRequest.ip = '192.168.1.100';
+      (mockRequest as any).ip = '192.168.1.100';
       (mockRequest.get as jest.Mock).mockReturnValue('Mozilla/5.0');
 
       mockAuthService.login.mockResolvedValue({

@@ -42,7 +42,8 @@ describe('Winners API Integration Tests', () => {
         .query({ eventId: 'test-event-id' })
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect([200, 401, 403, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
 
     it('should filter winners by categoryId', async () => {

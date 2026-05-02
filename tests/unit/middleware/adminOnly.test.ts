@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { adminOnly } from '../../../src/middleware/adminOnly';
 
 describe('adminOnly middleware', () => {
   let req: Partial<Request>;

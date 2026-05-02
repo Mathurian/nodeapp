@@ -56,21 +56,31 @@ if (isIntegrationLikeJestRun) {
 // services that need real crypto operations (createCipheriv, etc.).
 // Individual tests that need crypto.randomBytes mocked should mock it locally.
 
-// Mock speakeasy (for MFA)
-jest.mock('speakeasy', () => ({
-  generateSecret: jest.fn().mockReturnValue({
-    base32: 'MOCK_SECRET_BASE32',
-    otpauth_url: 'otpauth://totp/Test:user@example.com?secret=MOCK_SECRET_BASE32',
-  }),
-  totp: {
-    verify: jest.fn().mockReturnValue(true),
-  },
-}));
+// Mock speakeasy (for MFA) in unit-style runs only. Integration tests need real
+// TOTP generation and verification to exercise the MFA flow end-to-end.
+if (isIntegrationLikeJestRun) {
+  jest.unmock('speakeasy');
+} else {
+  jest.mock('speakeasy', () => ({
+    generateSecret: jest.fn().mockReturnValue({
+      base32: 'MOCK_SECRET_BASE32',
+      otpauth_url: 'otpauth://totp/Test:user@example.com?secret=MOCK_SECRET_BASE32',
+    }),
+    totp: {
+      verify: jest.fn().mockReturnValue(true),
+    },
+  }));
+}
 
-// Mock qrcode (for MFA QR generation)
-jest.mock('qrcode', () => ({
-  toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mockQRCode'),
-}));
+// Mock qrcode (for MFA QR generation) in unit-style runs only. Integration
+// tests use the real implementation so resetMocks cannot erase toDataURL.
+if (isIntegrationLikeJestRun) {
+  jest.unmock('qrcode');
+} else {
+  jest.mock('qrcode', () => ({
+    toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mockQRCode'),
+  }));
+}
 
 // Mock ioredis globally because the DI container imports cache-backed services
 // during test setup, before individual test files can install local mocks.
@@ -160,8 +170,10 @@ export const globalMocks = {
   jwt: isIntegrationLikeJestRun
     ? jest.requireActual('jsonwebtoken')
     : jest.requireMock('jsonwebtoken'),
-  speakeasy: jest.requireMock('speakeasy'),
-  qrcode: jest.requireMock('qrcode'),
+  speakeasy: isIntegrationLikeJestRun
+    ? jest.requireActual('speakeasy')
+    : jest.requireMock('speakeasy'),
+  qrcode: isIntegrationLikeJestRun ? jest.requireActual('qrcode') : jest.requireMock('qrcode'),
   ioredis: jest.requireMock('ioredis'),
   puppeteer: jest.requireMock('puppeteer'),
   fs: jest.requireMock('fs'),

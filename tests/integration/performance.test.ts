@@ -58,7 +58,8 @@ describe('Performance API Integration Tests', () => {
           metrics: { timing: 180 },
         });
 
-      expect([200, 201, 401, 403, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(response.body.message || response.body.error).toBeTruthy();
     });
   });
 

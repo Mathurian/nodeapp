@@ -25,6 +25,11 @@ router.use(authenticateToken)
 router.get('/categories', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getCategories)
 
 // Keep backward-compatible GET endpoint used by frontend scoring flow
+router.get('/category/:categoryId',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
+  getScores
+)
+
 router.get('/category/:categoryId/contestant/:contestantId',
   requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
   (req, _res, next) => {

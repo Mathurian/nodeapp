@@ -253,12 +253,13 @@ export class DRAutomationService {
 
       logger.info(`Updated DR config ${id}`);
 
-      // Emit event
       await EventBusService.publish(
         AppEventType.BACKUP_COMPLETED,
         { configId: id, changes: input, tenantId: config.tenantId || undefined },
         { source: 'DRAutomationService', tenantId: config.tenantId || undefined }
-      );
+      ).catch(error => {
+        logger.warn('Failed to publish DR config update event', { error });
+      });
 
       return config;
     } catch (error) {
@@ -521,7 +522,7 @@ export class DRAutomationService {
 
       // Create backup filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `backup-${schedule.backupType}-${timestamp}.sql${schedule.compression ? '.gz' : ''}`;
+      const filename = `backup-${schedule.backupType}-${timestamp}.sql`;
       const backupsDir = path.join(process.cwd(), 'backups');
 
       // Ensure backups directory exists
@@ -549,14 +550,15 @@ export class DRAutomationService {
 
       // Add compression if enabled
       if (schedule.compression) {
-        command += ` && gzip ${filepath}`;
+        command += ` && gzip -f ${filepath}`;
       }
 
       // Execute backup
       await execAsync(command);
 
       // Get file stats
-      const stats = await fs.stat(filepath + (schedule.compression ? '.gz' : ''));
+      const finalPath = schedule.compression ? `${filepath}.gz` : filepath;
+      const stats = await fs.stat(finalPath);
       const size = stats.size;
       const duration = Math.floor((Date.now() - startTime) / 1000);
 
@@ -570,7 +572,7 @@ export class DRAutomationService {
           completedAt: new Date(),
           duration,
           size: BigInt(size),
-          location: filepath,
+          location: finalPath,
           metadata: {
             scheduleId: schedule.id,
             scheduleName: schedule.name,
@@ -591,7 +593,7 @@ export class DRAutomationService {
 
       // Replicate to targets
       if (schedule.targets && Array.isArray(schedule.targets) && schedule.targets.length > 0) {
-        await this.replicateToTargets(backupLog.id, filepath, schedule.targets as string[], db);
+        await this.replicateToTargets(backupLog.id, finalPath, schedule.targets as string[], db);
       }
 
       // Record metric
@@ -605,19 +607,20 @@ export class DRAutomationService {
         backupType: schedule.backupType
       }, db);
 
-      // Emit event
       await EventBusService.publish(
         AppEventType.BACKUP_COMPLETED,
         { backupId: backupLog.id, scheduleId: schedule.id, size, duration, tenantId: schedule.tenantId || undefined },
         { source: 'DRAutomationService', tenantId: schedule.tenantId || undefined }
-      );
+      ).catch(error => {
+        logger.warn('Failed to publish backup completion event', { error });
+      });
 
       logger.info(`Backup completed successfully: ${filename} (${size} bytes, ${duration}s)`);
 
       return {
         success: true,
         backupId: backupLog.id,
-        location: filepath,
+        location: finalPath,
         size,
         duration
       };
@@ -807,6 +810,10 @@ export class DRAutomationService {
       const totalBackupSize = recentBackups
         .filter(b => b.size)
         .reduce((sum, b) => sum + Number(b.size || 0), 0);
+      const serializedRecentBackups = recentBackups.map(backup => ({
+        ...backup,
+        size: backup.size === null || backup.size === undefined ? null : Number(backup.size),
+      }));
 
       return {
         config,
@@ -829,7 +836,7 @@ export class DRAutomationService {
           successRate,
           avgDuration: Math.round(avgBackupDuration),
           totalSize: totalBackupSize,
-          recent: recentBackups
+          recent: serializedRecentBackups as unknown as BackupLog[]
         },
         tests: {
           total: totalTests,

@@ -741,7 +741,7 @@ describe('QueueService', () => {
       const closeOrder: string[] = [];
       mockWorker.close.mockImplementation(async () => { closeOrder.push('worker'); });
       mockQueue.close.mockImplementation(async () => { closeOrder.push('queue'); });
-      mockRedis.quit.mockImplementation(async () => { closeOrder.push('redis'); });
+      mockRedis.quit.mockImplementation(async () => { closeOrder.push('redis'); return 'OK'; });
 
       await service.shutdown();
 

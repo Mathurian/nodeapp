@@ -120,7 +120,7 @@ describe('JudgeController', () => {
     });
 
     it('should pass correct role to service', async () => {
-      mockReq.user = { id: 'judge-2', role: 'HEAD_JUDGE', tenantId: 'tenant-1' };
+      mockReq.user = { id: 'judge-2', role: 'JUDGE', tenantId: 'tenant-1' };
       mockJudgeService.getAssignments.mockResolvedValue([]);
 
       await controller.getAssignments(mockReq as Request, mockRes as Response, mockNext);

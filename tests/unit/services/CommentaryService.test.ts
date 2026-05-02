@@ -84,13 +84,13 @@ describe('CommentaryService', () => {
     });
 
     it('should default isPrivate to false when not provided', async () => {
-      const dataWithoutPrivacy = { ...validCommentData };
+      const dataWithoutPrivacy: Partial<typeof validCommentData> = { ...validCommentData };
       delete dataWithoutPrivacy.isPrivate;
 
       mockPrisma.score.findUnique.mockResolvedValue({ id: 'score1', tenantId: 'tenant1' } as any);
       mockPrisma.scoreComment.create.mockResolvedValue(mockComment as any);
 
-      await service.create(dataWithoutPrivacy);
+      await service.create(dataWithoutPrivacy as any);
 
       expect(mockPrisma.scoreComment.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -118,7 +118,7 @@ describe('CommentaryService', () => {
     });
 
     it('should throw BadRequestError when scoreId is missing', async () => {
-      const invalidData = { ...validCommentData };
+      const invalidData: Partial<typeof validCommentData> = { ...validCommentData };
       delete invalidData.scoreId;
 
       await expect(service.create(invalidData as any)).rejects.toThrow(BadRequestError);
@@ -126,7 +126,7 @@ describe('CommentaryService', () => {
     });
 
     it('should throw BadRequestError when criterionId is missing', async () => {
-      const invalidData = { ...validCommentData };
+      const invalidData: Partial<typeof validCommentData> = { ...validCommentData };
       delete invalidData.criterionId;
 
       await expect(service.create(invalidData as any)).rejects.toThrow(BadRequestError);
@@ -134,7 +134,7 @@ describe('CommentaryService', () => {
     });
 
     it('should throw BadRequestError when contestantId is missing', async () => {
-      const invalidData = { ...validCommentData };
+      const invalidData: Partial<typeof validCommentData> = { ...validCommentData };
       delete invalidData.contestantId;
 
       await expect(service.create(invalidData as any)).rejects.toThrow(BadRequestError);
@@ -142,7 +142,7 @@ describe('CommentaryService', () => {
     });
 
     it('should throw BadRequestError when comment is missing', async () => {
-      const invalidData = { ...validCommentData };
+      const invalidData: Partial<typeof validCommentData> = { ...validCommentData };
       delete invalidData.comment;
 
       await expect(service.create(invalidData as any)).rejects.toThrow(BadRequestError);

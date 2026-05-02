@@ -35,16 +35,19 @@ jest.mock('../../../src/utils/logger', () => ({
 }));
 
 // Mock response helpers
-const mockSendSuccess = jest.fn((res, data, message, status) => {
+const mockSendSuccess = jest.fn((...args: any[]) => {
+  const [res, data, message, status] = args;
   const statusCode = status || 200;
   return res.status(statusCode).json({ success: true, data, message });
 });
 
-const mockSendBadRequest = jest.fn((res, message) => {
+const mockSendBadRequest = jest.fn((...args: any[]) => {
+  const [res, message] = args;
   return res.status(400).json({ success: false, message });
 });
 
-const mockSendCreated = jest.fn((res, data, message) => {
+const mockSendCreated = jest.fn((...args: any[]) => {
+  const [res, data, message] = args;
   return res.status(201).json({ success: true, data, message });
 });
 
@@ -77,7 +80,7 @@ describe('EventsController', () => {
       body: {},
       params: {},
       query: {},
-      user: { id: 'admin-1', role: 'ADMIN' },
+      user: { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' },
     };
 
     mockRes = {

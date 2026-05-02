@@ -139,7 +139,7 @@ describe('DeductionController', () => {
     it('should approve deduction successfully', async () => {
       mockReq.params = { id: 'ded-1' };
       mockReq.body = { signature: 'John Doe', notes: 'Approved by board' };
-      mockReq.user = { id: 'user-1', role: 'BOARD_MEMBER', tenantId: 'tenant-1' };
+      mockReq.user = { id: 'user-1', role: 'BOARD', tenantId: 'tenant-1' };
       const mockResult = { id: 'ded-1', status: 'APPROVED', message: 'Deduction approved' };
       mockService.approveDeduction.mockResolvedValue(mockResult as any);
 

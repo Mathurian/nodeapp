@@ -112,7 +112,9 @@ describe('CacheService', () => {
     });
 
     it('should set up retry strategy', () => {
-      const call = (Redis as jest.MockedClass<typeof Redis>).mock.calls[0][0];
+      const call = (Redis as unknown as jest.Mock).mock.calls[0]?.[0] as {
+        retryStrategy?: (times: number) => number;
+      };
       const retryStrategy = call.retryStrategy;
 
       expect(retryStrategy!(1)).toBe(50);

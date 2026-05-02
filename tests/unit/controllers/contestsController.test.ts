@@ -96,7 +96,7 @@ describe('ContestsController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'admin' },
+      user: { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' },
     };
 
     mockRes = {
@@ -487,7 +487,7 @@ describe('ContestsController', () => {
     });
 
     it('should return 400 when query is not a string', async () => {
-      mockReq.query = { query: 123 };
+      mockReq.query = { query: 123 as any };
 
       await controller.searchContests(mockReq as Request, mockRes as Response, mockNext);
 

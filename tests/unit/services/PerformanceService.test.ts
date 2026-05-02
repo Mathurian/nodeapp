@@ -28,7 +28,9 @@ describe('PerformanceService', () => {
     process.env = { ...originalEnv };
     mockPrisma = mockDeep<PrismaClient>();
     mockMetricsService = mockDeep<MetricsService>();
-    service = new PerformanceService(mockPrisma as any, mockMetricsService as any);
+    service = new PerformanceService(mockPrisma as any, mockMetricsService as any, {
+      getPresenceSnapshot: jest.fn(),
+    } as any);
     jest.clearAllMocks();
   });
 
@@ -167,7 +169,7 @@ describe('PerformanceService', () => {
         _count: { id: 1000 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([
           { statusCode: 200, _count: { id: 800 }, _avg: { responseTime: 140 } },
           { statusCode: 404, _count: { id: 100 }, _avg: { responseTime: 80 } },
@@ -201,7 +203,7 @@ describe('PerformanceService', () => {
         _count: { id: 200 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -219,7 +221,7 @@ describe('PerformanceService', () => {
         _count: { id: 5000 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -237,7 +239,7 @@ describe('PerformanceService', () => {
         _count: { id: 20000 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -255,7 +257,7 @@ describe('PerformanceService', () => {
         _count: { id: 500 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -282,7 +284,7 @@ describe('PerformanceService', () => {
         _count: { id: 300 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -309,7 +311,7 @@ describe('PerformanceService', () => {
         _count: { id: 1000 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
@@ -331,7 +333,7 @@ describe('PerformanceService', () => {
         _count: { id: 0 },
       } as any);
 
-      mockPrisma.performanceLog.groupBy
+      (mockPrisma.performanceLog.groupBy as unknown as jest.Mock)
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);

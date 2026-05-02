@@ -21,6 +21,7 @@ describe('Structure Copy API Integration Tests', () => {
   let targetCategory: any;
   let directCategoryTemplate: any;
   let directEventTemplate: any;
+  const directTemplateContestId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
   beforeAll(async () => {
     const tenant = await ensureTestTenant();
@@ -85,7 +86,7 @@ describe('Structure Copy API Integration Tests', () => {
         password: 'password123',
       });
 
-    if (loginResponse.status === 200 || loginResponse.status === 201) {
+    if ((loginResponse.status === 200 || loginResponse.status === 201) && (loginResponse.body.data?.token || loginResponse.body.token)) {
       adminToken = loginResponse.body.data?.token || loginResponse.body.token;
     } else {
       adminToken = jwt.sign(
@@ -209,14 +210,14 @@ describe('Structure Copy API Integration Tests', () => {
         description: 'Deployable event template',
         contests: JSON.stringify([
           {
-            id: 'contest-template-1',
+            id: directTemplateContestId,
             name: 'copy-test-template-contest',
             description: 'Contest from event template',
           },
         ]),
         categories: JSON.stringify([
           {
-            contestId: 'contest-template-1',
+            contestId: directTemplateContestId,
             name: 'copy-test-template-category',
             description: 'Category from event template',
             scoreCap: 50,
@@ -405,7 +406,7 @@ describe('Structure Copy API Integration Tests', () => {
       .post(`/api/event-templates/${directEventTemplate.id}/create-contest`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
-        templateContestId: 'contest-template-1',
+        templateContestId: directTemplateContestId,
         targetEventId: targetEvent.id,
         contestName: 'copy-test-contest-from-template',
         contestDescription: 'Created directly from event template',

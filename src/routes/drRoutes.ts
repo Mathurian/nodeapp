@@ -24,6 +24,7 @@ router.use(authenticateToken);
  *         description: DR configuration retrieved
  */
 router.get('/config', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.getDRConfig);
+router.post('/config', requireRole(['SUPER_ADMIN', 'ADMIN']), drController.createDRConfig);
 
 /**
  * @swagger

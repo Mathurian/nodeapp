@@ -125,7 +125,7 @@ describe('ErrorHandlingService', () => {
   describe('getErrorStats', () => {
     it('should return error statistics', async () => {
       mockPrisma.errorLog.count.mockResolvedValue(10);
-      mockPrisma.errorLog.groupBy.mockResolvedValue([]);
+      (mockPrisma.errorLog.groupBy as unknown as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getErrorStats();
 
@@ -136,7 +136,7 @@ describe('ErrorHandlingService', () => {
 
     it('should return zero counts when no errors logged', async () => {
       mockPrisma.errorLog.count.mockResolvedValue(0);
-      mockPrisma.errorLog.groupBy.mockResolvedValue([]);
+      (mockPrisma.errorLog.groupBy as unknown as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getErrorStats();
 
@@ -145,7 +145,7 @@ describe('ErrorHandlingService', () => {
 
     it('should return empty byType object when no errors', async () => {
       mockPrisma.errorLog.count.mockResolvedValue(0);
-      mockPrisma.errorLog.groupBy.mockResolvedValue([]);
+      (mockPrisma.errorLog.groupBy as unknown as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getErrorStats();
 
@@ -154,7 +154,7 @@ describe('ErrorHandlingService', () => {
 
     it('should filter by tenantId when provided', async () => {
       mockPrisma.errorLog.count.mockResolvedValue(5);
-      mockPrisma.errorLog.groupBy.mockResolvedValue([]);
+      (mockPrisma.errorLog.groupBy as unknown as jest.Mock).mockResolvedValue([]);
 
       await service.getErrorStats('tenant-1');
 
@@ -167,7 +167,7 @@ describe('ErrorHandlingService', () => {
 
     it('should return number types for counts', async () => {
       mockPrisma.errorLog.count.mockResolvedValue(5);
-      mockPrisma.errorLog.groupBy.mockResolvedValue([]);
+      (mockPrisma.errorLog.groupBy as unknown as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getErrorStats();
 
@@ -177,7 +177,7 @@ describe('ErrorHandlingService', () => {
 
     it('should return object type for byType', async () => {
       mockPrisma.errorLog.count.mockResolvedValue(5);
-      mockPrisma.errorLog.groupBy.mockResolvedValue([
+      (mockPrisma.errorLog.groupBy as unknown as jest.Mock).mockResolvedValue([
         { level: 'ERROR', _count: { level: 3 } }
       ] as any);
 

@@ -234,6 +234,13 @@ export const advanceWorkflow = async (req: Request, res: Response, next: NextFun
     const instance = await WorkflowService.advanceWorkflow(id, req.tenantId!, userId, userRole, approvalStatus, comments, requestPrisma);
     sendSuccess(res, instance, 'Workflow advanced');
   } catch (error) {
+    if (error instanceof Error && error.message.includes('is not allowed to advance this step')) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
     return next(error);
   }
 };

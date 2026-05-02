@@ -68,7 +68,7 @@ describe('EmceeController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'EMCEE' },
+      user: { id: 'user-1', role: 'EMCEE', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {

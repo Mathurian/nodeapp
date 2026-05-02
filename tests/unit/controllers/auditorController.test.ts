@@ -57,7 +57,7 @@ describe('AuditorController', () => {
       params: {},
       query: {},
       body: {},
-      user: { id: 'user-1', role: 'AUDITOR' },
+      user: { id: 'user-1', role: 'AUDITOR', tenantId: 'tenant-1' },
     } as any;
 
     mockRes = {

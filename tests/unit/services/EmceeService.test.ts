@@ -14,7 +14,7 @@
  */
 
 import 'reflect-metadata';
-import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
 import { EmceeService } from '../../../src/services/EmceeService';

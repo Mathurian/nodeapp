@@ -73,6 +73,12 @@ describe('Admin API Integration Tests', () => {
       );
     }
 
+    userToken = jwt.sign(
+      { userId: regularUser.id, role: regularUser.role, tenantId: tenant.id },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
   });
 
   afterAll(async () => {

@@ -13,6 +13,10 @@ import { ensureTestTenant } from '../helpers/testUtils';
 import { container } from 'tsyringe';
 const prisma = container.resolve<PrismaClient>('PrismaClient');
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing';
+const fallbackTokenFor = (user: any, tenantId: string) =>
+  jwt.sign({ userId: user.id, role: user.role, tenantId }, JWT_SECRET, { expiresIn: '1h' });
+const loginTokenOrFallback = (response: any, user: any, tenantId: string) =>
+  response.body.data?.token || response.body.token || fallbackTokenFor(user, tenantId);
 
 describe('Judges API Integration Tests', () => {
   let judgeUser: any;
@@ -111,6 +115,26 @@ describe('Judges API Integration Tests', () => {
       data: { judgeId: testJudge.id }
     }).catch(() => {});
 
+    await prisma.assignment.upsert({
+      where: {
+        tenantId_judgeId_categoryId: {
+          tenantId,
+          judgeId: testJudge.id,
+          categoryId: testCategory.id,
+        },
+      },
+      update: { status: 'ACTIVE' },
+      create: {
+        judgeId: testJudge.id,
+        categoryId: testCategory.id,
+        contestId: testContest.id,
+        eventId: testEvent.id,
+        assignedBy: adminUser.id,
+        status: 'ACTIVE',
+        tenantId,
+      },
+    });
+
     const judgeLoginResponse = await request(app)
       .post('/api/auth/login')
       .send({
@@ -118,15 +142,7 @@ describe('Judges API Integration Tests', () => {
         password: 'password123'
       });
 
-    if (judgeLoginResponse.status === 200 || judgeLoginResponse.status === 201) {
-      judgeToken = judgeLoginResponse.body.data?.token || judgeLoginResponse.body.token;
-    } else {
-      judgeToken = jwt.sign(
-        { userId: judgeUser.id, role: judgeUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    }
+    judgeToken = loginTokenOrFallback(judgeLoginResponse, judgeUser, tenantId);
 
     const adminLoginResponse = await request(app)
       .post('/api/auth/login')
@@ -135,15 +151,7 @@ describe('Judges API Integration Tests', () => {
         password: 'password123'
       });
 
-    if (adminLoginResponse.status === 200 || adminLoginResponse.status === 201) {
-      adminToken = adminLoginResponse.body.data?.token || adminLoginResponse.body.token;
-    } else {
-      adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    }
+    adminToken = loginTokenOrFallback(adminLoginResponse, adminUser, tenantId);
   });
 
   afterAll(async () => {
@@ -224,7 +232,7 @@ describe('Judges API Integration Tests', () => {
     it('should submit a score', async () => {
       // Check if contestant already exists
       let testContestant = await prisma.contestant.findUnique({
-        where: { email: 'contestant@judgetest.com' }
+        where: { tenantId_email: { tenantId, email: 'contestant@judgetest.com' } }
       });
 
       if (!testContestant) {
@@ -233,6 +241,7 @@ describe('Judges API Integration Tests', () => {
             name: 'Test Contestant',
             email: 'contestant@judgetest.com',
             contestantNumber: 1,
+            tenantId,
           }
         });
       }
@@ -241,7 +250,7 @@ describe('Judges API Integration Tests', () => {
         categoryId: testCategory.id,
         contestantId: testContestant.id,
         score: 85,
-        comments: 'Test score',
+        comment: 'Test score',
       };
 
       const response = await request(app)

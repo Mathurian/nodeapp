@@ -149,7 +149,10 @@ describe('CategoriesController', () => {
 
   describe('getAllCategories', () => {
     it('should return categories from paginated service', async () => {
-      mockCategoryService.getAllCategoriesPaginated.mockResolvedValue({ data: mockCategories });
+      mockCategoryService.getAllCategoriesPaginated.mockResolvedValue({
+        data: mockCategories as any,
+        pagination: {} as any,
+      });
 
       await controller.getAllCategories(mockReq as Request, mockRes as Response, mockNext);
 
@@ -445,7 +448,7 @@ describe('CategoriesController', () => {
     });
 
     it('should return 400 when query is not a string', async () => {
-      mockReq.query = { query: 123 };
+      mockReq.query = { query: 123 as any };
 
       await controller.searchCategories(mockReq as Request, mockRes as Response, mockNext);
 

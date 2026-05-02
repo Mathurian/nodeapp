@@ -6,7 +6,53 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { SearchService } from '../services/SearchService';
-import { sendSuccess , sendUnauthorized} from '../utils/responseHelpers';
+import { sendUnauthorized} from '../utils/responseHelpers';
+
+const parseParam = <T>(value: unknown): T | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return JSON.parse(value) as T;
+  }
+  return value as T;
+};
+
+const firstString = (...values: unknown[]): string | undefined => {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const pluralizeSearchType = (type: unknown): unknown => {
+  if (type === 'event') return 'events';
+  if (type === 'contest') return 'contests';
+  if (type === 'user') return 'users';
+  if (type === 'category') return 'categories';
+  if (type === 'contestant') return 'contestants';
+  if (type === 'judge') return 'judges';
+  return type;
+};
+
+const normalizeSearchResult = <T extends { type?: unknown }>(result: T): T => ({
+  ...result,
+  type: pluralizeSearchType(result.type),
+});
+
+const normalizeSearchResponse = (response: any): any => ({
+  ...response,
+  results: Array.isArray(response.results)
+    ? response.results.map(normalizeSearchResult)
+    : response.results,
+});
+
+const normalizeAnalytic = (analytic: any): any => ({
+  ...analytic,
+  totalSearches: analytic.searchCount,
+});
 
 export class SearchController {
   private searchService: SearchService;
@@ -26,19 +72,17 @@ export class SearchController {
       }
 
       const userId = req.user.id;
+      const source = { ...req.query, ...req.body };
       const {
-        query,
-        q,
         entityTypes,
         type,
         filters,
         limit = 20,
         offset = 0,
         facets,
-      } = req.query;
+      } = source;
 
-      const resolvedQuery = (typeof query === 'string' ? query : undefined)
-        || (typeof q === 'string' ? q : undefined);
+      const resolvedQuery = firstString(source.query, source.q);
 
       if (!resolvedQuery) {
         return res.status(400).json({ error: 'Query parameter is required' });
@@ -46,7 +90,9 @@ export class SearchController {
 
       // Accept legacy/simple "type" filter used by frontend and map to entityTypes.
       const resolvedEntityTypes =
-        typeof entityTypes === 'string' && entityTypes.trim().length > 0
+        Array.isArray(entityTypes)
+          ? entityTypes
+          : typeof entityTypes === 'string' && entityTypes.trim().length > 0
           ? entityTypes.split(',')
           : typeof type === 'string' && type !== 'ALL'
             ? [type]
@@ -55,16 +101,16 @@ export class SearchController {
       const options = {
         query: resolvedQuery,
         entityTypes: resolvedEntityTypes,
-        filters: filters ? JSON.parse(filters as string) : undefined,
-        limit: parseInt(limit as string),
-        offset: parseInt(offset as string),
-        facets: facets ? JSON.parse(facets as string) : undefined,
+        filters: parseParam<Record<string, unknown>>(filters),
+        limit: Number.parseInt(String(limit), 10),
+        offset: Number.parseInt(String(offset), 10),
+        facets: parseParam<any>(facets),
         tenantId: req.user.tenantId
       };
 
       const results = await this.searchService.search(userId, options);
 
-      return sendSuccess(res, results);
+      return res.json(normalizeSearchResponse(results));
     } catch (error) {
       return next(error);
     }
@@ -82,26 +128,31 @@ export class SearchController {
 
       const userId = req.user.id;
       const { type } = req.params;
-      const { query, q, filters, limit = 20, offset = 0 } = req.query;
+      const source = { ...req.query, ...req.body };
+      const { filters, limit = 20, offset = 0 } = source;
 
-      const resolvedQuery = (typeof query === 'string' ? query : undefined)
-        || (typeof q === 'string' ? q : undefined);
+      const resolvedQuery = firstString(source.query, source.q);
 
       if (!resolvedQuery) {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
 
+      const allowedTypes = ['users', 'events', 'contests', 'categories', 'contestants', 'judges'];
+      if (!type || !allowedTypes.includes(type)) {
+        return res.status(400).json({ error: `Invalid entity type: ${type}` });
+      }
+
       const options = {
         query: resolvedQuery,
-        filters: filters ? JSON.parse(filters as string) : undefined,
-        limit: parseInt(limit as string),
-        offset: parseInt(offset as string),
+        filters: parseParam<Record<string, unknown>>(filters),
+        limit: Number.parseInt(String(limit), 10),
+        offset: Number.parseInt(String(offset), 10),
         tenantId: req.user.tenantId
       };
 
-      const results = await this.searchService.searchByType(userId, type!, options);
+      const results = await this.searchService.searchByType(userId, type, options);
 
-      return sendSuccess(res, results);
+      return res.json({ results: results.map(normalizeSearchResult) });
     } catch (error) {
       return next(error);
     }
@@ -128,7 +179,7 @@ export class SearchController {
 
       const suggestions = await this.searchService.getSearchSuggestions(resolvedQuery, parseInt(limit as string));
 
-      return sendSuccess(res, suggestions);
+      return res.json(suggestions);
     } catch (error) {
       return next(error);
     }
@@ -147,7 +198,7 @@ export class SearchController {
       const { limit = 10 } = req.query;
       const searches = await this.searchService.getPopularSearches(parseInt(limit as string));
 
-      return sendSuccess(res, searches);
+      return res.json(searches.map(normalizeAnalytic));
     } catch (error) {
       return next(error);
     }
@@ -166,7 +217,7 @@ export class SearchController {
       const { limit = 5 } = req.query;
       const searches = await this.searchService.getTrendingSearches(parseInt(limit as string));
 
-      return sendSuccess(res, searches);
+      return res.json(searches.map(normalizeAnalytic));
     } catch (error) {
       return next(error);
     }
@@ -195,13 +246,17 @@ export class SearchController {
         userId,
         name,
         query,
-        filters,
-        entityTypes,
+        filters: parseParam(filters),
+        entityTypes: Array.isArray(entityTypes)
+          ? entityTypes
+          : typeof entityTypes === 'string' && entityTypes.trim().length > 0
+            ? entityTypes.split(',')
+            : undefined,
         isPublic,
         tenantId: req.user.tenantId
       });
 
-      return sendSuccess(res, savedSearch, 'Search saved successfully', 201);
+      return res.status(201).json(savedSearch);
     } catch (error) {
       return next(error);
     }
@@ -233,7 +288,7 @@ export class SearchController {
         entityTypes: search.entityTypes ? search.entityTypes.split(',') : [],
       }));
 
-      return sendSuccess(res, parsed);
+      return res.json(parsed);
     } catch (error) {
       return next(error);
     }
@@ -252,9 +307,16 @@ export class SearchController {
       const userId = req.user.id;
       const { id } = req.params;
 
-      await this.searchService.deleteSavedSearch(id!, userId, req.user.tenantId);
+      try {
+        await this.searchService.deleteSavedSearch(id!, userId, req.user.tenantId);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Saved search not found')) {
+          return res.status(404).json({ error: 'Saved search not found' });
+        }
+        throw error;
+      }
 
-      return res.status(204).send();
+      return res.json({ message: 'Saved search deleted successfully' });
     } catch (error) {
       return next(error);
     }
@@ -273,9 +335,17 @@ export class SearchController {
       const userId = req.user.id;
       const { id } = req.params;
 
-      const results = await this.searchService.executeSavedSearch(userId, req.user.tenantId, id!);
+      let results;
+      try {
+        results = await this.searchService.executeSavedSearch(userId, req.user.tenantId, id!);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Saved search not found')) {
+          return res.status(404).json({ error: 'Saved search not found' });
+        }
+        throw error;
+      }
 
-      return sendSuccess(res, results);
+      return res.json(normalizeSearchResponse(results));
     } catch (error) {
       return next(error);
     }
@@ -305,7 +375,7 @@ export class SearchController {
         entityTypes: item.entityTypes ? item.entityTypes.split(',') : [],
       }));
 
-      return sendSuccess(res, parsed);
+      return res.json(parsed);
     } catch (error) {
       return next(error);
     }
@@ -324,7 +394,7 @@ export class SearchController {
       const userId = req.user.id;
       const count = await this.searchService.clearSearchHistory(userId, req.user.tenantId);
 
-      return sendSuccess(res, { count }, 'Search history cleared successfully');
+      return res.json({ deletedCount: count });
     } catch (error) {
       return next(error);
     }

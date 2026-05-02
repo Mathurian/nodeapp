@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { metrics } from '../../../src/middleware/metrics';
 
 describe('metrics middleware', () => {
   let req: Partial<Request>;

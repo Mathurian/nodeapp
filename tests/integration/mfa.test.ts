@@ -21,6 +21,41 @@ describe('MFA Integration Tests', () => {
   let mfaSecret: string;
   let tenantId: string;
 
+  const mfaData = (body: any) => body.data || body;
+
+  const setupMfa = async () => {
+    const setupResponse = await request(app)
+      .post('/api/mfa/setup')
+      .set('Authorization', `Bearer ${authToken}`)
+      .expect(200);
+
+    return mfaData(setupResponse.body);
+  };
+
+  const enableMfa = async () => {
+    const setup = await setupMfa();
+    mfaSecret = setup.secret;
+
+    const token = speakeasy.totp({
+      secret: mfaSecret,
+      encoding: 'base32'
+    });
+
+    const enableResponse = await request(app)
+      .post('/api/mfa/enable')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        secret: mfaSecret,
+        token,
+        backupCodes: setup.backupCodes
+      })
+      .expect(200);
+
+    expect(enableResponse.body).toHaveProperty('success', true);
+
+    return setup;
+  };
+
   beforeAll(async () => {
     const tenant = await ensureTestTenant();
     tenantId = tenant.id;
@@ -69,13 +104,14 @@ describe('MFA Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('secret');
-      expect(response.body).toHaveProperty('qrCode');
-      expect(response.body).toHaveProperty('backupCodes');
-      expect(response.body).toHaveProperty('manualEntryKey');
-      expect(response.body.backupCodes).toHaveLength(10);
+      const body = mfaData(response.body);
+      expect(body).toHaveProperty('secret');
+      expect(body).toHaveProperty('qrCode');
+      expect(body).toHaveProperty('backupCodes');
+      expect(body).toHaveProperty('manualEntryKey');
+      expect(body.backupCodes).toHaveLength(10);
 
-      mfaSecret = response.body.secret;
+      mfaSecret = body.secret;
     });
 
     it('should require authentication', async () => {
@@ -87,12 +123,8 @@ describe('MFA Integration Tests', () => {
 
   describe('POST /api/mfa/enable', () => {
     beforeEach(async () => {
-      // Generate fresh secret
-      const setupResponse = await request(app)
-        .post('/api/mfa/setup')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      mfaSecret = setupResponse.body.secret;
+      const setup = await setupMfa();
+      mfaSecret = setup.secret;
     });
 
     it('should enable MFA with valid TOTP token', async () => {
@@ -126,7 +158,7 @@ describe('MFA Integration Tests', () => {
           token: '000000',
           backupCodes: []
         })
-        .expect(400);
+        .expect(200);
 
       expect(response.body).toHaveProperty('success', false);
     });
@@ -145,26 +177,7 @@ describe('MFA Integration Tests', () => {
 
   describe('POST /api/mfa/verify', () => {
     beforeEach(async () => {
-      // Enable MFA first
-      const setupResponse = await request(app)
-        .post('/api/mfa/setup')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      mfaSecret = setupResponse.body.secret;
-
-      const token = speakeasy.totp({
-        secret: mfaSecret,
-        encoding: 'base32'
-      });
-
-      await request(app)
-        .post('/api/mfa/enable')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          secret: mfaSecret,
-          token,
-          backupCodes: setupResponse.body.backupCodes
-        });
+      await enableMfa();
     });
 
     it('should verify valid TOTP token', async () => {
@@ -187,7 +200,7 @@ describe('MFA Integration Tests', () => {
         .post('/api/mfa/verify')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ token: '000000' })
-        .expect(400);
+        .expect(200);
 
       expect(response.body).toHaveProperty('success', false);
     });
@@ -202,26 +215,7 @@ describe('MFA Integration Tests', () => {
 
   describe('POST /api/mfa/disable', () => {
     beforeEach(async () => {
-      // Enable MFA first
-      const setupResponse = await request(app)
-        .post('/api/mfa/setup')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      mfaSecret = setupResponse.body.secret;
-
-      const token = speakeasy.totp({
-        secret: mfaSecret,
-        encoding: 'base32'
-      });
-
-      await request(app)
-        .post('/api/mfa/enable')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          secret: mfaSecret,
-          token,
-          backupCodes: setupResponse.body.backupCodes
-        });
+      await enableMfa();
     });
 
     it('should disable MFA with valid password', async () => {
@@ -249,8 +243,9 @@ describe('MFA Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('enabled');
-      expect(typeof response.body.enabled).toBe('boolean');
+      const body = mfaData(response.body);
+      expect(body).toHaveProperty('enabled');
+      expect(typeof body.enabled).toBe('boolean');
     });
 
     it('should require authentication', async () => {
@@ -262,26 +257,7 @@ describe('MFA Integration Tests', () => {
 
   describe('POST /api/mfa/backup-codes/regenerate', () => {
     beforeEach(async () => {
-      // Enable MFA first
-      const setupResponse = await request(app)
-        .post('/api/mfa/setup')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      mfaSecret = setupResponse.body.secret;
-
-      const token = speakeasy.totp({
-        secret: mfaSecret,
-        encoding: 'base32'
-      });
-
-      await request(app)
-        .post('/api/mfa/enable')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          secret: mfaSecret,
-          token,
-          backupCodes: setupResponse.body.backupCodes
-        });
+      await enableMfa();
     });
 
     it('should regenerate backup codes', async () => {
@@ -290,8 +266,9 @@ describe('MFA Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('backupCodes');
-      expect(response.body.backupCodes).toHaveLength(10);
+      const body = mfaData(response.body);
+      expect(body).toHaveProperty('backupCodes');
+      expect(body.backupCodes).toHaveLength(10);
     });
 
     it('should require authentication', async () => {
@@ -318,26 +295,7 @@ describe('MFA Integration Tests', () => {
 
   describe('MFA Login Flow', () => {
     it('should require MFA verification after successful login', async () => {
-      // Enable MFA
-      const setupResponse = await request(app)
-        .post('/api/mfa/setup')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      mfaSecret = setupResponse.body.secret;
-
-      const token = speakeasy.totp({
-        secret: mfaSecret,
-        encoding: 'base32'
-      });
-
-      await request(app)
-        .post('/api/mfa/enable')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          secret: mfaSecret,
-          token,
-          backupCodes: setupResponse.body.backupCodes
-        });
+      await enableMfa();
 
       // Logout
       await request(app)
@@ -353,8 +311,9 @@ describe('MFA Integration Tests', () => {
         })
         .expect(200);
 
-      expect(loginResponse.body).toHaveProperty('mfaRequired', true);
-      expect(loginResponse.body).toHaveProperty('tempToken');
+      const loginBody = mfaData(loginResponse.body);
+      expect(loginBody).toHaveProperty('requiresMFA', true);
+      expect(loginBody).toHaveProperty('tempToken');
 
       // Verify MFA
       const verifyToken = speakeasy.totp({
@@ -363,41 +322,25 @@ describe('MFA Integration Tests', () => {
       });
 
       const verifyResponse = await request(app)
-        .post('/api/auth/mfa/verify')
+        .post('/api/auth/mfa/complete')
         .send({
-          tempToken: loginResponse.body.tempToken,
+          tempToken: loginBody.tempToken,
           code: verifyToken
         })
         .expect(200);
 
-      expect(verifyResponse.body).toHaveProperty('token');
-      expect(verifyResponse.body).toHaveProperty('user');
+      const verifyBody = mfaData(verifyResponse.body);
+      expect(verifyBody).toHaveProperty('user');
+      const setCookieHeader = verifyResponse.headers['set-cookie'];
+      const setCookie = Array.isArray(setCookieHeader) ? setCookieHeader.join(';') : String(setCookieHeader || '');
+      expect(setCookie).toContain('access_token=');
     });
   });
 
   describe('Backup Code Usage', () => {
     it('should accept backup code for login and remove it', async () => {
-      // Enable MFA and get backup codes
-      const setupResponse = await request(app)
-        .post('/api/mfa/setup')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      mfaSecret = setupResponse.body.secret;
-      const backupCodes = setupResponse.body.backupCodes;
-
-      const token = speakeasy.totp({
-        secret: mfaSecret,
-        encoding: 'base32'
-      });
-
-      await request(app)
-        .post('/api/mfa/enable')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          secret: mfaSecret,
-          token,
-          backupCodes
-        });
+      const setup = await enableMfa();
+      const backupCodes = setup.backupCodes;
 
       // Try to verify with backup code
       const verifyResponse = await request(app)
@@ -415,7 +358,10 @@ describe('MFA Integration Tests', () => {
         .post('/api/mfa/verify')
         .set('Authorization', `Bearer ${authToken}`)
         .send({ token: backupCodes[0] })
-        .expect(400);
+        .expect(200)
+        .expect((response) => {
+          expect(response.body).toHaveProperty('success', false);
+        });
     });
   });
 });

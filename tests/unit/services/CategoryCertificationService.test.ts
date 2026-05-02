@@ -228,7 +228,7 @@ describe('CategoryCertificationService', () => {
 
     mockPrisma.certification.findFirst.mockResolvedValue(null);
     mockPrisma.certification.upsert.mockResolvedValue(buildCertificationRecord() as any);
-    mockPrisma.certification.update.mockImplementation(({ data }: any) =>
+    ((mockPrisma.certification.update as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve(buildCertificationRecord(data) as any)
     );
     mockPrisma.category.findUnique.mockResolvedValue({
@@ -247,7 +247,7 @@ describe('CategoryCertificationService', () => {
     mockPrisma.systemSetting.findFirst.mockResolvedValue(null);
     mockPrisma.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
     mockPrisma.auditorAssignment.findMany.mockResolvedValue([] as any);
-    mockPrisma.assignment.groupBy.mockResolvedValue([] as any);
+    (mockPrisma.assignment.groupBy as unknown as jest.Mock).mockResolvedValue([] as any);
     mockPrisma.user.findMany.mockResolvedValue([] as any);
     setGroupedJudgeCertifications([]);
     mockPrisma.judgeCertification.findMany.mockResolvedValue([
@@ -256,10 +256,10 @@ describe('CategoryCertificationService', () => {
     mockPrisma.categoryJudge.findMany.mockResolvedValue([buildCategoryJudge()] as any);
     mockPrisma.categoryCertification.findFirst.mockResolvedValue(null);
     mockPrisma.categoryCertification.findMany.mockResolvedValue([] as any);
-    mockPrisma.categoryCertification.create.mockImplementation(({ data }: any) =>
+    ((mockPrisma.categoryCertification.create as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve(buildCategoryCertification(data) as any)
     );
-    mockPrisma.categoryCertification.update.mockImplementation(({ data }: any) =>
+    ((mockPrisma.categoryCertification.update as unknown as jest.Mock).mockImplementation)(({ data }: any) =>
       Promise.resolve(buildCategoryCertification(data) as any)
     );
     mockPrisma.user.findFirst.mockResolvedValue(null as any);
@@ -503,7 +503,7 @@ describe('CategoryCertificationService', () => {
         mockedRefreshRoleStages.mockResolvedValueOnce(synced as any);
         mockedApplyCertificationStage.mockResolvedValueOnce(synced as any);
         mockPrisma.certification.update.mockResolvedValue(synced as any);
-        mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+        ((mockPrisma.categoryCertification.findMany as unknown as jest.Mock).mockImplementation)(({ where }: any) => {
           if (where?.role === 'TALLY_MASTER' && (role === 'TALLY_MASTER' || role === 'AUDITOR' || role === 'BOARD')) {
             return Promise.resolve([buildCategoryCertification({ role: 'TALLY_MASTER' })] as any);
           }
@@ -544,7 +544,7 @@ describe('CategoryCertificationService', () => {
         }) as any
       );
       mockPrisma.user.findFirst.mockResolvedValueOnce({ boardRole: 'Chair' } as any);
-      mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+      ((mockPrisma.categoryCertification.findMany as unknown as jest.Mock).mockImplementation)(({ where }: any) => {
         if (where?.role === 'TALLY_MASTER') {
           return Promise.resolve([buildCategoryCertification({ role: 'TALLY_MASTER' })] as any);
         }
@@ -635,7 +635,7 @@ describe('CategoryCertificationService', () => {
         }) as any
       );
       mockPrisma.user.findFirst.mockResolvedValueOnce({ boardRole: 'Chair' } as any);
-      mockPrisma.categoryCertification.findMany.mockImplementation(({ where }: any) => {
+      ((mockPrisma.categoryCertification.findMany as unknown as jest.Mock).mockImplementation)(({ where }: any) => {
         if (where?.role === 'TALLY_MASTER') {
           return Promise.resolve([buildCategoryCertification({ role: 'TALLY_MASTER' })] as any);
         }

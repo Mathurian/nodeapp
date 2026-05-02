@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { navigation } from '../../../src/middleware/navigation';
 
 describe('navigation middleware', () => {
   let req: Partial<Request>;

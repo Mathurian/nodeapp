@@ -24,6 +24,13 @@ describe('Assignments API Integration Tests', () => {
   let testContestant: any;
   let tenantId: string;
 
+  const signTestToken = (user: { id: string; role: string }) =>
+    jwt.sign(
+      { userId: user.id, role: user.role, tenantId },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
   beforeAll(async () => {
     const tenant = await ensureTestTenant();
     tenantId = tenant.id;
@@ -150,12 +157,10 @@ describe('Assignments API Integration Tests', () => {
 
     if (loginResponse.status === 200 || loginResponse.status === 201) {
       adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-    } else {
-      adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+    }
+
+    if (!adminToken) {
+      adminToken = signTestToken(adminUser);
     }
   });
 
@@ -241,6 +246,22 @@ describe('Assignments API Integration Tests', () => {
     });
 
     it('should reject assignment creation without admin role', async () => {
+      const timestamp = Date.now();
+      const restrictedJudge = await prisma.judge.create({
+        data: {
+          name: 'Restricted Role Judge',
+          email: `restricted-judge-${timestamp}@assignmenttest.com`,
+          tenantId,
+        },
+      });
+      const restrictedCategory = await prisma.category.create({
+        data: {
+          name: `category-test-restricted-${timestamp}`,
+          contestId: testContest.id,
+          description: 'Restricted role category',
+          tenantId,
+        },
+      });
       const regularUser = await prisma.user.create({
         data: {
           email: 'user@assignmenttest.com',
@@ -249,18 +270,15 @@ describe('Assignments API Integration Tests', () => {
           role: 'CONTESTANT',
           isActive: true,
           sessionVersion: 1,
+          tenantId,
         }
       });
 
-      const userToken = jwt.sign(
-        { userId: regularUser.id, role: regularUser.role },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+      const userToken = signTestToken(regularUser);
 
       const assignmentData = {
-        categoryId: testCategory.id,
-        judgeId: testJudge.id,
+        categoryId: restrictedCategory.id,
+        judgeId: restrictedJudge.id,
       };
 
       const response = await request(app)
@@ -271,6 +289,7 @@ describe('Assignments API Integration Tests', () => {
       expect([401, 403]).toContain(response.status);
 
       await prisma.user.delete({ where: { id: regularUser.id } }).catch(() => {});
+      await prisma.judge.delete({ where: { id: restrictedJudge.id } }).catch(() => {});
     });
   });
 

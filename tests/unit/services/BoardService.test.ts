@@ -183,7 +183,7 @@ describe('BoardService', () => {
       prismaMock.category.findFirst.mockResolvedValue(categoryRecord as any);
       prismaMock.certification.upsert.mockResolvedValue(syncedCertification as any);
       prismaMock.categoryJudge.findMany.mockResolvedValue([]);
-      prismaMock.assignment.groupBy.mockResolvedValue([]);
+      (prismaMock.assignment.groupBy as unknown as jest.Mock<any>).mockResolvedValue([]);
       prismaMock.judgeCertification.findMany.mockResolvedValue([]);
       prismaMock.certification.update
         .mockResolvedValueOnce(syncedCertification as any)
@@ -261,7 +261,7 @@ describe('BoardService', () => {
         status: 'PENDING',
       } as any);
       prismaMock.categoryJudge.findMany.mockResolvedValue([]);
-      prismaMock.assignment.groupBy.mockResolvedValue([]);
+      (prismaMock.assignment.groupBy as unknown as jest.Mock<any>).mockResolvedValue([]);
       prismaMock.judgeCertification.findMany.mockResolvedValue([]);
       prismaMock.categoryCertification.findMany.mockResolvedValue([]);
       prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([]);
@@ -311,7 +311,7 @@ describe('BoardService', () => {
         status: 'CERTIFIED',
       } as any);
       prismaMock.categoryJudge.findMany.mockResolvedValue([]);
-      prismaMock.assignment.groupBy.mockResolvedValue([]);
+      (prismaMock.assignment.groupBy as unknown as jest.Mock<any>).mockResolvedValue([]);
       prismaMock.judgeCertification.findMany.mockResolvedValue([]);
       prismaMock.categoryCertification.findMany.mockResolvedValue([]);
       prismaMock.tallyMasterAssignment.findMany.mockResolvedValue([]);
@@ -560,11 +560,11 @@ describe('BoardService', () => {
     it('should update isActive status', async () => {
       prismaMock.emceeScript.update.mockResolvedValue({} as any);
 
-      await service.updateEmceeScript('s1', { isActive: false });
+      await service.updateEmceeScript('s1', { isActive: false } as any);
 
       expect(prismaMock.emceeScript.update).toHaveBeenCalledWith({
         where: { id: 's1' },
-        data: { isActive: false },
+        data: { isActive: false } as any,
       });
     });
 
