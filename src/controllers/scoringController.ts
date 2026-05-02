@@ -711,7 +711,11 @@ export class ScoringController {
         });
       }
 
-      log.info('Category scores certified successfully', { categoryId, certified: result.certified });
+      log.info('Category scores certified successfully', {
+        categoryId,
+        certified: result.certified,
+        certifiedCount: result.certifiedCount
+      });
       sendSuccess(res, result);
     } catch (error) {
       log.error('Certify scores error', { error: (error as Error).message, categoryId: req.params['categoryId'] });

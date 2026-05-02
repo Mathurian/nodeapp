@@ -477,10 +477,10 @@ const PermissionsPage: React.FC = () => {
               </div>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-permissionspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Reason for Change (Optional but Recommended)
               </label>
-              <textarea
+              <textarea id="pages-permissionspage-1"
                 value={updateReason}
                 onChange={(e) => setUpdateReason(e.target.value)}
                 rows={3}

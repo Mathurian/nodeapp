@@ -10,6 +10,7 @@ import { StructureCopyService } from '../services/StructureCopyService';
 import { sendSuccess, sendCreated, sendNoContent, sendError } from '../utils/responseHelpers';
 import { PrismaClient } from '@prisma/client';
 import { resolveRequestTenantId } from '../utils/tenantContext';
+import { z } from 'zod';
 
 export class CategoriesController {
   private categoryService: CategoryService;
@@ -250,6 +251,9 @@ export class CategoriesController {
       const contestId = req.params['contestId'] || req.body['contestId'];
       if (!contestId) {
         return sendError(res, 'Contest ID is required', 400);
+      }
+      if (!z.string().cuid().safeParse(contestId).success) {
+        return sendError(res, 'Invalid contest ID format', 400);
       }
       const tenantId = req.tenantId || req.user?.tenantId;
       if (!tenantId) {

@@ -120,7 +120,7 @@ const registerPwa = () => {
     },
     onRegisterError(error) {
       if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
+         
         console.error('PWA service worker registration failed', error)
       }
     }

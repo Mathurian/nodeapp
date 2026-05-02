@@ -100,6 +100,20 @@ async function cleanupBackgroundResources(): Promise<void> {
     cleanupTasks.push(idempotencyStoreModule.disconnectIdempotencyStoreCache());
   }
 
+  const containerModule = requireLoadedModule<{
+    container?: { isRegistered?: (token: unknown) => boolean; resolve?: <T>(token: unknown) => T };
+  }>('../src/config/container');
+  const metricsModule = requireLoadedModule<{
+    MetricsService?: new (...args: unknown[]) => { destroy?: () => void };
+  }>('../src/services/MetricsService');
+  if (
+    containerModule?.container?.resolve &&
+    metricsModule?.MetricsService &&
+    (containerModule.container.isRegistered?.(metricsModule.MetricsService) ?? true)
+  ) {
+    containerModule.container.resolve<{ destroy?: () => void }>(metricsModule.MetricsService)?.destroy?.();
+  }
+
   const databaseModule = requireLoadedModule<{
     rawPrisma?: { $disconnect?: () => Promise<void> };
   }>('../src/config/database');

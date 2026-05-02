@@ -651,10 +651,10 @@ const RateLimitConfigPage: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-ratelimitconfigpage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Configuration Name *
                   </label>
-                  <input
+                  <input id="pages-ratelimitconfigpage-1"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -665,10 +665,10 @@ const RateLimitConfigPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-ratelimitconfigpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Description
                   </label>
-                  <textarea
+                  <textarea id="pages-ratelimitconfigpage-2"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Optional description"
@@ -685,10 +685,10 @@ const RateLimitConfigPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Tier
                     </label>
-                    <select
+                    <select id="pages-ratelimitconfigpage-3"
                       value={formData.tier}
                       onChange={(e) => {
                         const value = e.target.value
@@ -705,10 +705,10 @@ const RateLimitConfigPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Tenant ID
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-4"
                       type="text"
                       value={formData.tenantId}
                       onChange={(e) => setFormData({ ...formData, tenantId: e.target.value })}
@@ -720,10 +720,10 @@ const RateLimitConfigPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       User ID
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-5"
                       type="text"
                       value={formData.userId}
                       onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
@@ -733,10 +733,10 @@ const RateLimitConfigPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Endpoint
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-6"
                       type="text"
                       value={formData.endpoint}
                       onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
@@ -754,10 +754,10 @@ const RateLimitConfigPage: React.FC = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Requests/Hour
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-7"
                       type="number"
                       value={formData.requestsPerHour}
                       onChange={(e) => setFormData({ ...formData, requestsPerHour: parseInt(e.target.value) || 0 })}
@@ -768,10 +768,10 @@ const RateLimitConfigPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Requests/Minute
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-8"
                       type="number"
                       value={formData.requestsPerMinute}
                       onChange={(e) => setFormData({ ...formData, requestsPerMinute: parseInt(e.target.value) || 0 })}
@@ -782,10 +782,10 @@ const RateLimitConfigPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Burst Limit
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-9"
                       type="number"
                       value={formData.burstLimit}
                       onChange={(e) => setFormData({ ...formData, burstLimit: parseInt(e.target.value) || 0 })}
@@ -798,10 +798,10 @@ const RateLimitConfigPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-ratelimitconfigpage-10" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Priority (higher = takes precedence)
                     </label>
-                    <input
+                    <input id="pages-ratelimitconfigpage-10"
                       type="number"
                       value={formData.priority}
                       onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}

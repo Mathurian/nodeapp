@@ -50,10 +50,10 @@ const TenantReassignModal: React.FC<TenantReassignModalProps> = ({
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="components-users-tenantreassignmodal-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Select Tenant <span className="text-red-500">*</span>
             </label>
-            <select
+            <select id="components-users-tenantreassignmodal-1"
               required
               value={selectedTenantId}
               onChange={(e) => onTenantChange(e.target.value)}

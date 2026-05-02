@@ -104,13 +104,13 @@ const EditModal: React.FC<EditModalProps> = ({
 
               return (
                 <div key={column}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-databasebrowserpage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {column}
                     {isProtected && (
                       <span className="ml-2 text-xs text-gray-400">(read-only)</span>
                     )}
                   </label>
-                  <input
+                  <input id="pages-databasebrowserpage-1"
                     type="text"
                     value={value !== null && value !== undefined ? String(value) : ''}
                     onChange={(e) =>

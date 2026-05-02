@@ -282,10 +282,10 @@ const BiosPage: React.FC = () => {
           icon={UserCircleIcon}
         />
         <div className="w-full sm:w-80">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="pages-biospage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Filter by Contest
           </label>
-          <select
+          <select id="pages-biospage-1"
             value={selectedContestId}
             onChange={(e) => setSelectedContestId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
@@ -315,7 +315,7 @@ const BiosPage: React.FC = () => {
       {showJudgesTab && (
         <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="overflow-x-auto">
-            <nav className="-mb-px flex min-w-max gap-6 pr-2" role="tablist" aria-label="Bio directory role tabs">
+            <div className="-mb-px flex min-w-max gap-6 pr-2" role="tablist" aria-label="Bio directory role tabs">
             {roleTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -333,7 +333,7 @@ const BiosPage: React.FC = () => {
                 {tab.label} ({tab.count})
               </button>
             ))}
-            </nav>
+            </div>
           </div>
         </div>
       )}

@@ -259,13 +259,13 @@ test.describe('Certification E2E Tests', () => {
     const contestantContext = await createAuthContext(browser, testData.users.contestant.email, 'password123', testData.tenant.slug);
     const { page } = contestantContext;
 
-    await navigateAndWait(page, '/judge/certification-workflow');
+    await navigateAndWait(page, '/certifications');
     await page.waitForTimeout(2000);
 
-    // Should either be denied or not show certification actions
+    // Contestants are blocked from the current certification workspace.
     const currentUrl = page.url();
-    const isUnauthorized = await page.locator('h1:has-text("Unauthorized"), h1:has-text("Access Denied")').isVisible({ timeout: 3000 }).catch(() => false);
-    const isRedirected = !currentUrl.includes('/judge/certification');
+    const isUnauthorized = await page.getByText(/Access Denied|don't have permission/i).first().isVisible({ timeout: 3000 }).catch(() => false);
+    const isRedirected = !currentUrl.includes('/certifications');
 
     expect(isUnauthorized || isRedirected).toBe(true);
 

@@ -451,10 +451,10 @@ const EmailTemplatesPage: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-emailtemplatespage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Template Name
                   </label>
-                  <input
+                  <input id="pages-emailtemplatespage-1"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -463,10 +463,10 @@ const EmailTemplatesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-emailtemplatespage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Category
                   </label>
-                  <select
+                  <select id="pages-emailtemplatespage-2"
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -480,10 +480,10 @@ const EmailTemplatesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-emailtemplatespage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Subject
                   </label>
-                  <input
+                  <input id="pages-emailtemplatespage-3"
                     type="text"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
@@ -492,10 +492,10 @@ const EmailTemplatesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-emailtemplatespage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Body
                   </label>
-                  <textarea
+                  <textarea id="pages-emailtemplatespage-4"
                     value={formData.body}
                     onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                     rows={10}
@@ -507,8 +507,8 @@ const EmailTemplatesPage: React.FC = () => {
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Look &amp; Feel</p>
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="min-w-[180px] flex-1">
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
-                      <select
+                      <label htmlFor="pages-emailtemplatespage-5" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
+                      <select id="pages-emailtemplatespage-5"
                         value={stylePreset}
                         onChange={(e) => applyStylePreset(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
@@ -534,8 +534,8 @@ const EmailTemplatesPage: React.FC = () => {
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary Color</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-6" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary Color</label>
+                      <input id="pages-emailtemplatespage-6"
                         type="color"
                         value={formData.primaryColor}
                         onChange={(e) => {
@@ -546,8 +546,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background Color</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-7" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background Color</label>
+                      <input id="pages-emailtemplatespage-7"
                         type="color"
                         value={formData.backgroundColor}
                         onChange={(e) => {
@@ -558,8 +558,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text Color</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-8" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text Color</label>
+                      <input id="pages-emailtemplatespage-8"
                         type="color"
                         value={formData.textColor}
                         onChange={(e) => {
@@ -570,8 +570,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Logo URL</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-9" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Logo URL</label>
+                      <input id="pages-emailtemplatespage-9"
                         type="url"
                         value={formData.logoUrl}
                         onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
@@ -580,8 +580,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Font Family</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-10" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Font Family</label>
+                      <input id="pages-emailtemplatespage-10"
                         type="text"
                         value={formData.fontFamily}
                         onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
@@ -590,8 +590,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Font Size</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-11" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Font Size</label>
+                      <input id="pages-emailtemplatespage-11"
                         type="text"
                         value={formData.fontSize}
                         onChange={(e) => setFormData({ ...formData, fontSize: e.target.value })}
@@ -600,8 +600,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Border Radius</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-12" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Border Radius</label>
+                      <input id="pages-emailtemplatespage-12"
                         type="text"
                         value={formData.borderRadius}
                         onChange={(e) => setFormData({ ...formData, borderRadius: e.target.value })}
@@ -610,8 +610,8 @@ const EmailTemplatesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Padding</label>
-                      <input
+                      <label htmlFor="pages-emailtemplatespage-13" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Padding</label>
+                      <input id="pages-emailtemplatespage-13"
                         type="text"
                         value={formData.padding}
                         onChange={(e) => setFormData({ ...formData, padding: e.target.value })}
@@ -622,8 +622,8 @@ const EmailTemplatesPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header HTML (optional)</label>
-                    <textarea
+                    <label htmlFor="pages-emailtemplatespage-14" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header HTML (optional)</label>
+                    <textarea id="pages-emailtemplatespage-14"
                       value={formData.headerHtml}
                       onChange={(e) => setFormData({ ...formData, headerHtml: e.target.value })}
                       rows={3}
@@ -633,8 +633,8 @@ const EmailTemplatesPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer HTML (optional)</label>
-                    <textarea
+                    <label htmlFor="pages-emailtemplatespage-15" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer HTML (optional)</label>
+                    <textarea id="pages-emailtemplatespage-15"
                       value={formData.footerHtml}
                       onChange={(e) => setFormData({ ...formData, footerHtml: e.target.value })}
                       rows={3}
@@ -728,10 +728,10 @@ const EmailTemplatesPage: React.FC = () => {
                 Send Template: {showSendModal.name}
               </h3>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-emailtemplatespage-16" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Recipients (comma or newline separated)
                 </label>
-                <textarea
+                <textarea id="pages-emailtemplatespage-16"
                   rows={3}
                   value={sendRecipients}
                   onChange={(e) => setSendRecipients(e.target.value)}
@@ -740,12 +740,12 @@ const EmailTemplatesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-emailtemplatespage-17" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Add Recipients by Role
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {['ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'EMCEE', 'CONTESTANT'].map((role) => (
-                    <label key={role} className="text-sm text-gray-700 dark:text-gray-300">
+                    <label htmlFor="pages-emailtemplatespage-17" key={role} className="text-sm text-gray-700 dark:text-gray-300">
                       <input
                         type="checkbox"
                         className="mr-2"
@@ -760,10 +760,10 @@ const EmailTemplatesPage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Template Variables (JSON)
-                </label>
-                <textarea
+                </span>
+                <textarea id="pages-emailtemplatespage-17"
                   rows={4}
                   value={sendVariables}
                   onChange={(e) => setSendVariables(e.target.value)}

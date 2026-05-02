@@ -347,8 +347,8 @@ const ReportsPage: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generate Report</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
-              <select
+              <label htmlFor="pages-reportspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+              <select id="pages-reportspage-1"
                 value={type}
                 onChange={(e) => setType(e.target.value as ReportType)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
@@ -361,8 +361,8 @@ const ReportsPage: React.FC = () => {
 
             {type === 'event' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
-                <select
+                <label htmlFor="pages-reportspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
+                <select id="pages-reportspage-2"
                   value={eventId}
                   onChange={(e) => setEventId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
@@ -377,8 +377,8 @@ const ReportsPage: React.FC = () => {
 
             {type === 'contest' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest</label>
-                <select
+                <label htmlFor="pages-reportspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest</label>
+                <select id="pages-reportspage-3"
                   value={contestId}
                   onChange={(e) => setContestId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
@@ -467,7 +467,7 @@ const ReportsPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
               />
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="pages-reportspage-4" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   <input
                     type="checkbox"
                     checked={useStyledEmail}
@@ -481,8 +481,8 @@ const ReportsPage: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="min-w-[180px] flex-1">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
-                        <select
+                        <label htmlFor="pages-reportspage-4" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
+                        <select id="pages-reportspage-4"
                           value={emailStylePreset}
                           onChange={(e) => applyEmailStylePreset(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
@@ -508,8 +508,8 @@ const ReportsPage: React.FC = () => {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
-                      <input
+                      <label htmlFor="pages-reportspage-5" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
+                      <input id="pages-reportspage-5"
                         type="text"
                         value={emailStyle.headerTitle}
                         onChange={(e) => updateEmailStyle({ headerTitle: e.target.value })}
@@ -517,8 +517,8 @@ const ReportsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer text</label>
-                      <input
+                      <label htmlFor="pages-reportspage-6" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer text</label>
+                      <input id="pages-reportspage-6"
                         type="text"
                         value={emailStyle.footerText}
                         onChange={(e) => updateEmailStyle({ footerText: e.target.value })}
@@ -526,8 +526,8 @@ const ReportsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary color</label>
-                      <input
+                      <label htmlFor="pages-reportspage-7" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary color</label>
+                      <input id="pages-reportspage-7"
                         type="color"
                         value={emailStyle.primaryColor}
                         onChange={(e) => updateEmailStyle({ primaryColor: e.target.value })}
@@ -535,8 +535,8 @@ const ReportsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background color</label>
-                      <input
+                      <label htmlFor="pages-reportspage-8" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background color</label>
+                      <input id="pages-reportspage-8"
                         type="color"
                         value={emailStyle.backgroundColor}
                         onChange={(e) => updateEmailStyle({ backgroundColor: e.target.value })}
@@ -544,8 +544,8 @@ const ReportsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text color</label>
-                      <input
+                      <label htmlFor="pages-reportspage-9" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text color</label>
+                      <input id="pages-reportspage-9"
                         type="color"
                         value={emailStyle.textColor}
                         onChange={(e) => updateEmailStyle({ textColor: e.target.value })}

@@ -510,10 +510,10 @@ const LoginPage: React.FC = () => {
 
                 {!mfaRequiresSetup && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="pages-loginpage-1" className="block text-sm font-medium text-gray-700 mb-2">
                       MFA Provider
                     </label>
-                    <select
+                    <select id="pages-loginpage-1"
                       value={mfaSelectedProvider}
                       onChange={(e) => {
                         setMfaSelectedProvider(e.target.value as 'TOTP' | 'SMS' | 'EMAIL')
@@ -553,10 +553,10 @@ const LoginPage: React.FC = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="pages-loginpage-2" className="block text-sm font-medium text-gray-700 mb-2">
                     MFA Verification Code
                   </label>
-                  <input
+                  <input id="pages-loginpage-2"
                     type="text"
                     value={mfaCode}
                     onChange={(e) => setMfaCode(e.target.value)}

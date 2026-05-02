@@ -269,9 +269,6 @@ export interface CacheStats {
   roleStats: Record<string, boolean>;
 }
 
-// Export all types as a namespace for easier imports
-export namespace API {
-  export type Response<T = any> = ApiResponse<T>;
-  export type Paginated<T> = PaginatedResponse<T>;
-  export type Error = ApiError;
-}
+export type APIResponse<T = any> = ApiResponse<T>;
+export type APIPaginated<T> = PaginatedResponse<T>;
+export type APIError = ApiError;

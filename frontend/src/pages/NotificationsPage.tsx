@@ -1130,7 +1130,11 @@ const NotificationsPage: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex gap-2 ml-4"
+                      role="presentation"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {filter === 'deleted' ? (
                         <>
                           <button

@@ -187,6 +187,7 @@ const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
             ref={containerRef}
             className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
             style={{ minWidth: '100%' }}
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Scrollable regions need keyboard focus so users can pan wide tables.
             tabIndex={scrollState.hasOverflow ? 0 : undefined}
             role={scrollState.hasOverflow ? 'region' : undefined}
             aria-label={scrollState.hasOverflow ? 'Scrollable table' : undefined}

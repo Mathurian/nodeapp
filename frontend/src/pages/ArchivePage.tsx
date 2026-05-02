@@ -292,9 +292,9 @@ const ArchivePage: React.FC = () => {
                     <div className="space-y-3">
                       {/* Name */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Name
-                        </label>
+                        </span>
                         <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
                           {viewingItem.originalData.name || '-'}
                         </div>
@@ -303,9 +303,9 @@ const ArchivePage: React.FC = () => {
                       {/* Description */}
                       {viewingItem.originalData.description && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Description
-                          </label>
+                          </span>
                           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
                             {viewingItem.originalData.description}
                           </div>
@@ -317,9 +317,9 @@ const ArchivePage: React.FC = () => {
                         <>
                           {viewingItem.originalData.startDate && (
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Start Date
-                              </label>
+                              </span>
                               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
                                 {safeFormatDate(viewingItem.originalData.startDate, 'PPP')}
                               </div>
@@ -327,9 +327,9 @@ const ArchivePage: React.FC = () => {
                           )}
                           {viewingItem.originalData.endDate && (
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 End Date
-                              </label>
+                              </span>
                               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
                                 {safeFormatDate(viewingItem.originalData.endDate, 'PPP')}
                               </div>
@@ -337,9 +337,9 @@ const ArchivePage: React.FC = () => {
                           )}
                           {viewingItem.originalData.location && (
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Location
-                              </label>
+                              </span>
                               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
                                 {viewingItem.originalData.location}
                               </div>
@@ -351,9 +351,9 @@ const ArchivePage: React.FC = () => {
                       {/* Category-specific fields */}
                       {viewingItem.type === 'CATEGORY' && viewingItem.originalData.scoreCap && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Score Cap
-                          </label>
+                          </span>
                           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">
                             {viewingItem.originalData.scoreCap}
                           </div>

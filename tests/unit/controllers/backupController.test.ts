@@ -330,6 +330,7 @@ describe('BackupController', () => {
       await backupController.listBackups(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.backupLog.findMany).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1' },
         orderBy: { createdAt: 'desc' },
       });
       expect(sendSuccess).toHaveBeenCalledWith(
@@ -397,7 +398,7 @@ describe('BackupController', () => {
       await backupController.downloadBackup(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockPrisma.backupLog.findFirst).toHaveBeenCalledWith({
-        where: { id: 'backup-1' },
+        where: { id: 'backup-1', tenantId: 'tenant-1' },
       });
       expect(mockRes.download).toHaveBeenCalledWith(
         mockBackup.location,
@@ -595,6 +596,8 @@ describe('BackupController', () => {
       ];
 
       mockPrisma.backupSetting.findMany.mockResolvedValue(mockSettings as any);
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
+      mockReq.query = { global: 'true' };
 
       await backupController.getBackupSettings(mockReq as Request, mockRes as Response, mockNext);
 
@@ -619,6 +622,8 @@ describe('BackupController', () => {
       const error: any = new Error('Table does not exist');
       error.code = 'P2021';
       mockPrisma.backupSetting.findMany.mockRejectedValue(error);
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
+      mockReq.query = { global: 'true' };
 
       await backupController.getBackupSettings(mockReq as Request, mockRes as Response, mockNext);
 
@@ -633,6 +638,8 @@ describe('BackupController', () => {
     it('should handle table not exist error message', async () => {
       const error = new Error('Table backupSetting does not exist');
       mockPrisma.backupSetting.findMany.mockRejectedValue(error);
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
+      mockReq.query = { global: 'true' };
 
       await backupController.getBackupSettings(mockReq as Request, mockRes as Response, mockNext);
 
@@ -647,6 +654,8 @@ describe('BackupController', () => {
     it('should call next with error for other errors', async () => {
       const error = new Error('Database connection error');
       mockPrisma.backupSetting.findMany.mockRejectedValue(error);
+      mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
+      mockReq.query = { global: 'true' };
 
       await backupController.getBackupSettings(mockReq as Request, mockRes as Response, mockNext);
 
@@ -662,6 +671,7 @@ describe('BackupController', () => {
         frequency: 'DAILY',
       };
       mockReq.user = { id: 'super-1', role: 'SUPER_ADMIN', tenantId: 'tenant-1' } as any;
+      mockReq.query = { global: 'true' };
       mockPrisma.backupSetting.findFirst.mockResolvedValue(null);
       mockPrisma.backupSetting.create.mockResolvedValue({ id: 'setting-1', ...mockReq.body } as any);
 
@@ -682,6 +692,7 @@ describe('BackupController', () => {
         enabled: true,
         frequency: 'DAILY',
       };
+      mockReq.query = { global: 'true' };
       mockPrisma.backupSetting.findFirst.mockResolvedValue(null);
       mockPrisma.backupSetting.create.mockRejectedValue(error);
 

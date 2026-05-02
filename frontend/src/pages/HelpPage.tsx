@@ -350,10 +350,10 @@ The sidebar now reflects the documentation available for your role (${user.role}
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-helppage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Email
                 </label>
-                <input
+                <input id="pages-helppage-1"
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
@@ -364,10 +364,10 @@ The sidebar now reflects the documentation available for your role (${user.role}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-helppage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Password
                 </label>
-                <input
+                <input id="pages-helppage-2"
                   type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
@@ -624,7 +624,15 @@ The sidebar now reflects the documentation available for your role (${user.role}
                     },
                     pre: ({node, ...props}) => <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto mb-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100" {...props} />,
                     blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-600 dark:text-gray-400 mb-4 py-2" {...props} />,
-                    a: ({node, ...props}) => <a className="text-blue-600 dark:text-blue-400 hover:underline font-medium" {...props} />,
+                    a: ({node, children, ...props}) => (
+                      <a
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                        aria-label={typeof children === 'string' ? undefined : props.href}
+                        {...props}
+                      >
+                        {children || props.href}
+                      </a>
+                    ),
                     strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-white" {...props} />,
                     hr: ({node, ...props}) => <hr className="my-8 border-gray-300 dark:border-gray-600" {...props} />,
                     table: ({node, ...props}) => (

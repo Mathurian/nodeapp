@@ -22,6 +22,34 @@ describe('Categories API Integration Tests', () => {
   let testCategoryId: string;
   let tenantId: string;
 
+  const issueAdminToken = () =>
+    jwt.sign(
+      {
+        userId: adminUser.id,
+        role: adminUser.role,
+        tenantId,
+        sessionVersion: adminUser.sessionVersion || 1,
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+  const refreshAdminToken = async () => {
+    const loginResponse = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'admin@categorytest.com',
+        password: 'password123',
+      });
+
+    if (loginResponse.status === 200 || loginResponse.status === 201) {
+      adminToken = loginResponse.body.data?.token || loginResponse.body.token || issueAdminToken();
+      return;
+    }
+
+    adminToken = issueAdminToken();
+  };
+
   // ============================================================================
   // SETUP & TEARDOWN
   // ============================================================================
@@ -98,24 +126,7 @@ describe('Categories API Integration Tests', () => {
       }
     });
 
-    // Login as admin to get token
-    const loginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'admin@categorytest.com',
-        password: 'password123'
-      });
-
-    if (loginResponse.status === 200 || loginResponse.status === 201) {
-      adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-    } else {
-      // Fallback: generate token manually
-      adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    }
+    await refreshAdminToken();
   });
 
   afterAll(async () => {
@@ -163,15 +174,7 @@ describe('Categories API Integration Tests', () => {
     beforeEach(async () => {
       // Ensure admin token is valid
       if (!adminToken) {
-        const loginResponse = await request(app)
-          .post('/api/auth/login')
-          .send({
-            email: 'admin@categorytest.com',
-            password: 'password123'
-          });
-        if (loginResponse.status === 200 || loginResponse.status === 201) {
-          adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-        }
+        await refreshAdminToken();
       }
     });
 
@@ -191,35 +194,20 @@ describe('Categories API Integration Tests', () => {
 
       // Handle auth failures by refreshing token
       if (response.status === 401 || response.status === 403) {
-        const loginResponse = await request(app)
-          .post('/api/auth/login')
-          .send({
-            email: 'admin@categorytest.com',
-            password: 'password123'
-          });
-        if (loginResponse.status === 200 || loginResponse.status === 201) {
-          adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-          const retryResponse = await request(app)
-            .post(`/api/categories/contest/${testContest.id}`)
-            .set('Authorization', `Bearer ${adminToken}`)
-            .send(categoryData);
-          // If retry also fails with auth, skip this test
-          if (retryResponse.status === 401 || retryResponse.status === 403) {
-            console.warn('Category creation test skipped: Authentication issue persists');
-            return;
-          }
-          expect([200, 201]).toContain(retryResponse.status);
-          if (retryResponse.status === 200 || retryResponse.status === 201) {
-            expect(retryResponse.body).toHaveProperty('success', true);
-            expect(retryResponse.body).toHaveProperty('data');
-            expect(retryResponse.body.data).toHaveProperty('id');
-            testCategoryId = retryResponse.body.data.id;
-          }
-          return;
-        } else {
-          console.warn('Skipping test: Unable to authenticate admin user');
-          return;
+        await refreshAdminToken();
+        const retryResponse = await request(app)
+          .post(`/api/categories/contest/${testContest.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(categoryData);
+
+        expect([200, 201]).toContain(retryResponse.status);
+        if (retryResponse.status === 200 || retryResponse.status === 201) {
+          expect(retryResponse.body).toHaveProperty('success', true);
+          expect(retryResponse.body).toHaveProperty('data');
+          expect(retryResponse.body.data).toHaveProperty('id');
+          testCategoryId = retryResponse.body.data.id;
         }
+        return;
       }
 
       expect([200, 201]).toContain(response.status);
@@ -455,11 +443,12 @@ describe('Categories API Integration Tests', () => {
       expect([200, 204, 401, 403, 404]).toContain(response.status);
 
       if (response.status === 200 || response.status === 204) {
-        // Verify deletion
+        // Category deletion is a soft delete.
         const deleted = await prisma.category.findUnique({
           where: { id: tempCategory.id },
         });
-        expect(deleted).toBeNull();
+        expect(deleted).not.toBeNull();
+        expect(deleted?.deletedAt).toBeInstanceOf(Date);
       } else {
         // Cleanup if deletion failed
         await prisma.category.delete({ where: { id: tempCategory.id } }).catch(() => {});

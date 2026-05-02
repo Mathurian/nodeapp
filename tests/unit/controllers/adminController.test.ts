@@ -171,7 +171,7 @@ describe('AdminController', () => {
       await controller.getDatabaseTables(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockAdminService.getDatabaseTables).toHaveBeenCalledWith({
-        tenantId: undefined,
+        tenantId: 'tenant-1',
         isSuperAdmin: false,
         forceTenantScope: false,
       });
@@ -234,7 +234,7 @@ describe('AdminController', () => {
         25,
         'createdAt',
         'desc',
-        { tenantId: undefined, isSuperAdmin: false, forceTenantScope: false }
+        { tenantId: 'tenant-1', isSuperAdmin: false, forceTenantScope: false }
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockData);
     });
@@ -252,7 +252,7 @@ describe('AdminController', () => {
         50,
         undefined,
         'asc',
-        { tenantId: undefined, isSuperAdmin: false, forceTenantScope: false }
+        { tenantId: 'tenant-1', isSuperAdmin: false, forceTenantScope: false }
       );
     });
 
@@ -327,7 +327,7 @@ describe('AdminController', () => {
 
       expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
         { limit: 50, page: 1 },
-        { tenantId: undefined, isSuperAdmin: false }
+        { tenantId: 'tenant-1', isSuperAdmin: false }
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
@@ -340,7 +340,7 @@ describe('AdminController', () => {
 
       expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
         { limit: undefined, page: undefined },
-        { tenantId: undefined, isSuperAdmin: false }
+        { tenantId: 'tenant-1', isSuperAdmin: false }
       );
     });
   });
@@ -579,7 +579,7 @@ describe('AdminController', () => {
 
       expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
         { limit: 200, page: 2 },
-        { tenantId: undefined, isSuperAdmin: false }
+        { tenantId: 'tenant-1', isSuperAdmin: false }
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
     });
@@ -592,7 +592,7 @@ describe('AdminController', () => {
 
       expect(mockAdminService.getActivityLogs).toHaveBeenCalledWith(
         { limit: undefined, page: undefined },
-        { tenantId: undefined, isSuperAdmin: false }
+        { tenantId: 'tenant-1', isSuperAdmin: false }
       );
     });
   });
@@ -606,7 +606,7 @@ describe('AdminController', () => {
       await controller.getAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(150, {
-        tenantId: undefined,
+        tenantId: 'tenant-1',
         isSuperAdmin: false,
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockLogs);
@@ -619,7 +619,7 @@ describe('AdminController', () => {
       await controller.getAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(100, {
-        tenantId: undefined,
+        tenantId: 'tenant-1',
         isSuperAdmin: false,
       });
     });
@@ -644,7 +644,7 @@ describe('AdminController', () => {
       await controller.exportAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(500, {
-        tenantId: undefined,
+        tenantId: 'tenant-1',
         isSuperAdmin: false,
       });
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
@@ -673,7 +673,7 @@ describe('AdminController', () => {
       await controller.exportAuditLogs(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockAdminService.getAuditLogs).toHaveBeenCalledWith(1000, {
-        tenantId: undefined,
+        tenantId: 'tenant-1',
         isSuperAdmin: false,
       });
     });
@@ -757,9 +757,9 @@ describe('AdminController', () => {
 
       await controller.forceLogoutUser(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({ where: { id: 'user-1' } });
+      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({ where: { id: 'user-1', tenantId: 'tenant-1' } });
       expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
+        where: { id: 'user-1', tenantId: 'tenant-1' },
         data: {
           sessionVersion: {
             increment: 1,

@@ -692,19 +692,28 @@ export class TestDataFactory {
         });
       }
 
-      if (this.tracker.users.length > 0) {
-        // Don't delete users belonging to 'default' tenant (shared across tests)
-        const defaultTenant = await this.prisma.tenant.findUnique({
-          where: { slug: 'default' },
-          select: { id: true },
-        });
+      const defaultTenant = await this.prisma.tenant.findUnique({
+        where: { slug: 'default' },
+        select: { id: true },
+      });
+      let cleanedUsers = 0;
+      let preservedDefaultTenantUsers = 0;
 
+      if (this.tracker.users.length > 0) {
+        // Don't delete users belonging to 'default' tenant (shared across tests).
         const whereClause: any = { id: { in: this.tracker.users } };
         if (defaultTenant) {
           whereClause.tenantId = { not: defaultTenant.id };
+          preservedDefaultTenantUsers = await this.prisma.user.count({
+            where: {
+              id: { in: this.tracker.users },
+              tenantId: defaultTenant.id,
+            },
+          });
         }
 
-        await this.prisma.user.deleteMany({ where: whereClause });
+        const deleteResult = await this.prisma.user.deleteMany({ where: whereClause });
+        cleanedUsers = deleteResult.count;
       }
 
       if (this.tracker.tenants.length > 0) {
@@ -725,7 +734,10 @@ export class TestDataFactory {
       }
 
       console.log(`✅ Cleanup complete for ${this.testPrefix}`);
-      console.log(`   - Cleaned ${this.tracker.users.length} users`);
+      console.log(`   - Cleaned ${cleanedUsers} users`);
+      if (preservedDefaultTenantUsers > 0) {
+        console.log(`   - Preserved ${preservedDefaultTenantUsers} default-tenant users`);
+      }
       console.log(`   - Cleaned ${this.tracker.events.length} events`);
       console.log(`   - Cleaned ${this.tracker.contests.length} contests`);
       console.log(`   - Cleaned ${this.tracker.categories.length} categories`);
@@ -755,9 +767,17 @@ export class TestDataFactory {
    * Verify cleanup was successful
    */
   async verifyCleanup(): Promise<boolean> {
+    const defaultTenant = await this.prisma.tenant.findUnique({
+      where: { slug: 'default' },
+      select: { id: true },
+    });
+
     const counts = {
       users: await this.prisma.user.count({
-        where: { id: { in: this.tracker.users } },
+        where: {
+          id: { in: this.tracker.users },
+          ...(defaultTenant ? { tenantId: { not: defaultTenant.id } } : {}),
+        },
       }),
       events: await this.prisma.event.count({
         where: { id: { in: this.tracker.events } },
@@ -769,7 +789,10 @@ export class TestDataFactory {
         where: { id: { in: this.tracker.categories } },
       }),
       tenants: await this.prisma.tenant.count({
-        where: { id: { in: this.tracker.tenants } },
+        where: {
+          id: { in: this.tracker.tenants },
+          slug: { not: 'default' },
+        },
       }),
     };
 
@@ -777,7 +800,7 @@ export class TestDataFactory {
 
     if (totalRemaining > 0) {
       console.error(`⚠️  Cleanup verification failed. Remaining records:`, counts);
-      return false;
+      throw new Error(`Cleanup verification failed for ${this.testPrefix}: ${JSON.stringify(counts)}`);
     }
 
     return true;

@@ -267,15 +267,17 @@ describe('ScoringService', () => {
           certifiedBy: 'admin-1'
         })
       });
-      expect(result.certified).toBe(5);
+      expect(result.certified).toBe(true);
+      expect(result.certifiedCount).toBe(5);
     });
 
-    it('should return zero when no uncertified scores exist', async () => {
+    it('should return false with zero count when no uncertified scores exist', async () => {
       (mockPrisma.score.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
 
       const result = await service.certifyScores('category-1', 'admin-1', tenantId);
 
-      expect(result.certified).toBe(0);
+      expect(result.certified).toBe(false);
+      expect(result.certifiedCount).toBe(0);
     });
   });
 

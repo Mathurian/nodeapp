@@ -168,7 +168,8 @@ export interface UpdateScoreDTO {
 }
 
 export interface CertifyScoresResult {
-  certified: number;
+  certified: boolean;
+  certifiedCount: number;
 }
 
 export interface ContestStatsResult {
@@ -544,14 +545,14 @@ export class ScoringService extends BaseService {
 
       this.logInfo('Scores certified for category', {
         categoryId,
-        certified: result.count,
+        certifiedCount: result.count,
         certifiedBy
       });
 
       // P2-3: Invalidate score caches for the category
       await this.invalidateScoreCaches(categoryId);
 
-      return { certified: result.count };
+      return { certified: result.count > 0, certifiedCount: result.count };
     } catch (error) {
       this.handleError(error, { method: 'certifyScores', categoryId });
     }

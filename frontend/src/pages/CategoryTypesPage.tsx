@@ -239,10 +239,10 @@ const CategoryTypesPage: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-categorytypespage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Name
                   </label>
-                  <input
+                  <input id="pages-categorytypespage-1"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -251,10 +251,10 @@ const CategoryTypesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-categorytypespage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Description
                   </label>
-                  <textarea
+                  <textarea id="pages-categorytypespage-2"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
@@ -263,10 +263,10 @@ const CategoryTypesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-categorytypespage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Scoring Method
                   </label>
-                  <select
+                  <select id="pages-categorytypespage-3"
                     value={formData.scoringMethod}
                     onChange={(e) => setFormData({ ...formData, scoringMethod: e.target.value as any })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -279,10 +279,10 @@ const CategoryTypesPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-categorytypespage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Minimum Score
                     </label>
-                    <input
+                    <input id="pages-categorytypespage-4"
                       type="number"
                       value={formData.minScore}
                       onChange={(e) => setFormData({ ...formData, minScore: parseInt(e.target.value) })}
@@ -290,10 +290,10 @@ const CategoryTypesPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-categorytypespage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Maximum Score
                     </label>
-                    <input
+                    <input id="pages-categorytypespage-5"
                       type="number"
                       value={formData.maxScore}
                       onChange={(e) => setFormData({ ...formData, maxScore: parseInt(e.target.value) })}

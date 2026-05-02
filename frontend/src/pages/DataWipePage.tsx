@@ -106,7 +106,10 @@ const DataWipePage: React.FC = () => {
             Select Data Scope
           </h2>
           <div className="space-y-3">
-            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors">
+            <label
+              className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Events Only"
+            >
               <input
                 type="radio"
                 name="scope"
@@ -115,15 +118,18 @@ const DataWipePage: React.FC = () => {
                 onChange={(e) => setSelectedScope(e.target.value as any)}
                 className="h-4 w-4 text-red-600"
               />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white dark:text-white">Events Only</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
+              <span className="flex flex-col">
+                <span className="block font-semibold text-gray-900 dark:text-white dark:text-white">Events Only</span>
+                <span className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Delete all events, contests, categories, and related scores
-                </p>
-              </div>
+                </span>
+              </span>
             </label>
 
-            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors">
+            <label
+              className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Users Only"
+            >
               <input
                 type="radio"
                 name="scope"
@@ -132,15 +138,18 @@ const DataWipePage: React.FC = () => {
                 onChange={(e) => setSelectedScope(e.target.value as any)}
                 className="h-4 w-4 text-red-600"
               />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white dark:text-white">Users Only</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
+              <span className="flex flex-col">
+                <span className="block font-semibold text-gray-900 dark:text-white dark:text-white">Users Only</span>
+                <span className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Delete all non-admin users (keeps system administrators)
-                </p>
-              </div>
+                </span>
+              </span>
             </label>
 
-            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors">
+            <label
+              className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Scores Only"
+            >
               <input
                 type="radio"
                 name="scope"
@@ -149,15 +158,18 @@ const DataWipePage: React.FC = () => {
                 onChange={(e) => setSelectedScope(e.target.value as any)}
                 className="h-4 w-4 text-red-600"
               />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white dark:text-white">Scores Only</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
+              <span className="flex flex-col">
+                <span className="block font-semibold text-gray-900 dark:text-white dark:text-white">Scores Only</span>
+                <span className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">
                   Delete all scoring data (keeps events and users)
-                </p>
-              </div>
+                </span>
+              </span>
             </label>
 
-            <label className="flex items-center gap-3 p-4 border-2 border-red-600 rounded-lg cursor-pointer hover:bg-red-50 dark:hover:bg-red-900 transition-colors">
+            <label
+              className="flex items-center gap-3 p-4 border-2 border-red-600 rounded-lg cursor-pointer hover:bg-red-50 dark:hover:bg-red-900 transition-colors"
+              aria-label="All Data Complete Wipe"
+            >
               <input
                 type="radio"
                 name="scope"
@@ -166,14 +178,14 @@ const DataWipePage: React.FC = () => {
                 onChange={(e) => setSelectedScope(e.target.value as any)}
                 className="h-4 w-4 text-red-600"
               />
-              <div>
-                <p className="font-semibold text-red-600 dark:text-red-400">
+              <span className="flex flex-col">
+                <span className="block font-semibold text-red-600 dark:text-red-400">
                   ALL DATA (COMPLETE WIPE)
-                </p>
-                <p className="text-sm text-red-700 dark:text-red-300">
+                </span>
+                <span className="block text-sm text-red-700 dark:text-red-300">
                   Delete EVERYTHING except system administrators. Resets the system to initial state.
-                </p>
-              </div>
+                </span>
+              </span>
             </label>
           </div>
         </Card>

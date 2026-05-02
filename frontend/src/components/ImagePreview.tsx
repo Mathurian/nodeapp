@@ -225,8 +225,14 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
     <div
       ref={containerRef}
       className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center safe-area-inset"
+      role="presentation"
       onClick={(e) => {
         if (e.target === containerRef.current) {
+          onClose()
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
           onClose()
         }
       }}

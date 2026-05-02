@@ -655,10 +655,10 @@ const EventsPage: React.FC = () => {
               <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4" noValidate>
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-eventspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Event Name <span className="text-red-500 dark:text-red-400">*</span>
                   </label>
-                  <input
+                  <input id="pages-eventspage-1"
                     type="text"
                     {...register('name')}
                     className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
@@ -670,10 +670,10 @@ const EventsPage: React.FC = () => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-eventspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
-                  <textarea
+                  <textarea id="pages-eventspage-2"
                     {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -684,10 +684,10 @@ const EventsPage: React.FC = () => {
                 {/* Dates */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-eventspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Start Date <span className="text-red-500 dark:text-red-400">*</span>
                     </label>
-                    <input
+                    <input id="pages-eventspage-3"
                       type="date"
                       {...register('startDate')}
                       className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.startDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
@@ -696,10 +696,10 @@ const EventsPage: React.FC = () => {
                     {errors.startDate && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.startDate.message}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-eventspage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       End Date <span className="text-red-500 dark:text-red-400">*</span>
                     </label>
-                    <input
+                    <input id="pages-eventspage-4"
                       type="date"
                       {...register('endDate')}
                       className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.endDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
@@ -711,10 +711,10 @@ const EventsPage: React.FC = () => {
 
                 {/* Location */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-eventspage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Location
                   </label>
-                  <input
+                  <input id="pages-eventspage-5"
                     type="text"
                     {...register('location')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -723,7 +723,7 @@ const EventsPage: React.FC = () => {
                 </div>
 
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label htmlFor="pages-eventspage-6" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     <input type="checkbox" {...register('contestantViewRestricted')} />
                     Restrict contestant access to this event
                   </label>
@@ -731,10 +731,10 @@ const EventsPage: React.FC = () => {
                     Contestants only see this event once release date/time is reached.
                   </p>
                   <div className="mt-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-eventspage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Contestant Access Release Date
                     </label>
-                    <input
+                    <input id="pages-eventspage-6"
                       type="date"
                       {...register('contestantViewReleaseDate')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -744,10 +744,10 @@ const EventsPage: React.FC = () => {
 
                 {/* Scoring Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-eventspage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Scoring Type (Optional)
                   </label>
-                  <select
+                  <select id="pages-eventspage-7"
                     {...register('scoringType')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -771,10 +771,10 @@ const EventsPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-eventspage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Tally Certification Requirement
                     </label>
-                    <select
+                    <select id="pages-eventspage-8"
                       {...register('requireAllTallyCertifiers')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -784,10 +784,10 @@ const EventsPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-eventspage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Auditor Certification Requirement
                     </label>
-                    <select
+                    <select id="pages-eventspage-9"
                       {...register('requireAllAuditorCertifiers')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >

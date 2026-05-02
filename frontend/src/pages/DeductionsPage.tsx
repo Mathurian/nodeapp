@@ -584,10 +584,10 @@ const DeductionsPage: React.FC = () => {
                 </p>
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-deductionspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Your Signature
                 </label>
-                <input
+                <input id="pages-deductionspage-1"
                   type="text"
                   value={signature}
                   onChange={(e) => setSignature(e.target.value)}
@@ -633,10 +633,10 @@ const DeductionsPage: React.FC = () => {
                 Reject Deduction
               </h3>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-deductionspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Reason for Rejection
                 </label>
-                <textarea
+                <textarea id="pages-deductionspage-2"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={3}

@@ -216,10 +216,10 @@ const BackupManagementPage: React.FC = () => {
             Create New Backup
           </h2>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="pages-backupmanagementpage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Backup Destination
             </label>
-            <select
+            <select id="pages-backupmanagementpage-1"
               value={backupDestination}
               onChange={(e) => setBackupDestination(e.target.value as 'LOCAL' | 'OFF_SITE' | 'BOTH')}
               className="w-full md:w-80 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"

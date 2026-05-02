@@ -918,10 +918,10 @@ const CategoriesPage: React.FC = () => {
                     {creationMode === 'template' && (
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          <label htmlFor="pages-categoriespage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Category Template <span className="text-red-500">*</span>
                           </label>
-                          <select
+                          <select id="pages-categoriespage-1"
                             value={selectedCategoryTemplateId}
                             onChange={(e) => {
                               const templateId = e.target.value
@@ -998,10 +998,10 @@ const CategoriesPage: React.FC = () => {
 
                 {/* Contest Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-categoriespage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Contest <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <select id="pages-categoriespage-2"
                     {...register('contestId')}
                     disabled={Boolean(editingCategory) || Boolean(contestId)}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.contestId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
@@ -1020,10 +1020,10 @@ const CategoriesPage: React.FC = () => {
 
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-categoriespage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Category Name <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <input id="pages-categoriespage-3"
                     type="text"
                     {...register('name')}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
@@ -1035,10 +1035,10 @@ const CategoriesPage: React.FC = () => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-categoriespage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
-                  <textarea
+                  <textarea id="pages-categoriespage-4"
                     {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1049,10 +1049,10 @@ const CategoriesPage: React.FC = () => {
                 {/* Scoring and Limits */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-categoriespage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Score Cap
                     </label>
-                    <input
+                    <input id="pages-categoriespage-5"
                       type="number"
                       min="0"
                       {...register('scoreCap')}
@@ -1061,10 +1061,10 @@ const CategoriesPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-categoriespage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Time Limit (minutes)
                     </label>
-                    <input
+                    <input id="pages-categoriespage-6"
                       type="number"
                       min="0"
                       {...register('timeLimit')}
@@ -1077,10 +1077,10 @@ const CategoriesPage: React.FC = () => {
                 {/* Contestant Limits */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-categoriespage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Min Contestants
                     </label>
-                    <input
+                    <input id="pages-categoriespage-7"
                       type="number"
                       min="0"
                       {...register('contestantMin')}
@@ -1089,10 +1089,10 @@ const CategoriesPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-categoriespage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Max Contestants
                     </label>
-                    <input
+                    <input id="pages-categoriespage-8"
                       type="number"
                       min="0"
                       {...register('contestantMax')}
@@ -1104,7 +1104,7 @@ const CategoriesPage: React.FC = () => {
 
                 <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label htmlFor="pages-categoriespage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Criteria
                     </label>
                     <div className="flex gap-2">
@@ -1224,8 +1224,8 @@ const CategoriesPage: React.FC = () => {
                   Create a new editable copy of <span className="font-medium">{cloneSource.name}</span>. Source assignments, scores, and certifications will not be copied.
                 </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Contest</label>
-                  <select
+                  <label htmlFor="pages-categoriespage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Contest</label>
+                  <select id="pages-categoriespage-9"
                     value={cloneTargetContestId}
                     onChange={(e) => setCloneTargetContestId(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -1244,15 +1244,15 @@ const CategoriesPage: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
-                  <input
+                  <label htmlFor="pages-categoriespage-10" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
+                  <input id="pages-categoriespage-10"
                     type="text"
                     value={cloneName}
                     onChange={(e) => setCloneName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <label htmlFor="pages-categoriespage-11" className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                   <input
                     type="checkbox"
                     checked={cloneIncludeCriteria}
@@ -1292,8 +1292,8 @@ const CategoriesPage: React.FC = () => {
                   Save <span className="font-medium">{templateSource.name}</span> and its criteria as a reusable template.
                 </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template Name</label>
-                  <input
+                  <label htmlFor="pages-categoriespage-11" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template Name</label>
+                  <input id="pages-categoriespage-11"
                     type="text"
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
@@ -1301,8 +1301,8 @@ const CategoriesPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
-                  <textarea
+                  <label htmlFor="pages-categoriespage-12" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                  <textarea id="pages-categoriespage-12"
                     value={templateDescription}
                     onChange={(e) => setTemplateDescription(e.target.value)}
                     rows={3}
@@ -1356,8 +1356,8 @@ const CategoriesPage: React.FC = () => {
 
                 {importMode === 'category' ? (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source Category</label>
-                    <select
+                    <label htmlFor="pages-categoriespage-13" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source Category</label>
+                    <select id="pages-categoriespage-13"
                       value={importSourceCategoryId}
                       onChange={(e) => setImportSourceCategoryId(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -1374,8 +1374,8 @@ const CategoriesPage: React.FC = () => {
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template</label>
-                    <select
+                    <label htmlFor="pages-categoriespage-14" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template</label>
+                    <select id="pages-categoriespage-14"
                       value={importTemplateId}
                       onChange={(e) => setImportTemplateId(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

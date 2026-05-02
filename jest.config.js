@@ -102,8 +102,9 @@ module.exports = {
   // Only collect coverage when explicitly requested
   collectCoverage: false,
 
-  // Force Jest to exit after tests complete (handles hanging connections)
-  forceExit: true,
+  // Normal test runs must drain handles naturally. Use JEST_FORCE_EXIT=true
+  // only as a temporary local debugging escape hatch for a known leak.
+  forceExit: process.env.JEST_FORCE_EXIT === 'true',
 
   // Open-handle detection is expensive and retains extra state across this
   // large suite. Use JEST_DETECT_OPEN_HANDLES=true for focused leak debugging.

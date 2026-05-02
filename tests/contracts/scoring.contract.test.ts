@@ -46,6 +46,7 @@ describe('Scoring API Contract Tests', () => {
   let testCategoryId: string;
   let testJudgeId: string;
   let testContestantId: string;
+  let certificationContestantId: string;
 
   const TEST_PATTERN = 'scoring-contract-test';
 
@@ -120,6 +121,13 @@ describe('Scoring API Contract Tests', () => {
     });
     testContestantId = testContestant.id;
 
+    const certificationContestant = await createTestContestant(prisma, {
+      name: 'Scoring Contract Test Certification Contestant',
+      email: 'certification-contestant@scoring-contract-test.com',
+      contestantNumber: 2,
+    });
+    certificationContestantId = certificationContestant.id;
+
     await prisma.assignment.create({
       data: {
         judgeId: testJudgeId,
@@ -128,6 +136,17 @@ describe('Scoring API Contract Tests', () => {
         eventId: testEventId,
         assignedBy: adminUserId,
         status: 'ACTIVE',
+        tenantId: judgeUser.tenantId,
+      },
+    });
+
+    await prisma.score.create({
+      data: {
+        categoryId: testCategoryId,
+        contestantId: certificationContestantId,
+        judgeId: testJudgeId,
+        score: 85,
+        comment: 'Scoring contract certification fixture',
         tenantId: judgeUser.tenantId,
       },
     });
@@ -271,21 +290,17 @@ describe('Scoring API Contract Tests', () => {
       const response = await request(app)
         .post(`/api/scoring/category/${testCategoryId}/certify`)
         .set('Cookie', `access_token=${judgeToken}`)
-        .send({});
-
-      if (response.status === 401 || response.status === 403) {
-        console.warn('Skipping contract test: authentication issue');
-        return;
-      }
-
-      // May fail if no scores to certify, which is fine for contract test
-      if (response.status === 400 || response.status === 404) {
-        console.warn('Skipping contract test: no scores or not found');
-        return;
-      }
+        .send({ typedSignature: 'Scoring Contract Test Judge' });
 
       expect([200, 201]).toContain(response.status);
       expectResponseToMatchSchema(response.body, CertifyCategoryScoresResponseSchema);
+      expect(response.body.data).toEqual(
+        expect.objectContaining({
+          certified: true,
+          certifiedCount: expect.any(Number),
+        })
+      );
+      expect(response.body.data.certifiedCount).toBeGreaterThanOrEqual(1);
     });
 
     it('should return error response when unauthorized', async () => {

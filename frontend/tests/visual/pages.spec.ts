@@ -130,13 +130,17 @@ test.describe('Responsive Design', () => {
 
 test.describe('Dark Mode', () => {
   test('Dashboard - Dark Mode', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.addInitScript(() => {
+      localStorage.setItem('theme', 'dark');
+      document.documentElement.classList.add('dark');
+    });
     await login(page);
     await page.goto('/dashboard');
 
-    // Enable dark mode (adjust selector based on your implementation)
     await page.evaluate(() => {
-      document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
+      document.documentElement.classList.add('dark');
     });
 
     await waitForPageReady(page);

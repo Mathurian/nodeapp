@@ -320,10 +320,10 @@ const CustomFieldsPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-customfieldspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Field Name (Internal)
                     </label>
-                    <input
+                    <input id="pages-customfieldspage-1"
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -332,10 +332,10 @@ const CustomFieldsPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-customfieldspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Label (Display)
                     </label>
-                    <input
+                    <input id="pages-customfieldspage-2"
                       type="text"
                       value={formData.label}
                       onChange={(e) => setFormData({ ...formData, label: e.target.value })}
@@ -347,10 +347,10 @@ const CustomFieldsPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-customfieldspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Field Type
                     </label>
-                    <select
+                    <select id="pages-customfieldspage-3"
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -364,10 +364,10 @@ const CustomFieldsPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-customfieldspage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Entity Type
                     </label>
-                    <select
+                    <select id="pages-customfieldspage-4"
                       value={formData.entityType}
                       onChange={(e) => setFormData({ ...formData, entityType: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -382,7 +382,7 @@ const CustomFieldsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-2">
+                  <label htmlFor="pages-customfieldspage-5" className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.required}
@@ -397,7 +397,7 @@ const CustomFieldsPage: React.FC = () => {
 
                 {formData.type === 'SELECT' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-customfieldspage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Options
                     </label>
                     <div className="space-y-2">
@@ -429,10 +429,10 @@ const CustomFieldsPage: React.FC = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Default Value (Optional)
-                  </label>
-                  <input
+                  </span>
+                  <input id="pages-customfieldspage-5"
                     type="text"
                     value={formData.defaultValue}
                     onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}

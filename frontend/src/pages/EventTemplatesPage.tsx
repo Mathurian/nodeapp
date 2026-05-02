@@ -423,8 +423,8 @@ const EventTemplatesPage: React.FC = () => {
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Template Name</label>
-                  <input
+                  <label htmlFor="pages-eventtemplatespage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Template Name</label>
+                  <input id="pages-eventtemplatespage-1"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
@@ -432,8 +432,8 @@ const EventTemplatesPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                  <input
+                  <label htmlFor="pages-eventtemplatespage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                  <input id="pages-eventtemplatespage-2"
                     type="text"
                     value={formData.description}
                     onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}

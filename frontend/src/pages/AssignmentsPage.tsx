@@ -1054,50 +1054,6 @@ const AssignmentsPage: React.FC = () => {
   const isAnyMutationLoading = assignJudgeMutation.isLoading || assignContestantMutation.isLoading ||
     assignTallyMasterMutation.isLoading || assignAuditorMutation.isLoading
 
-  if (!canManageAssignments) {
-    return (
-      <div className="cgr-page-container">
-        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-          <p className="text-yellow-800 dark:text-yellow-200">
-            You don't have permission to manage assignments. Contact your administrator.
-          </p>
-        </Card>
-      </div>
-    )
-  }
-
-  const isLoading = getIsLoading()
-  const currentAssignments = getCurrentAssignments()
-  const people = getPeople()
-  const rawAssignments = getRawAssignmentsForTab()
-  const sortedTenants = stableSort(tenants, (a, b) => {
-    const byName = compareText(a.name, b.name)
-    if (byName !== 0) return byName
-    return compareText(a.id, b.id)
-  })
-  const sortedEvents = stableSort(events, (a, b) => compareEvents(a as any, b as any, 'desc'))
-  const sortedContests = stableSort(contests, compareContests)
-  const sortedCategories = stableSort(categories, compareCategories)
-  const sortedEditContests = stableSort(editContests, compareContests)
-  const sortedEditCategories = stableSort(editCategories, compareCategories)
-  const contestOptions = stableSort(Array.from(
-    new Map(
-      rawAssignments
-        .map((a: any) => ({ id: a.contest?.id || a.contestId, name: a.contest?.name }))
-        .filter((c: any) => c.id && c.name)
-        .map((c: any) => [c.id, c])
-    ).values()
-  ), compareContests)
-  const categoryOptions = stableSort(Array.from(
-    new Map(
-      rawAssignments
-        .filter((a: any) => !filterContestId || (a.contest?.id || a.contestId) === filterContestId)
-        .map((a: any) => ({ id: a.category?.id || a.categoryId, name: a.category?.name }))
-        .filter((c: any) => c.id && c.name)
-        .map((c: any) => [c.id, c])
-      ).values()
-  ), compareCategories)
-
   const judgeContestLevelCountsByJudgeEvent = useMemo(() => {
     const map = new Map<string, { count: number; judgeName: string; eventName: string; contestNames: Set<string> }>()
 
@@ -1141,6 +1097,50 @@ const AssignmentsPage: React.FC = () => {
       }))
       .sort((a, b) => compareText(a.judgeName, b.judgeName) || compareText(a.eventName, b.eventName))
   ), [judgeContestLevelCountsByJudgeEvent])
+
+  if (!canManageAssignments) {
+    return (
+      <div className="cgr-page-container">
+        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            You don't have permission to manage assignments. Contact your administrator.
+          </p>
+        </Card>
+      </div>
+    )
+  }
+
+  const isLoading = getIsLoading()
+  const currentAssignments = getCurrentAssignments()
+  const people = getPeople()
+  const rawAssignments = getRawAssignmentsForTab()
+  const sortedTenants = stableSort(tenants, (a, b) => {
+    const byName = compareText(a.name, b.name)
+    if (byName !== 0) return byName
+    return compareText(a.id, b.id)
+  })
+  const sortedEvents = stableSort(events, (a, b) => compareEvents(a as any, b as any, 'desc'))
+  const sortedContests = stableSort(contests, compareContests)
+  const sortedCategories = stableSort(categories, compareCategories)
+  const sortedEditContests = stableSort(editContests, compareContests)
+  const sortedEditCategories = stableSort(editCategories, compareCategories)
+  const contestOptions = stableSort(Array.from(
+    new Map(
+      rawAssignments
+        .map((a: any) => ({ id: a.contest?.id || a.contestId, name: a.contest?.name }))
+        .filter((c: any) => c.id && c.name)
+        .map((c: any) => [c.id, c])
+    ).values()
+  ), compareContests)
+  const categoryOptions = stableSort(Array.from(
+    new Map(
+      rawAssignments
+        .filter((a: any) => !filterContestId || (a.contest?.id || a.contestId) === filterContestId)
+        .map((a: any) => ({ id: a.category?.id || a.categoryId, name: a.category?.name }))
+        .filter((c: any) => c.id && c.name)
+        .map((c: any) => [c.id, c])
+      ).values()
+  ), compareCategories)
 
   return (
     <div className="cgr-page-container space-y-6">
@@ -1194,8 +1194,8 @@ const AssignmentsPage: React.FC = () => {
 
           {isSuperAdmin && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Tenant</label>
-              <select
+              <label htmlFor="pages-assignmentspage-1" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Tenant</label>
+              <select id="pages-assignmentspage-1"
                 value={selectedTenantId}
                 onChange={(e) => setSelectedTenantId(e.target.value)}
                 className="w-full md:w-80 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -1526,10 +1526,10 @@ const AssignmentsPage: React.FC = () => {
                 {/* Tenant Selector (SUPER_ADMIN only) */}
                 {isSuperAdmin && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-assignmentspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Filter by Tenant
                     </label>
-                    <select
+                    <select id="pages-assignmentspage-2"
                       value={selectedTenantId}
                       onChange={(e) => {
                         setSelectedTenantId(e.target.value)
@@ -1546,7 +1546,7 @@ const AssignmentsPage: React.FC = () => {
                 {/* Person Multi-Select */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label htmlFor="pages-assignmentspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       {getTabLabel(activeTab)}(s) *{' '}
                       <span className="text-xs font-normal text-gray-500">({formData.personIds.length} selected)</span>
                     </label>
@@ -1563,7 +1563,7 @@ const AssignmentsPage: React.FC = () => {
                   ) : (
                     <div className="border border-gray-300 dark:border-gray-600 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                       {people.map((person: any) => (
-                        <label key={person.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <label htmlFor="pages-assignmentspage-3" key={person.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                           <input
                             type="checkbox"
                             className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
@@ -1583,10 +1583,10 @@ const AssignmentsPage: React.FC = () => {
 
                 {/* Assignment Level */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Assignment Level *
-                  </label>
-                  <select
+                  </span>
+                  <select id="pages-assignmentspage-3"
                     value={formData.assignmentLevel}
                     onChange={(e) => setFormData({ ...formData, assignmentLevel: e.target.value as any, contestId: '', categoryId: '' })}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -1599,8 +1599,8 @@ const AssignmentsPage: React.FC = () => {
 
                 {/* Event Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event *</label>
-                  <select
+                  <label htmlFor="pages-assignmentspage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event *</label>
+                  <select id="pages-assignmentspage-4"
                     value={formData.eventId}
                     onChange={(e) => setFormData({ ...formData, eventId: e.target.value, contestId: '', categoryId: '' })}
                     required
@@ -1615,8 +1615,8 @@ const AssignmentsPage: React.FC = () => {
                 {/* Contest Selection */}
                 {(formData.assignmentLevel === 'contest' || formData.assignmentLevel === 'category') && formData.eventId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest *</label>
-                    <select
+                    <label htmlFor="pages-assignmentspage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest *</label>
+                    <select id="pages-assignmentspage-5"
                       value={formData.contestId}
                       onChange={(e) => setFormData({ ...formData, contestId: e.target.value, categoryId: '' })}
                       required
@@ -1631,8 +1631,8 @@ const AssignmentsPage: React.FC = () => {
                 {/* Category Selection */}
                 {formData.assignmentLevel === 'category' && formData.contestId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category *</label>
-                    <select
+                    <label htmlFor="pages-assignmentspage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category *</label>
+                    <select id="pages-assignmentspage-6"
                       value={formData.categoryId}
                       onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                       required
@@ -1693,8 +1693,8 @@ const AssignmentsPage: React.FC = () => {
                 </p>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
-                  <select
+                  <label htmlFor="pages-assignmentspage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
+                  <select id="pages-assignmentspage-7"
                     value={editEventId}
                     onChange={(e) => { setEditEventId(e.target.value); setEditContestId(''); setEditCategoryId('') }}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -1706,10 +1706,10 @@ const AssignmentsPage: React.FC = () => {
 
                 {editEventId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-assignmentspage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Contest {(activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for event-level)' : '*'}
                     </label>
-                    <select
+                    <select id="pages-assignmentspage-8"
                       value={editContestId}
                       onChange={(e) => { setEditContestId(e.target.value); setEditCategoryId('') }}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -1722,10 +1722,10 @@ const AssignmentsPage: React.FC = () => {
 
                 {editContestId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-assignmentspage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Category {(activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for contest-level)' : '*'}
                     </label>
-                    <select
+                    <select id="pages-assignmentspage-9"
                       value={editCategoryId}
                       onChange={(e) => setEditCategoryId(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"

@@ -20,6 +20,34 @@ describe('Events API Integration Tests', () => {
   let testEventId: string;
   let tenantId: string;
 
+  const issueAdminToken = () =>
+    jwt.sign(
+      {
+        userId: adminUser.id,
+        role: adminUser.role,
+        tenantId,
+        sessionVersion: adminUser.sessionVersion || 1,
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+  const refreshAdminToken = async () => {
+    const loginResponse = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'admin@eventtest.com',
+        password: 'password123',
+      });
+
+    if (loginResponse.status === 200 || loginResponse.status === 201) {
+      adminToken = loginResponse.body.data?.token || loginResponse.body.token || issueAdminToken();
+      return;
+    }
+
+    adminToken = issueAdminToken();
+  };
+
   // ============================================================================
   // SETUP & TEARDOWN
   // ============================================================================
@@ -60,24 +88,7 @@ describe('Events API Integration Tests', () => {
       }
     });
 
-    // Login as admin to get token
-    const loginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'admin@eventtest.com',
-        password: 'password123'
-      });
-
-    if (loginResponse.status === 200 || loginResponse.status === 201) {
-      adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-    } else {
-      // Fallback: generate token manually
-      adminToken = jwt.sign(
-        { userId: adminUser.id, role: adminUser.role, tenantId },
-        JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-    }
+    await refreshAdminToken();
   });
 
   afterAll(async () => {
@@ -110,15 +121,7 @@ describe('Events API Integration Tests', () => {
     beforeEach(async () => {
       // Ensure admin token is valid
       if (!adminToken) {
-        const loginResponse = await request(app)
-          .post('/api/auth/login')
-          .send({
-            email: 'admin@eventtest.com',
-            password: 'password123'
-          });
-        if (loginResponse.status === 200 || loginResponse.status === 201) {
-          adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-        }
+        await refreshAdminToken();
       }
     });
 
@@ -139,35 +142,20 @@ describe('Events API Integration Tests', () => {
 
       // Handle auth failures by refreshing token
       if (response.status === 401 || response.status === 403) {
-        const loginResponse = await request(app)
-          .post('/api/auth/login')
-          .send({
-            email: 'admin@eventtest.com',
-            password: 'password123'
-          });
-        if (loginResponse.status === 200 || loginResponse.status === 201) {
-          adminToken = loginResponse.body.data?.token || loginResponse.body.token;
-          const retryResponse = await request(app)
-            .post('/api/events')
-            .set('Authorization', `Bearer ${adminToken}`)
-            .send(eventData);
-          // If retry also fails with auth, skip this test
-          if (retryResponse.status === 401 || retryResponse.status === 403) {
-            console.warn('Event creation test skipped: Authentication issue persists');
-            return;
-          }
-          expect([200, 201]).toContain(retryResponse.status);
-          if (retryResponse.status === 200 || retryResponse.status === 201) {
-            expect(retryResponse.body).toHaveProperty('success', true);
-            expect(retryResponse.body).toHaveProperty('data');
-            expect(retryResponse.body.data).toHaveProperty('id');
-            testEventId = retryResponse.body.data.id;
-          }
-          return;
-        } else {
-          console.warn('Skipping test: Unable to authenticate admin user');
-          return;
+        await refreshAdminToken();
+        const retryResponse = await request(app)
+          .post('/api/events')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(eventData);
+
+        expect([200, 201]).toContain(retryResponse.status);
+        if (retryResponse.status === 200 || retryResponse.status === 201) {
+          expect(retryResponse.body).toHaveProperty('success', true);
+          expect(retryResponse.body).toHaveProperty('data');
+          expect(retryResponse.body.data).toHaveProperty('id');
+          testEventId = retryResponse.body.data.id;
         }
+        return;
       }
 
       expect([200, 201]).toContain(response.status);

@@ -347,10 +347,10 @@ const BulkOperationsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-bulkoperationspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Upload CSV File
                 </label>
-                <input
+                <input id="pages-bulkoperationspage-1"
                   type="file"
                   accept=".csv"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -385,10 +385,10 @@ const BulkOperationsPage: React.FC = () => {
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-bulkoperationspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Email Template
                 </label>
-                <select
+                <select id="pages-bulkoperationspage-2"
                   value={selectedEmailTemplateId}
                   onChange={(e) => applyEmailTemplate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -403,7 +403,7 @@ const BulkOperationsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-bulkoperationspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Recipient Mode
                 </label>
                 <div className="flex gap-2">
@@ -434,7 +434,7 @@ const BulkOperationsPage: React.FC = () => {
 
               {recipientMode === 'roles' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-bulkoperationspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
                     Select Recipient Roles
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -453,10 +453,10 @@ const BulkOperationsPage: React.FC = () => {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Email Addresses
-                  </label>
-                  <textarea
+                  </span>
+                  <textarea id="pages-bulkoperationspage-3"
                     value={emailData.recipientsText}
                     onChange={(e) => setEmailData({ ...emailData, recipientsText: e.target.value })}
                     rows={4}
@@ -470,10 +470,10 @@ const BulkOperationsPage: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-bulkoperationspage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Subject
                 </label>
-                <input
+                <input id="pages-bulkoperationspage-4"
                   type="text"
                   value={emailData.subject}
                   onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
@@ -482,10 +482,10 @@ const BulkOperationsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                <label htmlFor="pages-bulkoperationspage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                   Email Content
                 </label>
-                <textarea
+                <textarea id="pages-bulkoperationspage-5"
                   value={emailData.content}
                   onChange={(e) => setEmailData({ ...emailData, content: e.target.value })}
                   rows={10}
@@ -494,7 +494,7 @@ const BulkOperationsPage: React.FC = () => {
               </div>
 
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="pages-bulkoperationspage-6" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   <input
                     type="checkbox"
                     checked={useStyledEmail}
@@ -508,8 +508,8 @@ const BulkOperationsPage: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="min-w-[180px] flex-1">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
-                        <select
+                        <label htmlFor="pages-bulkoperationspage-6" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Style preset</label>
+                        <select id="pages-bulkoperationspage-6"
                           value={emailStylePreset}
                           onChange={(e) => applyEmailStylePreset(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
@@ -535,8 +535,8 @@ const BulkOperationsPage: React.FC = () => {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
-                      <input
+                      <label htmlFor="pages-bulkoperationspage-7" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Header title</label>
+                      <input id="pages-bulkoperationspage-7"
                         type="text"
                         value={emailStyle.headerTitle}
                         onChange={(e) => updateEmailStyle({ headerTitle: e.target.value })}
@@ -544,8 +544,8 @@ const BulkOperationsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer text</label>
-                      <input
+                      <label htmlFor="pages-bulkoperationspage-8" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Footer text</label>
+                      <input id="pages-bulkoperationspage-8"
                         type="text"
                         value={emailStyle.footerText}
                         onChange={(e) => updateEmailStyle({ footerText: e.target.value })}
@@ -553,8 +553,8 @@ const BulkOperationsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary color</label>
-                      <input
+                      <label htmlFor="pages-bulkoperationspage-9" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Primary color</label>
+                      <input id="pages-bulkoperationspage-9"
                         type="color"
                         value={emailStyle.primaryColor}
                         onChange={(e) => updateEmailStyle({ primaryColor: e.target.value })}
@@ -562,8 +562,8 @@ const BulkOperationsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background color</label>
-                      <input
+                      <label htmlFor="pages-bulkoperationspage-10" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Background color</label>
+                      <input id="pages-bulkoperationspage-10"
                         type="color"
                         value={emailStyle.backgroundColor}
                         onChange={(e) => updateEmailStyle({ backgroundColor: e.target.value })}
@@ -571,8 +571,8 @@ const BulkOperationsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text color</label>
-                      <input
+                      <label htmlFor="pages-bulkoperationspage-11" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Text color</label>
+                      <input id="pages-bulkoperationspage-11"
                         type="color"
                         value={emailStyle.textColor}
                         onChange={(e) => updateEmailStyle({ textColor: e.target.value })}

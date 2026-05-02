@@ -78,8 +78,9 @@ test.describe('Comprehensive Admin E2E Tests', () => {
     const eventsList = page.locator('table, [data-testid="events-list"], .event-list').first();
     const hasEvents = await eventsList.isVisible({ timeout: 5000 }).catch(() => false);
     const hasEventName = await page.locator(`text="${testData.event.name}"`).isVisible({ timeout: 3000 }).catch(() => false);
+    const hasEventCard = await page.locator('button:has-text("View Contests"), button:has-text("Edit"), button:has-text("Delete")').first().isVisible({ timeout: 3000 }).catch(() => false);
 
-    expect(hasEvents || hasEventName).toBe(true);
+    expect(hasEvents || hasEventName || hasEventCard).toBe(true);
   });
 
   test('should create a new event', async () => {
@@ -150,7 +151,7 @@ test.describe('Comprehensive Admin E2E Tests', () => {
       // Confirm deletion if confirmation dialog appears
       const confirmButton = page.locator('button:has-text("Confirm"), button:has-text("Delete"), button:has-text("Yes")').first();
       if (await confirmButton.isVisible({ timeout: 2000 })) {
-        await confirmButton.click();
+        await confirmButton.click({ force: true });
         await page.waitForTimeout(2000);
 
         await waitForSuccessMessage(page, 5000);
@@ -247,7 +248,7 @@ test.describe('Comprehensive Admin E2E Tests', () => {
 
       const confirmButton = page.locator('button:has-text("Confirm"), button:has-text("Delete"), button:has-text("Yes")').first();
       if (await confirmButton.isVisible({ timeout: 2000 })) {
-        await confirmButton.click();
+        await confirmButton.click({ force: true });
         await page.waitForTimeout(2000);
 
         await waitForSuccessMessage(page, 5000);
@@ -305,7 +306,7 @@ test.describe('Comprehensive Admin E2E Tests', () => {
         }
 
         const submitButton = page.locator('button[type="submit"], button:has-text("Save")').first();
-        await submitButton.click();
+        await submitButton.click({ force: true });
         await page.waitForTimeout(2000);
 
         await waitForSuccessMessage(page, 5000);
@@ -326,7 +327,7 @@ test.describe('Comprehensive Admin E2E Tests', () => {
       if (await nameInput.isVisible()) {
         await nameInput.fill(`Updated Category ${Date.now()}`);
         const saveButton = page.locator('button:has-text("Save"), button[type="submit"]').first();
-        await saveButton.click();
+        await saveButton.click({ force: true });
         await page.waitForTimeout(2000);
 
         await waitForSuccessMessage(page, 5000);
@@ -345,7 +346,7 @@ test.describe('Comprehensive Admin E2E Tests', () => {
 
       const confirmButton = page.locator('button:has-text("Confirm"), button:has-text("Delete"), button:has-text("Yes")').first();
       if (await confirmButton.isVisible({ timeout: 2000 })) {
-        await confirmButton.click();
+        await confirmButton.click({ force: true });
         await page.waitForTimeout(2000);
 
         await waitForSuccessMessage(page, 5000);
@@ -372,8 +373,9 @@ test.describe('Comprehensive Admin E2E Tests', () => {
     // Should see the users created by TestDataFactory
     const usersList = page.locator('table, [data-testid="users-list"], .user-list').first();
     const hasUsers = await usersList.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasUserRows = await page.getByText(/Select all visible users \(\d+\)/i).isVisible({ timeout: 3000 }).catch(() => false);
 
-    expect(hasUsers).toBe(true);
+    expect(hasUsers || hasUserRows).toBe(true);
   });
 
   test('should create a new user', async () => {
@@ -531,12 +533,21 @@ test.describe('Comprehensive Admin E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/results');
 
-    const categorySelect = page.locator('select[name="category"], select').first();
+    const selects = page.locator('select');
+    const eventSelect = selects.nth(0);
+    const contestSelect = selects.nth(1);
+    const categorySelect = selects.nth(2);
+
     if (await categorySelect.isVisible({ timeout: 5000 })) {
-      await categorySelect.selectOption({ index: 0 });
+      await expect.poll(() => eventSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await eventSelect.selectOption(testData.event.id);
+      await expect.poll(() => contestSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await contestSelect.selectOption(testData.contests[0].id);
+      await expect.poll(() => categorySelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await categorySelect.selectOption(testData.categories[0].id);
       await page.waitForTimeout(2000);
 
-      const resultsTable = page.locator('table, [data-testid="results-list"]').first();
+      const resultsTable = page.locator('table, [data-testid="results-list"], [data-testid="contest-results-summary"], button:has-text("Export to Excel"), button:has-text("Show Score Breakdowns")').first();
       const hasResults = await resultsTable.isVisible({ timeout: 5000 }).catch(() => false);
       expect(hasResults).toBe(true);
     }

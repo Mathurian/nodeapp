@@ -39,8 +39,8 @@ describe('CircuitBreaker listener registration', () => {
       reusedBreaker.onUnique('stateChange', 'service-monitor:state-change', jest.fn());
     }
 
-    expect(breaker.listenerCount('open')).toBe(2);
-    expect(breaker.listenerCount('close')).toBe(2);
+    expect(breaker.listenerCount('open')).toBe(1);
+    expect(breaker.listenerCount('close')).toBe(1);
     expect(breaker.listenerCount('stateChange')).toBe(1);
   });
 });

@@ -127,6 +127,7 @@ describe('EmceeController', () => {
         eventId: undefined,
         contestId: undefined,
         categoryId: undefined,
+        tenantId: 'tenant-1',
       });
       expect(mockRes.json).toHaveBeenCalledWith(mockScripts);
     });
@@ -145,6 +146,7 @@ describe('EmceeController', () => {
         eventId: 'event-1',
         contestId: undefined,
         categoryId: undefined,
+        tenantId: 'tenant-1',
       });
       expect(mockRes.json).toHaveBeenCalledWith(mockScripts);
     });
@@ -163,6 +165,7 @@ describe('EmceeController', () => {
         eventId: undefined,
         contestId: 'contest-1',
         categoryId: 'cat-1',
+        tenantId: 'tenant-1',
       });
     });
 
@@ -191,7 +194,7 @@ describe('EmceeController', () => {
 
       await controller.getScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1', { tenantId: undefined });
+      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1', { tenantId: 'tenant-1' });
       expect(mockRes.json).toHaveBeenCalledWith(mockScript);
     });
 
@@ -570,6 +573,7 @@ describe('EmceeController', () => {
         contestId: undefined,
         categoryId: undefined,
         order: 1,
+        tenantId: 'tenant-1',
       });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockScript);
@@ -676,7 +680,7 @@ describe('EmceeController', () => {
           categoryId: undefined,
           order: 5,
         },
-        undefined
+        'tenant-1'
       );
       expect(mockRes.json).toHaveBeenCalledWith(mockUpdatedScript);
     });
@@ -716,7 +720,7 @@ describe('EmceeController', () => {
           categoryId: undefined,
           order: 0,
         },
-        undefined
+        'tenant-1'
       );
     });
 
@@ -740,7 +744,7 @@ describe('EmceeController', () => {
 
       await controller.deleteScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.deleteScript).toHaveBeenCalledWith('script-1', undefined);
+      expect(mockEmceeService.deleteScript).toHaveBeenCalledWith('script-1', 'tenant-1');
       expect(mockRes.status).toHaveBeenCalledWith(204);
       expect(mockRes.send).toHaveBeenCalled();
     });
@@ -780,7 +784,7 @@ describe('EmceeController', () => {
 
       await controller.toggleScript(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1', { tenantId: undefined });
+      expect(mockEmceeService.getScript).toHaveBeenCalledWith('script-1', { tenantId: 'tenant-1' });
       expect(mockRes.json).toHaveBeenCalledWith(mockScript);
     });
 
@@ -829,7 +833,7 @@ describe('EmceeController', () => {
 
       await controller.serveScriptFile(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1', { tenantId: undefined });
+      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1', { tenantId: 'tenant-1' });
       expect(mockFileStream.pipe).toHaveBeenCalledWith(mockRes);
     });
 
@@ -882,7 +886,7 @@ describe('EmceeController', () => {
 
       await controller.getFileViewUrl(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1', { tenantId: undefined });
+      expect(mockEmceeService.getScriptFileInfo).toHaveBeenCalledWith('script-1', { tenantId: 'tenant-1' });
       expect(mockRes.json).toHaveBeenCalledWith({
         viewUrl: '/uploads/emcee/script.pdf',
         expiresIn: 300,

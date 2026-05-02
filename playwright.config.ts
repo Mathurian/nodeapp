@@ -1,4 +1,24 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
+
+const terminalReporter: ReporterDescription = process.env.REPORTER === 'dot' ? ['dot'] : ['list'];
+const reporters: ReporterDescription[] = [terminalReporter, ['html']];
+const enablePrometheusReporter = process.env.CI || process.env.E2E_REPORT_METRICS === 'true';
+if (enablePrometheusReporter) {
+  const suiteName = process.env.CI
+    ? 'e2e-ci'
+    : process.env.REPORTER === 'verbose'
+      ? 'e2e-verbose'
+      : process.env.REPORTER === 'dot'
+        ? 'e2e-dot'
+        : 'e2e-local';
+  reporters.push([
+    './tests/reporters/prometheusReporter.ts',
+    {
+      suiteName,
+      apiUrl: process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:3005',
+    },
+  ]);
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -31,13 +51,7 @@ export default defineConfig({
   },
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   /* Use multiple reporters: terminal output + HTML report + Prometheus metrics */
-  reporter: process.env.CI
-    ? [['list'], ['html'], ['./tests/reporters/prometheusReporter.ts', { suiteName: 'e2e-ci' }]]
-    : process.env.REPORTER === 'verbose'
-      ? [['list'], ['html'], ['./tests/reporters/prometheusReporter.ts', { suiteName: 'e2e-verbose' }]]
-      : process.env.REPORTER === 'dot'
-        ? [['dot'], ['html'], ['./tests/reporters/prometheusReporter.ts', { suiteName: 'e2e-dot' }]]
-        : [['list'], ['html'], ['./tests/reporters/prometheusReporter.ts', { suiteName: 'e2e-local' }]], // Default: list + html + prometheus
+  reporter: reporters,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -68,7 +82,7 @@ export default defineConfig({
   /* Set SKIP_WEB_SERVER=true to skip starting servers (for remote testing) */
   webServer: process.env.SKIP_WEB_SERVER === 'true' ? [] : [
     {
-      command: 'NODE_ENV=test PORT=3005 DATABASE_URL="postgresql://event_manager:dittibop@localhost:5432/event_manager_test?schema=public" JWT_SECRET=test-jwt-secret-key-for-testing node dist/server.js',
+      command: 'bash scripts/e2e/start-backend.sh',
       url: 'http://localhost:3005/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
@@ -81,4 +95,3 @@ export default defineConfig({
     },
   ],
 });
-

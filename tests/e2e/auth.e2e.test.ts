@@ -240,15 +240,19 @@ test.describe('Authentication E2E Tests', () => {
 
     if (await emailInput.isVisible({ timeout: 3000 })) {
       await emailInput.fill(testData.users.admin.email);
+      const resetResponsePromise = page.waitForResponse((response) =>
+        response.url().includes('/auth/forgot-password') && response.request().method() === 'POST'
+      );
       await submitButton.click();
-      await page.waitForTimeout(2000);
-
-      // Check for success message or redirect
-      const successMessage = page.locator('.success, .alert-success, [role="alert"]').first();
-      const hasSuccess = await successMessage.isVisible({ timeout: 5000 }).catch(() => false);
-      const urlChanged = !page.url().includes('/forgot-password');
-
-      expect(hasSuccess || urlChanged).toBe(true);
+      const resetResponse = await resetResponsePromise;
+      const resetBody = await resetResponse.text();
+      expect(
+        resetResponse.ok(),
+        `Forgot password response ${resetResponse.status()}: ${resetBody}`
+      ).toBe(true);
+      await expect(page.getByText('If the account exists, a password reset email has been sent.')).toBeVisible({ timeout: 5000 });
+      await expect(emailInput).toHaveValue('');
+      expect(page.url()).toContain('/forgot-password');
     }
 
     await context.close();

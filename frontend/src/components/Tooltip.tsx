@@ -246,6 +246,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       <div
         ref={triggerRef}
         className="inline-block touch-highlight"
+        role="presentation"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchStart}

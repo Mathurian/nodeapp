@@ -424,7 +424,7 @@ describe('ScoringController', () => {
       mockReq.body = { signatureName: 'John Doe' };
       mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
       mockReq.body = { typedSignature: 'Tally Master' };
-      const result = { certified: 10, categoryId: 'cat-1' };
+      const result = { certified: true, certifiedCount: 10, categoryId: 'cat-1' };
       mockScoringService.certifyScores.mockResolvedValue(result as any);
 
       await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);

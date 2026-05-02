@@ -878,9 +878,10 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 /**
- * Start the server (only when not in test environment)
+ * Start the server automatically outside unit tests. Playwright e2e runs keep
+ * NODE_ENV=test for isolated config, but opt into a real HTTP listener.
  */
-if (process.env['NODE_ENV'] !== 'test') {
+if (process.env['NODE_ENV'] !== 'test' || process.env['E2E_START_SERVER'] === 'true') {
   startServer();
 }
 

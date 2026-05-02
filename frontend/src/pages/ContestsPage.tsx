@@ -899,10 +899,10 @@ const ContestsPage: React.FC = () => {
                     {creationMode === 'template' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          <label htmlFor="pages-contestspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Event Template <span className="text-red-500">*</span>
                           </label>
-                          <select
+                          <select id="pages-contestspage-1"
                             value={selectedTemplateId}
                             onChange={(e) => {
                               const templateId = e.target.value
@@ -925,10 +925,10 @@ const ContestsPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          <label htmlFor="pages-contestspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Contest Template <span className="text-red-500">*</span>
                           </label>
-                          <select
+                          <select id="pages-contestspage-2"
                             value={selectedTemplateContestId}
                             onChange={(e) => {
                               const templateContestId = e.target.value
@@ -968,10 +968,10 @@ const ContestsPage: React.FC = () => {
 
                 {/* Event Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-contestspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Event <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <select id="pages-contestspage-3"
                     {...register('eventId')}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.eventId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     aria-invalid={errors.eventId ? 'true' : undefined}
@@ -988,10 +988,10 @@ const ContestsPage: React.FC = () => {
 
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-contestspage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Contest Name <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <input id="pages-contestspage-4"
                     type="text"
                     {...register('name')}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
@@ -1003,10 +1003,10 @@ const ContestsPage: React.FC = () => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-contestspage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
-                  <textarea
+                  <textarea id="pages-contestspage-5"
                     {...register('description')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1016,10 +1016,10 @@ const ContestsPage: React.FC = () => {
 
                 {/* Scoring Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-contestspage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Scoring Type (Optional)
                   </label>
-                  <select
+                  <select id="pages-contestspage-6"
                     {...register('scoringType')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -1034,7 +1034,7 @@ const ContestsPage: React.FC = () => {
 
                 {editingContest && (
                   <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-contestspage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Minimum Winning Score (Contest Level)
                     </label>
                     <div className="flex gap-2">
@@ -1164,8 +1164,8 @@ const ContestsPage: React.FC = () => {
                   Create a new editable copy of <span className="font-medium">{cloneSource.name}</span>. Assignments, scores, certifications, and publication state are not copied.
                 </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Event</label>
-                  <select
+                  <label htmlFor="pages-contestspage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Event</label>
+                  <select id="pages-contestspage-7"
                     value={cloneTargetEventId}
                     onChange={(e) => setCloneTargetEventId(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -1184,8 +1184,8 @@ const ContestsPage: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
-                  <input
+                  <label htmlFor="pages-contestspage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
+                  <input id="pages-contestspage-8"
                     type="text"
                     value={cloneName}
                     onChange={(e) => setCloneName(e.target.value)}

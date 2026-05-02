@@ -124,7 +124,7 @@ describe('EventsController', () => {
 
       await controller.getAllEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getAllEvents).toHaveBeenCalledWith({});
+      expect(mockEventService.getAllEvents).toHaveBeenCalledWith({ tenantId: 'tenant-1' });
       expect(mockSendSuccess).toHaveBeenCalledWith(
         mockRes,
         expect.arrayContaining([
@@ -140,17 +140,17 @@ describe('EventsController', () => {
 
       await controller.getAllEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getAllEvents).toHaveBeenCalledWith({ archived: true });
+      expect(mockEventService.getAllEvents).toHaveBeenCalledWith({ archived: true, tenantId: 'tenant-1' });
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, []);
     });
 
     it('should filter events by search query', async () => {
-      mockReq.query = { search: 'competition' };
+      mockReq.query = { search: 'competition', tenantId: 'tenant-1' };
       mockEventService.getAllEvents.mockResolvedValue([] as any);
 
       await controller.getAllEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getAllEvents).toHaveBeenCalledWith({ search: 'competition' });
+      expect(mockEventService.getAllEvents).toHaveBeenCalledWith({ search: 'competition', tenantId: 'tenant-1' });
     });
 
     it('should compute ACTIVE status for ongoing events', async () => {
@@ -251,7 +251,7 @@ describe('EventsController', () => {
 
       await controller.getEventById(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getEventById).toHaveBeenCalledWith('event-1', undefined, false);
+      expect(mockEventService.getEventById).toHaveBeenCalledWith('event-1', 'tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockEvent);
     });
 
@@ -288,7 +288,7 @@ describe('EventsController', () => {
 
       await controller.getEventWithDetails(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getEventWithDetails).toHaveBeenCalledWith('event-1', undefined, false);
+      expect(mockEventService.getEventWithDetails).toHaveBeenCalledWith('event-1', 'tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockEvent);
     });
 
@@ -322,7 +322,7 @@ describe('EventsController', () => {
 
       await controller.getUpcomingEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getUpcomingEvents).toHaveBeenCalledWith(undefined, false);
+      expect(mockEventService.getUpcomingEvents).toHaveBeenCalledWith('tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockEvents);
     });
 
@@ -346,7 +346,7 @@ describe('EventsController', () => {
 
       await controller.getOngoingEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getOngoingEvents).toHaveBeenCalledWith(undefined, false);
+      expect(mockEventService.getOngoingEvents).toHaveBeenCalledWith('tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockEvents);
     });
 
@@ -370,7 +370,7 @@ describe('EventsController', () => {
 
       await controller.getPastEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getPastEvents).toHaveBeenCalledWith(undefined, false);
+      expect(mockEventService.getPastEvents).toHaveBeenCalledWith('tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockEvents);
     });
 
@@ -442,7 +442,7 @@ describe('EventsController', () => {
       expect(mockEventService.updateEvent).toHaveBeenCalledWith(
         'event-1',
         updateData,
-        undefined,
+        'tenant-1',
         false
       );
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, updatedEvent, 'Event updated successfully');
@@ -480,7 +480,7 @@ describe('EventsController', () => {
       expect(mockEventService.deleteEvent).toHaveBeenCalledWith(
         'event-1',
         'admin-1',
-        undefined,
+        'tenant-1',
         false
       );
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, null, 'Event deleted successfully', 204);
@@ -513,7 +513,7 @@ describe('EventsController', () => {
 
       await controller.archiveEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.archiveEvent).toHaveBeenCalledWith('event-1', undefined, false);
+      expect(mockEventService.archiveEvent).toHaveBeenCalledWith('event-1', 'tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, archivedEvent, 'Event archived successfully');
     });
 
@@ -544,7 +544,7 @@ describe('EventsController', () => {
 
       await controller.unarchiveEvent(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.unarchiveEvent).toHaveBeenCalledWith('event-1', undefined, false);
+      expect(mockEventService.unarchiveEvent).toHaveBeenCalledWith('event-1', 'tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, unarchivedEvent, 'Event unarchived successfully');
     });
 
@@ -582,7 +582,7 @@ describe('EventsController', () => {
 
       await controller.getEventStats(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.getEventStats).toHaveBeenCalledWith('event-1', undefined, false);
+      expect(mockEventService.getEventStats).toHaveBeenCalledWith('event-1', 'tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockStats);
     });
 
@@ -617,7 +617,7 @@ describe('EventsController', () => {
 
       await controller.searchEvents(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEventService.searchEvents).toHaveBeenCalledWith('competition', undefined, false);
+      expect(mockEventService.searchEvents).toHaveBeenCalledWith('competition', 'tenant-1', false);
       expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, mockEvents);
     });
 

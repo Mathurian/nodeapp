@@ -794,7 +794,7 @@ const SettingsPage: React.FC = () => {
       try {
         const response = await settingsAPI.getGoogleDriveBackupOAuthStatus(scopeQuery)
         const data = response.data?.data || response.data
-        if (Boolean(data?.connected)) {
+        if (data?.connected) {
           return {
             connected: true,
             email: data?.email || undefined,
@@ -850,7 +850,7 @@ const SettingsPage: React.FC = () => {
       try {
         const response = await settingsAPI.getGoogleDriveBackupOAuthStatus(scopeQuery)
         const data = response.data?.data || response.data
-        if (Boolean(data?.connected)) {
+        if (data?.connected) {
           setGoogleBackupOauthStatus({
             connected: true,
             email: data?.email || undefined,
@@ -1813,7 +1813,7 @@ const SettingsPage: React.FC = () => {
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="email_from_address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Site Name
                       </label>
                       <input
@@ -1825,10 +1825,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Site Description
                       </label>
-                      <textarea
+                      <textarea id="pages-settingspage-1"
                         rows={3}
                         value={generalFormData.siteDescription}
                         onChange={(e) => setGeneralFormData({ ...generalFormData, siteDescription: e.target.value })}
@@ -1837,10 +1837,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Contact Email
                       </label>
-                      <input
+                      <input id="pages-settingspage-2"
                         type="email"
                         value={generalFormData.contactEmail}
                         onChange={(e) => setGeneralFormData({ ...generalFormData, contactEmail: e.target.value })}
@@ -1850,10 +1850,10 @@ const SettingsPage: React.FC = () => {
 
                     {canManageSecurityEmail && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Security Email
                         </label>
-                        <input
+                        <input id="pages-settingspage-3"
                           type="email"
                           value={generalFormData.securityEmail}
                           onChange={(e) => setGeneralFormData({ ...generalFormData, securityEmail: e.target.value })}
@@ -1867,10 +1867,10 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Default Language
                         </label>
-                        <select
+                        <select id="pages-settingspage-4"
                           value={generalFormData.defaultLanguage}
                           onChange={(e) => setGeneralFormData({ ...generalFormData, defaultLanguage: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1882,10 +1882,10 @@ const SettingsPage: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Default Timezone
                         </label>
-                        <select
+                        <select id="pages-settingspage-5"
                           value={generalFormData.defaultTimezone}
                           onChange={(e) => setGeneralFormData({ ...generalFormData, defaultTimezone: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1983,10 +1983,10 @@ const SettingsPage: React.FC = () => {
                     <>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          <label htmlFor="pages-settingspage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Default Scoring Type
                           </label>
-                          <select
+                          <select id="pages-settingspage-6"
                             value={scoringType}
                             onChange={(e) => setScoringType(e.target.value as 'STRAIGHT' | 'OLYMPIC')}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -2062,8 +2062,8 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep Full Backups For (days)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep Full Backups For (days)</label>
+                        <input id="pages-settingspage-7"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2073,8 +2073,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep Incremental Backups For (days)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep Incremental Backups For (days)</label>
+                        <input id="pages-settingspage-8"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2084,8 +2084,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep PITR Base Backups For (days)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Keep PITR Base Backups For (days)</label>
+                        <input id="pages-settingspage-9"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2098,8 +2098,8 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (Full)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-10" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (Full)</label>
+                        <input id="pages-settingspage-10"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2109,8 +2109,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (Incremental)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-11" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (Incremental)</label>
+                        <input id="pages-settingspage-11"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2120,8 +2120,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (PITR Base)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-12" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Always Keep At Least (PITR Base)</label>
+                        <input id="pages-settingspage-12"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2131,8 +2131,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Backup Log Retention (days)</label>
-                        <input
+                        <label htmlFor="pages-settingspage-13" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Backup Log Retention (days)</label>
+                        <input id="pages-settingspage-13"
                           disabled={backupSectionReadOnly}
                           type="number"
                           min={1}
@@ -2183,8 +2183,8 @@ const SettingsPage: React.FC = () => {
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Show rows</label>
-                            <select
+                            <label htmlFor="pages-settingspage-14" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Show rows</label>
+                            <select id="pages-settingspage-14"
                               value={backupScheduleScopeFilter}
                               onChange={(e) => setBackupScheduleScopeFilter(e.target.value as 'ALL' | 'LOCAL' | 'REMOTE')}
                               className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -2194,7 +2194,7 @@ const SettingsPage: React.FC = () => {
                               <option value="REMOTE">Remote schedules only</option>
                             </select>
                           </div>
-                          <label className="flex items-end gap-2 pb-2">
+                          <label htmlFor="pages-settingspage-15" className="flex items-end gap-2 pb-2">
                             <input
                               type="checkbox"
                               checked={backupScheduleEnabledOnly}
@@ -2213,17 +2213,17 @@ const SettingsPage: React.FC = () => {
                             return (
                               <div key={`${row.backupType}-${row.deliveryMode}`} className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end border border-gray-100 dark:border-gray-800 rounded-md p-3">
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
+                                  <label htmlFor="pages-settingspage-15" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
                                   <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.backupType}</div>
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                                  <span className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Target</span>
                                   <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.deliveryMode}</div>
                                 </div>
                                 {isTenantScheduleScope && (
                                   <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Use Global Default</label>
-                                    <input
+                                    <span className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Use Global Default</span>
+                                    <input id="pages-settingspage-15"
                                       disabled={backupSectionReadOnly}
                                       type="checkbox"
                                       checked={inherited}
@@ -2249,8 +2249,8 @@ const SettingsPage: React.FC = () => {
                                   </div>
                                 )}
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
-                                  <input
+                                  <label htmlFor="pages-settingspage-16" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Enabled</label>
+                                  <input id="pages-settingspage-16"
                                     disabled={rowReadOnly}
                                     type="checkbox"
                                     checked={row.enabled}
@@ -2263,8 +2263,8 @@ const SettingsPage: React.FC = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
-                                  <select
+                                  <label htmlFor="pages-settingspage-17" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
+                                  <select id="pages-settingspage-17"
                                     disabled={rowReadOnly}
                                     value={row.frequency}
                                     onChange={(e) => {
@@ -2282,11 +2282,11 @@ const SettingsPage: React.FC = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                  <label htmlFor="pages-settingspage-18" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     {row.frequency === 'MINUTES' ? 'Minutes interval' :
                                       row.frequency === 'HOURS' ? 'Hours interval' : 'Hour of day (0-23)'}
                                   </label>
-                                  <input
+                                  <input id="pages-settingspage-18"
                                     disabled={rowReadOnly}
                                     type="number"
                                     min={row.frequency === 'MINUTES' ? 1 : row.frequency === 'HOURS' ? 1 : 0}
@@ -2301,8 +2301,8 @@ const SettingsPage: React.FC = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
-                                  <input
+                                  <label htmlFor="pages-settingspage-19" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Retention (days)</label>
+                                  <input id="pages-settingspage-19"
                                     disabled={rowReadOnly || row.deliveryMode === 'REMOTE'}
                                     type="number"
                                     min={1}
@@ -2373,7 +2373,7 @@ const SettingsPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Remote Type</label>
+                          <label htmlFor="pages-settingspage-20" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Remote Type</label>
                           <Tooltip content={backupProviderTooltipContent} position="right" className="max-w-md">
                             <button type="button" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                               <QuestionMarkCircleIcon className="h-4 w-4" />
@@ -2401,8 +2401,8 @@ const SettingsPage: React.FC = () => {
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Host</label>
-                          <input
+                          <label htmlFor="pages-settingspage-20" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Host</label>
+                          <input id="pages-settingspage-20"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_remote_host}
@@ -2411,8 +2411,8 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Port</label>
-                          <input
+                          <label htmlFor="pages-settingspage-21" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Port</label>
+                          <input id="pages-settingspage-21"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="number"
                             min={1}
@@ -2423,8 +2423,8 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote User</label>
-                          <input
+                          <label htmlFor="pages-settingspage-22" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote User</label>
+                          <input id="pages-settingspage-22"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_remote_user}
@@ -2433,8 +2433,8 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Path</label>
-                          <input
+                          <label htmlFor="pages-settingspage-23" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Path</label>
+                          <input id="pages-settingspage-23"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_remote_path}
@@ -2453,8 +2453,8 @@ const SettingsPage: React.FC = () => {
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Bucket</label>
-                          <input
+                          <label htmlFor="pages-settingspage-24" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Bucket</label>
+                          <input id="pages-settingspage-24"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_s3_bucket}
@@ -2463,8 +2463,8 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Region</label>
-                          <input
+                          <label htmlFor="pages-settingspage-25" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">S3 Region</label>
+                          <input id="pages-settingspage-25"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_s3_region}
@@ -2473,8 +2473,8 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AWS Access Key ID</label>
-                          <input
+                          <label htmlFor="pages-settingspage-26" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AWS Access Key ID</label>
+                          <input id="pages-settingspage-26"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_s3_access_key_id}
@@ -2483,8 +2483,8 @@ const SettingsPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AWS Secret Access Key</label>
-                          <input
+                          <label htmlFor="pages-settingspage-27" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AWS Secret Access Key</label>
+                          <input id="pages-settingspage-27"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="password"
                             value={backupFormData.backup_s3_secret_access_key}
@@ -2500,8 +2500,8 @@ const SettingsPage: React.FC = () => {
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Provider</label>
-                            <select
+                            <label htmlFor="pages-settingspage-28" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Provider</label>
+                            <select id="pages-settingspage-28"
                               disabled={backupSectionReadOnly || !backupRemoteEnabled}
                               value={backupFormData.backup_rclone_provider}
                               onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_provider: e.target.value })}
@@ -2513,8 +2513,8 @@ const SettingsPage: React.FC = () => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Auth Mode</label>
-                            <select
+                            <label htmlFor="pages-settingspage-29" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Auth Mode</label>
+                            <select id="pages-settingspage-29"
                               disabled={backupSectionReadOnly || !backupRemoteEnabled}
                               value={backupFormData.backup_rclone_auth_mode}
                               onChange={(e) => setBackupFormData({ ...backupFormData, backup_rclone_auth_mode: e.target.value })}
@@ -2532,8 +2532,8 @@ const SettingsPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Remote Target</label>
-                          <input
+                          <label htmlFor="pages-settingspage-30" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">rclone Remote Target</label>
+                          <input id="pages-settingspage-30"
                             disabled={backupSectionReadOnly || !backupRemoteEnabled}
                             type="text"
                             value={backupFormData.backup_rclone_remote}
@@ -2564,8 +2564,8 @@ const SettingsPage: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google OAuth Client ID</label>
-                                <input
+                                <label htmlFor="pages-settingspage-31" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google OAuth Client ID</label>
+                                <input id="pages-settingspage-31"
                                   disabled={backupSectionReadOnly || !backupRemoteEnabled}
                                   type="text"
                                   value={backupFormData.backup_google_oauth_client_id}
@@ -2574,8 +2574,8 @@ const SettingsPage: React.FC = () => {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google OAuth Client Secret</label>
-                                <input
+                                <label htmlFor="pages-settingspage-32" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Google OAuth Client Secret</label>
+                                <input id="pages-settingspage-32"
                                   disabled={backupSectionReadOnly || !backupRemoteEnabled}
                                   type="password"
                                   value={backupFormData.backup_google_oauth_client_secret}
@@ -2585,7 +2585,7 @@ const SettingsPage: React.FC = () => {
                               </div>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OAuth Redirect URI (optional override)</label>
+                              <label htmlFor="pages-settingspage-33" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OAuth Redirect URI (optional override)</label>
                               <div className="flex items-center gap-2">
                                 <input
                                   disabled={backupSectionReadOnly || !backupRemoteEnabled}
@@ -2644,7 +2644,7 @@ const SettingsPage: React.FC = () => {
                         {backupFormData.backup_rclone_auth_mode === 'service_account' && (
                           <div className="space-y-4">
                             <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/40">
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Service Account JSON File</label>
+                              <label htmlFor="pages-settingspage-33" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Service Account JSON File</label>
                               <div className="flex flex-wrap items-center gap-2">
                                 <input
                                   disabled={backupSectionReadOnly || !backupRemoteEnabled || uploadGcsServiceAccountMutation.isLoading}
@@ -2663,8 +2663,8 @@ const SettingsPage: React.FC = () => {
                             {backupFormData.backup_rclone_provider === 'google_drive' && (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drive Root Folder ID (optional)</label>
-                                  <input
+                                  <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drive Root Folder ID (optional)</span>
+                                  <input id="pages-settingspage-33"
                                     disabled={backupSectionReadOnly || !backupRemoteEnabled}
                                     type="text"
                                     value={backupFormData.backup_rclone_drive_root_folder_id}
@@ -2673,8 +2673,8 @@ const SettingsPage: React.FC = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Shared Drive ID (optional)</label>
-                                  <input
+                                  <label htmlFor="pages-settingspage-34" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Shared Drive ID (optional)</label>
+                                  <input id="pages-settingspage-34"
                                     disabled={backupSectionReadOnly || !backupRemoteEnabled}
                                     type="text"
                                     value={backupFormData.backup_rclone_drive_team_drive}
@@ -2687,8 +2687,8 @@ const SettingsPage: React.FC = () => {
 
                             {backupFormData.backup_rclone_provider === 'google_cloud_storage' && (
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GCS Project Number (optional)</label>
-                                <input
+                                <label htmlFor="pages-settingspage-35" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GCS Project Number (optional)</label>
+                                <input id="pages-settingspage-35"
                                   disabled={backupSectionReadOnly || !backupRemoteEnabled}
                                   type="text"
                                   value={backupFormData.backup_rclone_gcs_project_number}
@@ -2799,8 +2799,8 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Webhook URL</label>
-                      <input
+                      <label htmlFor="pages-settingspage-36" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Webhook URL</label>
+                      <input id="pages-settingspage-36"
                         type="url"
                         value={systemHealthAlertFormData.webhookUrl}
                         onChange={(e) => setSystemHealthAlertFormData({ ...systemHealthAlertFormData, webhookUrl: e.target.value })}
@@ -2810,8 +2810,8 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Recipients (comma-separated)</label>
-                      <input
+                      <label htmlFor="pages-settingspage-37" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Recipients (comma-separated)</label>
+                      <input id="pages-settingspage-37"
                         type="text"
                         value={systemHealthAlertFormData.emailRecipients.join(', ')}
                         onChange={(e) =>
@@ -2827,8 +2827,8 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Warn Disk %</label>
-                        <input
+                        <label htmlFor="pages-settingspage-38" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Warn Disk %</label>
+                        <input id="pages-settingspage-38"
                           type="number"
                           min={1}
                           max={99}
@@ -2838,8 +2838,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Disk %</label>
-                        <input
+                        <label htmlFor="pages-settingspage-39" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Disk %</label>
+                        <input id="pages-settingspage-39"
                           type="number"
                           min={1}
                           max={99}
@@ -2849,8 +2849,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Warn Memory %</label>
-                        <input
+                        <label htmlFor="pages-settingspage-40" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Warn Memory %</label>
+                        <input id="pages-settingspage-40"
                           type="number"
                           min={1}
                           max={99}
@@ -2860,8 +2860,8 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Memory %</label>
-                        <input
+                        <label htmlFor="pages-settingspage-41" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Critical Memory %</label>
+                        <input id="pages-settingspage-41"
                           type="number"
                           min={1}
                           max={99}
@@ -2929,7 +2929,7 @@ const SettingsPage: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
+                    <label htmlFor="pages-settingspage-42" className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
                       <span className="text-sm text-gray-900 dark:text-white">Require all assigned tally masters</span>
                       <input
                         type="checkbox"
@@ -2943,7 +2943,7 @@ const SettingsPage: React.FC = () => {
                         className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                       />
                     </label>
-                    <label className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
+                    <label htmlFor="pages-settingspage-42" className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2">
                       <span className="text-sm text-gray-900 dark:text-white">Require all assigned auditors</span>
                       <input
                         type="checkbox"
@@ -2999,7 +2999,7 @@ const SettingsPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Emails</label>
+                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Emails</span>
                     <div className="flex gap-2">
                       <input
                         type="email"
@@ -3071,8 +3071,8 @@ const SettingsPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Escalation Minutes</label>
-                      <input
+                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Escalation Minutes</span>
+                      <input id="pages-settingspage-42"
                         type="number"
                         min={5}
                         max={10080}
@@ -3127,10 +3127,10 @@ const SettingsPage: React.FC = () => {
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-43" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Application Name
                       </label>
-                      <input
+                      <input id="pages-settingspage-43"
                         type="text"
                         value={themeFormData.app_name}
                         onChange={(e) => setThemeFormData({ ...themeFormData, app_name: e.target.value })}
@@ -3139,10 +3139,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-44" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Application Subtitle
                       </label>
-                      <input
+                      <input id="pages-settingspage-44"
                         type="text"
                         value={themeFormData.app_subtitle}
                         onChange={(e) => setThemeFormData({ ...themeFormData, app_subtitle: e.target.value })}
@@ -3152,7 +3152,7 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-45" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Primary Color
                         </label>
                         <div className="flex gap-2">
@@ -3171,7 +3171,7 @@ const SettingsPage: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-45" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Secondary Color
                         </label>
                         <div className="flex gap-2">
@@ -3192,9 +3192,9 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Application Logo
-                      </label>
+                      </span>
                       <div className="flex items-center gap-4">
                         {themeFormData.theme_logoPath && (
                           <img
@@ -3236,9 +3236,9 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Favicon
-                      </label>
+                      </span>
                       <div className="flex items-center gap-4">
                         {themeFormData.theme_faviconPath && (
                           <img
@@ -3389,10 +3389,10 @@ const SettingsPage: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               Announcement Text
-                            </label>
-                            <input
+                            </span>
+                            <input id="pages-settingspage-45"
                               type="text"
                               value={publicLandingFormData.announcement.text}
                               required={publicLandingFormData.announcement.enabled}
@@ -3411,7 +3411,7 @@ const SettingsPage: React.FC = () => {
                           </div>
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              <label htmlFor="pages-settingspage-46" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Banner Background Color
                               </label>
                               <div className="flex gap-2">
@@ -3446,7 +3446,7 @@ const SettingsPage: React.FC = () => {
                               </div>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              <label htmlFor="pages-settingspage-46" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Banner Text Color
                               </label>
                               <div className="flex gap-2">
@@ -3501,10 +3501,10 @@ const SettingsPage: React.FC = () => {
                         <div className="px-4 pb-4 space-y-4 border-t border-gray-200 dark:border-gray-700">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Hero Badge
-                              </label>
-                              <input
+                              </span>
+                              <input id="pages-settingspage-46"
                                 type="text"
                                 value={publicLandingFormData.hero.badge}
                                 onChange={(e) =>
@@ -3517,7 +3517,7 @@ const SettingsPage: React.FC = () => {
                               />
                             </div>
                             <div>
-                              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                              <label htmlFor="pages-settingspage-47" className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                               <span>Hero Highlight</span>
                                 <Tooltip
                                   content={
@@ -3534,7 +3534,7 @@ const SettingsPage: React.FC = () => {
                                   </span>
                                 </Tooltip>
                               </label>
-                              <input
+                              <input id="pages-settingspage-47"
                                 type="text"
                                 value={publicLandingFormData.hero.highlight}
                                 onChange={(e) =>
@@ -3549,7 +3549,7 @@ const SettingsPage: React.FC = () => {
                           </div>
 
                           <div>
-                            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <label htmlFor="pages-settingspage-48" className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                               <span>Hero Title <span className="text-red-500">*</span></span>
                               <Tooltip
                                 content={
@@ -3566,7 +3566,7 @@ const SettingsPage: React.FC = () => {
                                 </span>
                               </Tooltip>
                             </label>
-                            <input
+                            <input id="pages-settingspage-48"
                               type="text"
                               value={publicLandingFormData.hero.title}
                               required
@@ -3581,10 +3581,10 @@ const SettingsPage: React.FC = () => {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="pages-settingspage-49" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               Hero Description <span className="text-red-500">*</span>
                             </label>
-                            <textarea
+                            <textarea id="pages-settingspage-49"
                               rows={3}
                               value={publicLandingFormData.hero.description}
                               required
@@ -3601,10 +3601,10 @@ const SettingsPage: React.FC = () => {
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-50" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   Hero Primary CTA Label <span className="text-red-500">*</span>
                                 </label>
-                                <input
+                                <input id="pages-settingspage-50"
                                   type="text"
                                   value={publicLandingFormData.hero.primaryCtaLabel}
                                   required
@@ -3618,10 +3618,10 @@ const SettingsPage: React.FC = () => {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-51" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   Hero Primary CTA URL <span className="text-red-500">*</span>
                                 </label>
-                                <input
+                                <input id="pages-settingspage-51"
                                   type="text"
                                   value={publicLandingFormData.hero.primaryCtaUrl}
                                   required
@@ -3640,10 +3640,10 @@ const SettingsPage: React.FC = () => {
                             </div>
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-52" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   Hero Secondary CTA Label
                                 </label>
-                                <input
+                                <input id="pages-settingspage-52"
                                   type="text"
                                   value={publicLandingFormData.hero.secondaryCtaLabel}
                                   onChange={(e) =>
@@ -3656,10 +3656,10 @@ const SettingsPage: React.FC = () => {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-53" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   Hero Secondary CTA URL
                                 </label>
-                                <input
+                                <input id="pages-settingspage-53"
                                   type="text"
                                   value={publicLandingFormData.hero.secondaryCtaUrl}
                                   onChange={(e) =>
@@ -3678,10 +3678,10 @@ const SettingsPage: React.FC = () => {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="pages-settingspage-54" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               Invitation Note
                             </label>
-                            <textarea
+                            <textarea id="pages-settingspage-54"
                               rows={2}
                               value={publicLandingFormData.hero.invitationNote}
                               onChange={(e) =>
@@ -3737,10 +3737,10 @@ const SettingsPage: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="pages-settingspage-55" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               Feature Section Title <span className="text-red-500">*</span>
                             </label>
-                            <input
+                            <input id="pages-settingspage-55"
                               type="text"
                               value={publicLandingFormData.featureSection.title}
                               required={publicLandingFormData.featureSection.enabled}
@@ -3754,10 +3754,10 @@ const SettingsPage: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="pages-settingspage-56" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               Feature Section Subtitle <span className="text-red-500">*</span>
                             </label>
-                            <textarea
+                            <textarea id="pages-settingspage-56"
                               rows={2}
                               value={publicLandingFormData.featureSection.subtitle}
                               required={publicLandingFormData.featureSection.enabled}
@@ -3781,10 +3781,10 @@ const SettingsPage: React.FC = () => {
                                   Feature Card {index + 1}
                                 </p>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  <label htmlFor="pages-settingspage-57" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Icon
                                   </label>
-                                  <select
+                                  <select id="pages-settingspage-57"
                                     value={item.icon}
                                     onChange={(e) =>
                                       updatePublicLandingFeature(index, 'icon', e.target.value)
@@ -3799,10 +3799,10 @@ const SettingsPage: React.FC = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  <label htmlFor="pages-settingspage-58" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Title <span className="text-red-500">*</span>
                                   </label>
-                                  <input
+                                  <input id="pages-settingspage-58"
                                     type="text"
                                     value={item.title}
                                     required={publicLandingFormData.featureSection.enabled}
@@ -3813,10 +3813,10 @@ const SettingsPage: React.FC = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  <label htmlFor="pages-settingspage-59" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Description <span className="text-red-500">*</span>
                                   </label>
-                                  <textarea
+                                  <textarea id="pages-settingspage-59"
                                     rows={3}
                                     value={item.description}
                                     required={publicLandingFormData.featureSection.enabled}
@@ -3869,10 +3869,10 @@ const SettingsPage: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="pages-settingspage-60" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               CTA Section Title <span className="text-red-500">*</span>
                             </label>
-                            <input
+                            <input id="pages-settingspage-60"
                               type="text"
                               value={publicLandingFormData.ctaSection.title}
                               required={publicLandingFormData.ctaSection.enabled}
@@ -3886,10 +3886,10 @@ const SettingsPage: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="pages-settingspage-61" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               CTA Section Description <span className="text-red-500">*</span>
                             </label>
-                            <textarea
+                            <textarea id="pages-settingspage-61"
                               rows={2}
                               value={publicLandingFormData.ctaSection.description}
                               required={publicLandingFormData.ctaSection.enabled}
@@ -3905,10 +3905,10 @@ const SettingsPage: React.FC = () => {
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-62" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   CTA Primary Label <span className="text-red-500">*</span>
                                 </label>
-                                <input
+                                <input id="pages-settingspage-62"
                                   type="text"
                                   value={publicLandingFormData.ctaSection.primaryCtaLabel}
                                   required={publicLandingFormData.ctaSection.enabled}
@@ -3925,10 +3925,10 @@ const SettingsPage: React.FC = () => {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-63" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   CTA Primary URL <span className="text-red-500">*</span>
                                 </label>
-                                <input
+                                <input id="pages-settingspage-63"
                                   type="text"
                                   value={publicLandingFormData.ctaSection.primaryCtaUrl}
                                   required={publicLandingFormData.ctaSection.enabled}
@@ -3950,10 +3950,10 @@ const SettingsPage: React.FC = () => {
                             </div>
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-64" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   CTA Secondary Label
                                 </label>
-                                <input
+                                <input id="pages-settingspage-64"
                                   type="text"
                                   value={publicLandingFormData.ctaSection.secondaryCtaLabel}
                                   onChange={(e) =>
@@ -3969,10 +3969,10 @@ const SettingsPage: React.FC = () => {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="pages-settingspage-65" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   CTA Secondary URL
                                 </label>
-                                <input
+                                <input id="pages-settingspage-65"
                                   type="text"
                                   value={publicLandingFormData.ctaSection.secondaryCtaUrl}
                                   onChange={(e) =>
@@ -4010,10 +4010,10 @@ const SettingsPage: React.FC = () => {
                           </span>
                         </summary>
                         <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                          <label htmlFor="pages-settingspage-66" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
                             Footer Tagline
                           </label>
-                          <input
+                          <input id="pages-settingspage-66"
                             type="text"
                             value={publicLandingFormData.footer.tagline}
                             onChange={(e) =>
@@ -4087,10 +4087,10 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-67" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           SMTP Host
                         </label>
-                        <input
+                        <input id="pages-settingspage-67"
                           type="text"
                           value={emailFormData.email_smtp_host}
                           onChange={(e) => setEmailFormData({ ...emailFormData, email_smtp_host: e.target.value })}
@@ -4099,10 +4099,10 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-68" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           SMTP Port
                         </label>
-                        <input
+                        <input id="pages-settingspage-68"
                           type="number"
                           value={emailFormData.email_smtp_port}
                           onChange={(e) => setEmailFormData({ ...emailFormData, email_smtp_port: e.target.value })}
@@ -4113,10 +4113,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-69" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         SMTP Username
                       </label>
-                      <input
+                      <input id="pages-settingspage-69"
                         type="text"
                         value={emailFormData.email_smtp_user}
                         onChange={(e) => setEmailFormData({ ...emailFormData, email_smtp_user: e.target.value })}
@@ -4126,10 +4126,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-70" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         SMTP Password
                       </label>
-                      <input
+                      <input id="pages-settingspage-70"
                         type="password"
                         value={emailFormData.email_smtp_pass}
                         onChange={(e) => setEmailFormData({ ...emailFormData, email_smtp_pass: e.target.value })}
@@ -4278,10 +4278,10 @@ const SettingsPage: React.FC = () => {
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-71" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Max Login Attempts
                       </label>
-                      <input
+                      <input id="pages-settingspage-71"
                         type="number"
                         value={securityFormData.security_maxLoginAttempts}
                         onChange={(e) => setSecurityFormData({ ...securityFormData, security_maxLoginAttempts: e.target.value })}
@@ -4293,10 +4293,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-72" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Lockout Duration (minutes)
                       </label>
-                      <input
+                      <input id="pages-settingspage-72"
                         type="number"
                         value={securityFormData.security_lockoutDuration}
                         onChange={(e) => setSecurityFormData({ ...securityFormData, security_lockoutDuration: e.target.value })}
@@ -4308,10 +4308,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-73" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Session Timeout (hours)
                       </label>
-                      <input
+                      <input id="pages-settingspage-73"
                         type="number"
                         value={securityFormData.security_sessionTimeout}
                         onChange={(e) => setSecurityFormData({ ...securityFormData, security_sessionTimeout: e.target.value })}
@@ -4361,7 +4361,7 @@ const SettingsPage: React.FC = () => {
                       </p>
                       <div className="space-y-2">
                         {(['TOTP', 'SMS', 'EMAIL'] as const).map((provider) => (
-                          <label key={provider} className="flex items-center gap-2">
+                          <label htmlFor="pages-settingspage-74" key={provider} className="flex items-center gap-2">
                             <input
                               type="checkbox"
                               checked={mfaProviderSet.has(provider)}
@@ -4502,10 +4502,10 @@ const SettingsPage: React.FC = () => {
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-74" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Minimum Length
                       </label>
-                      <input
+                      <input id="pages-settingspage-74"
                         type="number"
                         value={passwordPolicyFormData.password_policy_minLength}
                         onChange={(e) => setPasswordPolicyFormData({ ...passwordPolicyFormData, password_policy_minLength: e.target.value })}
@@ -4620,7 +4620,7 @@ const SettingsPage: React.FC = () => {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-75" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Connection Status
                         </label>
                         <div className={`px-3 py-2 border rounded-md ${
@@ -4632,10 +4632,10 @@ const SettingsPage: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-75" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Configuration Source
                         </label>
-                        <input
+                        <input id="pages-settingspage-75"
                           type="text"
                           value={databaseConnectionInfo.source}
                           disabled
@@ -4646,10 +4646,10 @@ const SettingsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-76" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Host
                         </label>
-                        <input
+                        <input id="pages-settingspage-76"
                           type="text"
                           value={databaseConnectionInfo.host}
                           disabled
@@ -4657,10 +4657,10 @@ const SettingsPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="pages-settingspage-77" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Port
                         </label>
-                        <input
+                        <input id="pages-settingspage-77"
                           type="text"
                           value={databaseConnectionInfo.port}
                           disabled
@@ -4670,10 +4670,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-78" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Database Name
                       </label>
-                      <input
+                      <input id="pages-settingspage-78"
                         type="text"
                         value={databaseConnectionInfo.database}
                         disabled
@@ -4682,10 +4682,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-79" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Database User
                       </label>
-                      <input
+                      <input id="pages-settingspage-79"
                         type="text"
                         value={databaseConnectionInfo.user}
                         disabled
@@ -4694,10 +4694,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="pages-settingspage-80" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Password
                       </label>
-                      <input
+                      <input id="pages-settingspage-80"
                         type="text"
                         value={databaseConnectionInfo.password}
                         disabled

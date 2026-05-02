@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import axios from 'axios'
+import { publicApi } from '../services/api'
 
 const ForgotPasswordPage: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>()
@@ -17,12 +17,33 @@ const ForgotPasswordPage: React.FC = () => {
     setMessage(null)
     setIsSubmitting(true)
     try {
-      await axios.post(
-        '/api/v1/auth/forgot-password',
+      const headers: Record<string, string> = {}
+      if (slug) {
+        headers['X-Tenant-Slug'] = slug
+      }
+
+      const csrfResponse = await publicApi.get('/csrf-token', {
+        withCredentials: true,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
+      })
+      const csrfToken =
+        csrfResponse.data?.csrfToken ||
+        csrfResponse.data?.token ||
+        document.cookie
+          .split('; ')
+          .find((row) => row.startsWith('_csrf='))
+          ?.split('=')[1]
+
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
+      }
+
+      await publicApi.post(
+        '/auth/forgot-password',
         { email },
         {
           withCredentials: true,
-          headers: slug ? { 'X-Tenant-Slug': slug } : undefined,
+          headers: Object.keys(headers).length > 0 ? headers : undefined,
         }
       )
       setMessage('If the account exists, a password reset email has been sent.')

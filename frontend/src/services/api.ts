@@ -25,7 +25,7 @@ const api = axios.create({
 })
 
 // Public API instance (no auth required)
-const publicApi = axios.create({
+export const publicApi = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
   headers: {
@@ -520,6 +520,8 @@ export const auditorAPI = {
   getStats: () => api.get('/auditor/stats'),
   getPendingAudits: () => api.get('/auditor/pending-audits'),
   getCompletedAudits: () => api.get('/auditor/completed-audits'),
+  getAuditHistory: (params?: { categoryId?: string; page?: number; limit?: number }) =>
+    api.get('/auditor/audit-history', { params }),
   finalCertification: (categoryIdOrData: string | any, data?: any) => {
     if (typeof categoryIdOrData === 'string') {
       // Called with (categoryId, data)

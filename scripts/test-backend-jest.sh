@@ -6,10 +6,11 @@ cd "$ROOT_DIR"
 
 JEST_BIN="node_modules/.bin/jest"
 NODE_HEAP_MB="${JEST_NODE_HEAP_MB:-4096}"
+OPEN_HANDLES_TIMEOUT_MS="${JEST_OPEN_HANDLES_TIMEOUT_MS:-10000}"
 PREPARE_DB=0
 
 run_jest() {
-  node --max-old-space-size="$NODE_HEAP_MB" "$JEST_BIN" --runInBand "$@"
+  node --max-old-space-size="$NODE_HEAP_MB" "$JEST_BIN" --runInBand --openHandlesTimeout="$OPEN_HANDLES_TIMEOUT_MS" "$@"
 }
 
 prepare_test_database() {

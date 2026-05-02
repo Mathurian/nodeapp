@@ -443,10 +443,10 @@ const DisasterRecoveryPage: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-disasterrecoverypage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Plan Name
                   </label>
-                  <input
+                  <input id="pages-disasterrecoverypage-1"
                     type="text"
                     value={newPlan.name}
                     onChange={(e) => setNewPlan({ ...newPlan, name: e.target.value })}
@@ -454,10 +454,10 @@ const DisasterRecoveryPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-disasterrecoverypage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Description
                   </label>
-                  <textarea
+                  <textarea id="pages-disasterrecoverypage-2"
                     value={newPlan.description}
                     onChange={(e) => setNewPlan({ ...newPlan, description: e.target.value })}
                     rows={3}
@@ -466,10 +466,10 @@ const DisasterRecoveryPage: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-disasterrecoverypage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Type
                     </label>
-                    <select
+                    <select id="pages-disasterrecoverypage-3"
                       value={newPlan.type}
                       onChange={(e) => setNewPlan({ ...newPlan, type: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -480,10 +480,10 @@ const DisasterRecoveryPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-disasterrecoverypage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       Priority
                     </label>
-                    <select
+                    <select id="pages-disasterrecoverypage-4"
                       value={newPlan.priority}
                       onChange={(e) => setNewPlan({ ...newPlan, priority: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -495,10 +495,10 @@ const DisasterRecoveryPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-disasterrecoverypage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                     Backup Frequency
                   </label>
-                  <select
+                  <select id="pages-disasterrecoverypage-5"
                     value={newPlan.frequency}
                     onChange={(e) => setNewPlan({ ...newPlan, frequency: e.target.value as DRFrequency })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -511,10 +511,10 @@ const DisasterRecoveryPage: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-disasterrecoverypage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       RTO (minutes)
                     </label>
-                    <input
+                    <input id="pages-disasterrecoverypage-6"
                       type="number"
                       value={newPlan.rto}
                       onChange={(e) => setNewPlan({ ...newPlan, rto: parseInt(e.target.value) })}
@@ -522,10 +522,10 @@ const DisasterRecoveryPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-disasterrecoverypage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
                       RPO (minutes)
                     </label>
-                    <input
+                    <input id="pages-disasterrecoverypage-7"
                       type="number"
                       value={newPlan.rpo}
                       onChange={(e) => setNewPlan({ ...newPlan, rpo: parseInt(e.target.value) })}

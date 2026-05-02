@@ -265,7 +265,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       if (hasScrollableAncestor(event.target)) return
 
       const target = event.target as HTMLElement | null
-      if (target?.closest('[data-disable-pull-refresh=\"true\"], [role=\"dialog\"]')) return
+      if (target?.closest('[data-disable-pull-refresh="true"], [role="dialog"]')) return
 
       pullTouchStartYRef.current = event.touches[0].clientY
       isPullGestureActiveRef.current = true
@@ -592,7 +592,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       )}
 
       {/* Minimal Top Bar - Command Palette First */}
-      <div className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm safe-area-top safe-area-left safe-area-right">
+      <div
+        className="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm safe-area-top safe-area-left safe-area-right"
+        data-testid="app-top-bar"
+      >
         <div className="flex items-center justify-between px-4 lg:px-6 py-3 gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {/* Hamburger Menu for Mobile */}
@@ -772,8 +775,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               {/* Profile Dropdown */}
               {profileMenuOpen && (
                 <>
-                  <div
-                    className="fixed inset-0 z-10"
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-10 cursor-default border-0 bg-transparent p-0"
+                    aria-label="Close profile menu"
                     onClick={() => setProfileMenuOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
@@ -843,8 +848,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         {/* Quick Actions Panel */}
         {quickActionsOpen && (
           <>
-            <div
-              className="fixed inset-0 z-10"
+            <button
+              type="button"
+              className="fixed inset-0 z-10 cursor-default border-0 bg-transparent p-0"
+              aria-label="Close quick actions"
               onClick={() => setQuickActionsOpen(false)}
             />
             <div className="absolute right-4 lg:right-6 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">

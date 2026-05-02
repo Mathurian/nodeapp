@@ -195,10 +195,10 @@ const PermissionAuditLogPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Role Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-permissionauditlogpage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Role
               </label>
-              <select
+              <select id="pages-permissionauditlogpage-1"
                 value={roleFilter}
                 onChange={(e) => {
                   setRoleFilter(e.target.value);
@@ -217,7 +217,7 @@ const PermissionAuditLogPage: React.FC = () => {
 
             {/* Resource Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-permissionauditlogpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Resource
               </label>
               <div className="relative">
@@ -237,7 +237,7 @@ const PermissionAuditLogPage: React.FC = () => {
 
             {/* Changed By Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-permissionauditlogpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Changed By
               </label>
               <div className="relative">
@@ -257,10 +257,10 @@ const PermissionAuditLogPage: React.FC = () => {
 
             {/* Start Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Start Date
-              </label>
-              <input
+              </span>
+              <input id="pages-permissionauditlogpage-2"
                 type="date"
                 value={startDate}
                 onChange={(e) => {
@@ -273,10 +273,10 @@ const PermissionAuditLogPage: React.FC = () => {
 
             {/* End Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-permissionauditlogpage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 End Date
               </label>
-              <input
+              <input id="pages-permissionauditlogpage-3"
                 type="date"
                 value={endDate}
                 onChange={(e) => {

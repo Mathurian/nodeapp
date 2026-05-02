@@ -216,10 +216,10 @@ const ProfilePage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Appearance</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px,1fr]">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-profilepage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Theme Preference
               </label>
-              <select
+              <select id="pages-profilepage-1"
                 value={theme}
                 onChange={(e) => setTheme(e.target.value as Theme)}
                 className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white"
@@ -339,10 +339,10 @@ const ProfilePage: React.FC = () => {
             <form onSubmit={handleSubmitProfile} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-profilepage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Full Name <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <input id="pages-profilepage-2"
                     type="text"
                     required
                     value={formData.name}
@@ -351,10 +351,10 @@ const ProfilePage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-profilepage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Preferred Name
                   </label>
-                  <input
+                  <input id="pages-profilepage-3"
                     type="text"
                     value={formData.preferredName}
                     onChange={(e) => setFormData({ ...formData, preferredName: e.target.value })}
@@ -364,10 +364,10 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="pages-profilepage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email <span className="text-red-500">*</span>
                 </label>
-                <input
+                <input id="pages-profilepage-4"
                   type="email"
                   required
                   value={formData.email}
@@ -378,10 +378,10 @@ const ProfilePage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-profilepage-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Phone
                   </label>
-                  <input
+                  <input id="pages-profilepage-5"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -389,10 +389,10 @@ const ProfilePage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="pages-profilepage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Gender
                   </label>
-                  <input
+                  <input id="pages-profilepage-6"
                     type="text"
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
@@ -403,10 +403,10 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="pages-profilepage-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Pronouns
                 </label>
-                <input
+                <input id="pages-profilepage-7"
                   type="text"
                   value={formData.pronouns}
                   onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })}
@@ -416,10 +416,10 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="pages-profilepage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Bio
                 </label>
-                <textarea
+                <textarea id="pages-profilepage-8"
                   rows={4}
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}

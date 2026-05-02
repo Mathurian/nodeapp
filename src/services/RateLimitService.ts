@@ -264,7 +264,6 @@ export class RateLimitService {
       max: config.points || 100,
       standardHeaders: true,
       legacyHeaders: false,
-      trustProxy: true,
       store: redisStore,
       skip: (req: Request): boolean => {
         // Skip for health checks
@@ -297,7 +296,6 @@ export class RateLimitService {
       store: redisStore,
       standardHeaders: true,
       legacyHeaders: false,
-      ...({ trustProxy: true } as any),
     });
   }
 
@@ -317,4 +315,3 @@ const defaults: RateLimitConfig[] = [
 ];
 
 export default RateLimitService;
-

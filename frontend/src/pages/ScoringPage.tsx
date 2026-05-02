@@ -1012,10 +1012,10 @@ const ScoringPage: React.FC = () => {
               </h2>
               {assignedContests.length > 1 && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-scoringpage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Assigned Contest
                   </label>
-                  <select
+                  <select id="pages-scoringpage-1"
                     value={selectedContestId}
                     onChange={(e) => {
                       setSelectedContestId(e.target.value)
@@ -1182,10 +1182,10 @@ const ScoringPage: React.FC = () => {
                       </div>
                     )}
                     <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="pages-scoringpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Contestant Commentary Attachment
                       </label>
-                      <input
+                      <input id="pages-scoringpage-2"
                         type="file"
                         onChange={(e) => {
                           const file = e.target.files?.[0]
@@ -1249,7 +1249,7 @@ const ScoringPage: React.FC = () => {
                     <div className="space-y-6">
                       {effectiveCriteria.map(criterion => (
                         <div key={criterion.id} className="border-b pb-4">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          <label htmlFor="pages-scoringpage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             {criterion.name}
                             <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500 ml-1">
                               (Max: {criterion.maxScore})
@@ -1278,10 +1278,10 @@ const ScoringPage: React.FC = () => {
                           />
                           {criterion.id !== '__category_total__' && (
                           <div className="mt-2">
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                            <label htmlFor="pages-scoringpage-3" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Criterion Attachment
                             </label>
-                            <input
+                            <input id="pages-scoringpage-3"
                               type="file"
                               onChange={(e) => {
                                 const file = e.target.files?.[0]

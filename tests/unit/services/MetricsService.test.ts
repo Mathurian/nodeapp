@@ -21,6 +21,7 @@ describe('MetricsService', () => {
   afterEach(() => {
     // Reset metrics after each test
     metricsService.resetMetrics();
+    metricsService.destroy();
   });
 
   describe('constructor', () => {

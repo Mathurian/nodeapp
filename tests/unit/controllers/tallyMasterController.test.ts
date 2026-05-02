@@ -93,7 +93,7 @@ describe('TallyMasterController', () => {
 
       await controller.getStats(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTallyMasterService.getStats).toHaveBeenCalledWith(undefined);
+      expect(mockTallyMasterService.getStats).toHaveBeenCalledWith('tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockStats);
     });
 
@@ -173,7 +173,7 @@ describe('TallyMasterController', () => {
 
       await controller.getCertificationQueue(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20, undefined);
+      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20, 'tenant-1');
       expect(mockRes.json).toHaveBeenCalledWith(mockResult);
     });
 
@@ -191,7 +191,7 @@ describe('TallyMasterController', () => {
 
       await controller.getCertificationQueue(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20, undefined);
+      expect(mockTallyMasterService.getCertificationQueue).toHaveBeenCalledWith(1, 20, 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {
@@ -551,6 +551,7 @@ describe('TallyMasterController', () => {
           judgeId: 'judge-1',
           reason: 'Scoring irregularity detected',
           status: 'PENDING',
+          tenantId: 'tenant-1',
         },
       });
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -835,7 +836,7 @@ describe('TallyMasterController', () => {
 
       expect(mockPrisma.score.findMany).toHaveBeenCalledWith({
         where: {
-          tenantId: undefined,
+          tenantId: 'tenant-1',
           contestantId: 'cont-1',
           categoryId: 'cat-1',
           category: { contestId: 'contest-1' },
@@ -860,7 +861,7 @@ describe('TallyMasterController', () => {
 
       expect(mockPrisma.score.findMany).toHaveBeenCalledWith({
         where: {
-          tenantId: undefined,
+          tenantId: 'tenant-1',
           judgeId: 'judge-1',
           categoryId: 'cat-1',
           category: { contestId: 'contest-1' },

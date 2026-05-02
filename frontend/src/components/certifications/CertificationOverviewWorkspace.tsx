@@ -740,8 +740,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
               </p>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Typed Signature</label>
-                <input
+                <label htmlFor="components-certifications-certificationoverviewworkspace-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Typed Signature</label>
+                <input id="components-certifications-certificationoverviewworkspace-1"
                   value={typedSignature}
                   onChange={(e) => setTypedSignature(e.target.value)}
                   className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white"
@@ -750,8 +750,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drawn Signature</label>
-                <canvas
+                <label htmlFor="components-certifications-certificationoverviewworkspace-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drawn Signature</label>
+                <canvas id="components-certifications-certificationoverviewworkspace-2"
                   ref={canvasRef}
                   width={560}
                   height={150}
@@ -805,8 +805,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
               </p>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Certification Stage</label>
-                <select
+                <label htmlFor="components-certifications-certificationoverviewworkspace-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Certification Stage</label>
+                <select id="components-certifications-certificationoverviewworkspace-3"
                   value={uncertifyTargetLevel}
                   onChange={(e) => setUncertifyTargetLevel(e.target.value as 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD')}
                   className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white"
@@ -819,8 +819,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reason</label>
-                <textarea
+                <label htmlFor="components-certifications-certificationoverviewworkspace-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reason</label>
+                <textarea id="components-certifications-certificationoverviewworkspace-4"
                   value={uncertifyReason}
                   onChange={(e) => setUncertifyReason(e.target.value)}
                   rows={3}
@@ -830,8 +830,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Typed Signature</label>
-                <input
+                <label htmlFor="components-certifications-certificationoverviewworkspace-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Typed Signature</label>
+                <input id="components-certifications-certificationoverviewworkspace-5"
                   value={typedSignature}
                   onChange={(e) => setTypedSignature(e.target.value)}
                   className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white"
@@ -840,8 +840,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drawn Signature</label>
-                <canvas
+                <label htmlFor="components-certifications-certificationoverviewworkspace-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Drawn Signature</label>
+                <canvas id="components-certifications-certificationoverviewworkspace-6"
                   ref={canvasRef}
                   width={560}
                   height={150}

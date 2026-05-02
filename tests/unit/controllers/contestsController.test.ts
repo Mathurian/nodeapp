@@ -17,6 +17,11 @@ jest.mock('../../../src/config/container');
 describe('ContestsController', () => {
   let controller: ContestsController;
   let mockContestService: jest.Mocked<ContestService>;
+  let mockPrismaClient: {
+    event: {
+      findFirst: jest.Mock;
+    };
+  };
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
   let mockNext: jest.MockedFunction<NextFunction>;
@@ -85,8 +90,19 @@ describe('ContestsController', () => {
       searchContests: jest.fn(),
     } as any;
 
+    mockPrismaClient = {
+      event: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'event-1' }),
+      },
+    };
+
     // Mock container resolve
-    (container.resolve as jest.Mock).mockReturnValue(mockContestService);
+    (container.resolve as jest.Mock).mockImplementation((token) => {
+      if (token === 'PrismaClient') {
+        return mockPrismaClient;
+      }
+      return mockContestService;
+    });
 
     // Create controller instance
     controller = new ContestsController();

@@ -387,7 +387,7 @@ const EmceePage: React.FC = () => {
 
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-          <nav className="-mb-px flex space-x-8" role="tablist" aria-label="Emcee dashboard tabs">
+          <div className="-mb-px flex space-x-8" role="tablist" aria-label="Emcee dashboard tabs">
             <button
               onClick={() => handleTabChange('overview')}
               role="tab"
@@ -416,7 +416,7 @@ const EmceePage: React.FC = () => {
             >
               Scripts ({sortedScripts.length})
             </button>
-          </nav>
+          </div>
         </div>
 
         {/* Overview Tab */}
@@ -428,10 +428,10 @@ const EmceePage: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Event</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-emceepage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Event
               </label>
-              <select
+              <select id="pages-emceepage-1"
                 value={selectedEventId}
                 onChange={(e) => {
                   setSelectedEventId(e.target.value)
@@ -449,10 +449,10 @@ const EmceePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-emceepage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contest
               </label>
-              <select
+              <select id="pages-emceepage-2"
                 value={selectedContestId}
                 onChange={(e) => setSelectedContestId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -743,10 +743,10 @@ const EmceePage: React.FC = () => {
                 <form onSubmit={handleScriptSubmit} className="space-y-6">
                   {/* Title */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-emceepage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Title *
                     </label>
-                    <input
+                    <input id="pages-emceepage-3"
                       type="text"
                       value={scriptFormData.title}
                       onChange={(e) => setScriptFormData({ ...scriptFormData, title: e.target.value })}
@@ -758,10 +758,10 @@ const EmceePage: React.FC = () => {
 
                   {/* Description */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="pages-emceepage-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Description
                     </label>
-                    <textarea
+                    <textarea id="pages-emceepage-4"
                       value={scriptFormData.description}
                       onChange={(e) => setScriptFormData({ ...scriptFormData, description: e.target.value })}
                       rows={3}
@@ -773,9 +773,9 @@ const EmceePage: React.FC = () => {
                   {/* File Upload (only for new scripts) */}
                   {!editingScript && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Script File *
-                      </label>
+                      </span>
                       <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
                         <div className="space-y-1 text-center">
                           <ArrowUpTrayIcon className="mx-auto h-12 w-12 text-gray-400" />

@@ -416,6 +416,13 @@ export class CircuitBreakerRegistry {
    * S4-4: Set up metrics listeners for a circuit breaker
    */
   private static setupMetricsListeners(name: string, breaker: CircuitBreaker): void {
+    if (
+      process.env['NODE_ENV'] === 'test' &&
+      process.env['ENABLE_CIRCUIT_BREAKER_METRICS'] !== 'true'
+    ) {
+      return;
+    }
+
     // Lazy load MetricsService to avoid circular dependencies
     const getMetricsService = async () => {
       try {

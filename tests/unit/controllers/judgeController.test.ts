@@ -125,7 +125,7 @@ describe('JudgeController', () => {
 
       await controller.getAssignments(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJudgeService.getAssignments).toHaveBeenCalledWith('judge-2', 'HEAD_JUDGE', 'tenant-1');
+      expect(mockJudgeService.getAssignments).toHaveBeenCalledWith('judge-2', 'JUDGE', 'tenant-1');
     });
 
     it('should call next with error when service throws', async () => {

@@ -215,10 +215,10 @@ const LogViewerPage: React.FC = () => {
               {/* Sort Controls */}
               <div className="mb-4 space-y-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="pages-logviewerpage-1" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Sort By
                   </label>
-                  <select
+                  <select id="pages-logviewerpage-1"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -238,7 +238,7 @@ const LogViewerPage: React.FC = () => {
                     <option value="desc">Newest First</option>
                     <option value="asc">Oldest First</option>
                   </select>
-                  <label className="flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  <label htmlFor="pages-logviewerpage-2" className="flex items-center gap-1 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={groupByFolder}
@@ -300,10 +300,10 @@ const LogViewerPage: React.FC = () => {
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="pages-logviewerpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Max Lines
                     </label>
-                    <select
+                    <select id="pages-logviewerpage-2"
                       value={maxLines}
                       onChange={(e) => setMaxLines(parseInt(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -315,9 +315,9 @@ const LogViewerPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Search in Content
-                    </label>
+                    </span>
                     <div className="relative">
                       <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input

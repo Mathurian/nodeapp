@@ -148,7 +148,7 @@ describe('DeductionController', () => {
       expect(mockService.approveDeduction).toHaveBeenCalledWith(
         'ded-1',
         'user-1',
-        'BOARD_MEMBER',
+        'BOARD',
         'tenant-1',
         'John Doe',
         'Approved by board'

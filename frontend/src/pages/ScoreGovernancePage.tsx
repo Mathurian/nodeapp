@@ -427,7 +427,7 @@ const ScoreGovernancePage: React.FC = () => {
             <option value="UNCERTIFY">Un-certify</option>
             <option value="ADJUST">Adjust</option>
           </select>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <label htmlFor="pages-scoregovernancepage-1" className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
             Show Completed
           </label>
@@ -456,8 +456,8 @@ const ScoreGovernancePage: React.FC = () => {
             <h2 className="font-semibold text-gray-900 dark:text-white">Governance Safeguards</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Required Additional Approvals</label>
-                <input
+                <label htmlFor="pages-scoregovernancepage-1" className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Required Additional Approvals</label>
+                <input id="pages-scoregovernancepage-1"
                   type="number"
                   min={1}
                   max={10}
@@ -467,7 +467,7 @@ const ScoreGovernancePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Approver Roles</label>
+                <span className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Approver Roles</span>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {allApproverRoles.map((role) => (
                     <label key={role} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">

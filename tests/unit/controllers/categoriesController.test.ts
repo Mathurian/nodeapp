@@ -16,6 +16,8 @@ jest.mock('../../../src/utils/responseHelpers');
 jest.mock('../../../src/config/container');
 
 describe('CategoriesController', () => {
+  const validContestId = 'clx00000000000000000000000';
+
   let controller: CategoriesController;
   let mockCategoryService: jest.Mocked<CategoryService>;
   let mockPrisma: jest.Mocked<PrismaClient>;
@@ -233,7 +235,7 @@ describe('CategoriesController', () => {
 
   describe('createCategory', () => {
     it('should create category with contestId from params', async () => {
-      mockReq.params = { contestId: 'contest-1' };
+      mockReq.params = { contestId: validContestId };
       mockReq.body = {
         name: 'New Category',
         description: 'Test description',
@@ -245,7 +247,7 @@ describe('CategoriesController', () => {
       await controller.createCategory(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockCategoryService.createCategory).toHaveBeenCalledWith({
-        contestId: 'contest-1',
+        contestId: validContestId,
         name: 'New Category',
         description: 'Test description',
         scoreCap: 100,
@@ -259,7 +261,7 @@ describe('CategoriesController', () => {
 
     it('should create category with contestId from body', async () => {
       mockReq.body = {
-        contestId: 'contest-1',
+        contestId: validContestId,
         name: 'New Category',
       };
       mockCategoryService.createCategory.mockResolvedValue(mockCategory as any);
@@ -267,7 +269,7 @@ describe('CategoriesController', () => {
       await controller.createCategory(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockCategoryService.createCategory).toHaveBeenCalledWith(
-        expect.objectContaining({ contestId: 'contest-1', name: 'New Category' })
+        expect.objectContaining({ contestId: validContestId, name: 'New Category' })
       );
     });
 
@@ -281,7 +283,7 @@ describe('CategoriesController', () => {
 
     it('should call next with error when service throws', async () => {
       const error = new Error('Validation error');
-      mockReq.params = { contestId: 'contest-1' };
+      mockReq.params = { contestId: validContestId };
       mockReq.body = { name: 'Test' };
       mockCategoryService.createCategory.mockRejectedValue(error);
 

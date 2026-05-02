@@ -642,10 +642,10 @@ const ResultsPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Event Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-resultspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Event
               </label>
-              <select
+              <select id="pages-resultspage-1"
                 value={selectedEventId}
                 onChange={(e) => {
                   setSelectedEventId(e.target.value)
@@ -666,10 +666,10 @@ const ResultsPage: React.FC = () => {
 
             {/* Contest Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-resultspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Contest
               </label>
-              <select
+              <select id="pages-resultspage-2"
                 value={selectedContestId}
                 onChange={(e) => {
                   setSelectedContestId(e.target.value)
@@ -689,10 +689,10 @@ const ResultsPage: React.FC = () => {
 
             {/* Category Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="pages-resultspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Category
               </label>
-              <select
+              <select id="pages-resultspage-3"
                 value={selectedCategoryId}
                 onChange={(e) => setSelectedCategoryId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -28,7 +28,7 @@ export const sanitizeHtml = (
     ALLOWED_ATTR: [
       'href', 'title', 'target', 'rel', 'src', 'alt', 'class', 'id', 'style'
     ],
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'link'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
     KEEP_CONTENT: true,
@@ -93,7 +93,7 @@ export const sanitizeRichText = (dirty: string): string => {
       'href', 'target', 'rel', 'class', 'id', 'src', 'alt', 'title',
       'width', 'height', 'style'
     ],
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
   });
 };
 

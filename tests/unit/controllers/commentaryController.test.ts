@@ -272,7 +272,7 @@ describe('CommentaryController', () => {
       expect(mockService.delete).toHaveBeenCalledWith(
         'comment-1',
         'board-1',
-        'BOARD_MEMBER',
+        'BOARD',
         expect.any(Number),
       );
     });

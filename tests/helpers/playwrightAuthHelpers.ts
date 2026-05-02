@@ -295,13 +295,54 @@ export async function waitForPageLoad(page: Page): Promise<void> {
   await page.waitForTimeout(500); // Small buffer for animations
 }
 
+const KNOWN_APP_ROUTE_SEGMENTS = new Set([
+  'login', 'register', 'forgot-password', 'dashboard', 'events', 'contests', 'categories',
+  'scoring', 'results', 'users', 'admin', 'settings', 'profile', 'emcee',
+  'templates', 'reports', 'notifications', 'backups', 'disaster-recovery',
+  'workflows', 'files', 'email-templates', 'send-email', 'custom-fields',
+  'tenants', 'mfa', 'database', 'cache', 'archive', 'deductions',
+  'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
+  'bulk-operations', 'category-types', 'field-visibility',
+  'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs',
+  'activity', 'auditor', 'board', 'permissions', 'test-runner', 'uat-ids', 'tally-master',
+  'winners', 'score-governance', 'login-locations',
+]);
+
+function getTenantSlugFromPath(pathname: string): string | null {
+  const [firstSegment] = pathname.split('/').filter(Boolean);
+  if (!firstSegment || KNOWN_APP_ROUTE_SEGMENTS.has(firstSegment)) {
+    return null;
+  }
+  return firstSegment;
+}
+
+function resolveTenantAwareUrl(page: Page, url: string): string {
+  if (!url.startsWith('/') || url.startsWith('//')) {
+    return url;
+  }
+
+  const targetSegments = url.split('/').filter(Boolean);
+  const targetFirstSegment = targetSegments[0];
+  if (!targetFirstSegment || !KNOWN_APP_ROUTE_SEGMENTS.has(targetFirstSegment)) {
+    return url;
+  }
+
+  const currentUrl = new URL(page.url());
+  const currentTenantSlug = getTenantSlugFromPath(currentUrl.pathname);
+  if (!currentTenantSlug) {
+    return url;
+  }
+
+  return `/${currentTenantSlug}${url}`;
+}
+
 /**
  * Navigate to a page and wait for it to load
  * @param page - Playwright page object
  * @param url - URL to navigate to
  */
 export async function navigateAndWait(page: Page, url: string): Promise<void> {
-  await page.goto(url);
+  await page.goto(resolveTenantAwareUrl(page, url));
   await waitForPageLoad(page);
   // Close any onboarding modals or command palette that might have opened
   await closeOpenModals(page);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery } from 'react-query'
-import { adminAPI } from '../services/api'
+import { auditorAPI } from '../services/api'
 import { safeFormatDate } from '../utils/dateUtils'
 import { Card, PageHeader, ResponsiveTable } from '../components/ui'
 
@@ -35,17 +35,20 @@ const AuditorAuditLogPage: React.FC = () => {
     ['auditor-audit-log', actionFilter],
     async () => {
       const params: Record<string, string> = {}
-      if (actionFilter) params.action = actionFilter
 
-      const response = await adminAPI.getAuditLogs(params)
+      const response = await auditorAPI.getAuditHistory(params)
       const unwrapped = response.data?.data || response.data || {}
-      const data = Array.isArray(unwrapped?.data)
-        ? unwrapped.data
+      const data = Array.isArray(unwrapped?.auditLogs)
+        ? unwrapped.auditLogs
+        : Array.isArray(unwrapped?.data)
+          ? unwrapped.data
         : Array.isArray(unwrapped)
           ? unwrapped
           : []
 
-      return data as AuditLogEntry[]
+      return actionFilter
+        ? (data as AuditLogEntry[]).filter((log) => log.action === actionFilter)
+        : data as AuditLogEntry[]
     },
     { retry: 1 }
   )

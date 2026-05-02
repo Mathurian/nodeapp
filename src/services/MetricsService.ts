@@ -358,8 +358,12 @@ export class MetricsService {
 
     this.log.info('Metrics service initialized with test and system monitoring');
 
-    // Start periodic check to reset test suite status to IDLE after timeout
-    this.startStatusResetInterval();
+    // Start periodic check to reset test suite status to IDLE after timeout.
+    // Unit tests construct this service in short-lived Jest environments; a
+    // background interval can outlive the environment and touch soft-deleted globals.
+    if (process.env['NODE_ENV'] !== 'test') {
+      this.startStatusResetInterval();
+    }
   }
 
   /**
