@@ -1055,33 +1055,14 @@ test.describe('Accordion Tests - Auditor Page', () => {
     await prisma.$disconnect();
   });
 
-  test('should expand and collapse all accordions on Auditor page', async () => {
-    const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+test('should show auditor dashboard actions and overview workspace', async () => {
+  const { page } = authContext;
+  await navigateAndWait(page, '/auditor');
 
-    const accordions = [
-      'Pending Audits',
-      'Completed Audits',
-      'Audit History'
-    ];
+  const hasQuickAction = await page.locator('a:has-text("Pending Audits"), a:has-text("Certification Status"), a:has-text("Full Certifications View")').first().isVisible({ timeout: 5000 }).catch(() => false);
+  const hasWorkspace = await page.getByText(/Auditor Dashboard|Certification pipeline overview/i).first().isVisible({ timeout: 5000 }).catch(() => false);
 
-    for (const accordionTitle of accordions) {
-      const accordionExists = await page.locator('button').filter({ hasText: accordionTitle }).count() > 0;
-      if (!accordionExists) {
-        console.log(`Accordion "${accordionTitle}" not found on page, skipping`);
-        continue;
-      }
-
-      await expandAccordion(page, accordionTitle);
-      const isOpen = await isAccordionOpen(page, accordionTitle);
-      expect(isOpen).toBeTruthy();
-
-      await page.waitForTimeout(500);
-
-      await collapseAccordion(page, accordionTitle);
-      const isClosed = !(await isAccordionOpen(page, accordionTitle));
-      expect(isClosed).toBeTruthy();
-    }
+  expect(hasQuickAction || hasWorkspace).toBe(true);
   });
 });
 

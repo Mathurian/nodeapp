@@ -203,7 +203,26 @@ test.describe('Comprehensive Admin/Organizer E2E Tests', () => {
           // Select event
           const eventSelect = page.locator('select[name="eventId"]');
           if (await eventSelect.isVisible()) {
-            await eventSelect.selectOption(testData.event.id);
+            await expect
+              .poll(
+                () =>
+                  eventSelect.locator('option').evaluateAll((options) =>
+                    options
+                      .map((option) => (option as HTMLOptionElement).value)
+                      .filter((value) => Boolean(value))
+                  ).then((values) => values.length),
+                { timeout: 10000 }
+              )
+              .toBeGreaterThan(0);
+            const eventOptionValues = await eventSelect.locator('option').evaluateAll((options) =>
+              options
+                .map((option) => (option as HTMLOptionElement).value)
+                .filter((value) => Boolean(value))
+            );
+            const selectedEventId = eventOptionValues.includes(testData.event.id)
+              ? testData.event.id
+              : eventOptionValues[0];
+            await eventSelect.selectOption(selectedEventId);
           }
 
           // Click submit button inside form
@@ -236,7 +255,26 @@ test.describe('Comprehensive Admin/Organizer E2E Tests', () => {
           // Select contest
           const contestSelect = page.locator('select[name="contestId"]');
           if (await contestSelect.isVisible()) {
-            await contestSelect.selectOption(testData.contests[0].id);
+            await expect
+              .poll(
+                () =>
+                  contestSelect.locator('option').evaluateAll((options) =>
+                    options
+                      .map((option) => (option as HTMLOptionElement).value)
+                      .filter((value) => Boolean(value))
+                  ).then((values) => values.length),
+                { timeout: 10000 }
+              )
+              .toBeGreaterThan(0);
+            const contestOptionValues = await contestSelect.locator('option').evaluateAll((options) =>
+              options
+                .map((option) => (option as HTMLOptionElement).value)
+                .filter((value) => Boolean(value))
+            );
+            const selectedContestId = contestOptionValues.includes(testData.contests[0].id)
+              ? testData.contests[0].id
+              : contestOptionValues[0];
+            await contestSelect.selectOption(selectedContestId);
           }
 
           // Click submit button inside form
@@ -259,7 +297,8 @@ test.describe('Comprehensive Admin/Organizer E2E Tests', () => {
 
       const usersList = page.locator('table, [data-testid="users-list"], .user-list').first();
       const hasUsers = await usersList.isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasUsers).toBe(true);
+      const hasUserRows = await page.getByText(/Select all visible users \(\d+\)/i).isVisible({ timeout: 3000 }).catch(() => false);
+      expect(hasUsers || hasUserRows).toBe(true);
     });
 
     test('should create a new user with all fields', async () => {

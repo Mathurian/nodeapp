@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-02 21:41'
-updated_date: '2026-05-02 22:43'
+updated_date: '2026-05-03 00:01'
 labels:
   - tests
   - e2e
@@ -40,6 +40,17 @@ TASK-19.28 restored tenant-aware navigation and the focused admin suite, but ful
 3. Fix parallel-only UI expectation drift discovered during shard runs, including any remaining admin/comprehensive list assertions or slow accordion timing assumptions.
 4. When the shard set is stable, update TASK-19.33 and then fold the residual evidence back into TASK-19.28.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- Shard 1/8 rerun after TASK-19.30/31/32 fixes: 53 passed / 0 failed in 4.5m.
+- Shard 2/8 rerun: 49 passed / 0 failed in 2.3m. Accordion admin tests still emit "not found, skipping" messages but no timeout failures.
+- Initial shard 3/8 rerun failed in three narrow places: comprehensive auditor dashboard accordion expectation and comprehensive admin contest/users selectors. Updated comprehensive accordion auditor coverage to assert current quick actions/workspace, updated comprehensive admin users list expectation, and made contest/category create-form selects resilient to shard-parallel option sets.
+- Shard 3/8 rerun after fixes: 55 passed / 0 failed in 5.3m.
+- Initial shard 4/8 rerun failed in one comprehensive auditor result test and three comprehensive contestant result/score tests, all due stale table-only result selectors. Updated those tests to use the current event/contest/category filter chain and current results summary surfaces. Focused rerun of the four repaired tests passed 4/4.
+- TASK-19.33 remains in progress pending full shard 4/8 rerun and shards 5/8 through 8/8.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

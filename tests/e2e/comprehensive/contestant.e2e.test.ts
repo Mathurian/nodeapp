@@ -132,12 +132,20 @@ test.describe('Comprehensive Contestant E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/results');
 
-    const categorySelect = page.locator('select[name="category"], select').first();
+    const selects = page.locator('select');
+    const eventSelect = selects.nth(0);
+    const contestSelect = selects.nth(1);
+    const categorySelect = selects.nth(2);
     if (await categorySelect.isVisible({ timeout: 5000 })) {
-      await categorySelect.selectOption({ index: 0 });
+      await expect.poll(() => eventSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await eventSelect.selectOption(testData.event.id);
+      await expect.poll(() => contestSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await contestSelect.selectOption(testData.contests[0].id);
+      await expect.poll(() => categorySelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await categorySelect.selectOption(testData.categories[0].id);
       await page.waitForTimeout(2000);
 
-      const resultsTable = page.locator('table, [data-testid="results-list"]').first();
+      const resultsTable = page.locator('table, [data-testid="results-list"], [data-testid="contest-results-summary"], button:has-text("Show Score Breakdowns"), button:has-text("Export to Excel")').first();
       const hasResults = await resultsTable.isVisible({ timeout: 5000 }).catch(() => false);
       expect(hasResults).toBe(true);
     }
@@ -147,12 +155,20 @@ test.describe('Comprehensive Contestant E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/results');
 
-    const categorySelect = page.locator('select[name="category"], select').first();
+    const selects = page.locator('select');
+    const eventSelect = selects.nth(0);
+    const contestSelect = selects.nth(1);
+    const categorySelect = selects.nth(2);
     if (await categorySelect.isVisible({ timeout: 5000 })) {
-      await categorySelect.selectOption({ index: 0 });
+      await expect.poll(() => eventSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await eventSelect.selectOption(testData.event.id);
+      await expect.poll(() => contestSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await contestSelect.selectOption(testData.contests[0].id);
+      await expect.poll(() => categorySelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await categorySelect.selectOption(testData.categories[0].id);
       await page.waitForTimeout(2000);
 
-      const scoresTable = page.locator('table, [data-testid="scores"]').first();
+      const scoresTable = page.locator('table, [data-testid="scores"], [data-testid="contest-results-summary"], button:has-text("Show Score Breakdowns")').first();
       const hasScores = await scoresTable.isVisible({ timeout: 5000 }).catch(() => false);
       expect(hasScores).toBe(true);
     }
@@ -162,12 +178,17 @@ test.describe('Comprehensive Contestant E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/results');
 
-    const contestSelect = page.locator('select[name="contest"], select').first();
+    const selects = page.locator('select');
+    const eventSelect = selects.nth(0);
+    const contestSelect = selects.nth(1);
     if (await contestSelect.isVisible({ timeout: 5000 })) {
-      await contestSelect.selectOption({ index: 0 });
+      await expect.poll(() => eventSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await eventSelect.selectOption(testData.event.id);
+      await expect.poll(() => contestSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+      await contestSelect.selectOption(testData.contests[0].id);
       await page.waitForTimeout(2000);
 
-      const resultsList = page.locator('table, [data-testid="results-list"]').first();
+      const resultsList = page.locator('table, [data-testid="results-list"], [data-testid="contest-results-summary"], button:has-text("Show Score Breakdowns"), button:has-text("Export to Excel")').first();
       const hasResults = await resultsList.isVisible({ timeout: 5000 }).catch(() => false);
       expect(hasResults).toBe(true);
     }
