@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { api, assignmentsAPI, tenantsAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
@@ -169,10 +169,12 @@ const AssignmentsPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<TabType>('judges')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterEventId, setFilterEventId] = useState('')
   const [filterContestId, setFilterContestId] = useState('')
   const [filterCategoryId, setFilterCategoryId] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -260,15 +262,9 @@ const AssignmentsPage: React.FC = () => {
       setActiveTab(tab)
     }
 
-    if (contestId) {
-      setFilterContestId(contestId)
-    }
-    if (categoryId) {
-      setFilterCategoryId(categoryId)
-    }
-    if (eventId) {
-      setPolicyEventId(eventId)
-    }
+    setFilterEventId(eventId)
+    setFilterContestId(contestId)
+    setFilterCategoryId(categoryId)
 
     if (eventId || contestId || categoryId) {
       setFormData((prev) => ({
@@ -278,8 +274,44 @@ const AssignmentsPage: React.FC = () => {
         categoryId,
         assignmentLevel: categoryId ? 'category' : contestId ? 'contest' : 'event',
       }))
+      setPolicyEventId(eventId)
     }
   }, [location.search])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    params.set('tab', activeTab)
+    if (filterEventId) params.set('eventId', filterEventId)
+    if (filterContestId) params.set('contestId', filterContestId)
+    if (filterCategoryId) params.set('categoryId', filterCategoryId)
+
+    const nextSearch = params.toString()
+    const currentSearch = location.search.startsWith('?')
+      ? location.search.slice(1)
+      : location.search
+
+    if (nextSearch !== currentSearch) {
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : '',
+        },
+        { replace: true }
+      )
+    }
+  }, [
+    activeTab,
+    filterEventId,
+    filterContestId,
+    filterCategoryId,
+    location.pathname,
+    location.search,
+    navigate,
+  ])
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [activeTab, filterEventId, filterContestId, filterCategoryId])
 
   const parsePolicyLimit = (value: string): number | null => {
     const normalized = value.trim()
@@ -300,28 +332,48 @@ const AssignmentsPage: React.FC = () => {
     { enabled: isSuperAdmin }
   )
 
+  const assignmentScopeParams = useMemo(() => {
+    const params: Record<string, string> = {}
+
+    if (selectedTenantId) params.tenantId = selectedTenantId
+    if (filterEventId) params.eventId = filterEventId
+    if (filterContestId) params.contestId = filterContestId
+    if (filterCategoryId) params.categoryId = filterCategoryId
+
+    return params
+  }, [selectedTenantId, filterEventId, filterContestId, filterCategoryId])
+
   const { data: judgeAssignments = [], isLoading: isLoadingJudges } = useQuery<JudgeAssignment[]>(
-    'judge-assignments',
+    ['judge-assignments', assignmentScopeParams],
     async () => {
-      const response = await api.get('/assignments', { params: { type: 'judge' } })
+      const response = await api.get('/assignments', {
+        params: {
+          type: 'judge',
+          ...assignmentScopeParams,
+        }
+      })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     }
   )
 
   const { data: contestantAssignments = [], isLoading: isLoadingContestants } = useQuery<ContestantAssignment[]>(
-    'contestant-assignments',
+    ['contestant-assignments', assignmentScopeParams],
     async () => {
-      const response = await api.get('/assignments/contestants/assignments')
+      const response = await api.get('/assignments/contestants/assignments', {
+        params: assignmentScopeParams,
+      })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     }
   )
 
   const { data: tallyMasterAssignments = [], isLoading: isLoadingTallyMasters } = useQuery<TallyMasterAssignment[]>(
-    'tally-master-assignments',
+    ['tally-master-assignments', assignmentScopeParams],
     async () => {
-      const response = await api.get('/assignments/tally-masters')
+      const response = await api.get('/assignments/tally-masters', {
+        params: assignmentScopeParams,
+      })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
@@ -329,9 +381,11 @@ const AssignmentsPage: React.FC = () => {
   )
 
   const { data: auditorAssignments = [], isLoading: isLoadingAuditors } = useQuery<AuditorAssignment[]>(
-    'auditor-assignments',
+    ['auditor-assignments', assignmentScopeParams],
     async () => {
-      const response = await api.get('/assignments/auditors')
+      const response = await api.get('/assignments/auditors', {
+        params: assignmentScopeParams,
+      })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
@@ -994,8 +1048,10 @@ const AssignmentsPage: React.FC = () => {
   }
 
   const matchesScope = (a: any): boolean => {
+    const eventId = a.event?.id || a.eventId
     const contestId = a.contest?.id || a.contestId
     const categoryId = a.category?.id || a.categoryId
+    if (filterEventId && eventId !== filterEventId) return false
     if (filterContestId && contestId !== filterContestId) return false
     if (filterCategoryId && categoryId !== filterCategoryId) return false
     return true
@@ -1038,7 +1094,11 @@ const AssignmentsPage: React.FC = () => {
 
   const getCurrentAssignments = (): any[] => {
     const filtered = getRawAssignmentsForTab().filter(matchesSearch).filter(matchesScope)
-    if (filterContestId && !filterCategoryId) {
+    const shouldCollapseByContest =
+      (activeTab === 'contestants' && !filterCategoryId) ||
+      (activeTab !== 'contestants' && filterContestId && !filterCategoryId)
+
+    if (shouldCollapseByContest) {
       return stableSort(collapseByContest(filtered), compareAssignmentRows)
     }
     return stableSort(filtered, compareAssignmentRows)
@@ -1186,6 +1246,7 @@ const AssignmentsPage: React.FC = () => {
   const contestOptions = stableSort(Array.from(
     new Map(
       rawAssignments
+        .filter((a: any) => !filterEventId || (a.event?.id || a.eventId) === filterEventId)
         .map((a: any) => ({ id: a.contest?.id || a.contestId, name: a.contest?.name }))
         .filter((c: any) => c.id && c.name)
         .map((c: any) => [c.id, c])
@@ -1194,6 +1255,7 @@ const AssignmentsPage: React.FC = () => {
   const categoryOptions = stableSort(Array.from(
     new Map(
       rawAssignments
+        .filter((a: any) => !filterEventId || (a.event?.id || a.eventId) === filterEventId)
         .filter((a: any) => !filterContestId || (a.contest?.id || a.contestId) === filterContestId)
         .map((a: any) => ({ id: a.category?.id || a.categoryId, name: a.category?.name }))
         .filter((c: any) => c.id && c.name)
@@ -1397,6 +1459,21 @@ const AssignmentsPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
+        <select
+          value={filterEventId}
+          onChange={(e) => {
+            setFilterEventId(e.target.value)
+            setFilterContestId('')
+            setFilterCategoryId('')
+            setSelectedIds(new Set())
+          }}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[180px]"
+        >
+          <option value="">All events</option>
+          {sortedEvents.map((event) => (
+            <option key={event.id} value={event.id}>{event.name}</option>
+          ))}
+        </select>
         <select
           value={filterContestId}
           onChange={(e) => {

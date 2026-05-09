@@ -375,6 +375,7 @@ export class AssignmentsController {
   getAllContestantAssignments = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const filters = {
+        eventId: req.query['eventId'] as string | undefined,
         categoryId: req.query['categoryId'] as string | undefined,
         contestId: req.query['contestId'] as string | undefined,
       };

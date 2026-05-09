@@ -1198,7 +1198,10 @@ export class AssignmentService extends BaseService {
   /**
    * Get all contestant assignments
    */
-  async getAllContestantAssignments(filters?: { categoryId?: string; contestId?: string }, tenantId?: string): Promise<Prisma.CategoryContestantGetPayload<{
+  async getAllContestantAssignments(
+    filters?: { eventId?: string; categoryId?: string; contestId?: string },
+    tenantId?: string
+  ): Promise<Prisma.CategoryContestantGetPayload<{
     include: {
       contestant: {
         select: {
@@ -1234,10 +1237,20 @@ export class AssignmentService extends BaseService {
       where.categoryId = filters.categoryId;
     }
     
+    const categoryWhere: Prisma.CategoryWhereInput = {};
+
     if (filters?.contestId) {
-      where.category = {
-        contestId: filters.contestId,
+      categoryWhere.contestId = filters.contestId;
+    }
+
+    if (filters?.eventId) {
+      categoryWhere.contest = {
+        eventId: filters.eventId,
       };
+    }
+
+    if (Object.keys(categoryWhere).length > 0) {
+      where.category = categoryWhere;
     }
 
     const result = await this.prisma.categoryContestant.findMany({
