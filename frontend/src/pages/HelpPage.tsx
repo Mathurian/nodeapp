@@ -144,6 +144,14 @@ const HelpPage: React.FC = () => {
 
     try {
       const result = await login(loginEmail, loginPassword)
+      if (result.tenantSelectionRequired) {
+        toast(result.message || 'Select your tenant to continue signing in.')
+        setShowLoginModal(false)
+        setLoginPassword('')
+        navigate(`/login${loginEmail.trim() ? `?email=${encodeURIComponent(loginEmail.trim())}` : ''}`)
+        return
+      }
+
       if (result.requiresMFA) {
         toast('MFA verification is required. Continue on the login page.')
         setShowLoginModal(false)
@@ -156,7 +164,7 @@ const HelpPage: React.FC = () => {
       setLoginEmail('')
       setLoginPassword('')
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Login failed')
+      toast.error(error instanceof Error ? error.message : 'Login failed')
     } finally {
       setLoginLoading(false)
     }

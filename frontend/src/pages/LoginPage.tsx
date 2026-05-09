@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
@@ -25,6 +25,12 @@ interface TenantInfo {
   branding: TenantBranding
 }
 
+interface TenantSelectionOption {
+  id: string
+  name: string
+  slug: string
+}
+
 interface PublicSettings {
   appName: string
   appSubtitle: string
@@ -47,9 +53,13 @@ const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
 
 const LoginPage: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>()
+  const [searchParams] = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [isTenantLoading, setIsTenantLoading] = useState(true)
   const [serverError, setServerError] = useState('')
+  const [tenantSelectionMessage, setTenantSelectionMessage] = useState('')
+  const [tenantSelectionOptions, setTenantSelectionOptions] = useState<TenantSelectionOption[]>([])
+  const [tenantSelectionEmail, setTenantSelectionEmail] = useState('')
   const [mfaPendingToken, setMfaPendingToken] = useState<string | null>(null)
   const [mfaRequiresSetup, setMfaRequiresSetup] = useState(false)
   const [mfaProviders, setMfaProviders] = useState<string[]>(['TOTP'])
@@ -66,6 +76,7 @@ const LoginPage: React.FC = () => {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   })
+  const watchedEmail = form.watch('email')
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
   const [settings, setSettings] = useState<PublicSettings>(DEFAULT_PUBLIC_SETTINGS)
   const { login, completeMfaLogin } = useAuth()
@@ -78,6 +89,29 @@ const LoginPage: React.FC = () => {
     setTenantInfo(null)
     setSettings({ ...DEFAULT_PUBLIC_SETTINGS })
   }, [slug])
+
+  useEffect(() => {
+    const emailParam = searchParams.get('email')?.trim() || ''
+    if (!emailParam) {
+      return
+    }
+
+    form.setValue('email', emailParam, { shouldValidate: true })
+  }, [form, searchParams])
+
+  useEffect(() => {
+    if (!tenantSelectionEmail) {
+      return
+    }
+
+    if (watchedEmail.trim() === tenantSelectionEmail) {
+      return
+    }
+
+    setTenantSelectionOptions([])
+    setTenantSelectionMessage('')
+    setTenantSelectionEmail('')
+  }, [tenantSelectionEmail, watchedEmail])
 
   // Load tenant info if slug is provided
   useEffect(() => {
@@ -318,8 +352,25 @@ const LoginPage: React.FC = () => {
 
   const onSubmit = async (data: LoginInput) => {
     setServerError('')
+    setTenantSelectionMessage('')
+    setTenantSelectionOptions([])
+    setTenantSelectionEmail('')
     try {
       const result = await login(data.email, data.password, slug || undefined)
+      if (result.tenantSelectionRequired) {
+        const tenantOptions = result.tenants || []
+        if (tenantOptions.length === 0) {
+          setServerError(result.message || 'Unable to resolve a tenant for this email address.')
+          return
+        }
+
+        setTenantSelectionOptions(tenantOptions)
+        setTenantSelectionMessage(result.message || 'Select your tenant to continue signing in.')
+        setTenantSelectionEmail(data.email.trim())
+        form.setValue('password', '')
+        return
+      }
+
       if (result.requiresMFA) {
         setMfaPendingToken(result.tempToken || null)
         setMfaRequiresSetup(Boolean(result.requiresMFASetup))
@@ -342,6 +393,16 @@ const LoginPage: React.FC = () => {
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Login failed')
     }
+  }
+
+  const navigateToTenantLogin = (tenantSlug: string) => {
+    const email = form.getValues('email').trim()
+    const query = email ? `?email=${encodeURIComponent(email)}` : ''
+    setTenantSelectionOptions([])
+    setTenantSelectionMessage('')
+    setTenantSelectionEmail('')
+    setServerError('')
+    navigate(`/${tenantSlug}/login${query}`)
   }
 
   return (
@@ -447,6 +508,30 @@ const LoginPage: React.FC = () => {
                 {serverError && (
                   <div className="rounded-md bg-red-50 border border-red-200 p-4" role="alert">
                     <div className="text-sm text-red-800 font-medium">{serverError}</div>
+                  </div>
+                )}
+
+                {tenantSelectionOptions.length > 0 && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-4" role="status">
+                    <div className="text-sm font-medium text-amber-900">
+                      {tenantSelectionMessage || 'Select your tenant to continue signing in.'}
+                    </div>
+                    <div className="mt-2 text-xs text-amber-800">
+                      Choose your tenant-specific login page. Your email will be carried over, but you will need to re-enter your password.
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {tenantSelectionOptions.map((tenantOption) => (
+                        <button
+                          key={tenantOption.id}
+                          type="button"
+                          onClick={() => navigateToTenantLogin(tenantOption.slug)}
+                          className="w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-left text-sm text-amber-900 hover:bg-amber-100"
+                        >
+                          {tenantOption.name}
+                          <span className="ml-2 text-xs text-amber-700">/{tenantOption.slug}/login</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

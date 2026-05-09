@@ -11,6 +11,12 @@ interface TenantInfo {
   slug: string
 }
 
+interface TenantSelectionOption {
+  id: string
+  name: string
+  slug: string
+}
+
 interface User {
   id: string
   name: string
@@ -38,6 +44,8 @@ interface AuthContextType {
     tempToken?: string
     message?: string
     mfaProviders?: string[]
+    tenantSelectionRequired?: boolean
+    tenants?: TenantSelectionOption[]
   }>
   completeMfaLogin: (tempToken: string, code: string, provider?: 'TOTP' | 'SMS' | 'EMAIL') => Promise<User>
   logout: () => Promise<void>
@@ -176,7 +184,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Return user data so caller can handle navigation based on tenant
       return { user: userData }
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Login failed')
+      const status = error.response?.status
+      const payload = error.response?.data
+
+      if (status === 409 && payload?.code === 'TENANT_SELECTION_REQUIRED') {
+        const tenantOptions = Array.isArray(payload?.data?.tenants) ? payload.data.tenants : []
+        return {
+          tenantSelectionRequired: true,
+          tenants: tenantOptions,
+          message: payload?.data?.message || payload?.error || 'Select your tenant to continue signing in.',
+        }
+      }
+
+      throw new Error(payload?.error || payload?.message || 'Login failed')
     }
   }
 
