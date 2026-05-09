@@ -4,7 +4,9 @@ title: Create Proper CI/CD with Github
 status: To Do
 assignee: []
 created_date: '2026-05-03 00:59'
+updated_date: '2026-05-09 21:02'
 labels: []
+milestone: m-1
 dependencies: []
 priority: low
 ---

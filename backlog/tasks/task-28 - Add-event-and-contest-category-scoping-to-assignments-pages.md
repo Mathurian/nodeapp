@@ -4,10 +4,12 @@ title: Add event and contest/category scoping to assignments pages
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:35'
+updated_date: '2026-05-09 21:00'
 labels:
   - assignments
   - frontend
   - filters
+milestone: m-0
 dependencies: []
 priority: high
 ---

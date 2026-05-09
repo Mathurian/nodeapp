@@ -4,10 +4,11 @@ title: Create standalone implementation backlog from prioritized gaps
 status: To Do
 assignee: []
 created_date: '2026-04-29 23:02'
-updated_date: '2026-04-29 23:02'
+updated_date: '2026-05-09 21:02'
 labels:
   - planning
   - delivery
+milestone: m-2
 dependencies:
   - task-17
 priority: high
@@ -30,17 +31,31 @@ Translate prioritized capability gaps into implementation-ready tasks that are i
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:BEGIN -->
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
+<!-- SECTION:NOTES:BEGIN -->
 <!-- SECTION:NOTES:BEGIN -->
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
 <!-- SECTION:FINAL_SUMMARY:END -->
+<!-- SECTION:FINAL_SUMMARY:END -->
+
+<!-- SECTION:NOTES:END -->
+
+<!-- SECTION:PLAN:END -->
+
+<!-- SECTION:FINAL_SUMMARY:END -->
+
+<!-- SECTION:NOTES:END -->
+
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

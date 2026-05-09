@@ -4,10 +4,12 @@ title: Add event-scoped option to data wipe workflow
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:35'
+updated_date: '2026-05-09 21:00'
 labels:
   - data-wipe
   - events
   - safety
+milestone: m-0
 dependencies: []
 priority: high
 ---

@@ -5,13 +5,14 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-02 17:53'
-updated_date: '2026-05-02 21:42'
+updated_date: '2026-05-09 21:02'
 labels:
   - tests
   - e2e
   - playwright
   - frontend
   - backend
+milestone: m-1
 dependencies: []
 parent_task_id: TASK-19
 priority: high

@@ -4,10 +4,12 @@ title: Fix email-based dynamic tenant login resolution
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:34'
+updated_date: '2026-05-09 20:59'
 labels:
   - auth
   - multi-tenant
   - login
+milestone: m-0
 dependencies: []
 priority: high
 ---

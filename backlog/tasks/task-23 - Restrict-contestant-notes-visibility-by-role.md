@@ -4,11 +4,12 @@ title: Restrict contestant notes visibility by role
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:32'
-updated_date: '2026-05-09 20:50'
+updated_date: '2026-05-09 20:59'
 labels:
   - privacy
   - permissions
   - contestants
+milestone: m-0
 dependencies:
   - TASK-32
 priority: high

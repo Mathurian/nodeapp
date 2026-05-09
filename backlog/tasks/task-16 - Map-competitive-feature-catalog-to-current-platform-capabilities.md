@@ -4,10 +4,11 @@ title: Map competitive feature catalog to current platform capabilities
 status: To Do
 assignee: []
 created_date: '2026-04-29 23:01'
-updated_date: '2026-04-29 23:01'
+updated_date: '2026-05-09 21:02'
 labels:
   - product-research
   - gap-analysis
+milestone: m-2
 dependencies:
   - task-15
 priority: high
@@ -30,17 +31,31 @@ Compare the normalized external feature catalog against the current application 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+<!-- SECTION:PLAN:BEGIN -->
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
+<!-- SECTION:NOTES:BEGIN -->
 <!-- SECTION:NOTES:BEGIN -->
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
 <!-- SECTION:FINAL_SUMMARY:END -->
+<!-- SECTION:FINAL_SUMMARY:END -->
+
+<!-- SECTION:NOTES:END -->
+
+<!-- SECTION:PLAN:END -->
+
+<!-- SECTION:FINAL_SUMMARY:END -->
+
+<!-- SECTION:NOTES:END -->
+
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

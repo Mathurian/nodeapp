@@ -4,11 +4,12 @@ title: Scope category cloning contest selection by event
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:31'
-updated_date: '2026-05-09 20:45'
+updated_date: '2026-05-09 20:59'
 labels:
   - cloning
   - frontend
   - backend
+milestone: m-0
 dependencies: []
 priority: high
 ---

@@ -4,10 +4,12 @@ title: Add bulk select controls on assignments pages
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:34'
+updated_date: '2026-05-09 21:00'
 labels:
   - assignments
   - frontend
   - ux
+milestone: m-0
 dependencies: []
 priority: high
 ---

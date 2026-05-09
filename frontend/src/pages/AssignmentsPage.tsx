@@ -116,6 +116,28 @@ interface AuditorAssignment {
   _deleting?: boolean
 }
 
+interface BulkDeleteAssignmentItem {
+  id?: string
+  categoryId?: string
+  contestantId?: string
+}
+
+interface BulkDeleteAssignmentRequest {
+  assignmentType: 'judge' | 'contestant' | 'tally-master' | 'auditor'
+  items: BulkDeleteAssignmentItem[]
+}
+
+interface BulkDeleteAssignmentResponse {
+  message: string
+  assignmentType: BulkDeleteAssignmentRequest['assignmentType']
+  result: {
+    total: number
+    successful: number
+    failed: number
+    errors: Array<{ item: BulkDeleteAssignmentItem; error: string }>
+  }
+}
+
 interface AssignmentFormData {
   personIds: string[]
   assignmentLevel: 'event' | 'contest' | 'category'
@@ -168,6 +190,56 @@ const AssignmentsPage: React.FC = () => {
     contestId: '',
     categoryId: '',
   })
+
+  const invalidateAssignmentQueries = (tab: TabType) => {
+    if (tab === 'judges') queryClient.invalidateQueries('judge-assignments')
+    else if (tab === 'contestants') queryClient.invalidateQueries('contestant-assignments')
+    else if (tab === 'tally-masters') queryClient.invalidateQueries('tally-master-assignments')
+    else if (tab === 'auditors') queryClient.invalidateQueries('auditor-assignments')
+  }
+
+  const buildBulkDeleteRequest = (tab: TabType, rows: Array<any>): BulkDeleteAssignmentRequest => {
+    const expandedIds = Array.from(
+      new Set(
+        rows.flatMap(row => (Array.isArray(row._groupedIds) ? row._groupedIds : [row.id]))
+      )
+    )
+
+    if (tab === 'judges') {
+      return {
+        assignmentType: 'judge',
+        items: expandedIds.map(id => ({ id })),
+      }
+    }
+
+    if (tab === 'contestants') {
+      const selectedAssignments = contestantAssignments.filter(a => expandedIds.includes(a.id))
+      if (selectedAssignments.length !== expandedIds.length) {
+        throw new Error('Failed to resolve one or more contestant assignments for bulk removal')
+      }
+
+      return {
+        assignmentType: 'contestant',
+        items: selectedAssignments.map(a => ({
+          id: a.id,
+          categoryId: a.categoryId || a.category?.id,
+          contestantId: a.contestantId || a.contestant?.id,
+        })),
+      }
+    }
+
+    if (tab === 'tally-masters') {
+      return {
+        assignmentType: 'tally-master',
+        items: expandedIds.map(id => ({ id })),
+      }
+    }
+
+    return {
+      assignmentType: 'auditor',
+      items: expandedIds.map(id => ({ id })),
+    }
+  }
   const [policyEventId, setPolicyEventId] = useState('')
   const [tenantPolicyInput, setTenantPolicyInput] = useState('1')
   const [eventPolicyInput, setEventPolicyInput] = useState('')
@@ -590,41 +662,31 @@ const AssignmentsPage: React.FC = () => {
 
   // Bulk remove
   const bulkRemoveMutation = useMutation(
-    async () => {
+    async (): Promise<BulkDeleteAssignmentResponse> => {
       const selectedRows = currentAssignments.filter((a: any) => selectedIds.has(a.id))
-      const toIds = (a: any): string[] => (Array.isArray(a._groupedIds) ? a._groupedIds : [a.id])
-
-      if (activeTab === 'judges') {
-        const ids = Array.from(new Set(selectedRows.flatMap(toIds)))
-        await Promise.all(ids.map(id => api.put(`/assignments/remove/${id}`)))
-      } else if (activeTab === 'contestants') {
-        const selectedIdsExpanded = new Set(selectedRows.flatMap(toIds))
-        const selected = contestantAssignments.filter(a => selectedIdsExpanded.has(a.id))
-        await Promise.all(
-          selected.map(a => {
-            const categoryId = a.categoryId || a.category?.id
-            const contestantId = a.contestantId || a.contestant?.id
-            return api.delete(`/assignments/category/${categoryId}/contestant/${contestantId}`)
-          })
-        )
-      } else if (activeTab === 'tally-masters') {
-        const ids = Array.from(new Set(selectedRows.flatMap(toIds)))
-        await Promise.all(ids.map(id => api.delete(`/assignments/tally-masters/${id}`)))
-      } else if (activeTab === 'auditors') {
-        const ids = Array.from(new Set(selectedRows.flatMap(toIds)))
-        await Promise.all(ids.map(id => api.delete(`/assignments/auditors/${id}`)))
-      }
+      const request = buildBulkDeleteRequest(activeTab, selectedRows)
+      const response = await assignmentsAPI.bulkDelete(request)
+      return response.data as BulkDeleteAssignmentResponse
     },
     {
-      onSuccess: () => {
-        const count = selectedIds.size
-        queryClient.invalidateQueries(`${activeTab.replace('-', '-')}assignments`)
-        if (activeTab === 'judges') queryClient.invalidateQueries('judge-assignments')
-        else if (activeTab === 'contestants') queryClient.invalidateQueries('contestant-assignments')
-        else if (activeTab === 'tally-masters') queryClient.invalidateQueries('tally-master-assignments')
-        else if (activeTab === 'auditors') queryClient.invalidateQueries('auditor-assignments')
+      onSuccess: (data) => {
+        invalidateAssignmentQueries(activeTab)
         setSelectedIds(new Set())
-        toast.success(`Removed ${count} assignment(s)`)
+        if (data.result.failed > 0) {
+          const firstError = data.result.errors[0]?.error
+          if (data.result.successful > 0) {
+            toast.success(
+              `Removed ${data.result.successful} assignment(s); ${data.result.failed} failed${firstError ? ` (${firstError})` : ''}`
+            )
+          } else {
+            toast.error(
+              `Failed to remove assignments${firstError ? `: ${firstError}` : ''}`
+            )
+          }
+          return
+        }
+
+        toast.success(`Removed ${data.result.successful} assignment(s)`)
       },
       onError: (error: any) => {
         toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignments'}`)
@@ -796,25 +858,22 @@ const AssignmentsPage: React.FC = () => {
     }
 
     try {
-      if (activeTab === 'judges') {
-        await Promise.all(ids.map(id => api.put(`/assignments/remove/${id}`)))
-        queryClient.invalidateQueries('judge-assignments')
-      } else if (activeTab === 'contestants') {
-        const selected = contestantAssignments.filter(a => ids.includes(a.id))
-        await Promise.all(selected.map(a => {
-          const categoryId = a.categoryId || a.category?.id
-          const contestantId = a.contestantId || a.contestant?.id
-          return api.delete(`/assignments/category/${categoryId}/contestant/${contestantId}`)
-        }))
-        queryClient.invalidateQueries('contestant-assignments')
-      } else if (activeTab === 'tally-masters') {
-        await Promise.all(ids.map(id => api.delete(`/assignments/tally-masters/${id}`)))
-        queryClient.invalidateQueries('tally-master-assignments')
-      } else if (activeTab === 'auditors') {
-        await Promise.all(ids.map(id => api.delete(`/assignments/auditors/${id}`)))
-        queryClient.invalidateQueries('auditor-assignments')
+      const response = await assignmentsAPI.bulkDelete(buildBulkDeleteRequest(activeTab, [assignment]))
+      invalidateAssignmentQueries(activeTab)
+
+      const result = response.data?.result
+      if (result?.failed > 0) {
+        const firstError = result.errors?.[0]?.error
+        if (result.successful > 0) {
+          toast.success(
+            `Removed ${result.successful} assignment(s); ${result.failed} failed${firstError ? ` (${firstError})` : ''}`
+          )
+        } else {
+          toast.error(`Error: ${firstError || 'Failed to remove assignment'}`)
+        }
+        return
       }
-      toast.success('Assignments removed!')
+      toast.success(`Removed ${result?.successful || ids.length} assignment(s)!`)
     } catch (error: any) {
       toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
     }

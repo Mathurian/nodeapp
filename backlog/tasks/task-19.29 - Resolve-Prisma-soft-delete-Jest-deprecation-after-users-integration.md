@@ -5,11 +5,12 @@ status: To Do
 assignee:
   - '@codex'
 created_date: '2026-05-02 19:04'
-updated_date: '2026-05-02 19:07'
+updated_date: '2026-05-09 21:02'
 labels:
   - tests
   - jest
   - prisma
+milestone: m-1
 dependencies: []
 parent_task_id: TASK-19
 priority: high

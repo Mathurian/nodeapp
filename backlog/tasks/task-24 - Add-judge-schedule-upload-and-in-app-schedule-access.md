@@ -4,11 +4,13 @@ title: Add judge schedule upload and in-app schedule access
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:32'
+updated_date: '2026-05-09 20:59'
 labels:
   - judges
   - scheduling
   - frontend
   - backend
+milestone: m-0
 dependencies: []
 priority: high
 ---

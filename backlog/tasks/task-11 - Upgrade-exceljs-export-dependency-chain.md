@@ -4,11 +4,12 @@ title: Upgrade exceljs export dependency chain
 status: To Do
 assignee: []
 created_date: '2026-04-28 01:59'
-updated_date: '2026-04-28 02:31'
+updated_date: '2026-05-09 21:01'
 labels:
   - npm
   - exports
   - backend
+milestone: m-1
 dependencies: []
 priority: medium
 ordinal: 11

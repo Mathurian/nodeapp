@@ -6,11 +6,13 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:53'
+updated_date: '2026-05-09 21:00'
 labels:
   - templates
   - events
   - frontend
   - backend
+milestone: m-0
 dependencies: []
 priority: high
 ---

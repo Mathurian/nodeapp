@@ -5,11 +5,12 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-04-30 13:36'
-updated_date: '2026-05-02 17:53'
+updated_date: '2026-05-09 21:02'
 labels:
   - tests
   - ci
   - qa
+milestone: m-1
 dependencies: []
 priority: high
 ---

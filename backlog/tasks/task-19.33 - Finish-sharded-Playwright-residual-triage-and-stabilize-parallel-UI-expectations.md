@@ -7,12 +7,13 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-02 21:41'
-updated_date: '2026-05-03 00:01'
+updated_date: '2026-05-09 21:02'
 labels:
   - tests
   - e2e
   - playwright
   - stability
+milestone: m-1
 dependencies: []
 parent_task_id: TASK-19
 priority: high

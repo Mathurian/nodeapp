@@ -496,9 +496,13 @@ export const assignmentsAPI = {
   getCategories: () => api.get('/assignments/categories'),
   create: (data: any) => api.post('/assignments', data),
   update: (id: string, data: any) => api.put(`/assignments/${id}`, data),
-  delete: (id: string) => api.delete(`/assignments/${id}`),
+  delete: (id: string) => api.put(`/assignments/remove/${id}`),
   assignJudge: (judgeId: string, categoryId: string) => api.post('/assignments/judge', { judgeId, categoryId }),
-  removeAssignment: (assignmentId: string) => api.delete(`/assignments/${assignmentId}`),
+  removeAssignment: (assignmentId: string) => api.put(`/assignments/remove/${assignmentId}`),
+  bulkDelete: (data: {
+    assignmentType: 'judge' | 'contestant' | 'tally-master' | 'auditor';
+    items: Array<{ id?: string; categoryId?: string; contestantId?: string }>;
+  }) => api.post('/bulk/assignments/delete', data),
   getJudgeContestLimitPolicy: (params?: { eventId?: string; tenantId?: string }) =>
     api.get('/assignments/policies/judge-contest-limit', { params }),
   updateJudgeContestLimitPolicy: (

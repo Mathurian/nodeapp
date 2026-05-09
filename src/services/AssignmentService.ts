@@ -890,7 +890,7 @@ export class AssignmentService extends BaseService {
    * Handles both Assignment records (UUID ids) and synthetic CategoryJudge ids
    * (format: "categoryJudge_{categoryId}_{judgeId}") that are returned by getAllAssignments.
    */
-  async deleteAssignment(id: string): Promise<void> {
+  async deleteAssignment(id: string, tenantId?: string): Promise<void> {
     // CategoryJudge synthetic IDs are built as "categoryJudge_{categoryId}_{judgeId}".
     // CUIDs have no underscores, so splitting on "_" gives exactly 3 parts.
     if (id.startsWith('categoryJudge_')) {
@@ -905,7 +905,7 @@ export class AssignmentService extends BaseService {
       const existing = await this.prisma.categoryJudge.findUnique({
         where: { categoryId_judgeId: { categoryId, judgeId } },
       });
-      if (!existing) {
+      if (!existing || (tenantId && existing.tenantId !== tenantId)) {
         throw this.createNotFoundError('Assignment not found');
       }
 
@@ -921,7 +921,7 @@ export class AssignmentService extends BaseService {
       where: { id },
     });
 
-    if (!assignment) {
+    if (!assignment || (tenantId && assignment.tenantId !== tenantId)) {
       throw this.createNotFoundError('Assignment not found');
     }
 
@@ -1410,7 +1410,24 @@ export class AssignmentService extends BaseService {
   /**
    * Remove contestant from category
    */
-  async removeContestantFromCategory(categoryId: string, contestantId: string): Promise<void> {
+  async removeContestantFromCategory(
+    categoryId: string,
+    contestantId: string,
+    tenantId?: string
+  ): Promise<void> {
+    const assignment = await this.prisma.categoryContestant.findUnique({
+      where: {
+        categoryId_contestantId: {
+          categoryId,
+          contestantId,
+        },
+      },
+    });
+
+    if (!assignment || (tenantId && assignment.tenantId !== tenantId)) {
+      throw this.createNotFoundError('Contestant assignment not found');
+    }
+
     await this.prisma.categoryContestant.delete({
       where: {
         categoryId_contestantId: {
@@ -1717,12 +1734,12 @@ export class AssignmentService extends BaseService {
   /**
    * Remove tally master assignment
    */
-  async removeTallyMasterAssignment(assignmentId: string): Promise<void> {
+  async removeTallyMasterAssignment(assignmentId: string, tenantId?: string): Promise<void> {
     const assignment = await this.prisma.tallyMasterAssignment.findUnique({
       where: { id: assignmentId },
     });
 
-    if (!assignment) {
+    if (!assignment || (tenantId && assignment.tenantId !== tenantId)) {
       throw this.createNotFoundError('Tally master assignment not found');
     }
 
@@ -1886,12 +1903,12 @@ export class AssignmentService extends BaseService {
   /**
    * Remove auditor assignment
    */
-  async removeAuditorAssignment(assignmentId: string): Promise<void> {
+  async removeAuditorAssignment(assignmentId: string, tenantId?: string): Promise<void> {
     const assignment = await this.prisma.auditorAssignment.findUnique({
       where: { id: assignmentId },
     });
 
-    if (!assignment) {
+    if (!assignment || (tenantId && assignment.tenantId !== tenantId)) {
       throw this.createNotFoundError('Auditor assignment not found');
     }
 

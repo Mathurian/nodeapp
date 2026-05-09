@@ -262,7 +262,7 @@ export class AssignmentsController {
       // Route uses :assignmentId param (not :id), so extract directly
       const id = req.params['assignmentId'] || req.params['id'];
       if (!id) throw new Error("Required route parameter 'assignmentId' is missing");
-      await this.assignmentService.deleteAssignment(id);
+      await this.assignmentService.deleteAssignment(id, this.getEffectiveTenantId(req));
       successResponse(res, null, 'Assignment deleted successfully');
     } catch (error) {
       return next(error);
@@ -351,7 +351,11 @@ export class AssignmentsController {
     try {
       const categoryId = getRequiredParam(req, 'categoryId');
       const contestantId = getRequiredParam(req, 'contestantId');
-      await this.assignmentService.removeContestantFromCategory(categoryId, contestantId);
+      await this.assignmentService.removeContestantFromCategory(
+        categoryId,
+        contestantId,
+        this.getEffectiveTenantId(req)
+      );
       return sendSuccess(res, null, 'Contestant removed from category successfully');
     } catch (error) {
       return next(error);
@@ -436,7 +440,10 @@ export class AssignmentsController {
   removeTallyMasterAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const assignmentId = getRequiredParam(req, 'id');
-      await this.assignmentService.removeTallyMasterAssignment(assignmentId);
+      await this.assignmentService.removeTallyMasterAssignment(
+        assignmentId,
+        this.getEffectiveTenantId(req)
+      );
       return sendSuccess(res, null, 'Tally master assignment removed successfully');
     } catch (error) {
       return next(error);
@@ -485,7 +492,10 @@ export class AssignmentsController {
   removeAuditorAssignment = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const assignmentId = getRequiredParam(req, 'id');
-      await this.assignmentService.removeAuditorAssignment(assignmentId);
+      await this.assignmentService.removeAuditorAssignment(
+        assignmentId,
+        this.getEffectiveTenantId(req)
+      );
       return sendSuccess(res, null, 'Auditor assignment removed successfully');
     } catch (error) {
       return next(error);

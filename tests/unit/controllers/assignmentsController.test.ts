@@ -768,7 +768,8 @@ describe('AssignmentsController', () => {
 
       expect(mockAssignmentService.removeContestantFromCategory).toHaveBeenCalledWith(
         'cat-1',
-        'cont-1'
+        'cont-1',
+        'tenant-1'
       );
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -908,7 +909,7 @@ describe('AssignmentsController', () => {
         mockNext
       );
 
-      expect(mockAssignmentService.deleteAssignment).toHaveBeenCalledWith('assign-1');
+      expect(mockAssignmentService.deleteAssignment).toHaveBeenCalledWith('assign-1', 'tenant-1');
     });
   });
 });

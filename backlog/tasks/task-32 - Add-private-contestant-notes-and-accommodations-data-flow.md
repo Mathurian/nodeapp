@@ -4,11 +4,13 @@ title: Add private contestant notes and accommodations data flow
 status: To Do
 assignee: []
 created_date: '2026-05-09 20:50'
+updated_date: '2026-05-09 21:00'
 labels:
   - contestants
   - privacy
   - backend
   - frontend
+milestone: m-0
 dependencies: []
 priority: high
 ---
