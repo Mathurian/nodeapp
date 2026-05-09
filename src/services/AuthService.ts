@@ -376,8 +376,8 @@ export class AuthService {
         });
       }
 
-      // Only do cross-tenant search if we're logging in from configured default tenant context.
-      // This prevents cross-tenant authentication when accessing tenant-specific URLs.
+      // Default login keeps the existing cross-tenant discovery behavior.
+      // Tenant-specific login pages only fall back to SUPER_ADMIN accounts.
       if (defaultTenantId && tenantId === defaultTenantId) {
         const candidates = await authPrisma.user.findMany({
           where: {
@@ -423,6 +423,72 @@ export class AuthService {
         } else if (candidates.length > 1) {
           const matchedCandidates: typeof candidates = [];
           for (const candidate of candidates) {
+            if (await bcrypt.compare(password, candidate.password)) {
+              matchedCandidates.push(candidate);
+            }
+          }
+
+          if (matchedCandidates.length === 1) {
+            const matchedCandidate = matchedCandidates[0];
+            if (matchedCandidate) {
+              user = matchedCandidate;
+            }
+          } else if (matchedCandidates.length > 1) {
+            throw new TenantSelectionRequiredError(
+              matchedCandidates.map((candidate) => ({
+                id: candidate.tenant.id,
+                slug: candidate.tenant.slug,
+                name: candidate.tenant.name,
+              }))
+            );
+          }
+        }
+      } else if (defaultTenantId) {
+        const superAdminCandidates = await authPrisma.user.findMany({
+          where: {
+            email,
+            role: 'SUPER_ADMIN',
+            isActive: true,
+            tenant: { isActive: true }
+          },
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            email: true,
+            password: true,
+            role: true,
+            boardRole: true,
+            sessionVersion: true,
+            isActive: true,
+            judgeId: true,
+            contestantId: true,
+            gender: true,
+            pronouns: true,
+            tenantId: true,
+            imagePath: true,
+            mfaEnabled: true,
+            mfaSecret: true,
+            mfaMethod: true,
+            phone: true,
+            tenant: {
+              select: {
+                id: true,
+                name: true,
+                slug: true
+              }
+            }
+          }
+        });
+
+        if (superAdminCandidates.length === 1) {
+          const candidate = superAdminCandidates[0];
+          if (candidate) {
+            user = candidate;
+          }
+        } else if (superAdminCandidates.length > 1) {
+          const matchedCandidates: typeof superAdminCandidates = [];
+          for (const candidate of superAdminCandidates) {
             if (await bcrypt.compare(password, candidate.password)) {
               matchedCandidates.push(candidate);
             }

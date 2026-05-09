@@ -4,7 +4,7 @@
  */
 
 import 'reflect-metadata';
-import { AuthService } from '../../../src/services/AuthService';
+import { AuthService, TenantSelectionRequiredError } from '../../../src/services/AuthService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import bcrypt from 'bcrypt';
@@ -304,6 +304,80 @@ describe('AuthService', () => {
       const result = await service.login(credentials, tenantId);
 
       expect(result.token).toBe('token');
+    });
+
+    it('allows a super admin to sign in from a tenant-specific slug context', async () => {
+      const superAdminUser = {
+        ...mockUser,
+        role: 'SUPER_ADMIN',
+        tenantId: 'default-tenant',
+        tenant: { id: 'default-tenant', name: 'Default Tenant', slug: 'default' },
+      };
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'default-tenant', slug: 'default' } as any);
+      mockPrisma.user.findMany.mockResolvedValue([superAdminUser] as any);
+      mockPrisma.user.update.mockResolvedValue(superAdminUser as any);
+      mockPrisma.activityLog.create.mockResolvedValue({} as any);
+      mockBcryptCompare.mockResolvedValue(true);
+      mockJwtSign.mockReturnValue('super-admin-token' as never);
+
+      const result = await service.login(credentials, 'tenant-slug');
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            email: credentials.email,
+            role: 'SUPER_ADMIN',
+            isActive: true,
+          }),
+        })
+      );
+      expect(result.token).toBe('super-admin-token');
+      expect(result.user.role).toBe('SUPER_ADMIN');
+      expect(result.user.tenantId).toBe('default-tenant');
+    });
+
+    it('preserves tenant-selection behavior for default-tenant login discovery', async () => {
+      const tenantOne = { ...mockUser, tenant: { id: 'tenant-1', name: 'Tenant One', slug: 'tenant-one' } };
+      const tenantTwo = {
+        ...mockUser,
+        id: 'user-2',
+        tenantId: 'tenant-2',
+        tenant: { id: 'tenant-2', name: 'Tenant Two', slug: 'tenant-two' },
+      };
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'default-tenant', slug: 'default' } as any);
+      mockPrisma.user.findMany.mockResolvedValue([tenantOne, tenantTwo] as any);
+      mockBcryptCompare.mockResolvedValue(true);
+
+      await expect(service.login(credentials, 'default-tenant')).rejects.toBeInstanceOf(
+        TenantSelectionRequiredError
+      );
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.not.objectContaining({
+            role: 'SUPER_ADMIN',
+          }),
+        })
+      );
+    });
+
+    it('does not allow non-super-admin users to bypass tenant scoping from a slug login', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'default-tenant', slug: 'default' } as any);
+      mockPrisma.user.findMany.mockResolvedValue([] as any);
+      mockBcryptCompare.mockResolvedValue(false);
+
+      await expect(service.login(credentials, 'tenant-slug')).rejects.toThrow('Invalid credentials');
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            email: credentials.email,
+            role: 'SUPER_ADMIN',
+            isActive: true,
+          }),
+        })
+      );
     });
 
     it('should include user profile data in response', async () => {

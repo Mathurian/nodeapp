@@ -1,10 +1,11 @@
 ---
 id: TASK-25
 title: Fix email-based dynamic tenant login resolution
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-09 20:34'
-updated_date: '2026-05-09 20:59'
+updated_date: '2026-05-09 22:49'
 labels:
   - auth
   - multi-tenant
@@ -26,6 +27,15 @@ Investigate and fix the email-based dynamic tenant login flow so tenant resoluti
 - [ ] #2 Tenant resolution is correct for the resolved user and does not route the session into the wrong tenant context.
 - [ ] #3 Failures such as unknown email, ambiguous tenant mapping, or disabled access return clear and safe user-facing errors.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inspect the current default-login tenant-discovery response path from `AuthService` through `AuthContext` and `LoginPage` to confirm where tenant-selection details are being dropped.
+2. Preserve the backend 409 tenant-selection contract and extend the frontend login flow to surface candidate tenants and route the user into the correct tenant-specific login path instead of showing a generic failure.
+3. Keep safe failure messaging for unknown email, inactive access, and unresolved tenant mapping while ensuring successful single-match email discovery still completes login correctly.
+4. Add targeted tests or verification around the tenant-selection handoff, then run focused auth/frontend checks.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

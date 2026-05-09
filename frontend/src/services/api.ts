@@ -2,6 +2,7 @@ import axios from 'axios'
 import { classifyNetworkError } from './networkErrorClassifier'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from './idempotency'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
+import { extractTenantSlugFromPath } from '../utils/routeSegments'
 import type { PublicLandingContent } from '../types/publicLandingContent'
 
 /**
@@ -45,6 +46,18 @@ const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete'])
 // Request interceptor to add CSRF token for state-changing requests
 api.interceptors.request.use(
   (config) => {
+    const tenantSlug =
+      typeof window !== 'undefined' ? extractTenantSlugFromPath(window.location.pathname) : null
+
+    if (
+      tenantSlug &&
+      config.headers &&
+      !config.headers['X-Tenant-Slug'] &&
+      !config.headers['x-tenant-slug']
+    ) {
+      config.headers['X-Tenant-Slug'] = tenantSlug
+    }
+
     // Cookies with httpOnly are automatically sent with requests
     // Add CSRF token from cookie for POST, PUT, DELETE, PATCH requests
     const method = config.method?.toLowerCase() || ''
