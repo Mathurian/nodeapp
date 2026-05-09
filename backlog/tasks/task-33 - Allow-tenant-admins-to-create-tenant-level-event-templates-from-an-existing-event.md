@@ -3,10 +3,11 @@ id: TASK-33
 title: >-
   Allow tenant admins to create tenant-level event templates from an existing
   event
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-09 20:53'
-updated_date: '2026-05-09 21:00'
+updated_date: '2026-05-09 23:13'
 labels:
   - templates
   - events
@@ -29,6 +30,15 @@ Add support for tenant admins and organizers to create a tenant-level event temp
 - [ ] #2 If backend support already exists, the UI exposes it correctly for the allowed roles; if it does not exist, the necessary backend support is implemented.
 - [ ] #3 The resulting event template is tenant-scoped, preserves the intended reusable event structure, and is available in the normal event template management flow after creation.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add a backend event-template creation path that loads a tenant-owned event, derives contest/category/criterion structure from it, and persists a tenant-scoped event template.
+2. Expose the new backend path through the event template controller/routes and add focused service coverage for happy path and tenant/not-found validation.
+3. Add a clear UI action from the events page to create a template from an existing event, collect template name/description, and refresh the event templates flow after success.
+4. Run focused backend tests plus frontend type-check/build, then close the task with AC/DoD updates and a final summary.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
