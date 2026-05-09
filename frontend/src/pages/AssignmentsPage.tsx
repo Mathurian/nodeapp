@@ -955,6 +955,14 @@ const AssignmentsPage: React.FC = () => {
     setSelectedIds(allSelected ? new Set() : new Set(visibleIds))
   }
 
+  const handleSelectVisible = (assignments: Array<{ id: string }>) => {
+    setSelectedIds(new Set(assignments.map(a => a.id)))
+  }
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set())
+  }
+
   const handleEditAssignment = (assignment: any) => {
     setEditingAssignment(assignment)
     setEditEventId(assignment.event?.id || assignment.eventId || '')
@@ -1501,6 +1509,27 @@ const AssignmentsPage: React.FC = () => {
             <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => handleSelectVisible(currentAssignments)}
+          disabled={currentAssignments.length === 0 || currentAssignments.every(a => selectedIds.has(a.id))}
+        >
+          Select visible
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={handleClearSelection}
+          disabled={selectedIds.size === 0}
+        >
+          Clear selection
+        </Button>
+        {selectedIds.size > 0 && (
+          <div className="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+            {selectedIds.size} selected
+          </div>
+        )}
         {selectedIds.size > 0 && (
           <Button
             onClick={handleBulkRemove}

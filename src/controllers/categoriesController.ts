@@ -779,10 +779,11 @@ export class CategoriesController {
         return sendError(res, 'Tenant context is required', 400);
       }
 
-      const { targetContestId, name, includeCriteria } = req.body;
+      const { targetEventId, targetContestId, name, includeCriteria } = req.body;
       const category = await this.structureCopyService.cloneCategory({
         tenantId,
         sourceCategoryId: id,
+        targetEventId,
         targetContestId,
         name,
         includeCriteria,

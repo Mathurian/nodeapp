@@ -284,6 +284,7 @@ describe('Structure Copy API Integration Tests', () => {
       .post(`/api/categories/${sourceCategory.id}/clone`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
+        targetEventId: targetEvent.id,
         targetContestId: targetContest.id,
         name: 'copy-test-cloned-category',
         includeCriteria: true,
@@ -304,6 +305,23 @@ describe('Structure Copy API Integration Tests', () => {
     expect(clonedCategory?.totalsCertified).toBe(false);
     expect(clonedCategory?.boardApproved).toBe(false);
     expect(clonedCategory?.criteria).toHaveLength(2);
+  });
+
+  it('rejects category cloning when the selected destination event does not own the target contest', async () => {
+    const response = await request(app)
+      .post(`/api/categories/${sourceCategory.id}/clone`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        targetEventId: sourceEvent.id,
+        targetContestId: targetContest.id,
+        name: 'copy-test-invalid-category-clone',
+        includeCriteria: true,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message || response.body.error?.message).toContain(
+      'Target contest must belong to the selected destination event'
+    );
   });
 
   it('clones a contest with categories, criteria, and reset numbering state', async () => {

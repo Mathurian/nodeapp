@@ -350,6 +350,7 @@ export const cloneContestSchema = z.object({
 });
 
 export const cloneCategorySchema = z.object({
+  targetEventId: compatIdSchema,
   targetContestId: compatIdSchema,
   name: z.string().trim().min(1).max(200).optional(),
   includeCriteria: z.coerce.boolean().optional().default(true),

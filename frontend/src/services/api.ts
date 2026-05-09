@@ -185,7 +185,7 @@ export const categoriesAPI = {
     }
   },
   update: (id: string, data: any) => api.put(`/categories/${id}`, data),
-  clone: (id: string, data: { targetContestId: string; name?: string; includeCriteria?: boolean }) =>
+  clone: (id: string, data: { targetEventId: string; targetContestId: string; name?: string; includeCriteria?: boolean }) =>
     api.post(`/categories/${id}/clone`, data),
   createFromTemplate: (templateId: string, data: {
     contestId: string;

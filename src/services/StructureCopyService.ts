@@ -16,6 +16,7 @@ interface CloneContestInput {
 interface CloneCategoryInput {
   tenantId: string;
   sourceCategoryId: string;
+  targetEventId: string;
   targetContestId: string;
   name?: string;
   includeCriteria?: boolean;
@@ -266,7 +267,7 @@ export class StructureCopyService extends BaseService {
 
       const targetContest = await this.prisma.contest.findFirst({
         where: targetContestWhere,
-        select: { id: true, tenantId: true },
+        select: { id: true, tenantId: true, eventId: true },
       });
 
       if (!targetContest) {
@@ -275,6 +276,10 @@ export class StructureCopyService extends BaseService {
 
       if (sourceCategory.tenantId !== targetContest.tenantId) {
         throw this.validationError('Source category and target contest must belong to the same tenant');
+      }
+
+      if (targetContest.eventId !== input.targetEventId) {
+        throw this.validationError('Target contest must belong to the selected destination event');
       }
 
       const resolvedTenantId = sourceCategory.tenantId;

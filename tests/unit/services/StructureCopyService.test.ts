@@ -159,6 +159,7 @@ describe('StructureCopyService', () => {
     it('clones a category without criteria when disabled', async () => {
       mockPrisma.category.findFirst.mockResolvedValue({
         id: 'category-source',
+        tenantId: 'tenant-1',
         name: 'Interview',
         description: 'Source category',
         scoreCap: 50,
@@ -167,7 +168,11 @@ describe('StructureCopyService', () => {
         contestantMax: 3,
         criteria: [{ id: 'criterion-1', name: 'Content', maxScore: 50 }],
       } as any);
-      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-target' } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({
+        id: 'contest-target',
+        tenantId: 'tenant-1',
+        eventId: 'event-target',
+      } as any);
 
       const tx = {
         category: {
@@ -186,6 +191,7 @@ describe('StructureCopyService', () => {
       const result = await service.cloneCategory({
         tenantId: 'tenant-1',
         sourceCategoryId: 'category-source',
+        targetEventId: 'event-target',
         targetContestId: 'contest-target',
         name: 'Interview Clone',
         includeCriteria: false,
@@ -219,10 +225,39 @@ describe('StructureCopyService', () => {
         service.cloneCategory({
           tenantId: 'default_tenant',
           sourceCategoryId: 'category-source',
+          targetEventId: 'event-target',
           targetContestId: 'contest-target',
           actorRole: 'SUPER_ADMIN',
         })
       ).rejects.toThrow('Source category and target contest must belong to the same tenant');
+    });
+
+    it('rejects a clone when the target contest is outside the selected destination event', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        id: 'category-source',
+        tenantId: 'tenant-1',
+        name: 'Interview',
+        description: 'Source category',
+        scoreCap: 50,
+        timeLimit: 5,
+        contestantMin: 1,
+        contestantMax: 3,
+        criteria: [],
+      } as any);
+      mockPrisma.contest.findFirst.mockResolvedValue({
+        id: 'contest-target',
+        tenantId: 'tenant-1',
+        eventId: 'event-other',
+      } as any);
+
+      await expect(
+        service.cloneCategory({
+          tenantId: 'tenant-1',
+          sourceCategoryId: 'category-source',
+          targetEventId: 'event-target',
+          targetContestId: 'contest-target',
+        })
+      ).rejects.toThrow('Target contest must belong to the selected destination event');
     });
   });
 

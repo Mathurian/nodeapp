@@ -136,6 +136,7 @@ const CategoriesPage: React.FC = () => {
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [postCloneNotice, setPostCloneNotice] = useState<string | null>(null)
   const [cloneSource, setCloneSource] = useState<Category | null>(null)
+  const [cloneTargetEventId, setCloneTargetEventId] = useState('')
   const [cloneTargetContestId, setCloneTargetContestId] = useState('')
   const [cloneName, setCloneName] = useState('')
   const [cloneIncludeCriteria, setCloneIncludeCriteria] = useState(true)
@@ -191,24 +192,61 @@ const CategoriesPage: React.FC = () => {
     ? contests?.find((contest) => contest.id === editingCategory.contestId)
     : null
 
-  const cloneTargetContests = useMemo(() => {
+  const cloneSourceContest = useMemo(() => {
+    if (!cloneSource || !Array.isArray(contests)) {
+      return null
+    }
+
+    return contests.find((contest) => contest.id === cloneSource.contestId) || null
+  }, [cloneSource, contests])
+
+  const cloneTenantContests = useMemo(() => {
     if (!Array.isArray(contests) || contests.length === 0) {
       return [] as Contest[]
     }
+
     if (!cloneSource) {
       return contests
     }
 
-    const sourceTenantId =
-      cloneSource.tenantId ||
-      contests.find((contest) => contest.id === cloneSource.contestId)?.tenantId
-
+    const sourceTenantId = cloneSource.tenantId || cloneSourceContest?.tenantId
     if (!sourceTenantId) {
-      return contests.filter((contest) => contest.id === cloneSource.contestId)
+      return cloneSourceContest ? [cloneSourceContest] : []
     }
 
     return contests.filter((contest) => contest.tenantId === sourceTenantId)
-  }, [cloneSource, contests])
+  }, [cloneSource, cloneSourceContest, contests])
+
+  const cloneTargetEvents = useMemo(() => {
+    const eventMap = new Map<string, { id: string; name: string }>()
+
+    for (const contest of cloneTenantContests) {
+      if (!eventMap.has(contest.eventId)) {
+        eventMap.set(contest.eventId, {
+          id: contest.eventId,
+          name: contest.event?.name || 'Unnamed event',
+        })
+      }
+    }
+
+    return Array.from(eventMap.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [cloneTenantContests])
+
+  const cloneTargetContests = useMemo(() => {
+    if (!cloneTargetEventId) {
+      return [] as Contest[]
+    }
+
+    return cloneTenantContests
+      .filter((contest) => contest.eventId === cloneTargetEventId)
+      .sort((left, right) => left.name.localeCompare(right.name))
+  }, [cloneTargetEventId, cloneTenantContests])
+
+  useEffect(() => {
+    if (cloneTargetContestId && !cloneTargetContests.some((contest) => contest.id === cloneTargetContestId)) {
+      setCloneTargetContestId('')
+    }
+  }, [cloneTargetContestId, cloneTargetContests])
 
   // Get parent contest for breadcrumb when accessed via /contests/:contestId/categories
   const parentContest = contestId ? contests?.find(c => c.id === contestId) : null
@@ -329,8 +367,15 @@ const CategoriesPage: React.FC = () => {
   )
 
   const cloneMutation = useMutation(
-    async (payload: { id: string; targetContestId: string; name?: string; includeCriteria: boolean }) => {
+    async (payload: {
+      id: string;
+      targetEventId: string;
+      targetContestId: string;
+      name?: string;
+      includeCriteria: boolean;
+    }) => {
       const response = await categoriesAPI.clone(payload.id, {
+        targetEventId: payload.targetEventId,
         targetContestId: payload.targetContestId,
         name: toOptionalString(payload.name || ''),
         includeCriteria: payload.includeCriteria,
@@ -426,14 +471,17 @@ const CategoriesPage: React.FC = () => {
   }
 
   const openCloneModal = (category: Category) => {
+    const sourceContest = contests?.find((contest) => contest.id === category.contestId) || null
     setCloneSource(category)
-    setCloneTargetContestId(category.contestId)
+    setCloneTargetEventId(sourceContest?.eventId || '')
+    setCloneTargetContestId(sourceContest?.id || '')
     setCloneName(`${category.name} (Copy)`)
     setCloneIncludeCriteria(true)
   }
 
   const closeCloneModal = () => {
     setCloneSource(null)
+    setCloneTargetEventId('')
     setCloneTargetContestId('')
     setCloneName('')
     setCloneIncludeCriteria(true)
@@ -560,19 +608,20 @@ const CategoriesPage: React.FC = () => {
   }
 
   const handleCloneCategory = async () => {
-    if (!cloneSource || !cloneTargetContestId) {
-      toast.error('Please select a target contest')
+    if (!cloneSource || !cloneTargetEventId || !cloneTargetContestId) {
+      toast.error('Please select a destination event and contest')
       return
     }
 
     if (!cloneTargetContests.some((contest) => contest.id === cloneTargetContestId)) {
-      toast.error('Select a target contest from the same tenant as the source category')
+      toast.error('Select a target contest from the selected destination event')
       return
     }
 
     try {
       const cloned = await cloneMutation.mutateAsync({
         id: cloneSource.id,
+        targetEventId: cloneTargetEventId,
         targetContestId: cloneTargetContestId,
         name: cloneName,
         includeCriteria: cloneIncludeCriteria,
@@ -1224,36 +1273,59 @@ const CategoriesPage: React.FC = () => {
                   Create a new editable copy of <span className="font-medium">{cloneSource.name}</span>. Source assignments, scores, and certifications will not be copied.
                 </p>
                 <div>
-                  <label htmlFor="pages-categoriespage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Contest</label>
+                  <label htmlFor="pages-categoriespage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destination Event</label>
                   <select id="pages-categoriespage-9"
-                    value={cloneTargetContestId}
-                    onChange={(e) => setCloneTargetContestId(e.target.value)}
+                    value={cloneTargetEventId}
+                    onChange={(e) => {
+                      setCloneTargetEventId(e.target.value)
+                      setCloneTargetContestId('')
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
-                    <option value="">Select contest...</option>
+                    <option value="">Select event...</option>
+                    {cloneTargetEvents.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="pages-categoriespage-10" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destination Contest</label>
+                  <select id="pages-categoriespage-10"
+                    value={cloneTargetContestId}
+                    onChange={(e) => setCloneTargetContestId(e.target.value)}
+                    disabled={!cloneTargetEventId}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">{cloneTargetEventId ? 'Select contest...' : 'Select an event first...'}</option>
                     {cloneTargetContests.map((contest) => (
                       <option key={contest.id} value={contest.id}>
                         {contest.name}
                       </option>
                     ))}
                   </select>
-                  {cloneSource && cloneTargetContests.length > 0 && cloneTargetContests.length !== (contests?.length || 0) && (
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      Only contests from the same tenant as the source category are available.
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Contest choices are limited to the selected event and the source category&apos;s tenant.
+                  </p>
+                  {cloneTargetEventId && cloneTargetContests.length === 0 && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      No contests are available in the selected event.
                     </p>
                   )}
                 </div>
                 <div>
-                  <label htmlFor="pages-categoriespage-10" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
-                  <input id="pages-categoriespage-10"
+                  <label htmlFor="pages-categoriespage-11" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clone Name</label>
+                  <input id="pages-categoriespage-11"
                     type="text"
                     value={cloneName}
                     onChange={(e) => setCloneName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
-                <label htmlFor="pages-categoriespage-11" className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <label htmlFor="pages-categoriespage-12" className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                   <input
+                    id="pages-categoriespage-12"
                     type="checkbox"
                     checked={cloneIncludeCriteria}
                     onChange={(e) => setCloneIncludeCriteria(e.target.checked)}
