@@ -1,10 +1,11 @@
 ---
 id: TASK-56
 title: Consolidate legacy board and emcee script ownership
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 17:19'
-updated_date: '2026-05-10 17:21'
+updated_date: '2026-05-10 17:48'
 labels:
   - emcee
   - scripts
@@ -29,6 +30,15 @@ Reduce drift between the canonical emcee script workflow and the remaining legac
 - [ ] #4 Legacy board-side emcee script paths are removed, redirected, or explicitly retained only where justified, with drift between duplicated surfaces eliminated.
 - [ ] #5 The resulting structure is documented clearly enough that future emcee script changes have one obvious integration surface to extend.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inventory the remaining legacy board-side emcee script surface across `boardRoutes`, `boardController`, `BoardService`, frontend API helpers, and any navigation references, and confirm which callers are still active.
+2. Remove or redirect the duplicated board-side emcee script CRUD path in favor of the canonical `/emcee/scripts` workflow, keeping board and organizer write access and emcee read-only behavior intact.
+3. Update any remaining frontend API helpers or entry points so emcee script integration has one obvious surface to extend, and document the canonical ownership model in the task summary.
+4. Add targeted regression coverage where needed, run focused verification, and close the task once the duplicate-surface drift is eliminated.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

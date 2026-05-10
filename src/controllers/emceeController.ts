@@ -210,7 +210,13 @@ export class EmceeController {
   uploadScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'emcee');
     try {
-      const { title, content, eventId, contestId, categoryId, order } = req.body;
+      const { title, content, description, eventId, contestId, categoryId, order } = req.body;
+      const normalizedContent =
+        typeof content === 'string'
+          ? content
+          : typeof description === 'string'
+            ? description
+            : undefined;
 
       let filePath: string | null = null;
       if (req.file) {
@@ -219,7 +225,7 @@ export class EmceeController {
 
       const script = await this.emceeService.uploadScript({
         title,
-        content,
+        content: normalizedContent,
         filePath,
         eventId,
         contestId,
@@ -276,11 +282,17 @@ export class EmceeController {
         res.status(400).json({ error: 'Script ID required' });
         return;
       }
-      const { title, content, eventId, contestId, categoryId, order } = req.body;
+      const { title, content, description, eventId, contestId, categoryId, order } = req.body;
+      const normalizedContent =
+        typeof content === 'string'
+          ? content
+          : typeof description === 'string'
+            ? description
+            : undefined;
 
       const script = await this.emceeService.updateScript(id, {
         title,
-        content,
+        content: normalizedContent,
         eventId,
         contestId,
         categoryId,

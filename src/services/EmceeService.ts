@@ -291,6 +291,33 @@ interface EmceeStatsResponse {
   totalCategories: number;
 }
 
+const emceeScriptRelations = {
+  event: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      startDate: true,
+      endDate: true,
+    },
+  },
+  contest: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+    },
+  },
+  category: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      scoreCap: true,
+    },
+  },
+} as const;
+
 /**
  * Service for managing emcee-related functionality
  * Handles scripts, contestant/judge bios, and event management
@@ -300,6 +327,125 @@ export class EmceeService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
   }
+
+  private normalizeScriptContent(content?: string | null, filePath?: string | null): string {
+    const normalizedContent = String(content || '').trim();
+    if (!normalizedContent) {
+      return '';
+    }
+
+    const normalizedFilePath = String(filePath || '').trim();
+    if (normalizedFilePath && normalizedContent === `Script file: ${normalizedFilePath}`) {
+      return '';
+    }
+
+    return normalizedContent;
+  }
+
+  private normalizeScriptRecord<T extends { content: string; filePath?: string | null }>(script: T): T {
+    return {
+      ...script,
+      content: this.normalizeScriptContent(script.content, script.filePath),
+    };
+  }
+
+  private async resolveValidatedScriptScope(input: {
+    eventId?: string | null;
+    contestId?: string | null;
+    categoryId?: string | null;
+    tenantId?: string;
+  }): Promise<{
+    eventId: string | null;
+    contestId: string | null;
+    categoryId: string | null;
+  }> {
+    let eventId = input.eventId || null;
+    let contestId = input.contestId || null;
+    let categoryId = input.categoryId || null;
+
+    const tenantClause = input.tenantId ? { tenantId: input.tenantId } : {};
+
+    if (eventId) {
+      const event = await this.prisma.event.findFirst({
+        where: {
+          id: eventId,
+          ...tenantClause,
+        },
+        select: { id: true },
+      });
+      if (!event) {
+        throw this.notFoundError('Event', eventId);
+      }
+    }
+
+    let contest:
+      | {
+          id: string;
+          eventId: string;
+        }
+      | null = null;
+    if (contestId) {
+      contest = await this.prisma.contest.findFirst({
+        where: {
+          id: contestId,
+          ...tenantClause,
+        },
+        select: {
+          id: true,
+          eventId: true,
+        },
+      });
+      if (!contest) {
+        throw this.notFoundError('Contest', contestId);
+      }
+      if (eventId && contest.eventId !== eventId) {
+        throw this.validationError('Selected contest does not belong to the selected event');
+      }
+      if (!eventId) {
+        eventId = contest.eventId;
+      }
+    }
+
+    if (categoryId) {
+      const category = await this.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          ...tenantClause,
+        },
+        select: {
+          id: true,
+          contestId: true,
+          contest: {
+            select: {
+              eventId: true,
+            },
+          },
+        },
+      });
+      if (!category) {
+        throw this.notFoundError('Category', categoryId);
+      }
+      if (contestId && category.contestId !== contestId) {
+        throw this.validationError('Selected category does not belong to the selected contest');
+      }
+      if (!contestId) {
+        contestId = category.contestId;
+      }
+      if (eventId && category.contest.eventId !== eventId) {
+        throw this.validationError('Selected category does not belong to the selected event');
+      }
+      if (!eventId) {
+        eventId = category.contest.eventId;
+      }
+    }
+
+    return {
+      eventId,
+      contestId,
+      categoryId,
+    };
+  }
+
   /**
    * Get emcee dashboard statistics
    */
@@ -322,7 +468,7 @@ export class EmceeService extends BaseService {
     contestId?: string;
     categoryId?: string;
     tenantId?: string;
-  }): Promise<Prisma.EmceeScriptGetPayload<{}>[]> {
+  }): Promise<EmceeScriptWithRelations[]> {
     const whereClause: Prisma.EmceeScriptWhereInput = {};
 
     if (filters.eventId) whereClause.eventId = filters.eventId;
@@ -332,10 +478,11 @@ export class EmceeService extends BaseService {
 
     const scripts = await this.prisma.emceeScript.findMany({
       where: whereClause,
+      include: emceeScriptRelations,
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
-    });
+    }) as EmceeScriptWithRelations[];
 
-    return scripts;
+    return scripts.map((script) => this.normalizeScriptRecord(script));
   }
 
   /**
@@ -351,39 +498,14 @@ export class EmceeService extends BaseService {
 
     const script = await this.prisma.emceeScript.findFirst({
       where: whereClause,
-      include: {
-        event: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            startDate: true,
-            endDate: true,
-          },
-        },
-        contest: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            scoreCap: true,
-          },
-        },
-      },
+      include: emceeScriptRelations,
     });
 
     if (!script) {
       throw this.notFoundError('Script', scriptId);
     }
 
-    return script;
+    return this.normalizeScriptRecord(script);
   }
 
   /**
@@ -832,7 +954,7 @@ export class EmceeService extends BaseService {
     const total = await this.prisma.emceeScript.count();
 
     return {
-      scripts,
+      scripts: scripts.map((script) => this.normalizeScriptRecord(script)),
       pagination: {
         page,
         limit,
@@ -857,24 +979,33 @@ export class EmceeService extends BaseService {
   }): Promise<Prisma.EmceeScriptGetPayload<{}>> {
     this.validateRequired(data as unknown as Record<string, unknown>, ['title', 'tenantId']);
 
-    if (!data.content && !data.filePath) {
+    const normalizedContent = this.normalizeScriptContent(data.content, data.filePath);
+
+    if (!normalizedContent && !data.filePath) {
       throw this.validationError('Content or file is required');
     }
+
+    const scope = await this.resolveValidatedScriptScope({
+      eventId: data.eventId,
+      contestId: data.contestId,
+      categoryId: data.categoryId,
+      tenantId: data.tenantId,
+    });
 
     const script = await this.prisma.emceeScript.create({
       data: {
         tenantId: data.tenantId!,
         title: data.title,
-        content: data.content || `Script file: ${data.filePath}`,
+        content: normalizedContent,
         filePath: data.filePath || null,
-        eventId: data.eventId || null,
-        contestId: data.contestId || null,
-        categoryId: data.categoryId || null,
+        eventId: scope.eventId,
+        contestId: scope.contestId,
+        categoryId: scope.categoryId,
         order: data.order || 0,
       },
     });
 
-    return script;
+    return this.normalizeScriptRecord(script);
   }
 
   /**
@@ -892,23 +1023,48 @@ export class EmceeService extends BaseService {
     },
     tenantId?: string
   ): Promise<Prisma.EmceeScriptGetPayload<{}>> {
-    if (tenantId) {
-      await this.getScript(id, { tenantId });
+    const existingScript = await this.getScript(id, tenantId ? { tenantId } : undefined);
+
+    const scopeWasProvided =
+      Object.prototype.hasOwnProperty.call(data, 'eventId') ||
+      Object.prototype.hasOwnProperty.call(data, 'contestId') ||
+      Object.prototype.hasOwnProperty.call(data, 'categoryId');
+
+    const resolvedScope = scopeWasProvided
+      ? await this.resolveValidatedScriptScope({
+          eventId: Object.prototype.hasOwnProperty.call(data, 'eventId') ? data.eventId ?? null : existingScript.eventId,
+          contestId: Object.prototype.hasOwnProperty.call(data, 'contestId') ? data.contestId ?? null : existingScript.contestId,
+          categoryId: Object.prototype.hasOwnProperty.call(data, 'categoryId') ? data.categoryId ?? null : existingScript.categoryId,
+          tenantId,
+        })
+      : {
+          eventId: existingScript.eventId,
+          contestId: existingScript.contestId,
+          categoryId: existingScript.categoryId,
+        };
+
+    const updateData: Prisma.EmceeScriptUncheckedUpdateInput = {};
+    if (data.title !== undefined) {
+      updateData.title = data.title;
+    }
+    if (data.content !== undefined) {
+      updateData.content = this.normalizeScriptContent(data.content, existingScript.filePath);
+    }
+    if (scopeWasProvided) {
+      updateData.eventId = resolvedScope.eventId;
+      updateData.contestId = resolvedScope.contestId;
+      updateData.categoryId = resolvedScope.categoryId;
+    }
+    if (data.order !== undefined) {
+      updateData.order = data.order;
     }
 
     const script = await this.prisma.emceeScript.update({
       where: { id },
-      data: {
-        title: data.title,
-        content: data.content,
-        eventId: data.eventId || null,
-        contestId: data.contestId || null,
-        categoryId: data.categoryId || null,
-        order: data.order || 0,
-      },
+      data: updateData,
     });
 
-    return script;
+    return this.normalizeScriptRecord(script);
   }
 
   /**

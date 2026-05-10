@@ -74,8 +74,8 @@ describe('EmceeService', () => {
   describe('getScripts', () => {
     it('should retrieve all scripts when no filters provided', async () => {
       const mockScripts = [
-        { id: 's1', title: 'Opening', order: 1 },
-        { id: 's2', title: 'Closing', order: 2 },
+        { id: 's1', title: 'Opening', content: '', filePath: null, order: 1, event: null, contest: null, category: null },
+        { id: 's2', title: 'Closing', content: '', filePath: null, order: 2, event: null, contest: null, category: null },
       ];
 
       prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
@@ -85,12 +85,13 @@ describe('EmceeService', () => {
       expect(result).toEqual(mockScripts);
       expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
         where: {},
+        include: expect.any(Object),
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       });
     });
 
     it('should filter scripts by eventId', async () => {
-      const mockScripts = [{ id: 's1', title: 'Script 1', eventId: 'e1' }];
+      const mockScripts = [{ id: 's1', title: 'Script 1', content: '', filePath: null, eventId: 'e1', event: null, contest: null, category: null }];
 
       prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
 
@@ -99,12 +100,13 @@ describe('EmceeService', () => {
       expect(result).toEqual(mockScripts);
       expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
         where: { eventId: 'e1' },
+        include: expect.any(Object),
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       });
     });
 
     it('should filter scripts by contestId', async () => {
-      const mockScripts = [{ id: 's1', title: 'Script 1', contestId: 'c1' }];
+      const mockScripts = [{ id: 's1', title: 'Script 1', content: '', filePath: null, contestId: 'c1', event: null, contest: null, category: null }];
 
       prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
 
@@ -113,12 +115,13 @@ describe('EmceeService', () => {
       expect(result).toEqual(mockScripts);
       expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
         where: { contestId: 'c1' },
+        include: expect.any(Object),
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       });
     });
 
     it('should filter scripts by categoryId', async () => {
-      const mockScripts = [{ id: 's1', title: 'Script 1', categoryId: 'cat1' }];
+      const mockScripts = [{ id: 's1', title: 'Script 1', content: '', filePath: null, categoryId: 'cat1', event: null, contest: null, category: null }];
 
       prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
 
@@ -127,12 +130,13 @@ describe('EmceeService', () => {
       expect(result).toEqual(mockScripts);
       expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
         where: { categoryId: 'cat1' },
+        include: expect.any(Object),
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       });
     });
 
     it('should filter scripts by multiple criteria', async () => {
-      const mockScripts = [{ id: 's1', title: 'Script 1' }];
+      const mockScripts = [{ id: 's1', title: 'Script 1', content: '', filePath: null, event: null, contest: null, category: null }];
 
       prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
 
@@ -140,6 +144,7 @@ describe('EmceeService', () => {
 
       expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
         where: { eventId: 'e1', contestId: 'c1', categoryId: 'cat1' },
+        include: expect.any(Object),
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       });
     });
@@ -150,6 +155,24 @@ describe('EmceeService', () => {
       const result = await service.getScripts({ eventId: 'e1' });
 
       expect(result).toEqual([]);
+    });
+
+    it('should normalize legacy file placeholder content in script lists', async () => {
+      prismaMock.emceeScript.findMany.mockResolvedValue([
+        {
+          id: 's1',
+          title: 'Script 1',
+          content: 'Script file: /uploads/emcee/script.pdf',
+          filePath: '/uploads/emcee/script.pdf',
+          event: null,
+          contest: null,
+          category: null,
+        },
+      ] as any);
+
+      const result = await service.getScripts({});
+
+      expect(result[0]?.content).toBe('');
     });
   });
 
@@ -575,8 +598,8 @@ describe('EmceeService', () => {
   describe('getEmceeHistory', () => {
     it('should retrieve paginated script history', async () => {
       const mockScripts = [
-        { id: 's1', title: 'Script 1', isActive: true },
-        { id: 's2', title: 'Script 2', isActive: true },
+        { id: 's1', title: 'Script 1', isActive: true, content: '' },
+        { id: 's2', title: 'Script 2', isActive: true, content: '' },
       ];
 
       prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
@@ -618,6 +641,7 @@ describe('EmceeService', () => {
         content: 'Welcome everyone!',
       };
 
+      prismaMock.event.findFirst.mockResolvedValue({ id: 'e1' } as any);
       prismaMock.emceeScript.create.mockResolvedValue(mockScript as any);
 
       const result = await service.uploadScript({
@@ -646,7 +670,7 @@ describe('EmceeService', () => {
       const mockScript = {
         id: 's1',
         title: 'Script',
-        content: 'Script file: /uploads/script.pdf',
+        content: '',
         filePath: '/uploads/script.pdf',
       };
 
@@ -659,6 +683,7 @@ describe('EmceeService', () => {
       });
 
       expect(result.filePath).toBe('/uploads/script.pdf');
+      expect(result.content).toBe('');
     });
 
     it('should throw ValidationError when title is missing', async () => {
@@ -690,6 +715,13 @@ describe('EmceeService', () => {
 
     it('should handle all relation IDs', async () => {
       prismaMock.emceeScript.create.mockResolvedValue({} as any);
+      prismaMock.event.findFirst.mockResolvedValue({ id: 'e1' } as any);
+      prismaMock.contest.findFirst.mockResolvedValue({ id: 'c1', eventId: 'e1' } as any);
+      prismaMock.category.findFirst.mockResolvedValue({
+        id: 'cat1',
+        contestId: 'c1',
+        contest: { eventId: 'e1' },
+      } as any);
 
       await service.uploadScript({
         title: 'Script',
@@ -708,6 +740,21 @@ describe('EmceeService', () => {
         }),
       });
     });
+
+    it('should reject mismatched contest and event scope', async () => {
+      prismaMock.event.findFirst.mockResolvedValue({ id: 'e1' } as any);
+      prismaMock.contest.findFirst.mockResolvedValue({ id: 'c1', eventId: 'e2' } as any);
+
+      await expect(
+        service.uploadScript({
+          title: 'Script',
+          content: 'Content',
+          eventId: 'e1',
+          contestId: 'c1',
+          tenantId: 'tenant1',
+        })
+      ).rejects.toThrow('Selected contest does not belong to the selected event');
+    });
   });
 
   describe('updateScript', () => {
@@ -718,6 +765,18 @@ describe('EmceeService', () => {
         content: 'Updated content',
       };
 
+      prismaMock.emceeScript.findFirst.mockResolvedValue({
+        id: 's1',
+        title: 'Original Title',
+        content: 'Original content',
+        eventId: null,
+        contestId: null,
+        categoryId: null,
+        filePath: null,
+        event: null,
+        contest: null,
+        category: null,
+      } as any);
       prismaMock.emceeScript.update.mockResolvedValue(mockUpdated as any);
 
       const result = await service.updateScript('s1', {
@@ -731,15 +790,23 @@ describe('EmceeService', () => {
         data: {
           title: 'Updated Title',
           content: 'Updated content',
-          eventId: null,
-          contestId: null,
-          categoryId: null,
-          order: 0,
         },
       });
     });
 
     it('should update script order', async () => {
+      prismaMock.emceeScript.findFirst.mockResolvedValue({
+        id: 's1',
+        title: 'Original Title',
+        content: 'Original content',
+        eventId: null,
+        contestId: null,
+        categoryId: null,
+        filePath: null,
+        event: null,
+        contest: null,
+        category: null,
+      } as any);
       prismaMock.emceeScript.update.mockResolvedValue({} as any);
 
       await service.updateScript('s1', { order: 10 });
@@ -751,6 +818,18 @@ describe('EmceeService', () => {
     });
 
     it('should clear relation IDs when set to null', async () => {
+      prismaMock.emceeScript.findFirst.mockResolvedValue({
+        id: 's1',
+        title: 'Original Title',
+        content: 'Original content',
+        eventId: 'e1',
+        contestId: 'c1',
+        categoryId: 'cat1',
+        filePath: null,
+        event: null,
+        contest: null,
+        category: null,
+      } as any);
       prismaMock.emceeScript.update.mockResolvedValue({} as any);
 
       await service.updateScript('s1', {
@@ -766,6 +845,33 @@ describe('EmceeService', () => {
           contestId: null,
           categoryId: null,
         }),
+      });
+    });
+
+    it('should preserve existing scope when only metadata changes', async () => {
+      prismaMock.emceeScript.findFirst.mockResolvedValue({
+        id: 's1',
+        title: 'Original Title',
+        content: 'Original content',
+        eventId: 'e1',
+        contestId: 'c1',
+        categoryId: 'cat1',
+        filePath: null,
+        event: null,
+        contest: null,
+        category: null,
+      } as any);
+      prismaMock.emceeScript.update.mockResolvedValue({} as any);
+
+      await service.updateScript('s1', {
+        title: 'Updated only',
+      });
+
+      expect(prismaMock.emceeScript.update).toHaveBeenCalledWith({
+        where: { id: 's1' },
+        data: {
+          title: 'Updated only',
+        },
       });
     });
   });
