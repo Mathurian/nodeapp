@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { CommentaryMode, PrismaClient } from '@prisma/client';
+import { CommentaryMode, CommentaryScope, PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
 
@@ -48,6 +48,7 @@ interface CreateCategoryFromTemplateInput {
   contestantMin?: number;
   contestantMax?: number;
   commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
 }
 
 @injectable()
@@ -190,6 +191,7 @@ export class StructureCopyService extends BaseService {
                 contestantMin: category.contestantMin,
                 contestantMax: category.contestantMax,
                 commentaryMode: category.commentaryMode,
+                commentaryScope: category.commentaryScope,
                 tenantId: resolvedTenantId,
                 totalsCertified: false,
                 boardApproved: false,
@@ -297,6 +299,7 @@ export class StructureCopyService extends BaseService {
             contestantMin: sourceCategory.contestantMin,
             contestantMax: sourceCategory.contestantMax,
             commentaryMode: sourceCategory.commentaryMode,
+            commentaryScope: sourceCategory.commentaryScope,
             tenantId: resolvedTenantId,
             totalsCertified: false,
             boardApproved: false,
@@ -450,6 +453,7 @@ export class StructureCopyService extends BaseService {
             name: input.name.trim(),
             description: input.description?.trim() || sourceCategory.description || null,
             commentaryMode: sourceCategory.commentaryMode,
+            commentaryScope: sourceCategory.commentaryScope,
             tenantId: input.tenantId,
           },
         });
@@ -524,6 +528,7 @@ export class StructureCopyService extends BaseService {
             contestantMin: input.contestantMin ?? null,
             contestantMax: input.contestantMax ?? null,
             commentaryMode: input.commentaryMode ?? template.commentaryMode,
+            commentaryScope: input.commentaryScope ?? template.commentaryScope,
             tenantId: input.tenantId,
             totalsCertified: false,
             boardApproved: false,

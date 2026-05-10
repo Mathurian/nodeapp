@@ -425,15 +425,25 @@ describe('CommentaryService', () => {
   });
 
   describe('category commentary', () => {
+    const categoryScopeCategory = {
+      id: 'category1',
+      contestId: 'contest1',
+      commentaryScope: 'CATEGORY',
+      contest: { eventId: 'event1' },
+    };
+
     it('should retrieve category commentary for the active judge viewer', async () => {
       const judgeComment = {
         id: 'judge-comment-1',
+        scope: 'CATEGORY',
+        scopeKey: 'category:category1',
         categoryId: 'category1',
         contestantId: 'contestant1',
         judgeId: 'judge1',
         comment: 'Category-level note',
         judge: { name: 'Judge One', email: 'judge1@example.com' },
       };
+      mockPrisma.category.findFirst.mockResolvedValue(categoryScopeCategory as any);
       mockPrisma.judgeComment.findFirst.mockResolvedValue(judgeComment as any);
 
       const result = await service.getCategoryComment('category1', 'contestant1', judgeViewer);
@@ -441,7 +451,9 @@ describe('CommentaryService', () => {
       expect(result).toEqual(judgeComment);
       expect(mockPrisma.judgeComment.findFirst).toHaveBeenCalledWith({
         where: {
-          categoryId: 'category1',
+          tenantId: 'tenant1',
+          scope: 'CATEGORY',
+          scopeKey: 'category:category1',
           contestantId: 'contestant1',
           judgeId: 'judge1',
         },
@@ -456,6 +468,36 @@ describe('CommentaryService', () => {
       });
     });
 
+    it('should resolve contest-scoped commentary across categories in the same contest', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        id: 'category1',
+        contestId: 'contest1',
+        commentaryScope: 'CONTEST',
+        contest: { eventId: 'event1' },
+      } as any);
+      mockPrisma.judgeComment.findFirst.mockResolvedValue({
+        id: 'judge-comment-2',
+        scope: 'CONTEST',
+        scopeKey: 'contest:contest1',
+        contestId: 'contest1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Contest-level note',
+        judge: { name: 'Judge One', email: 'judge1@example.com' },
+      } as any);
+
+      await service.getCategoryComment('category1', 'contestant1', judgeViewer);
+
+      expect(mockPrisma.judgeComment.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            scope: 'CONTEST',
+            scopeKey: 'contest:contest1',
+          }),
+        }),
+      );
+    });
+
     it('should require judge context for privileged viewers when no judgeId is requested', async () => {
       await expect(
         service.getCategoryComment('category1', 'contestant1', adminViewer)
@@ -465,13 +507,15 @@ describe('CommentaryService', () => {
     it('should upsert category commentary when text is provided', async () => {
       const upsertedComment = {
         id: 'judge-comment-1',
+        scope: 'CATEGORY',
+        scopeKey: 'category:category1',
         categoryId: 'category1',
         contestantId: 'contestant1',
         judgeId: 'judge1',
         comment: 'Saved category note',
         judge: { name: 'Judge One', email: 'judge1@example.com' },
       };
-      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category1' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue(categoryScopeCategory as any);
       mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant1' } as any);
       mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge1' } as any);
       mockPrisma.judgeComment.upsert.mockResolvedValue(upsertedComment as any);
@@ -487,22 +531,30 @@ describe('CommentaryService', () => {
       expect(result).toEqual(upsertedComment);
       expect(mockPrisma.judgeComment.upsert).toHaveBeenCalledWith({
         where: {
-          tenantId_categoryId_contestantId_judgeId: {
+          tenantId_scope_scopeKey_contestantId_judgeId: {
             tenantId: 'tenant1',
-            categoryId: 'category1',
+            scope: 'CATEGORY',
+            scopeKey: 'category:category1',
             contestantId: 'contestant1',
             judgeId: 'judge1',
           },
         },
         create: {
           tenantId: 'tenant1',
+          scope: 'CATEGORY',
+          scopeKey: 'category:category1',
           categoryId: 'category1',
+          contestId: 'contest1',
+          eventId: 'event1',
           contestantId: 'contestant1',
           judgeId: 'judge1',
           comment: 'Saved category note',
         },
         update: {
           comment: 'Saved category note',
+          categoryId: 'category1',
+          contestId: 'contest1',
+          eventId: 'event1',
         },
         include: {
           judge: {
@@ -515,8 +567,106 @@ describe('CommentaryService', () => {
       });
     });
 
+    it('should upsert contest-scoped commentary with a shared contest scope key', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        id: 'category1',
+        contestId: 'contest1',
+        commentaryScope: 'CONTEST',
+        contest: { eventId: 'event1' },
+      } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant1' } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge1' } as any);
+      mockPrisma.judgeComment.upsert.mockResolvedValue({
+        id: 'judge-comment-3',
+        scope: 'CONTEST',
+        scopeKey: 'contest:contest1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Shared contest note',
+        judge: { name: 'Judge One', email: 'judge1@example.com' },
+      } as any);
+
+      await service.upsertCategoryComment({
+        tenantId: 'tenant1',
+        categoryId: 'category1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Shared contest note',
+      });
+
+      expect(mockPrisma.judgeComment.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            tenantId_scope_scopeKey_contestantId_judgeId: {
+              tenantId: 'tenant1',
+              scope: 'CONTEST',
+              scopeKey: 'contest:contest1',
+              contestantId: 'contestant1',
+              judgeId: 'judge1',
+            },
+          },
+          create: expect.objectContaining({
+            scope: 'CONTEST',
+            scopeKey: 'contest:contest1',
+            categoryId: null,
+            contestId: 'contest1',
+            eventId: 'event1',
+          }),
+        }),
+      );
+    });
+
+    it('should upsert event-scoped commentary with a shared event scope key', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        id: 'category1',
+        contestId: 'contest1',
+        commentaryScope: 'EVENT',
+        contest: { eventId: 'event1' },
+      } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant1' } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge1' } as any);
+      mockPrisma.judgeComment.upsert.mockResolvedValue({
+        id: 'judge-comment-4',
+        scope: 'EVENT',
+        scopeKey: 'event:event1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Shared event note',
+        judge: { name: 'Judge One', email: 'judge1@example.com' },
+      } as any);
+
+      await service.upsertCategoryComment({
+        tenantId: 'tenant1',
+        categoryId: 'category1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Shared event note',
+      });
+
+      expect(mockPrisma.judgeComment.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            tenantId_scope_scopeKey_contestantId_judgeId: {
+              tenantId: 'tenant1',
+              scope: 'EVENT',
+              scopeKey: 'event:event1',
+              contestantId: 'contestant1',
+              judgeId: 'judge1',
+            },
+          },
+          create: expect.objectContaining({
+            scope: 'EVENT',
+            scopeKey: 'event:event1',
+            categoryId: null,
+            contestId: 'contest1',
+            eventId: 'event1',
+          }),
+        }),
+      );
+    });
+
     it('should delete existing category commentary when the comment is blank', async () => {
-      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category1' } as any);
+      mockPrisma.category.findFirst.mockResolvedValue(categoryScopeCategory as any);
       mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant1' } as any);
       mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge1' } as any);
       mockPrisma.judgeComment.deleteMany.mockResolvedValue({ count: 1 } as any);
@@ -533,7 +683,8 @@ describe('CommentaryService', () => {
       expect(mockPrisma.judgeComment.deleteMany).toHaveBeenCalledWith({
         where: {
           tenantId: 'tenant1',
-          categoryId: 'category1',
+          scope: 'CATEGORY',
+          scopeKey: 'category:category1',
           contestantId: 'contestant1',
           judgeId: 'judge1',
         },

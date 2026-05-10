@@ -70,6 +70,7 @@ model Event {
   auditorAssignments     AuditorAssignment[]
   roleAssignments        RoleAssignment[]
   scoreGovernanceRequests ScoreGovernanceRequest[]
+  judgeComments          JudgeComment[]
   judgeScheduleEntries   JudgeScheduleEntry[]
 
   @@index([tenantId])
@@ -116,6 +117,7 @@ model Contest {
   contestCertifications  ContestCertification[]
   roleAssignments        RoleAssignment[]
   scoreGovernanceRequests ScoreGovernanceRequest[]
+  judgeComments          JudgeComment[]
   judgeScheduleEntries   JudgeScheduleEntry[]
 
   @@index([tenantId])
@@ -138,6 +140,7 @@ model Category {
   contestantMin   Int?
   contestantMax   Int?
   commentaryMode  CommentaryMode @default(PER_CRITERION)
+  commentaryScope CommentaryScope @default(CATEGORY)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   totalsCertified Boolean  @default(false)
@@ -199,10 +202,10 @@ model Contestant {
   updatedAt        DateTime @updatedAt
   tenantId         String
 
-  scores              Score[]
-  categoryContestants CategoryContestant[]
-  contestContestants  ContestContestant[]
-  users               User[]
+  scores                       Score[]
+  categoryContestants          CategoryContestant[]
+  contestContestants           ContestContestant[]
+  users                        User[]
   judgeComments                JudgeComment[]
   overallDeductions            OverallDeduction[]
   judgeContestantCertifications JudgeContestantCertification[]
@@ -400,23 +403,38 @@ model User {
   @@map("users")
 }
 
+enum CommentaryScope {
+  CATEGORY
+  CONTEST
+  EVENT
+}
+
 model JudgeComment {
-  id           String   @id @default(cuid())
-  categoryId   String
+  id           String           @id @default(cuid())
+  scope        CommentaryScope  @default(CATEGORY)
+  scopeKey     String
+  categoryId   String?
+  contestId    String?
+  eventId      String?
   contestantId String
   judgeId      String
   comment      String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime         @default(now())
   tenantId     String
 
-  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  contestant Contestant @relation(fields: [contestantId], references: [id], onDelete: Cascade)
-  judge      Judge      @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  contest    Contest?    @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  event      Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contestant Contestant  @relation(fields: [contestantId], references: [id], onDelete: Cascade)
+  judge      Judge       @relation(fields: [judgeId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, categoryId, contestantId, judgeId])
+  @@unique([tenantId, scope, scopeKey, contestantId, judgeId])
   @@index([tenantId])
+  @@index([tenantId, scope, scopeKey])
   @@index([tenantId, categoryId])
-  @@index([categoryId, contestantId, judgeId])
+  @@index([tenantId, contestId])
+  @@index([tenantId, eventId])
+  @@index([scope, scopeKey, contestantId, judgeId])
   @@map("judge_comments")
 }
 
@@ -626,6 +644,7 @@ model CategoryTemplate {
   name        String
   description String?
   commentaryMode CommentaryMode @default(PER_CRITERION)
+  commentaryScope CommentaryScope @default(CATEGORY)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tenantId    String

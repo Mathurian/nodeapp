@@ -3,7 +3,7 @@
  * Business logic layer for Category entity with caching support
  */
 
-import { Category, CommentaryMode, Prisma } from '@prisma/client';
+import { Category, CommentaryMode, CommentaryScope, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
@@ -37,6 +37,7 @@ interface CreateCategoryDto {
   contestantMin?: number;
   contestantMax?: number;
   commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
 }
 
 interface UpdateCategoryDto extends Partial<CreateCategoryDto> {}

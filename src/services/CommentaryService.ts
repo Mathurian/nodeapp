@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { CommentaryScope, PrismaClient, Prisma } from '@prisma/client';
 import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
 import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
 import {
@@ -101,6 +101,14 @@ interface UpsertJudgeCommentDto {
   comment: string;
 }
 
+interface ResolvedJudgeCommentScope {
+  scope: CommentaryScope;
+  scopeKey: string;
+  categoryId: string | null;
+  contestId: string | null;
+  eventId: string | null;
+}
+
 @injectable()
 export class CommentaryService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
@@ -120,6 +128,67 @@ export class CommentaryService extends BaseService {
     }
 
     throw this.forbiddenError('Judge context is required to access category commentary');
+  }
+
+  private async resolveJudgeCommentScope(
+    categoryId: string,
+    tenantId: string,
+  ): Promise<ResolvedJudgeCommentScope> {
+    const category = await this.prisma.category.findFirst({
+      where: {
+        id: categoryId,
+        tenantId,
+        deletedAt: null,
+        contest: {
+          deletedAt: null,
+          event: {
+            deletedAt: null,
+          },
+        },
+      },
+      select: {
+        id: true,
+        contestId: true,
+        commentaryScope: true,
+        contest: {
+          select: {
+            eventId: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      throw this.notFoundError('Category', categoryId);
+    }
+
+    switch (category.commentaryScope) {
+      case 'EVENT':
+        return {
+          scope: 'EVENT',
+          scopeKey: `event:${category.contest.eventId}`,
+          categoryId: null,
+          contestId: category.contestId,
+          eventId: category.contest.eventId,
+        };
+      case 'CONTEST':
+        return {
+          scope: 'CONTEST',
+          scopeKey: `contest:${category.contestId}`,
+          categoryId: null,
+          contestId: category.contestId,
+          eventId: category.contest.eventId,
+        };
+      case 'CATEGORY':
+      default:
+        return {
+          scope: 'CATEGORY',
+          scopeKey: `category:${category.id}`,
+          categoryId: category.id,
+          contestId: category.contestId,
+          eventId: category.contest.eventId,
+        };
+    }
   }
 
   async create(
@@ -263,9 +332,12 @@ export class CommentaryService extends BaseService {
     requestedJudgeId?: string,
   ): Promise<JudgeCommentWithJudge | null> {
     const judgeId = this.resolveJudgeCommentJudgeId(viewer, requestedJudgeId);
+    const scopeContext = await this.resolveJudgeCommentScope(categoryId, viewer.tenantId);
 
     const whereClause: Prisma.JudgeCommentWhereInput = {
-      categoryId,
+      tenantId: viewer.tenantId,
+      scope: scopeContext.scope,
+      scopeKey: scopeContext.scopeKey,
       contestantId,
       judgeId,
       ...buildJudgeCommentReadWhere(viewer),
@@ -288,11 +360,8 @@ export class CommentaryService extends BaseService {
     data: UpsertJudgeCommentDto,
     timeoutMs: number = QUERY_TIMEOUTS.standard,
   ): Promise<JudgeCommentWithJudge | null> {
-    const [category, contestant, judge] = await Promise.all([
-      this.prisma.category.findFirst({
-        where: { id: data.categoryId, tenantId: data.tenantId, deletedAt: null },
-        select: { id: true },
-      }),
+    const [scopeContext, contestant, judge] = await Promise.all([
+      this.resolveJudgeCommentScope(data.categoryId, data.tenantId),
       this.prisma.contestant.findFirst({
         where: { id: data.contestantId, tenantId: data.tenantId },
         select: { id: true },
@@ -303,9 +372,6 @@ export class CommentaryService extends BaseService {
       }),
     ]);
 
-    if (!category) {
-      throw this.notFoundError('Category', data.categoryId);
-    }
     if (!contestant) {
       throw this.notFoundError('Contestant', data.contestantId);
     }
@@ -315,9 +381,10 @@ export class CommentaryService extends BaseService {
 
     const normalizedComment = data.comment.trim();
     const uniqueWhere = {
-      tenantId_categoryId_contestantId_judgeId: {
+      tenantId_scope_scopeKey_contestantId_judgeId: {
         tenantId: data.tenantId,
-        categoryId: data.categoryId,
+        scope: scopeContext.scope,
+        scopeKey: scopeContext.scopeKey,
         contestantId: data.contestantId,
         judgeId: data.judgeId,
       },
@@ -327,7 +394,7 @@ export class CommentaryService extends BaseService {
       async (tx) => {
         if (!normalizedComment) {
           await tx.judgeComment.deleteMany({
-            where: uniqueWhere.tenantId_categoryId_contestantId_judgeId,
+            where: uniqueWhere.tenantId_scope_scopeKey_contestantId_judgeId,
           });
           return null;
         }
@@ -336,13 +403,20 @@ export class CommentaryService extends BaseService {
           where: uniqueWhere,
           create: {
             tenantId: data.tenantId,
-            categoryId: data.categoryId,
+            scope: scopeContext.scope,
+            scopeKey: scopeContext.scopeKey,
+            categoryId: scopeContext.categoryId,
+            contestId: scopeContext.contestId,
+            eventId: scopeContext.eventId,
             contestantId: data.contestantId,
             judgeId: data.judgeId,
             comment: normalizedComment,
           },
           update: {
             comment: normalizedComment,
+            categoryId: scopeContext.categoryId,
+            contestId: scopeContext.contestId,
+            eventId: scopeContext.eventId,
           },
           include: {
             judge: {

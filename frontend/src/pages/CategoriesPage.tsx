@@ -27,11 +27,18 @@ import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel
 import { isInteractiveElement } from '../utils/interactive'
 
 type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
 
 const COMMENTARY_MODE_OPTIONS: Array<{ value: CommentaryMode; label: string }> = [
   { value: 'PER_CRITERION', label: 'Per Criterion' },
   { value: 'PER_CATEGORY', label: 'Per Category' },
   { value: 'HYBRID', label: 'Hybrid' },
+]
+
+const COMMENTARY_SCOPE_OPTIONS: Array<{ value: CommentaryScope; label: string }> = [
+  { value: 'CATEGORY', label: 'Category Scoped' },
+  { value: 'CONTEST', label: 'Contest Scoped' },
+  { value: 'EVENT', label: 'Event Scoped' },
 ]
 
 interface Contest {
@@ -56,6 +63,7 @@ interface Category {
   contestantMin: number | null
   contestantMax: number | null
   commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
   totalsCertified: boolean
   createdAt: string
   updatedAt: string
@@ -82,6 +90,7 @@ interface CategoryFormData {
   contestantMin: string
   contestantMax: string
   commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
 }
 
 interface CriterionDraft {
@@ -100,6 +109,7 @@ interface CategoryTemplateOption {
     maxScore: number
   }>
   commentaryMode?: CommentaryMode
+  commentaryScope?: CommentaryScope
 }
 
 const categoryFormSchema = z.object({
@@ -111,6 +121,7 @@ const categoryFormSchema = z.object({
   contestantMin: z.string(),
   contestantMax: z.string(),
   commentaryMode: z.enum(['PER_CRITERION', 'PER_CATEGORY', 'HYBRID']),
+  commentaryScope: z.enum(['CATEGORY', 'CONTEST', 'EVENT']),
 })
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>
@@ -134,7 +145,7 @@ const CategoriesPage: React.FC = () => {
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
-    defaultValues: { contestId: contestId || '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '', commentaryMode: 'PER_CRITERION' },
+    defaultValues: { contestId: contestId || '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '', commentaryMode: 'PER_CRITERION', commentaryScope: 'CATEGORY' },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, formState: { errors } } = form
 
@@ -320,6 +331,7 @@ const CategoriesPage: React.FC = () => {
         contestantMin: toOptionalNumber(data.contestantMin),
         contestantMax: toOptionalNumber(data.contestantMax),
         commentaryMode: data.commentaryMode,
+        commentaryScope: data.commentaryScope,
       }
       const response = await categoriesAPI.create(payload)
       return response.data
@@ -340,6 +352,7 @@ const CategoriesPage: React.FC = () => {
         contestantMin: toOptionalNumber(data.contestantMin),
         contestantMax: toOptionalNumber(data.contestantMax),
         commentaryMode: data.commentaryMode,
+        commentaryScope: data.commentaryScope,
       }
       const response = await categoriesAPI.createFromTemplate(selectedCategoryTemplateId, payload)
       return response.data?.data || response.data
@@ -357,6 +370,7 @@ const CategoriesPage: React.FC = () => {
         contestantMin: toOptionalNumber(data.contestantMin),
         contestantMax: toOptionalNumber(data.contestantMax),
         commentaryMode: data.commentaryMode,
+        commentaryScope: data.commentaryScope,
       }
       const response = await categoriesAPI.update(id, payload)
       return response.data
@@ -439,6 +453,7 @@ const CategoriesPage: React.FC = () => {
       contestantMin: '',
       contestantMax: '',
       commentaryMode: 'PER_CRITERION',
+      commentaryScope: 'CATEGORY',
     })
     setEditingCategory(null)
     setCriterionDrafts([])
@@ -468,6 +483,7 @@ const CategoriesPage: React.FC = () => {
       contestantMin: category.contestantMin?.toString() || '',
       contestantMax: category.contestantMax?.toString() || '',
       commentaryMode: category.commentaryMode || 'PER_CRITERION',
+      commentaryScope: category.commentaryScope || 'CATEGORY',
     })
     setIsFormOpen(true)
     setCriteriaLoading(true)
@@ -1003,6 +1019,7 @@ const CategoriesPage: React.FC = () => {
                                   contestantMin: form.getValues('contestantMin'),
                                   contestantMax: form.getValues('contestantMax'),
                                   commentaryMode: template.commentaryMode || 'PER_CRITERION',
+                                  commentaryScope: template.commentaryScope || 'CATEGORY',
                                 })
                               }
                             }}
@@ -1160,6 +1177,26 @@ const CategoriesPage: React.FC = () => {
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Choose whether judges comment per criterion, once for the whole category, or both.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="pages-categoriespage-commentary-scope" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Shared Commentary Scope
+                  </label>
+                  <select
+                    id="pages-categoriespage-commentary-scope"
+                    {...register('commentaryScope')}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {COMMENTARY_SCOPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Choose whether the shared non-criterion comment is unique to this category, shared across the contest, or shared across the event.
                   </p>
                 </div>
 

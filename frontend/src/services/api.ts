@@ -212,6 +212,7 @@ export const categoriesAPI = {
     contestantMin?: number;
     contestantMax?: number;
     commentaryMode?: 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID';
+    commentaryScope?: 'CATEGORY' | 'CONTEST' | 'EVENT';
   }) => api.post(`/templates/${templateId}/create-category`, data),
   delete: (id: string) => api.delete(`/categories/${id}`),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),

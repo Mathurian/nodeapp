@@ -13,6 +13,8 @@ import { sendValidationError } from '../utils/responseHelpers';
  */
 type ValidationTarget = 'body' | 'query' | 'params';
 const userRoleSchema = z.nativeEnum(UserRole);
+const commentaryModeSchema = z.enum(['PER_CRITERION', 'PER_CATEGORY', 'HYBRID']);
+const commentaryScopeSchema = z.enum(['CATEGORY', 'CONTEST', 'EVENT']);
 const legacyHexIdSchema = z.string().regex(/^[a-f0-9]{32}$/i);
 const compatIdSchema = z
   .string()
@@ -334,6 +336,8 @@ export const createCategorySchema = z.object({
   timeLimit: z.number().int().positive().optional(),
   contestantMin: z.number().int().positive().optional(),
   contestantMax: z.number().int().positive().optional(),
+  commentaryMode: commentaryModeSchema.optional(),
+  commentaryScope: commentaryScopeSchema.optional(),
   totalsCertified: z.boolean().optional()
 });
 
@@ -347,6 +351,8 @@ export const updateCategorySchema = z.object({
   timeLimit: z.number().int().positive().optional(),
   contestantMin: z.number().int().positive().optional(),
   contestantMax: z.number().int().positive().optional(),
+  commentaryMode: commentaryModeSchema.optional(),
+  commentaryScope: commentaryScopeSchema.optional(),
   totalsCertified: z.boolean().optional()
 });
 
@@ -392,6 +398,8 @@ export const createCategoryFromTemplateSchema = z.object({
   timeLimit: z.number().int().positive().optional(),
   contestantMin: z.number().int().positive().optional(),
   contestantMax: z.number().int().positive().optional(),
+  commentaryMode: commentaryModeSchema.optional(),
+  commentaryScope: commentaryScopeSchema.optional(),
 });
 
 export const createContestFromTemplateSchema = z.object({

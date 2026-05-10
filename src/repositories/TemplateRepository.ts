@@ -5,7 +5,7 @@
 
 import { injectable } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
-import { CategoryTemplate, CommentaryMode } from '@prisma/client';
+import { CategoryTemplate, CommentaryMode, CommentaryScope } from '@prisma/client';
 import { prisma } from '../config/database';
 
 export interface TemplateWithCriteria extends CategoryTemplate {
@@ -21,6 +21,7 @@ export interface CreateTemplateData {
   name: string;
   description?: string | null;
   commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
   tenantId: string;
   criteria?: Array<{
     name: string;
@@ -32,6 +33,7 @@ export interface UpdateTemplateData {
   name?: string;
   description?: string | null;
   commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
   criteria?: Array<{
     name: string;
     maxScore: number;
@@ -99,6 +101,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
         name: data.name,
         description: data.description || null,
         commentaryMode: data.commentaryMode || 'PER_CRITERION',
+        commentaryScope: data.commentaryScope || 'CATEGORY',
         tenantId: data.tenantId
       }
     });
@@ -138,6 +141,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
             name: data.name,
             description: data.description || null,
             ...(data.commentaryMode !== undefined ? { commentaryMode: data.commentaryMode } : {}),
+            ...(data.commentaryScope !== undefined ? { commentaryScope: data.commentaryScope } : {}),
           }
         });
 
@@ -182,6 +186,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
         name: data.name,
         description: data.description || null,
         ...(data.commentaryMode !== undefined ? { commentaryMode: data.commentaryMode } : {}),
+        ...(data.commentaryScope !== undefined ? { commentaryScope: data.commentaryScope } : {}),
       }
     });
     const updatedCriteria = await this.prisma.templateCriterion.findMany({
@@ -208,6 +213,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
         name: `${original.name} (Copy)`,
         description: original.description,
         commentaryMode: original.commentaryMode,
+        commentaryScope: original.commentaryScope,
         tenantId
       }
     });

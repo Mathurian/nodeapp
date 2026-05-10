@@ -11,6 +11,7 @@ import {
 import { Button, Card, PageHeader } from '../components/ui'
 
 type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
 
 interface CriterionTemplate {
   name: string
@@ -30,6 +31,7 @@ interface CategoryTemplate {
   description?: string
   scoreCap?: number | null
   commentaryMode?: CommentaryMode
+  commentaryScope?: CommentaryScope
   criteria?: CriterionTemplate[]
 }
 
@@ -64,7 +66,7 @@ const EMPTY_FORM: TemplateFormState = {
   name: '',
   description: '',
   contests: [{ id: uid(), name: '', description: '' }],
-  categories: [{ id: uid(), contestId: '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', criteria: [] }],
+  categories: [{ id: uid(), contestId: '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', commentaryScope: 'CATEGORY', criteria: [] }],
 }
 
 const mapTemplate = (raw: any): EventTemplate => ({
@@ -145,9 +147,10 @@ const EventTemplatesPage: React.FC = () => {
             description: category.description || '',
             scoreCap: category.scoreCap ?? null,
             commentaryMode: category.commentaryMode || 'PER_CRITERION',
+            commentaryScope: category.commentaryScope || 'CATEGORY',
             criteria: Array.isArray(category.criteria) ? category.criteria : [],
           }))
-        : [{ id: uid(), contestId: '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', criteria: [] }],
+        : [{ id: uid(), contestId: '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', commentaryScope: 'CATEGORY', criteria: [] }],
     })
     setShowTemplateModal(true)
   }
@@ -173,6 +176,7 @@ const EventTemplatesPage: React.FC = () => {
           description: category.description?.trim() || undefined,
           scoreCap: category.scoreCap ?? undefined,
           commentaryMode: category.commentaryMode || 'PER_CRITERION',
+          commentaryScope: category.commentaryScope || 'CATEGORY',
           criteria: (category.criteria || []).filter((criterion) => criterion.name.trim()).map((criterion) => ({
             name: criterion.name.trim(),
             maxScore: Number(criterion.maxScore) || 10,
@@ -283,7 +287,7 @@ const EventTemplatesPage: React.FC = () => {
     const defaultContestId = formData.contests[0]?.id || ''
     setFormData((prev) => ({
       ...prev,
-      categories: [...prev.categories, { id: uid(), contestId: defaultContestId, name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', criteria: [] }],
+      categories: [...prev.categories, { id: uid(), contestId: defaultContestId, name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', commentaryScope: 'CATEGORY', criteria: [] }],
     }))
   }
 
@@ -299,7 +303,7 @@ const EventTemplatesPage: React.FC = () => {
       ...prev,
       categories: prev.categories.filter((_, categoryIndex) => categoryIndex !== index).length > 0
         ? prev.categories.filter((_, categoryIndex) => categoryIndex !== index)
-        : [{ id: uid(), contestId: prev.contests[0]?.id || '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', criteria: [] }],
+        : [{ id: uid(), contestId: prev.contests[0]?.id || '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', commentaryScope: 'CATEGORY', criteria: [] }],
     }))
   }
 
@@ -536,6 +540,15 @@ const EventTemplatesPage: React.FC = () => {
                           <option value="PER_CRITERION">Per Criterion Commentary</option>
                           <option value="PER_CATEGORY">Per Category Commentary</option>
                           <option value="HYBRID">Hybrid Commentary</option>
+                        </select>
+                        <select
+                          value={category.commentaryScope || 'CATEGORY'}
+                          onChange={(e) => updateCategory(index, { commentaryScope: e.target.value as CommentaryScope })}
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="CATEGORY">Category Scoped Commentary</option>
+                          <option value="CONTEST">Contest Scoped Commentary</option>
+                          <option value="EVENT">Event Scoped Commentary</option>
                         </select>
                       </div>
 

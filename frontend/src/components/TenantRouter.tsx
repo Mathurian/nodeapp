@@ -248,6 +248,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/judge-schedules" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']}><JudgeSchedulesPage /></ProtectedRoute>} />
+            <Route path="/judges-schedules" element={<AliasRedirect targetPath="/judge-schedules" />} />
             <Route path="/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
             <Route path="/uat-ids" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><UatIdsPage /></ProtectedRoute>} />
             <Route path="/test-runner" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><TestRunnerPage /></ProtectedRoute>} />
@@ -311,6 +312,8 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/:slug/bios" element={<BiosPage />} />
             <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
+            <Route path="/:slug/judge-schedules" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']}><JudgeSchedulesPage /></ProtectedRoute>} />
+            <Route path="/:slug/judges-schedules" element={<AliasRedirect targetPath="/judge-schedules" />} />
             <Route path="/:slug/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
             <Route path="/:slug/uat-ids" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><UatIdsPage /></ProtectedRoute>} />
             <Route path="/:slug/tally-master" element={<ProtectedRoute requiredRole={['TALLY_MASTER', 'ADMIN', 'SUPER_ADMIN']}><TallyDashboardPage /></ProtectedRoute>} />

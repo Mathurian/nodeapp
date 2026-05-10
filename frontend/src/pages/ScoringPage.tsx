@@ -28,6 +28,7 @@ import { format } from 'date-fns'
 import { compareCategories, compareContestants, compareContests, stableSort } from '../utils/listOrdering'
 
 type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
 
 interface Category {
   id: string
@@ -35,6 +36,7 @@ interface Category {
   description: string | null
   scoreCap: number | null
   commentaryMode?: CommentaryMode
+  commentaryScope?: CommentaryScope
   contest: {
     id: string
     name: string
@@ -266,8 +268,21 @@ const ScoringPage: React.FC = () => {
   const signatureCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const requiresSignOff = user?.role === 'JUDGE'
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
+  const commentaryScope = selectedCategory?.commentaryScope || 'CATEGORY'
   const supportsCriterionCommentary = commentaryMode !== 'PER_CATEGORY'
   const supportsCategoryCommentary = commentaryMode === 'PER_CATEGORY' || commentaryMode === 'HYBRID'
+  const sharedCommentaryScopeKey = selectedCategory
+    ? commentaryScope === 'EVENT'
+      ? `event:${selectedCategory.contest.event.id}`
+      : commentaryScope === 'CONTEST'
+        ? `contest:${selectedCategory.contest.id}`
+        : `category:${selectedCategory.id}`
+    : 'category:none'
+  const sharedCommentaryLabel = commentaryScope === 'EVENT'
+    ? 'Event Commentary'
+    : commentaryScope === 'CONTEST'
+      ? 'Contest Commentary'
+      : 'Category Commentary'
   const hasPendingScoreSync =
     queueMetrics.queuedCount > 0 ||
     queueMetrics.failedCount > 0 ||
@@ -455,7 +470,7 @@ const ScoringPage: React.FC = () => {
   )
 
   const { data: existingCategoryComment = '' } = useQuery<string>(
-    ['category-comment', selectedCategory?.id, selectedContestant?.id],
+    ['category-comment', sharedCommentaryScopeKey, selectedContestant?.id],
     async () => {
       if (!selectedCategory || !selectedContestant) return ''
       const response = await commentaryAPI.getCategoryComment(selectedCategory.id, selectedContestant.id)
@@ -786,7 +801,7 @@ const ScoringPage: React.FC = () => {
         })
         : { success: true as const, hasQueuedWrites: false }
       const categoryCommentOutcome = await persistCategoryComment()
-      await queryClient.invalidateQueries(['category-comment', selectedCategory.id, selectedContestant.id])
+      await queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id])
       const hasQueuedWrites = submitResult.hasQueuedWrites || categoryCommentOutcome === 'queued'
       if (requiresSignOff) {
         if (hasQueuedWrites || hasPendingScoreSync) {
@@ -1019,11 +1034,11 @@ const ScoringPage: React.FC = () => {
     }
 
     return await executeMutationWithReliability(
-      `category-comment-update:${selectedCategory.id}:${selectedContestant.id}`,
+      `category-comment-update:${sharedCommentaryScopeKey}:${selectedContestant.id}`,
       `/commentary/category/${selectedCategory.id}/contestant/${selectedContestant.id}`,
       'PUT',
       { comment: categoryComment },
-      `category-comment:${selectedCategory.id}:${selectedContestant.id}`,
+      `category-comment:${sharedCommentaryScopeKey}:${selectedContestant.id}`,
       async (headers) => {
         await commentaryAPI.updateCategoryComment(
           selectedCategory.id,
@@ -1079,7 +1094,7 @@ const ScoringPage: React.FC = () => {
       await Promise.all([
         queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id]),
         queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id]),
-        queryClient.invalidateQueries(['category-comment', selectedCategory.id, selectedContestant.id]),
+        queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id]),
       ])
 
       setPendingCommentaryFiles([])
@@ -1405,11 +1420,11 @@ const ScoringPage: React.FC = () => {
                       {supportsCategoryCommentary && (
                         <>
                           <label htmlFor="pages-scoringpage-category-comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Category Commentary
+                            {sharedCommentaryLabel}
                           </label>
                           <textarea
                             id="pages-scoringpage-category-comment"
-                            placeholder="Category-level commentary"
+                            placeholder={`${sharedCommentaryLabel} note`}
                             value={categoryComment}
                             onChange={(e) => setCategoryComment(e.target.value)}
                             rows={3}

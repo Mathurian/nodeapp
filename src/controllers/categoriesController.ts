@@ -260,7 +260,7 @@ export class CategoriesController {
         return sendError(res, 'Tenant context is required to create a category', 400);
       }
 
-      const { name, description, scoreCap, timeLimit, contestantMin, contestantMax, commentaryMode } = req.body;
+      const { name, description, scoreCap, timeLimit, contestantMin, contestantMax, commentaryMode, commentaryScope } = req.body;
 
       const category = await this.categoryService.createCategory({
         tenantId,
@@ -272,6 +272,7 @@ export class CategoriesController {
         contestantMin,
         contestantMax,
         commentaryMode,
+        commentaryScope,
       });
 
       return sendCreated(res, category, 'Category created successfully');
@@ -290,7 +291,7 @@ export class CategoriesController {
         return sendError(res, 'Category ID is required', 400);
       }
 
-      const { name, description, scoreCap, timeLimit, contestantMin, contestantMax, commentaryMode } = req.body;
+      const { name, description, scoreCap, timeLimit, contestantMin, contestantMax, commentaryMode, commentaryScope } = req.body;
 
       const category = await this.categoryService.updateCategory(id, {
         name,
@@ -300,6 +301,7 @@ export class CategoriesController {
         contestantMin,
         contestantMax,
         commentaryMode,
+        commentaryScope,
       });
 
       return sendSuccess(res, category, 'Category updated successfully');
