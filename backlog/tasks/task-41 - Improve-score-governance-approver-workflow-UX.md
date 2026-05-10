@@ -4,7 +4,9 @@ title: Improve score governance approver workflow UX
 status: To Do
 assignee: []
 created_date: '2026-05-10 01:18'
+updated_date: '2026-05-10 01:19'
 labels: []
+milestone: m-0
 dependencies: []
 priority: high
 ---

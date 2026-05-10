@@ -4,7 +4,9 @@ title: Fix invalid Assigned date rendering on assignments page
 status: To Do
 assignee: []
 created_date: '2026-05-10 01:18'
+updated_date: '2026-05-10 01:19'
 labels: []
+milestone: m-1
 dependencies: []
 priority: medium
 ---
