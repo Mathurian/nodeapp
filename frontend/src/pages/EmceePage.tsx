@@ -8,8 +8,6 @@ import {
   appendDocxPreviewQuery,
   inferFileNameFromPath,
   isDocxFile,
-  isOfficeDocumentFile,
-  openBlobDocument,
   openDocumentUrl,
 } from '../utils/fileViewer'
 import {
@@ -451,7 +449,7 @@ const EmceePage: React.FC = () => {
     setViewingScript(script)
   }
 
-  const handleOpenScriptAttachment = async (script: Script) => {
+  const handleOpenScriptAttachment = (script: Script) => {
     if (!script.filePath) {
       toast.error('This script does not have an attached file')
       return
@@ -460,69 +458,32 @@ const EmceePage: React.FC = () => {
     setOpeningScriptId(script.id)
     const directViewUrl = `/api/v1/emcee/scripts/${script.id}/view`
     const fileName = inferFileNameFromPath(script.filePath, `${script.title}.pdf`)
-    let fallbackUrl = directViewUrl
+    const targetUrl = isDocxFile(fileName)
+      ? appendDocxPreviewQuery(directViewUrl)
+      : directViewUrl
 
     try {
-      const response = await api.get(`/emcee/scripts/${script.id}/view-url`)
-      const payload = response.data?.data || response.data
-      if (payload?.viewUrl) {
-        fallbackUrl = payload.viewUrl
-      }
-    } catch {
-      fallbackUrl = directViewUrl
-    }
-
-    try {
-      if (isDocxFile(fileName)) {
-        const opened = openDocumentUrl(appendDocxPreviewQuery(directViewUrl), {
-          preferSameTabInStandalone: true,
-          allowSameTabFallback: false,
-        })
-        if (!opened) {
-          throw new Error('Unable to preview DOCX script')
-        }
-        return
-      }
-
-      if (isOfficeDocumentFile(fileName)) {
-        const opened = openDocumentUrl(directViewUrl, {
-          preferSameTabInStandalone: true,
-          allowSameTabFallback: false,
-        })
-        if (!opened) {
-          const fallbackOpened = openDocumentUrl(fallbackUrl, {
-            preferSameTabInStandalone: false,
-            allowSameTabFallback: false,
-          })
-          if (!fallbackOpened) {
-            throw new Error('Unable to open office document')
-          }
-        }
-        return
-      }
-
-      const response = await api.get(`/emcee/scripts/${script.id}/view`, {
-        responseType: 'blob',
-      })
-      const opened = openBlobDocument({
-        blob: response.data,
-        fileName,
+      const opened = openDocumentUrl(targetUrl, {
+        preferSameTabInStandalone: true,
+        allowSameTabFallback: true,
       })
       if (!opened) {
-        throw new Error('Unable to open file')
+        throw new Error('Unable to open script attachment')
       }
     } catch (error: any) {
-      const openedFallback = openDocumentUrl(fallbackUrl, {
-        preferSameTabInStandalone: false,
-        allowSameTabFallback: false,
-      })
-      if (!openedFallback) {
-        const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to open script attachment'
-        toast.error(errorMessage)
-      }
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to open script attachment'
+      toast.error(errorMessage)
     } finally {
       setOpeningScriptId(null)
     }
+  }
+
+  const stopScriptRowEvent = (event: React.SyntheticEvent) => {
+    event.stopPropagation()
   }
 
   const resetScriptForm = () => {
@@ -894,7 +855,12 @@ const EmceePage: React.FC = () => {
                   {sortedScripts.map((script) => (
                     <li key={script.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div className="flex-1 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => handleViewScript(script)}
+                          className="flex-1 min-w-0 rounded-md p-1 -m-1 text-left focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800"
+                          aria-label={`View script ${script.title}`}
+                        >
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-sm font-medium text-gray-900 dark:text-white">{script.title}</h3>
                             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-200">
@@ -922,10 +888,12 @@ const EmceePage: React.FC = () => {
                           <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
                             Updated {new Date(script.updatedAt).toLocaleDateString()}
                           </p>
-                        </div>
+                        </button>
                         <div className="flex items-center gap-2 md:ml-4">
                           <button
                             onClick={() => handleViewScript(script)}
+                            onMouseDown={stopScriptRowEvent}
+                            onClickCapture={stopScriptRowEvent}
                             className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             title="View script details"
                             aria-label={`View script ${script.title}`}
@@ -936,6 +904,8 @@ const EmceePage: React.FC = () => {
                             <>
                               <button
                                 onClick={() => handleEditScript(script)}
+                                onMouseDown={stopScriptRowEvent}
+                                onClickCapture={stopScriptRowEvent}
                                 className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                 title="Edit script"
                                 aria-label={`Edit script ${script.title}`}
@@ -944,6 +914,8 @@ const EmceePage: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => handleDeleteScript(script.id)}
+                                onMouseDown={stopScriptRowEvent}
+                                onClickCapture={stopScriptRowEvent}
                                 className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                 title="Delete script"
                                 aria-label={`Delete script ${script.title}`}
