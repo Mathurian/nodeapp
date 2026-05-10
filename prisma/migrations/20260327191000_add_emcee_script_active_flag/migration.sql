@@ -1,0 +1,3 @@
+-- Intentionally no-op.
+-- This migration directory exists in project history and must remain deployable,
+-- but the underlying schema change is not present in the current datamodel.
