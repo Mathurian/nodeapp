@@ -8,6 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { UsersController } from '../../../src/controllers/usersController';
 import { UserService } from '../../../src/services/UserService';
 import { AssignmentService } from '../../../src/services/AssignmentService';
+import { EmailService } from '../../../src/services/EmailService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 
@@ -77,6 +78,7 @@ describe('UsersController', () => {
   let controller: UsersController;
   let mockUserService: DeepMockProxy<UserService>;
   let mockAssignmentService: DeepMockProxy<AssignmentService>;
+  let mockEmailService: DeepMockProxy<EmailService>;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockReq: any;
   let mockRes: Partial<Response>;
@@ -94,14 +96,21 @@ describe('UsersController', () => {
 
     mockUserService = mockDeep<UserService>();
     mockAssignmentService = mockDeep<AssignmentService>();
+    mockEmailService = mockDeep<EmailService>();
     mockPrisma = mockDeep<PrismaClient>();
     mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
+    mockEmailService.sendWelcomeEmailIfEnabled.mockResolvedValue({
+      success: true,
+      to: 'newuser@test.com',
+      subject: 'Welcome to Test Tenant',
+    } as any);
 
     // Mock container.resolve to return our mock services
     const { container } = require('tsyringe');
     container.resolve.mockImplementation((token: any) => {
       if (token === UserService) return mockUserService;
       if (token === AssignmentService) return mockAssignmentService;
+      if (token === EmailService) return mockEmailService;
       if (token === 'PrismaClient') return mockPrisma;
       return null;
     });
@@ -131,6 +140,7 @@ describe('UsersController', () => {
   afterEach(() => {
     mockReset(mockUserService);
     mockReset(mockAssignmentService);
+    mockReset(mockEmailService);
     mockReset(mockPrisma);
   });
 
@@ -218,6 +228,14 @@ describe('UsersController', () => {
       await controller.createUser(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockUserService.createUser).toHaveBeenCalled();
+      expect(mockEmailService.sendWelcomeEmailIfEnabled).toHaveBeenCalledWith(
+        'newuser@test.com',
+        'New User',
+        expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+        })
+      );
       expect(mockSendCreated).toHaveBeenCalledWith(mockRes, expect.any(Object));
     });
 

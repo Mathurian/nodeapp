@@ -656,7 +656,9 @@ export class TenantService {
             loginUrl,
             {
               registrationUrl,
-              loginUrl
+              loginUrl,
+              tenantId,
+              userId: user.id,
             }
           );
 

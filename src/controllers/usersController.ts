@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
 import { AuditLogService } from '../services/AuditLogService';
+import { EmailService } from '../services/EmailService';
 import {
   sendSuccess,
   sendCreated,
@@ -52,11 +53,13 @@ interface UserWithRelations extends User {
 export class UsersController {
   private userService: UserService;
   private assignmentService: AssignmentService;
+  private emailService: EmailService;
   private prisma: PrismaClient;
 
   constructor() {
     this.userService = container.resolve(UserService);
     this.assignmentService = container.resolve(AssignmentService);
+    this.emailService = container.resolve(EmailService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
   }
 
@@ -66,6 +69,35 @@ export class UsersController {
     }
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private async sendWelcomeEmailAfterUserCreation(
+    tenantId: string,
+    userId: string,
+    email: string,
+    name: string,
+    log: ReturnType<typeof createRequestLogger>
+  ): Promise<void> {
+    try {
+      const result = await this.emailService.sendWelcomeEmailIfEnabled(email, name, {
+        tenantId,
+        userId,
+      });
+
+      if (result.message === 'Welcome email skipped (disabled)') {
+        log.debug('Welcome email skipped for newly created user', { userId, email, tenantId });
+        return;
+      }
+
+      log.info('Welcome email dispatched for newly created user', { userId, email, tenantId });
+    } catch (emailError) {
+      log.error('Failed to send welcome email for newly created user', {
+        userId,
+        email,
+        tenantId,
+        error: (emailError as Error).message,
+      });
+    }
   }
 
   private canManageContestantPrivateProfile(role: string | undefined): boolean {
@@ -521,6 +553,8 @@ export class UsersController {
         errorResponse(res, 'Failed to load created user', ErrorCode.INTERNAL_ERROR, 500);
         return;
       }
+
+      await this.sendWelcomeEmailAfterUserCreation(tenantId, user.id, data.email, data.name, log);
 
       const { password: _password, ...safeUser } = createdUser;
       sendCreated(res, this.stripContestantPrivateProfileFields(safeUser));
@@ -1933,6 +1967,34 @@ export class UsersController {
               log.warn('Failed to assign contestant', { contestantId, error: error.message });
               results.errors.push(`Row ${i + 1}: User created but assignment failed: ${error.message}`);
             }
+          }
+
+          try {
+            const welcomeEmailResult = await this.emailService.sendWelcomeEmailIfEnabled(
+              String(userData['email']),
+              String(userData['name']),
+              {
+                tenantId,
+                userId: user.id,
+              }
+            );
+
+            if (welcomeEmailResult.message !== 'Welcome email skipped (disabled)') {
+              log.debug('Welcome email dispatched for bulk-created user', {
+                row: i + 1,
+                userId: user.id,
+                email: userData['email'],
+              });
+            }
+          } catch (welcomeEmailError) {
+            const welcomeEmailMessage = (welcomeEmailError as Error).message || 'Unknown welcome email error';
+            log.warn('Failed to send welcome email for bulk-created user', {
+              row: i + 1,
+              userId: user.id,
+              email: userData['email'],
+              error: welcomeEmailMessage,
+            });
+            results.errors.push(`Row ${i + 1}: User created but welcome email failed: ${welcomeEmailMessage}`);
           }
 
           results.success++;

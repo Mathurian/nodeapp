@@ -1,11 +1,11 @@
 ---
 id: TASK-26
 title: Allow super admins to sign in from tenant slug pages
-status: Done
+status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-09 20:34'
-updated_date: '2026-05-09 22:49'
+updated_date: '2026-05-10 03:13'
 labels:
   - auth
   - multi-tenant
@@ -31,10 +31,9 @@ Fix tenant-slug login behavior so super admins can authenticate from a tenant-br
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Adjust `AuthService.login()` so a tenant-slug login can fall back to cross-tenant discovery only for `SUPER_ADMIN` candidates, while keeping non-super-admin wrong-tenant logins blocked.
-2. Propagate slug tenant context on authenticated frontend API requests so a super admin who signs in from `/:slug/login` stays scoped to that tenant during subsequent requests.
-3. Add targeted auth tests for super-admin slug login success, preserve existing tenant-selection behavior for default login, and verify non-super-admin users still cannot bypass tenant scoping.
-4. Run focused backend/frontend verification and record any unrelated auth harness issues.
+1. Reproduce the TASK-26 regression path in code by tracing tenant-slug super-admin login, post-login navigation, and the first protected requests (`/auth/profile`, `/auth/permissions`) that can trigger a 401 redirect.
+2. Patch the session bootstrap so a successful tenant-slug super-admin login reliably establishes authenticated frontend state before protected-route permission checks can bounce the user back to login, without weakening tenant scoping.
+3. Add focused verification for the super-admin slug login flow covering the post-login protected request path and confirm non-super-admin tenant-scoping protections still hold.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -44,6 +43,9 @@ Fix tenant-slug login behavior so super admins can authenticate from a tenant-br
 - Added tenant-slug propagation to the shared frontend API client so authenticated requests from `/:slug/...` continue to send `X-Tenant-Slug` for super-admin tenant scoping.
 - Added AuthService unit coverage for super-admin slug login success, preserved default-login tenant-selection behavior, and non-super-admin no-bypass behavior.
 - Verification: `npx jest tests/unit/services/AuthService.test.ts --runInBand`, `cd frontend && npm run type-check`, `npm run build`, `cd frontend && npm run build`.
+
+- Regression report: production test from /OKCKW/login using default superadmin admin@revnatech.com redirects back to login with a browser 401 after sign-in.
+- Initial investigation: TASK-26 backend slug fallback in AuthService appears intact; likely failure is the first authenticated frontend request after navigation rather than the credential lookup itself.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

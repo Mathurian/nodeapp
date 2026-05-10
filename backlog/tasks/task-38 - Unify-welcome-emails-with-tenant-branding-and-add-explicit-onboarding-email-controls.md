@@ -3,10 +3,11 @@ id: TASK-38
 title: >-
   Unify welcome emails with tenant branding and add explicit onboarding email
   controls
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-09 23:57'
-updated_date: '2026-05-09 23:58'
+updated_date: '2026-05-10 02:57'
 labels: []
 milestone: m-0
 dependencies: []

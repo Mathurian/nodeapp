@@ -45,6 +45,7 @@ interface GeneralSettings {
   securityEmail: string
   allowRegistration: boolean
   requireEmailVerification: boolean
+  welcomeEmailEnabled: boolean
   enableNotifications: boolean
   maintenanceMode: boolean
   defaultLanguage: string
@@ -348,6 +349,7 @@ const SettingsPage: React.FC = () => {
     securityEmail: '',
     allowRegistration: true,
     requireEmailVerification: false,
+    welcomeEmailEnabled: false,
     enableNotifications: true,
     maintenanceMode: false,
     defaultLanguage: 'en',
@@ -1904,6 +1906,21 @@ const SettingsPage: React.FC = () => {
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Registration is invite-only. Users are onboarded via organizer/admin invitations and complete setup from emailed links.
                       </p>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Send Welcome Emails</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Send a tenant-branded onboarding email after admins create or import active user accounts
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={generalFormData.welcomeEmailEnabled}
+                        onChange={(e) => setGeneralFormData({ ...generalFormData, welcomeEmailEnabled: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                      />
                     </div>
 
                     <div className="flex items-center justify-between py-3">

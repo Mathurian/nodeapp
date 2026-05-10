@@ -770,6 +770,7 @@ export class SettingsService extends BaseService {
     securityEmail: 'security_email',
     allowRegistration: 'allow_registration',
     requireEmailVerification: 'require_email_verification',
+    welcomeEmailEnabled: 'welcome_email_enabled',
     enableNotifications: 'notification_email_enabled',
     maintenanceMode: 'maintenance_mode',
     defaultLanguage: 'default_language',
@@ -1602,7 +1603,7 @@ export class SettingsService extends BaseService {
     const keys = [
       'app_name', 'app_description', 'footer_contactEmail',
       'security_email',
-      'allow_registration', 'require_email_verification',
+      'allow_registration', 'require_email_verification', 'welcome_email_enabled',
       'notification_email_enabled', 'maintenance_mode',
       'default_language', 'default_timezone',
       'max_file_size', 'session_timeout'
@@ -1622,6 +1623,7 @@ export class SettingsService extends BaseService {
       securityEmail: keyMap['security_email'] || env.get('SECURITY_EMAIL') || keyMap['footer_contactEmail'] || '',
       allowRegistration: (keyMap['allow_registration'] || 'true') === 'true',
       requireEmailVerification: (keyMap['require_email_verification'] || 'false') === 'true',
+      welcomeEmailEnabled: (keyMap['welcome_email_enabled'] || 'false') === 'true',
       enableNotifications: (keyMap['notification_email_enabled'] || 'true') === 'true',
       maintenanceMode: (keyMap['maintenance_mode'] || 'false') === 'true',
       defaultLanguage: keyMap['default_language'] || 'en',

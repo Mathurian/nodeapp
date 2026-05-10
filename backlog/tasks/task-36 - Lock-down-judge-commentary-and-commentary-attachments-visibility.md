@@ -1,11 +1,11 @@
 ---
 id: TASK-36
 title: Lock down judge commentary and commentary attachments visibility
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-09 23:35'
-updated_date: '2026-05-09 23:54'
+updated_date: '2026-05-10 02:56'
 labels: []
 milestone: m-0
 dependencies: []
@@ -20,9 +20,9 @@ Investigate and remediate a privacy defect where judge commentary and uploaded c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Commentary API responses only return judge commentary to the uploading judge, the attached contestant, and TALLY_MASTER/AUDITOR/BOARD/ORGANIZER/ADMIN/SUPER_ADMIN roles.
-- [ ] #2 Commentary attachment APIs and download flows enforce the same visibility rules server-side for list, detail, download, and raw upload access paths.
-- [ ] #3 Judge commentary and commentary attachments are no longer exposed through judge scoring pages, results views, or direct URLs to unauthorized judges or other tenant users.
+- [x] #1 Commentary API responses only return judge commentary to the uploading judge, the attached contestant, and TALLY_MASTER/AUDITOR/BOARD/ORGANIZER/ADMIN/SUPER_ADMIN roles.
+- [x] #2 Commentary attachment APIs and download flows enforce the same visibility rules server-side for list, detail, download, and raw upload access paths.
+- [x] #3 Judge commentary and commentary attachments are no longer exposed through judge scoring pages, results views, or direct URLs to unauthorized judges or other tenant users.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -42,11 +42,28 @@ Investigate and remediate a privacy defect where judge commentary and uploaded c
 - Implemented shared commentary access rules and applied them to CommentaryService, ScoreFileService, score-file controllers, and the raw /uploads handler.
 - Read access is now limited to tally-and-above roles, the owning contestant, or the uploading/owning judge context; unauthorized judges no longer receive other judges' commentary records or attachments.
 - Verified with targeted Jest suites: tests/unit/services/CommentaryService.test.ts, tests/unit/controllers/commentaryController.test.ts, tests/unit/services/ScoreFileService.test.ts.
+
+- Verified targeted privacy regression coverage after the prior implementation work.
+- Confirmed commentary records and score-file attachment visibility tests pass for authorized versus unauthorized access paths.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Locked down judge commentary and commentary attachment visibility to the intended audience.
+
+Changes:
+- Applied shared commentary visibility rules across commentary records, score-file attachment APIs, and raw attachment access paths.
+- Limited access to the uploading judge, the attached contestant, and tally-and-above operational roles.
+- Removed unauthorized cross-judge and broad tenant exposure through scoring and attachment flows.
+
+Verification:
+- npx jest tests/unit/services/CommentaryService.test.ts tests/unit/controllers/commentaryController.test.ts tests/unit/services/ScoreFileService.test.ts --runInBand
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->

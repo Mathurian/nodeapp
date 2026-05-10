@@ -33,9 +33,9 @@ const ScoreGovernancePage: React.FC = () => {
 
   const [requiredAdditionalApprovals, setRequiredAdditionalApprovals] = useState(2)
   const [approverRoles, setApproverRoles] = useState<string[]>(['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'])
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING')
   const [actionFilter, setActionFilter] = useState<'ALL' | GovernanceAction>('ALL')
-  const [showCompleted, setShowCompleted] = useState(true)
+  const [showCompleted, setShowCompleted] = useState(false)
 
   const canConfigure = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(user?.role || '')
   const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER'].includes(user?.role || '')
@@ -200,13 +200,20 @@ const ScoreGovernancePage: React.FC = () => {
   }, [requests, canApprove, user])
 
   const filteredRequests = useMemo(() => {
-    return requests.filter((request: any) => {
+    const rows = requests.filter((request: any) => {
       if (statusFilter !== 'ALL' && request.status !== statusFilter) return false
       if (actionFilter !== 'ALL' && request.actionType !== actionFilter) return false
       if (!showCompleted && request.status !== 'PENDING') return false
       return true
     })
-  }, [requests, statusFilter, actionFilter, showCompleted])
+
+    return rows.sort((left: any, right: any) => {
+      const leftPriority = canCurrentUserApprove(left) ? 0 : left.status === 'PENDING' ? 1 : 2
+      const rightPriority = canCurrentUserApprove(right) ? 0 : right.status === 'PENDING' ? 1 : 2
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority
+      return String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
+    })
+  }, [requests, statusFilter, actionFilter, showCompleted, canApprove, user])
 
   const judges = useMemo(() => {
     const map = new Map<string, { id: string; name: string; email?: string }>()
@@ -236,6 +243,12 @@ const ScoreGovernancePage: React.FC = () => {
       setJudgeId(judges[0].id)
     }
   }, [scopeType, judgeId, judges])
+
+  useEffect(() => {
+    if (statusFilter !== 'PENDING' && statusFilter !== 'ALL' && !showCompleted) {
+      setShowCompleted(true)
+    }
+  }, [showCompleted, statusFilter])
 
   const createMutation = useMutation((payload: any) => scoreGovernanceAPI.createRequest(payload), {
     onSuccess: async () => {
@@ -434,7 +447,148 @@ const ScoreGovernancePage: React.FC = () => {
         </div>
       </Card>
 
-        <Card className="rounded-lg p-4">
+      <Card className="rounded-lg p-4 space-y-3">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">Approver Queue</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Pending requests are surfaced first. Rows highlighted in amber are ready for your action.
+            </p>
+          </div>
+          <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            {pendingForMyAction.length > 0
+              ? `${pendingForMyAction.length} request(s) currently need your approval`
+              : 'No requests currently need your approval'}
+          </div>
+        </div>
+      </Card>
+
+      <Card className="rounded-lg p-0 overflow-x-auto">
+        <ResponsiveTable caption="Governance requests" minWidth="1200px">
+          <table className="w-full min-w-[1200px]">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Target</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Action/Scope</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Flow Actors</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Reason</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Status</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Execution</th>
+                <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No governance requests match the current queue filters.
+                  </td>
+                </tr>
+              ) : filteredRequests.map((request: any) => {
+                const additionalApprovals = additionalApproverRows(request).length
+                const approvalsNeeded = Math.max(0, Number(request.requiredAdditionalApprovals || 0) - additionalApprovals)
+                const canAct = canCurrentUserApprove(request)
+                return (
+                  <tr
+                    key={request.id}
+                    className={
+                      canAct
+                        ? 'bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-900/30'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }
+                  >
+                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                      <div className="space-y-1">
+                        <div>{request.contest?.name || '-'}</div>
+                        <div>{request.category?.name || '-'}</div>
+                        <div>
+                          {request.contestant ? `#${request.contestant.contestantNumber ?? 'N/A'} ${request.contestant.name}` : '-'}
+                        </div>
+                        <div>{request.judge?.name ? `Judge: ${request.judge.name}` : ''}</div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.actionType} / {request.scopeType}</td>
+                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                      <div className="space-y-2">
+                        <div>
+                          <div className="text-[11px] uppercase text-gray-500 dark:text-gray-400">Requestor</div>
+                          <div>{requestorLabel(request)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] uppercase text-gray-500 dark:text-gray-400">Approver(s)</div>
+                          {additionalApproverRows(request).length > 0 ? (
+                            <div className="space-y-1">
+                              {additionalApproverRows(request).map((approval: any) => (
+                                <div key={approval.id}>
+                                  {(approval.approvedByName || approval.approvedByEmail || approval.approvedById || 'Unknown Approver')}
+                                  {' - '}
+                                  {normalizeRoleLabel(approval.approverRole, approval.effectiveBoardRoleSnapshot)}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Pending</div>
+                          )}
+                        </div>
+                        <div className="text-xs">
+                          {additionalApprovals}/{request.requiredAdditionalApprovals} additional approvals
+                          {request.status === 'PENDING' && approvalsNeeded > 0 && (
+                            <div className="text-yellow-700 dark:text-yellow-300 mt-1">{approvalsNeeded} more needed</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.reason}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        request.status === 'APPROVED'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                          : request.status === 'REJECTED'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                      }`}>
+                        {request.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.executionSummary || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      {canAct ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const typed = window.prompt('Enter typed signature to certify this request', user?.name || user?.email || '') || ''
+                              if (!typed.trim()) return
+                              approveMutation.mutate({ id: request.id, signature: { typedSignature: typed.trim() } })
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => {
+                              const reason = window.prompt('Rejection reason') || ''
+                              if (reason.trim()) rejectMutation.mutate({ id: request.id, reason })
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : request.status === 'PENDING' ? (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Waiting / already actioned
+                        </span>
+                      ) : '-'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </ResponsiveTable>
+      </Card>
+
+      <Card className="rounded-lg p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <select value={contestId} onChange={(e) => setContestId(e.target.value)} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
             <option value="">All Contests</option>
@@ -582,7 +736,7 @@ const ScoreGovernancePage: React.FC = () => {
           <Button onClick={submitRequest} data-testid="create-governance-request-button">Create Request</Button>
         </Card>
 
-        <Card className="rounded-lg p-0 overflow-x-auto">
+      <Card className="rounded-lg p-0 overflow-x-auto">
           <ResponsiveTable caption="Governance score review rows" minWidth="1100px">
             <table className="w-full min-w-[1100px]">
               <thead className="bg-gray-50 dark:bg-gray-700">
@@ -613,117 +767,6 @@ const ScoreGovernancePage: React.FC = () => {
           </ResponsiveTable>
         </Card>
 
-        <Card className="rounded-lg p-0 overflow-x-auto">
-          <ResponsiveTable caption="Governance requests" minWidth="1200px">
-            <table className="w-full min-w-[1200px]">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Target</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Action/Scope</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Flow Actors</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Reason</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Execution</th>
-                  <th className="px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-300 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredRequests.map((request: any) => {
-                  const additionalApprovals = additionalApproverRows(request).length
-                  const approvalsNeeded = Math.max(0, Number(request.requiredAdditionalApprovals || 0) - additionalApprovals)
-                  const canAct = canCurrentUserApprove(request)
-                  return (
-                    <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                        <div className="space-y-1">
-                          <div>{request.contest?.name || '-'}</div>
-                          <div>{request.category?.name || '-'}</div>
-                          <div>
-                            {request.contestant ? `#${request.contestant.contestantNumber ?? 'N/A'} ${request.contestant.name}` : '-'}
-                          </div>
-                          <div>{request.judge?.name ? `Judge: ${request.judge.name}` : ''}</div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{request.actionType} / {request.scopeType}</td>
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                        <div className="space-y-2">
-                          <div>
-                            <div className="text-[11px] uppercase text-gray-500 dark:text-gray-400">Requestor</div>
-                            <div>{requestorLabel(request)}</div>
-                          </div>
-                          <div>
-                            <div className="text-[11px] uppercase text-gray-500 dark:text-gray-400">Approver(s)</div>
-                            {additionalApproverRows(request).length > 0 ? (
-                              <div className="space-y-1">
-                                {additionalApproverRows(request).map((approval: any) => (
-                                  <div key={approval.id}>
-                                    {(approval.approvedByName || approval.approvedByEmail || approval.approvedById || 'Unknown Approver')}
-                                    {' - '}
-                                    {normalizeRoleLabel(approval.approverRole, approval.effectiveBoardRoleSnapshot)}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">Pending</div>
-                            )}
-                          </div>
-                          <div className="text-xs">
-                            {additionalApprovals}/{request.requiredAdditionalApprovals} additional approvals
-                            {request.status === 'PENDING' && approvalsNeeded > 0 && (
-                              <div className="text-yellow-700 dark:text-yellow-300 mt-1">{approvalsNeeded} more needed</div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.reason}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          request.status === 'APPROVED'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                            : request.status === 'REJECTED'
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                        }`}>
-                          {request.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{request.executionSummary || '-'}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">
-                        {canAct ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                const typed = window.prompt('Enter typed signature to certify this request', user?.name || user?.email || '') || ''
-                                if (!typed.trim()) return
-                                approveMutation.mutate({ id: request.id, signature: { typedSignature: typed.trim() } })
-                              }}
-                              className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => {
-                                const reason = window.prompt('Rejection reason') || ''
-                                if (reason.trim()) rejectMutation.mutate({ id: request.id, reason })
-                              }}
-                              className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : request.status === 'PENDING' ? (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Waiting / already actioned
-                          </span>
-                        ) : '-'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </ResponsiveTable>
-        </Card>
     </div>
   )
 }

@@ -3,11 +3,11 @@ id: TASK-37
 title: >-
   Stop automatic welcome emails on user creation and audit onboarding email
   controls
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-09 23:35'
-updated_date: '2026-05-09 23:54'
+updated_date: '2026-05-10 02:56'
 labels: []
 milestone: m-0
 dependencies: []
@@ -22,9 +22,9 @@ Investigate and remediate unexpected welcome emails being sent to newly created 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 New user creation no longer sends an automatic welcome email unless an explicit supported product setting requires it.
-- [ ] #2 The investigation identifies and documents the current trigger path, whether a UI control exists, and how welcome-email branding was being derived.
-- [ ] #3 Settings and runtime behavior are consistent so disabling email verification does not still produce a generic welcome/verification email flow.
+- [x] #1 New user creation no longer sends an automatic welcome email unless an explicit supported product setting requires it.
+- [x] #2 The investigation identifies and documents the current trigger path, whether a UI control exists, and how welcome-email branding was being derived.
+- [x] #3 Settings and runtime behavior are consistent so disabling email verification does not still produce a generic welcome/verification email flow.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -45,11 +45,28 @@ Investigate and remediate unexpected welcome emails being sent to newly created 
 - Confirmed the only related UI control is Require Email Verification in general settings; there is no separate welcome-email setting.
 - Confirmed the previous welcome email used a generic template and env/global app values rather than tenant branding.
 - Verified with targeted Jest suite: tests/unit/services/UserService.test.ts.
+
+- Verified the user-creation email behavior remains gated after the prior implementation work.
+- Confirmed the targeted user service coverage passes for the welcome-email suppression path.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Stopped automatic welcome emails during user creation and documented the trigger path mismatch.
+
+Changes:
+- Removed the unconditional welcome-email send from new user creation.
+- Confirmed the UI exposes Require Email Verification but not a separate welcome-email control.
+- Confirmed the previous onboarding email path used generic app/env branding rather than tenant-specific branding.
+
+Verification:
+- npx jest tests/unit/services/UserService.test.ts --runInBand
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->

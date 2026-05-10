@@ -81,6 +81,20 @@ interface SmtpRuntimeConfig {
   source: 'env' | 'settings';
 }
 
+interface TenantEmailContext {
+  appName: string;
+  supportEmail: string;
+  tenantSlug: string | null;
+  loginUrl: string;
+}
+
+interface WelcomeEmailDispatchOptions {
+  tenantId?: string;
+  userId?: string;
+  loginUrl?: string;
+  actionLabel?: string;
+}
+
 @injectable()
 export class EmailService extends BaseService {
   private transporter: Transporter | null = null;
@@ -290,6 +304,7 @@ export class EmailService extends BaseService {
     options?: Partial<EmailOptions>
   ): Promise<EmailSendResult> {
     const smtpConfig = await this.resolveSmtpRuntimeConfig(options?.tenantId);
+    const tenantEmailContext = await this.resolveTenantEmailContext(options?.tenantId, smtpConfig);
 
     if (!smtpConfig.enabled) {
       logger.info(`Email would be sent to ${to} (SMTP disabled)`, {
@@ -360,9 +375,9 @@ export class EmailService extends BaseService {
       subject,
       fallbackText: body,
       previewText: subject,
-      appName: env.get('APP_NAME'),
-      headerTitle: env.get('APP_NAME'),
-      footerText: `Sent from ${env.get('APP_NAME') || 'Event Manager'}`,
+      appName: tenantEmailContext.appName,
+      headerTitle: tenantEmailContext.appName,
+      footerText: `Sent from ${tenantEmailContext.appName}`,
     });
 
     const textBody = this.resolveTextBody(body, html, subject);
@@ -494,6 +509,74 @@ export class EmailService extends BaseService {
     return (
       normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
     );
+  }
+
+  private async getSettingWithFallback(key: string, tenantId?: string): Promise<string | null> {
+    if (tenantId) {
+      const tenantSetting = await this.prisma.systemSetting.findFirst({
+        where: { key, tenantId },
+        select: { value: true },
+      });
+      if (tenantSetting?.value !== undefined && tenantSetting?.value !== null) {
+        return tenantSetting.value;
+      }
+    }
+
+    const globalSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId: null },
+      select: { value: true },
+    });
+    return globalSetting?.value ?? null;
+  }
+
+  private resolveAppBaseUrl(): string {
+    return String(env.get('APP_URL') || env.get('FRONTEND_URL') || 'http://localhost:3000').replace(/\/+$/, '');
+  }
+
+  private buildTenantLoginUrl(tenantSlug?: string | null): string {
+    const normalizedSlug = String(tenantSlug || '').trim().replace(/^\/+|\/+$/g, '');
+    return `${this.resolveAppBaseUrl()}${normalizedSlug ? `/${normalizedSlug}` : ''}/login`;
+  }
+
+  private async resolveTenantEmailContext(
+    tenantId?: string,
+    smtpConfig?: SmtpRuntimeConfig
+  ): Promise<TenantEmailContext> {
+    const [appNameSetting, contactEmailSetting, tenantRecord, resolvedSmtpConfig] = await Promise.all([
+      this.getSettingWithFallback('app_name', tenantId),
+      this.getSettingWithFallback('footer_contactEmail', tenantId),
+      tenantId
+        ? this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { slug: true, name: true },
+          })
+        : Promise.resolve(null),
+      smtpConfig ? Promise.resolve(smtpConfig) : this.resolveSmtpRuntimeConfig(tenantId),
+    ]);
+
+    const appName =
+      String(appNameSetting || '').trim() ||
+      String(tenantRecord?.name || '').trim() ||
+      String(env.get('APP_NAME') || '').trim() ||
+      'Event Manager';
+    const supportEmail =
+      String(resolvedSmtpConfig.replyToAddress || '').trim() ||
+      String(contactEmailSetting || '').trim() ||
+      String(resolvedSmtpConfig.from || '').trim() ||
+      String(env.get('SMTP_FROM') || '').trim();
+    const tenantSlug = String(tenantRecord?.slug || '').trim() || null;
+
+    return {
+      appName,
+      supportEmail,
+      tenantSlug,
+      loginUrl: this.buildTenantLoginUrl(tenantSlug),
+    };
+  }
+
+  async isWelcomeEmailEnabled(tenantId?: string): Promise<boolean> {
+    const rawValue = await this.getSettingWithFallback('welcome_email_enabled', tenantId);
+    return this.parseBool(rawValue ?? undefined, false);
   }
 
   private async resolveSmtpRuntimeConfig(tenantId?: string): Promise<SmtpRuntimeConfig> {
@@ -675,11 +758,13 @@ export class EmailService extends BaseService {
     to: string,
     subject: string,
     template: string,
-    variables: Record<string, string | number | boolean>
+    variables: Record<string, string | number | boolean>,
+    options?: Partial<EmailOptions>
   ): Promise<EmailSendResult> {
     return this.sendEmail(to, subject, '', {
       template,
       variables,
+      ...options,
     });
   }
 
@@ -689,13 +774,45 @@ export class EmailService extends BaseService {
   async sendWelcomeEmail(
     email: string,
     name: string,
-    verificationUrl?: string
+    options?: WelcomeEmailDispatchOptions
   ): Promise<EmailSendResult> {
-    return this.sendTemplatedEmail(email, 'Welcome to Event Manager', 'welcome', {
+    const tenantEmailContext = await this.resolveTenantEmailContext(options?.tenantId);
+    const actionUrl = String(options?.loginUrl || '').trim() || tenantEmailContext.loginUrl;
+
+    return this.sendTemplatedEmail(email, `Welcome to ${tenantEmailContext.appName}`, 'welcome', {
       name,
-      verificationUrl: verificationUrl || '#',
-      appName: env.get('APP_NAME'),
-      supportEmail: env.get('SMTP_FROM'),
+      actionUrl,
+      actionLabel: options?.actionLabel || 'Open Sign In',
+      appName: tenantEmailContext.appName,
+      supportEmail: tenantEmailContext.supportEmail,
+      hasSupportEmail: Boolean(tenantEmailContext.supportEmail),
+    }, {
+      tenantId: options?.tenantId,
+      userId: options?.userId,
+    });
+  }
+
+  async sendWelcomeEmailIfEnabled(
+    email: string,
+    name: string,
+    options?: WelcomeEmailDispatchOptions
+  ): Promise<EmailSendResult> {
+    const tenantId = options?.tenantId;
+    const tenantEmailContext = await this.resolveTenantEmailContext(tenantId);
+
+    if (!(await this.isWelcomeEmailEnabled(tenantId))) {
+      return {
+        success: true,
+        to: email,
+        subject: `Welcome to ${tenantEmailContext.appName}`,
+        message: 'Welcome email skipped (disabled)',
+      };
+    }
+
+    return this.sendWelcomeEmail(email, name, {
+      ...options,
+      tenantId,
+      loginUrl: options?.loginUrl || tenantEmailContext.loginUrl,
     });
   }
 
@@ -758,8 +875,11 @@ export class EmailService extends BaseService {
       username?: string;
       temporaryPassword?: string;
       registrationUrl?: string;
+      tenantId?: string;
+      userId?: string;
     }
   ): Promise<EmailSendResult> {
+    const tenantEmailContext = await this.resolveTenantEmailContext(options?.tenantId);
     const variables: Record<string, string | number | boolean> = {
       email: email || '',
       name: name || '',
@@ -767,8 +887,8 @@ export class EmailService extends BaseService {
       role: role || '',
       acceptUrl: acceptUrl || '',
       declineUrl: declineUrl || '',
-      appName: env.get('APP_NAME') || '',
-      supportEmail: env.get('SMTP_FROM') || '',
+      appName: tenantEmailContext.appName,
+      supportEmail: tenantEmailContext.supportEmail,
       eventDate: options?.eventDate || '',
       eventLocation: options?.eventLocation || '',
       eventDescription: options?.eventDescription || '',
@@ -783,7 +903,11 @@ export class EmailService extends BaseService {
       email,
       `Invitation: ${eventName} - ${role}`,
       'invitation',
-      variables
+      variables,
+      {
+        tenantId: options?.tenantId,
+        userId: options?.userId,
+      }
     );
   }
 

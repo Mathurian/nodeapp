@@ -4,6 +4,7 @@ import { injectable, inject } from 'tsyringe';
 import { BulkOperationService } from '../services/BulkOperationService';
 import { CSVService } from '../services/CSVService';
 import { UserService } from '../services/UserService';
+import { EmailService } from '../services/EmailService';
 import { createLogger } from '../utils/logger';
 import { VALID_ROLES } from '../constants/roles';
 
@@ -14,7 +15,8 @@ export class BulkUserController {
   constructor(
     @inject(BulkOperationService) private bulkOperationService: BulkOperationService,
     @inject(CSVService) private csvService: CSVService,
-    @inject(UserService) private userService: UserService
+    @inject(UserService) private userService: UserService,
+    @inject(EmailService) private emailService: EmailService
   ) {}
 
   /**
@@ -241,7 +243,20 @@ export class BulkUserController {
       // Import users
       const importResult = await this.bulkOperationService.executeBulkOperation(
         async (userData: any) => {
-          await this.userService.createUser({ ...userData, tenantId });
+          const createdUser = await this.userService.createUser({ ...userData, tenantId });
+          try {
+            await this.emailService.sendWelcomeEmailIfEnabled(createdUser.email, createdUser.name, {
+              tenantId,
+              userId: createdUser.id,
+            });
+          } catch (emailError) {
+            Logger.warn('Welcome email failed for imported user', {
+              userId: createdUser.id,
+              tenantId,
+              email: createdUser.email,
+              error: emailError instanceof Error ? emailError.message : String(emailError),
+            });
+          }
         },
         validationResult.data
       );
