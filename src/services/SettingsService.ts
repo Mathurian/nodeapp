@@ -18,6 +18,12 @@ import {
   PublicLandingContent,
   PUBLIC_LANDING_CONTENT_SETTING_KEY,
 } from '../utils/publicLandingContent';
+import {
+  DEFAULT_PUBLISHED_RESULTS_VISIBILITY,
+  PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS,
+  parseVisibilityRoles,
+  serializeVisibilityRoles,
+} from '../utils/publishedResultsVisibility';
 
 // Prisma payload types
 type SystemSettingFull = Prisma.SystemSettingGetPayload<object>;
@@ -1687,6 +1693,70 @@ export class SettingsService extends BaseService {
     }
 
     return updatedCount;
+  }
+
+  /**
+   * Get published results visibility settings (tenant-aware)
+   */
+  async getPublishedResultsVisibilitySettings(tenantId?: string | null): Promise<Record<string, string[]>> {
+    const settings = await Promise.all([
+      this.getSettingWithFallback(PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.detailedResultsRoles, tenantId),
+      this.getSettingWithFallback(PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.winnersRoles, tenantId),
+      this.getSettingWithFallback(PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.progressRoles, tenantId),
+    ]);
+
+    return {
+      detailedResultsRoles: parseVisibilityRoles(
+        settings[0],
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.detailedResultsRoles
+      ),
+      winnersRoles: parseVisibilityRoles(
+        settings[1],
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.winnersRoles
+      ),
+      progressRoles: parseVisibilityRoles(
+        settings[2],
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.progressRoles
+      ),
+    };
+  }
+
+  /**
+   * Update published results visibility settings (tenant-aware)
+   */
+  async updatePublishedResultsVisibilitySettings(
+    visibilitySettings: Partial<Record<'detailedResultsRoles' | 'winnersRoles' | 'progressRoles', Array<string>>>,
+    userId: string,
+    tenantId?: string | null
+  ): Promise<number> {
+    const updates: Array<[string, string]> = [];
+
+    if (Array.isArray(visibilitySettings.detailedResultsRoles)) {
+      updates.push([
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.detailedResultsRoles,
+        serializeVisibilityRoles(visibilitySettings.detailedResultsRoles),
+      ]);
+    }
+
+    if (Array.isArray(visibilitySettings.winnersRoles)) {
+      updates.push([
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.winnersRoles,
+        serializeVisibilityRoles(visibilitySettings.winnersRoles),
+      ]);
+    }
+
+    if (Array.isArray(visibilitySettings.progressRoles)) {
+      updates.push([
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.progressRoles,
+        serializeVisibilityRoles(visibilitySettings.progressRoles),
+      ]);
+    }
+
+    for (const [key, value] of updates) {
+      await this.updateSetting(key, value, userId, tenantId);
+    }
+
+    return updates.length;
   }
 
   /**

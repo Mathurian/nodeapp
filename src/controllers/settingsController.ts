@@ -1213,6 +1213,56 @@ export class SettingsController {
   };
 
   /**
+   * Get published results visibility settings (tenant-aware)
+   */
+  getPublishedResultsVisibilitySettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = this.getTenantIdForRead(req);
+      const visibilitySettings =
+        await this.settingsService.getPublishedResultsVisibilitySettings(tenantId);
+
+      successResponse(res, visibilitySettings, 'Published results visibility settings retrieved successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
+   * Update published results visibility settings (tenant-aware)
+   */
+  updatePublishedResultsVisibilitySettings = async (
+    req: TenantRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const visibilitySettings = req.body;
+      const userId = req.user?.id || '';
+      const forGlobal = req.query['global'] === 'true';
+      const tenantId = this.getTenantIdForWrite(req, forGlobal);
+
+      const updatedCount =
+        await this.settingsService.updatePublishedResultsVisibilitySettings(
+          visibilitySettings,
+          userId,
+          tenantId
+        );
+
+      successResponse(
+        res,
+        { updatedCount, scope: tenantId ? 'tenant' : 'global' },
+        'Published results visibility settings updated successfully'
+      );
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /**
    * Get system health external alert settings
    * SUPER_ADMIN-only route.
    */
@@ -1380,6 +1430,10 @@ export const getContestantVisibilitySettings =
   controller.getContestantVisibilitySettings;
 export const updateContestantVisibilitySettings =
   controller.updateContestantVisibilitySettings;
+export const getPublishedResultsVisibilitySettings =
+  controller.getPublishedResultsVisibilitySettings;
+export const updatePublishedResultsVisibilitySettings =
+  controller.updatePublishedResultsVisibilitySettings;
 export const getGlobalSettings = controller.getGlobalSettings;
 export const resetSettingToGlobal = controller.resetSettingToGlobal;
 export const getSystemHealthAlertSettings = controller.getSystemHealthAlertSettings;

@@ -339,7 +339,8 @@ export class WinnersController {
 
       const result = await this.winnerService.getWinnersPublicationStatus(
         contestId,
-        user.tenantId
+        user.tenantId,
+        user.role
       );
 
       sendSuccess(res, result);
@@ -362,6 +363,7 @@ export class WinnersController {
 
       const result = await this.winnerService.getWinnersPublicationOverview(
         user.tenantId,
+        user.role,
         typeof eventId === 'string' ? eventId : undefined
       );
 

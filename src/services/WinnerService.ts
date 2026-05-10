@@ -1,10 +1,18 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { BaseService } from './BaseService';
 import * as crypto from 'crypto';
 import { createLogger } from '../utils/logger';
 import { NotificationService } from './NotificationService';
 import { NotificationPreferenceRepository } from '../repositories/NotificationPreferenceRepository';
+import {
+  DEFAULT_PUBLISHED_RESULTS_VISIBILITY,
+  PUBLISHED_RESULTS_BYPASS_ROLES,
+  PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS,
+  parseVisibilityRoles,
+  resolveVisibilityRoles,
+  isRoleVisible,
+} from '../utils/publishedResultsVisibility';
 
 const logger = createLogger('WinnerService');
 
@@ -19,6 +27,7 @@ type CategoryWithDetails = Prisma.CategoryGetPayload<{
         id: true;
         name: true;
         eventId: true;
+        winnersPublished: true;
         event: {
           select: {
             id: true;
@@ -132,6 +141,158 @@ export class WinnerService extends BaseService {
     @inject(NotificationPreferenceRepository) private notificationPreferenceRepository?: NotificationPreferenceRepository
   ) {
     super();
+  }
+
+  private async getSettingWithTenantFallback(key: string, tenantId: string): Promise<string | null> {
+    const tenantSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId },
+      select: { value: true },
+    });
+    if (tenantSetting?.value !== undefined && tenantSetting.value !== null) {
+      return tenantSetting.value;
+    }
+
+    const globalSetting = await this.prisma.systemSetting.findFirst({
+      where: { key, tenantId: null },
+      select: { value: true },
+    });
+
+    return globalSetting?.value ?? null;
+  }
+
+  private async getPublishedResultsVisibilitySettings(tenantId: string) {
+    const [detailedRaw, winnersRaw, progressRaw] = await Promise.all([
+      this.getSettingWithTenantFallback(
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.detailedResultsRoles,
+        tenantId
+      ),
+      this.getSettingWithTenantFallback(
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.winnersRoles,
+        tenantId
+      ),
+      this.getSettingWithTenantFallback(
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.progressRoles,
+        tenantId
+      ),
+    ]);
+
+    return {
+      detailedResultsRoles: parseVisibilityRoles(
+        detailedRaw,
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.detailedResultsRoles
+      ),
+      winnersRoles: parseVisibilityRoles(
+        winnersRaw,
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.winnersRoles
+      ),
+      progressRoles: parseVisibilityRoles(
+        progressRaw,
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.progressRoles
+      ),
+    };
+  }
+
+  private async getEventResultsVisibilityState(eventId: string, tenantId: string) {
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        tenantId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        hideResultsUntilEventPublished: true,
+        resultsVisibleRolesOverride: true,
+        winnersVisibleRolesOverride: true,
+        progressVisibleRolesOverride: true,
+        contests: {
+          where: {
+            deletedAt: null,
+            archived: false,
+          },
+          select: {
+            id: true,
+            winnersPublished: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return null;
+    }
+
+    return {
+      ...event,
+      fullyPublished:
+        event.contests.length > 0 &&
+        event.contests.every((contest) => Boolean(contest.winnersPublished)),
+    };
+  }
+
+  private async canAccessWinnersForEvent(
+    role: UserRole,
+    tenantId: string,
+    eventId: string,
+    contestPublished: boolean
+  ): Promise<boolean> {
+    if (PUBLISHED_RESULTS_BYPASS_ROLES.has(role)) {
+      return true;
+    }
+
+    if (!contestPublished) {
+      return false;
+    }
+
+    const [tenantVisibility, eventVisibility] = await Promise.all([
+      this.getPublishedResultsVisibilitySettings(tenantId),
+      this.getEventResultsVisibilityState(eventId, tenantId),
+    ]);
+
+    if (!eventVisibility) {
+      return false;
+    }
+
+    if (eventVisibility.hideResultsUntilEventPublished && !eventVisibility.fullyPublished) {
+      return false;
+    }
+
+    const effectiveRoles = resolveVisibilityRoles(
+      eventVisibility.winnersVisibleRolesOverride,
+      tenantVisibility.winnersRoles
+    );
+
+    return isRoleVisible(effectiveRoles, role);
+  }
+
+  private async canAccessPublicationProgressForEvent(
+    role: UserRole,
+    tenantId: string,
+    eventId: string
+  ): Promise<boolean> {
+    if (PUBLISHED_RESULTS_BYPASS_ROLES.has(role)) {
+      return true;
+    }
+
+    const [tenantVisibility, eventVisibility] = await Promise.all([
+      this.getPublishedResultsVisibilitySettings(tenantId),
+      this.getEventResultsVisibilityState(eventId, tenantId),
+    ]);
+
+    if (!eventVisibility) {
+      return false;
+    }
+
+    if (eventVisibility.hideResultsUntilEventPublished && !eventVisibility.fullyPublished) {
+      return false;
+    }
+
+    const effectiveRoles = resolveVisibilityRoles(
+      eventVisibility.progressVisibleRolesOverride,
+      tenantVisibility.progressRoles
+    );
+
+    return isRoleVisible(effectiveRoles, role);
   }
 
   private parseNotificationTypes(raw: string | null | undefined): string[] {
@@ -266,6 +427,7 @@ export class WinnerService extends BaseService {
             id: true,
             name: true,
             eventId: true,
+            winnersPublished: true,
             event: {
               select: {
                 id: true,
@@ -285,6 +447,18 @@ export class WinnerService extends BaseService {
 
     if (!category) {
       throw this.notFoundError('Category', categoryId);
+    }
+
+    const normalizedRole = String(_userRole || '').trim().toUpperCase() as UserRole;
+    const canViewCategoryWinners = await this.canAccessWinnersForEvent(
+      normalizedRole,
+      tenantId,
+      category.contest.eventId,
+      Boolean(category.contest.winnersPublished)
+    );
+
+    if (!canViewCategoryWinners) {
+      throw this.forbiddenError('Your role is not allowed to view winners for this event.');
     }
 
     // Get all scores for this category
@@ -485,6 +659,18 @@ export class WinnerService extends BaseService {
       throw this.forbiddenError(
         'Winners have not been published yet. Only Board members and administrators can view unpublished results.'
       );
+    }
+
+    const normalizedRole = String(_userRole || '').trim().toUpperCase() as UserRole;
+    const canViewContestWinners = await this.canAccessWinnersForEvent(
+      normalizedRole,
+      tenantId,
+      contest.eventId,
+      Boolean(contest.winnersPublished)
+    );
+
+    if (!canViewContestWinners) {
+      throw this.forbiddenError('Your role is not allowed to view winners for this event.');
     }
 
     const categories = contest.categories || [];
@@ -1170,7 +1356,7 @@ export class WinnerService extends BaseService {
   /**
    * Get winners publication status for a contest
    */
-  async getWinnersPublicationStatus(contestId: string, tenantId: string) {
+  async getWinnersPublicationStatus(contestId: string, tenantId: string, userRole: string) {
     const contest = await this.prisma.contest.findUnique({
       where: {
         id: contestId,
@@ -1199,6 +1385,17 @@ export class WinnerService extends BaseService {
 
     if (!contest) {
       throw this.notFoundError('Contest', contestId);
+    }
+
+    const normalizedRole = String(userRole || '').trim().toUpperCase() as UserRole;
+    const canViewProgress = await this.canAccessPublicationProgressForEvent(
+      normalizedRole,
+      tenantId,
+      contest.eventId
+    );
+
+    if (!canViewProgress) {
+      throw this.forbiddenError('Your role is not allowed to view winners publication progress for this event.');
     }
 
     const totalCategories = contest.categories.length;
@@ -1236,7 +1433,7 @@ export class WinnerService extends BaseService {
   /**
    * Get winners publication overview for all active contests in a tenant (optionally filtered by event).
    */
-  async getWinnersPublicationOverview(tenantId: string, eventId?: string) {
+  async getWinnersPublicationOverview(tenantId: string, userRole: string, eventId?: string) {
     const contests = await this.prisma.contest.findMany({
       where: {
         tenantId,
@@ -1282,33 +1479,66 @@ export class WinnerService extends BaseService {
       ],
     });
 
-    const publicationStatuses = contests.map((contest) => {
-      const totalCategories = contest.categories.length;
-      const approvedCategories = contest.categories.filter(
-        (category) => category.categoryCertifications.length > 0
-      ).length;
-      const pendingCategories = totalCategories - approvedCategories;
-      const canPublish =
-        !contest.winnersPublished &&
-        totalCategories > 0 &&
-        approvedCategories === totalCategories;
+    const normalizedRole = String(userRole || '').trim().toUpperCase() as UserRole;
+    const visibleStatusesRaw = await Promise.all(
+      contests.map(async (contest) => {
+        const canViewProgress = await this.canAccessPublicationProgressForEvent(
+          normalizedRole,
+          tenantId,
+          contest.eventId
+        );
 
-      return {
-        contestId: contest.id,
-        contestName: contest.name,
-        eventId: contest.eventId,
-        eventName: contest.event?.name || 'Unknown Event',
-        winnersPublished: contest.winnersPublished,
-        publishedAt: contest.publishedAt,
-        publishedBy: contest.publishedBy,
-        canPublish,
+        if (!canViewProgress) {
+          return null;
+        }
+
+        const totalCategories = contest.categories.length;
+        const approvedCategories = contest.categories.filter(
+          (category) => category.categoryCertifications.length > 0
+        ).length;
+        const pendingCategories = totalCategories - approvedCategories;
+        const canPublish =
+          !contest.winnersPublished &&
+          totalCategories > 0 &&
+          approvedCategories === totalCategories;
+
+        return {
+          contestId: contest.id,
+          contestName: contest.name,
+          eventId: contest.eventId,
+          eventName: contest.event?.name || 'Unknown Event',
+          winnersPublished: contest.winnersPublished,
+          publishedAt: contest.publishedAt,
+          publishedBy: contest.publishedBy,
+          canPublish,
+          categories: {
+            total: totalCategories,
+            approved: approvedCategories,
+            pending: pendingCategories,
+          },
+        };
+      })
+    );
+
+    const publicationStatuses = visibleStatusesRaw.filter(
+      (
+        status
+      ): status is {
+        contestId: string;
+        contestName: string;
+        eventId: string;
+        eventName: string;
+        winnersPublished: boolean;
+        publishedAt: Date | null;
+        publishedBy: string | null;
+        canPublish: boolean;
         categories: {
-          total: totalCategories,
-          approved: approvedCategories,
-          pending: pendingCategories,
-        },
-      };
-    });
+          total: number;
+          approved: number;
+          pending: number;
+        };
+      } => Boolean(status)
+    );
 
     const readyToPublish = publicationStatuses.filter((status) => status.canPublish).length;
     const published = publicationStatuses.filter((status) => status.winnersPublished).length;

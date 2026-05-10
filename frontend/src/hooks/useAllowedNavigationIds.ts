@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
+import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { NAV_SECTIONS } from '../config/navigationConfig'
 import { useAuthPermissions } from './useAuthPermissions'
 import { canAccessNavItem } from '../utils/pageAccess'
+import { settingsAPI } from '../services/api'
 
 /**
  * Fetches server-scoped navigation IDs for the current user session.
@@ -13,10 +15,31 @@ export const useAllowedNavigationIds = () => {
   const { data } = useAuthPermissions({ enabled: Boolean(user) })
   const permissions = data?.permissions
   const normalizedRole = String(user?.role || '').trim().toUpperCase()
+  const { data: publishedResultsVisibility } = useQuery<any>(
+    ['nav-published-results-visibility'],
+    async () => {
+      const response = await settingsAPI.getPublishedResultsVisibilitySettings()
+      return response.data?.data || response.data
+    },
+    {
+      enabled: normalizedRole === 'EMCEE' || normalizedRole === 'JUDGE' || normalizedRole === 'CONTESTANT',
+      retry: 1,
+    }
+  )
 
   return useMemo(() => {
     if (!normalizedRole) return null
     const ids = new Set<string>()
+    const detailedResultsRoles = Array.isArray(publishedResultsVisibility?.detailedResultsRoles)
+      ? publishedResultsVisibility.detailedResultsRoles.map((role: string) => String(role).toUpperCase())
+      : []
+    const winnersRoles = Array.isArray(publishedResultsVisibility?.winnersRoles)
+      ? publishedResultsVisibility.winnersRoles.map((role: string) => String(role).toUpperCase())
+      : []
+    const progressRoles = Array.isArray(publishedResultsVisibility?.progressRoles)
+      ? publishedResultsVisibility.progressRoles.map((role: string) => String(role).toUpperCase())
+      : []
+
     NAV_SECTIONS.forEach((section) => {
       const sectionAllowsRole = section.roles.some((role) => role.toUpperCase() === normalizedRole)
       if (!sectionAllowsRole) {
@@ -28,12 +51,26 @@ export const useAllowedNavigationIds = () => {
           return
         }
         if (canAccessNavItem(item.id, item.href, normalizedRole, permissions)) {
+          if (item.id === 'results' && normalizedRole === 'EMCEE' && !detailedResultsRoles.includes(normalizedRole)) {
+            return
+          }
+          if (item.id === 'results' && normalizedRole === 'JUDGE' && !detailedResultsRoles.includes(normalizedRole)) {
+            return
+          }
+          if (
+            item.id === 'winners' &&
+            normalizedRole === 'EMCEE' &&
+            !winnersRoles.includes(normalizedRole) &&
+            !progressRoles.includes(normalizedRole)
+          ) {
+            return
+          }
           ids.add(item.id)
         }
       })
     })
     return ids
-  }, [normalizedRole, permissions])
+  }, [normalizedRole, permissions, publishedResultsVisibility])
 }
 
 export default useAllowedNavigationIds

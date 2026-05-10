@@ -56,6 +56,10 @@ model Event {
   scoringType               ScoringType?            // Optional: inherits from tenant if null
   requireAllTallyCertifiers Boolean?                // Optional: null inherits tenant/global policy
   requireAllAuditorCertifiers Boolean?              // Optional: null inherits tenant/global policy
+  resultsVisibleRolesOverride String?
+  winnersVisibleRolesOverride String?
+  progressVisibleRolesOverride String?
+  hideResultsUntilEventPublished Boolean            @default(false)
   tenantId                  String
 
   // S4-3: Soft delete fields

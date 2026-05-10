@@ -35,6 +35,8 @@ import {
   uploadThemeFavicon,
   getContestantVisibilitySettings,
   updateContestantVisibilitySettings,
+  getPublishedResultsVisibilitySettings,
+  updatePublishedResultsVisibilitySettings,
   getDatabaseConnectionInfo,
   getSystemHealthAlertSettings,
   updateSystemHealthAlertSettings,
@@ -218,6 +220,8 @@ router.post('/theme/favicon',
 // Allow contestants to read, but only ADMIN/ORGANIZER can update
 router.get('/contestant-visibility', getContestantVisibilitySettings)
 router.put('/contestant-visibility', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireSettingsWrite, logActivity('UPDATE_CONTESTANT_VISIBILITY_SETTINGS', 'SETTINGS'), updateContestantVisibilitySettings)
+router.get('/published-results-visibility', getPublishedResultsVisibilitySettings)
+router.put('/published-results-visibility', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireSettingsWrite, logActivity('UPDATE_PUBLISHED_RESULTS_VISIBILITY_SETTINGS', 'SETTINGS'), updatePublishedResultsVisibilitySettings)
 
 // Alert settings
 router.get('/alerts/system-health', requireRole(['SUPER_ADMIN']), requireSettingsRead, getSystemHealthAlertSettings)

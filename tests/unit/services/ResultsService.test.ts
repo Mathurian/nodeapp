@@ -436,11 +436,18 @@ describe('ResultsService', () => {
     });
 
     it('should check assignment for JUDGE role', async () => {
-      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1' });
-      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({ winnersPublished: true });
+      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1', contestId: 'contest-1' });
+      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({ winnersPublished: true, eventId: 'event-1', tenantId: 'tenant-1' });
+      (mockPrisma.event.findFirst as jest.Mock).mockResolvedValue({
+        id: 'event-1',
+        hideResultsUntilEventPublished: false,
+        resultsVisibleRolesOverride: null,
+        contests: [{ id: 'contest-1', winnersPublished: true }],
+      });
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
-        judge: { id: 'judge-1' }
+        judge: { id: 'judge-1' },
+        tenantId: 'tenant-1',
       });
       (mockPrisma.assignment.findFirst as jest.Mock).mockResolvedValue({
         id: 'assignment-1',
@@ -458,11 +465,18 @@ describe('ResultsService', () => {
     });
 
     it('should throw error when JUDGE not assigned to category', async () => {
-      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1' });
-      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({ winnersPublished: true });
+      (mockPrisma.category.findUnique as jest.Mock).mockResolvedValue({ id: 'category-1', contestId: 'contest-1' });
+      (mockPrisma.contest.findUnique as jest.Mock).mockResolvedValue({ winnersPublished: true, eventId: 'event-1', tenantId: 'tenant-1' });
+      (mockPrisma.event.findFirst as jest.Mock).mockResolvedValue({
+        id: 'event-1',
+        hideResultsUntilEventPublished: false,
+        resultsVisibleRolesOverride: null,
+        contests: [{ id: 'contest-1', winnersPublished: true }],
+      });
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
-        judge: { id: 'judge-1' }
+        judge: { id: 'judge-1' },
+        tenantId: 'tenant-1',
       });
       (mockPrisma.assignment.findFirst as jest.Mock).mockResolvedValue(null);
       (mockPrisma.score.findFirst as jest.Mock).mockResolvedValue(null);
@@ -581,7 +595,18 @@ describe('ResultsService', () => {
     it('should restrict EMCEE event results to published contests only', async () => {
       (mockPrisma.event.findUnique as jest.Mock).mockResolvedValue({
         id: 'event-1',
-        name: 'Event 1'
+        name: 'Event 1',
+        tenantId: 'tenant-1',
+      });
+      (mockPrisma.event.findFirst as jest.Mock).mockResolvedValue({
+        id: 'event-1',
+        hideResultsUntilEventPublished: false,
+        resultsVisibleRolesOverride: null,
+        contests: [{ id: 'contest-1', winnersPublished: true }],
+      });
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'emcee-1',
+        tenantId: 'tenant-1',
       });
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([]);
 

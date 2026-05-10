@@ -1,6 +1,14 @@
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient, UserRole, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
+import {
+  DEFAULT_PUBLISHED_RESULTS_VISIBILITY,
+  PUBLISHED_RESULTS_BYPASS_ROLES,
+  PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS,
+  parseVisibilityRoles,
+  resolveVisibilityRoles,
+  isRoleVisible,
+} from '../utils/publishedResultsVisibility';
 
 // Prisma payload types for proper type safety
 type UserWithJudge = Prisma.UserGetPayload<{
@@ -262,6 +270,115 @@ export class ResultsService extends BaseService {
     };
   }
 
+  private async getPublishedResultsVisibilitySettings(tenantId: string) {
+    const [detailedRaw, winnersRaw, progressRaw] = await Promise.all([
+      this.getSettingWithTenantFallback(
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.detailedResultsRoles,
+        tenantId
+      ),
+      this.getSettingWithTenantFallback(
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.winnersRoles,
+        tenantId
+      ),
+      this.getSettingWithTenantFallback(
+        PUBLISHED_RESULTS_VISIBILITY_SETTING_KEYS.progressRoles,
+        tenantId
+      ),
+    ]);
+
+    return {
+      detailedResultsRoles: parseVisibilityRoles(
+        detailedRaw,
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.detailedResultsRoles
+      ),
+      winnersRoles: parseVisibilityRoles(
+        winnersRaw,
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.winnersRoles
+      ),
+      progressRoles: parseVisibilityRoles(
+        progressRaw,
+        DEFAULT_PUBLISHED_RESULTS_VISIBILITY.progressRoles
+      ),
+    };
+  }
+
+  private async getEventResultsVisibilityState(eventId: string, tenantId: string) {
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        tenantId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        hideResultsUntilEventPublished: true,
+        resultsVisibleRolesOverride: true,
+        winnersVisibleRolesOverride: true,
+        progressVisibleRolesOverride: true,
+        contests: {
+          where: {
+            deletedAt: null,
+            archived: false,
+          },
+          select: {
+            id: true,
+            winnersPublished: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return null;
+    }
+
+    return {
+      ...event,
+      fullyPublished:
+        event.contests.length > 0 &&
+        event.contests.every((contest) => Boolean(contest.winnersPublished)),
+    };
+  }
+
+  private async canAccessDetailedResultsForEvent(
+    role: UserRole,
+    tenantId: string,
+    eventId: string,
+    contestPublished: boolean
+  ): Promise<boolean> {
+    if (role === 'CONTESTANT') {
+      return contestPublished;
+    }
+
+    if (PUBLISHED_RESULTS_BYPASS_ROLES.has(role)) {
+      return true;
+    }
+
+    if (!contestPublished) {
+      return false;
+    }
+
+    const [tenantVisibility, eventVisibility] = await Promise.all([
+      this.getPublishedResultsVisibilitySettings(tenantId),
+      this.getEventResultsVisibilityState(eventId, tenantId),
+    ]);
+
+    if (!eventVisibility) {
+      return false;
+    }
+
+    if (eventVisibility.hideResultsUntilEventPublished && !eventVisibility.fullyPublished) {
+      return false;
+    }
+
+    const effectiveRoles = resolveVisibilityRoles(
+      eventVisibility.resultsVisibleRolesOverride,
+      tenantVisibility.detailedResultsRoles
+    );
+
+    return isRoleVisible(effectiveRoles, role);
+  }
+
   private async getApprovedDeductionMap(
     tenantId: string,
     categoryIds: string[],
@@ -455,10 +572,40 @@ export class ResultsService extends BaseService {
       skip: offset,
       take: limit,
     }) as unknown as ScoreWithRelations[];
+    let filteredResults = results;
 
-    const total = await this.prisma.score.count({
-      where: whereClause,
-    });
+    if (userRole === 'JUDGE' || userRole === 'EMCEE') {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { tenantId: true },
+      });
+      const tenantId = user?.tenantId;
+      if (!tenantId) {
+        return { results: [], total: 0 };
+      }
+
+      const allowedResults = await Promise.all(
+        results.map(async (result) => {
+          const eventId = result.category?.contest?.eventId;
+          if (!eventId) {
+            return null;
+          }
+
+          const allowed = await this.canAccessDetailedResultsForEvent(
+            userRole,
+            tenantId,
+            eventId,
+            true
+          );
+
+          return allowed ? result : null;
+        })
+      );
+
+      filteredResults = allowedResults.filter((result): result is ScoreWithRelations => Boolean(result));
+    }
+
+    const total = filteredResults.length;
 
     // P2-1 OPTIMIZATION: Fix N+1 query issue
     // Previous implementation ran 1 + N queries (N = number of results)
@@ -468,7 +615,7 @@ export class ResultsService extends BaseService {
     const categoryContestantPairs: Array<{ categoryId: string; contestantId: string }> = [];
     const seen = new Set<string>();
 
-    results.forEach(result => {
+    filteredResults.forEach(result => {
       const key = `${result.categoryId}_${result.contestantId}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -508,7 +655,7 @@ export class ResultsService extends BaseService {
     );
 
     // Step 4: Enrich results from map (no queries in loop!)
-    const resultsWithTotals: ResultWithTotals[] = results.map((result): ResultWithTotals => {
+    const resultsWithTotals: ResultWithTotals[] = filteredResults.map((result): ResultWithTotals => {
       const key = `${result.categoryId}_${result.contestantId}`;
       const totals = totalsMap.get(key) || { totalEarned: 0, count: 0 };
       const possible = result.category?.scoreCap || 0;
@@ -619,6 +766,31 @@ export class ResultsService extends BaseService {
       return categories.filter((category) => this.isContestVisibleToContestant(category.contest as any));
     }
 
+    if (userRole === 'JUDGE' || userRole === 'EMCEE') {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { tenantId: true },
+      });
+      const tenantId = user?.tenantId;
+      if (!tenantId) {
+        return [];
+      }
+
+      const allowedCategories = await Promise.all(
+        categories.map(async (category) => {
+          const allowed = await this.canAccessDetailedResultsForEvent(
+            userRole,
+            tenantId,
+            category.contest.eventId,
+            Boolean((category.contest as any).winnersPublished)
+          );
+          return allowed ? category : null;
+        })
+      );
+
+      return allowedCategories.filter((category): category is CategoryWithContest => Boolean(category));
+    }
+
     return categories;
   }
 
@@ -677,7 +849,7 @@ export class ResultsService extends BaseService {
       throw new Error('Insufficient permissions');
     }
 
-    return await this.prisma.score.findMany({
+    const scores = await this.prisma.score.findMany({
       where: whereClause,
       include: {
         category: {
@@ -692,6 +864,39 @@ export class ResultsService extends BaseService {
         judge: true,
       },
     }) as ContestantScore[];
+
+    if (userRole !== 'JUDGE' && userRole !== 'EMCEE') {
+      return scores;
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tenantId: true },
+    });
+    const tenantId = user?.tenantId;
+    if (!tenantId) {
+      return [];
+    }
+
+    const filteredScores = await Promise.all(
+      scores.map(async (score) => {
+        const eventId = score.category?.contest?.eventId;
+        if (!eventId) {
+          return null;
+        }
+
+        const allowed = await this.canAccessDetailedResultsForEvent(
+          userRole,
+          tenantId,
+          eventId,
+          true
+        );
+
+        return allowed ? score : null;
+      })
+    );
+
+    return filteredScores.filter((score): score is ContestantScore => Boolean(score));
   }
 
   /**
@@ -752,10 +957,21 @@ export class ResultsService extends BaseService {
     } else if (userRole === 'JUDGE' || userRole === 'EMCEE') {
       const contestPublication = await this.prisma.contest.findUnique({
         where: { id: category.contestId },
-        select: { winnersPublished: true },
+        select: { winnersPublished: true, eventId: true, tenantId: true },
       });
 
       if (!contestPublication?.winnersPublished) {
+        return [];
+      }
+
+      const canViewDetailedResults = await this.canAccessDetailedResultsForEvent(
+        userRole,
+        contestPublication.tenantId,
+        contestPublication.eventId,
+        true
+      );
+
+      if (!canViewDetailedResults) {
         return [];
       }
 
@@ -957,6 +1173,17 @@ export class ResultsService extends BaseService {
         return [];
       }
 
+      const canViewDetailedResults = await this.canAccessDetailedResultsForEvent(
+        userRole,
+        contest.tenantId,
+        contest.eventId,
+        true
+      );
+
+      if (!canViewDetailedResults) {
+        return [];
+      }
+
       const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
@@ -981,6 +1208,17 @@ export class ResultsService extends BaseService {
       }
     } else if (userRole === 'EMCEE') {
       if (!contest.winnersPublished) {
+        return [];
+      }
+
+      const canViewDetailedResults = await this.canAccessDetailedResultsForEvent(
+        userRole,
+        contest.tenantId,
+        contest.eventId,
+        true
+      );
+
+      if (!canViewDetailedResults) {
         return [];
       }
     } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'].includes(userRole)) {
@@ -1100,6 +1338,17 @@ export class ResultsService extends BaseService {
         },
       };
 
+      const canViewDetailedResults = await this.canAccessDetailedResultsForEvent(
+        userRole,
+        event.tenantId,
+        eventId,
+        true
+      );
+
+      if (!canViewDetailedResults) {
+        return [];
+      }
+
       const assignment = await this.prisma.assignment.findFirst({
         where: {
           judgeId: judgeUser.judge.id,
@@ -1125,6 +1374,17 @@ export class ResultsService extends BaseService {
         }
       }
     } else if (userRole === 'EMCEE') {
+      const canViewDetailedResults = await this.canAccessDetailedResultsForEvent(
+        userRole,
+        event.tenantId,
+        eventId,
+        true
+      );
+
+      if (!canViewDetailedResults) {
+        return [];
+      }
+
       whereClause = {
         category: {
           contest: {

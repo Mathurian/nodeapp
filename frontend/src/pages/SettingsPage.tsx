@@ -92,6 +92,12 @@ interface ContestantVisibilitySettings {
   canViewMinimumWinningScore: boolean
 }
 
+interface PublishedResultsVisibilitySettings {
+  detailedResultsRoles: string[]
+  winnersRoles: string[]
+  progressRoles: string[]
+}
+
 interface PasswordPolicy {
   password_policy_minLength: string
   password_policy_requireUppercase: string
@@ -137,6 +143,18 @@ interface ScoringWorkflowAlertSettings {
   requireAllTallyCertifiers: boolean
   requireAllAuditorCertifiers: boolean
 }
+
+const RESULTS_VISIBILITY_ROLE_OPTIONS = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'ORGANIZER',
+  'BOARD',
+  'TALLY_MASTER',
+  'AUDITOR',
+  'JUDGE',
+  'EMCEE',
+  'CONTESTANT',
+]
 
 interface BackupSettings {
   backup_remote_enabled: string
@@ -398,6 +416,11 @@ const SettingsPage: React.FC = () => {
     canViewOverallResults: true,
     canViewMinimumWinningScore: false,
   })
+  const [publishedResultsVisibilityFormData, setPublishedResultsVisibilityFormData] = useState<PublishedResultsVisibilitySettings>({
+    detailedResultsRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'EMCEE'],
+    winnersRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'],
+    progressRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'],
+  })
 
   const [passwordPolicyFormData, setPasswordPolicyFormData] = useState<PasswordPolicy>({
     password_policy_minLength: '8',
@@ -621,7 +644,7 @@ const SettingsPage: React.FC = () => {
     }
   )
 
-  const { data: contestantVisibility, isLoading: contestantVisibilityLoading } = useQuery<any>(
+  const { isLoading: contestantVisibilityLoading } = useQuery<any>(
     ['contestant-visibility-settings', editingGlobal, selectedTenantId],
     async () => {
       const response = await api.get(`/settings/contestant-visibility${getGlobalParam()}`)
@@ -636,6 +659,26 @@ const SettingsPage: React.FC = () => {
             canViewWinners: data.canViewWinners !== false,
             canViewOverallResults: data.canViewOverallResults !== false,
             canViewMinimumWinningScore: data.canViewMinimumWinningScore === true,
+          })
+        }
+      },
+    }
+  )
+
+  const { isLoading: publishedResultsVisibilityLoading } = useQuery<any>(
+    ['published-results-visibility-settings', editingGlobal, selectedTenantId],
+    async () => {
+      const response = await api.get(`/settings/published-results-visibility${getGlobalParam()}`)
+      return response.data.data || response.data
+    },
+    {
+      enabled: isAdmin,
+      onSuccess: (data) => {
+        if (data) {
+          setPublishedResultsVisibilityFormData({
+            detailedResultsRoles: Array.isArray(data.detailedResultsRoles) ? data.detailedResultsRoles : [],
+            winnersRoles: Array.isArray(data.winnersRoles) ? data.winnersRoles : [],
+            progressRoles: Array.isArray(data.progressRoles) ? data.progressRoles : [],
           })
         }
       },
@@ -1081,6 +1124,24 @@ const SettingsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries(['contestant-visibility-settings', editingGlobal, selectedTenantId])
         setMessage({ type: 'success', text: `Contestant visibility settings updated successfully!${editingGlobal ? ' (Global)' : ''}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+      onError: (error: any) => {
+        setMessage({ type: 'error', text: `Error: ${error.message}` })
+        setTimeout(() => setMessage(null), 5000)
+      },
+    }
+  )
+
+  const updatePublishedResultsVisibilityMutation = useMutation(
+    async (data: PublishedResultsVisibilitySettings) => {
+      const response = await api.put(`/settings/published-results-visibility${getGlobalParam()}`, data, { timeout: 30000 })
+      return response.data
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['published-results-visibility-settings', editingGlobal, selectedTenantId])
+        setMessage({ type: 'success', text: `Published results visibility updated successfully!${editingGlobal ? ' (Global)' : ''}` })
         setTimeout(() => setMessage(null), 5000)
       },
       onError: (error: any) => {
@@ -1599,6 +1660,26 @@ const SettingsPage: React.FC = () => {
     }
   }
 
+  const togglePublishedResultsRole = (
+    field: keyof PublishedResultsVisibilitySettings,
+    role: string,
+    checked: boolean
+  ) => {
+    setPublishedResultsVisibilityFormData((current) => {
+      const existing = new Set(current[field])
+      if (checked) {
+        existing.add(role)
+      } else {
+        existing.delete(role)
+      }
+
+      return {
+        ...current,
+        [field]: RESULTS_VISIBILITY_ROLE_OPTIONS.filter((value) => existing.has(value)),
+      }
+    })
+  }
+
   const handleSaveSection = (section: string) => {
     switch (section) {
       case 'general':
@@ -1623,6 +1704,9 @@ const SettingsPage: React.FC = () => {
         break
       case 'contestant-visibility':
         updateContestantVisibilityMutation.mutate(contestantVisibilityFormData)
+        break
+      case 'published-results-visibility':
+        updatePublishedResultsVisibilityMutation.mutate(publishedResultsVisibilityFormData)
         break
       case 'password-policy':
         updatePasswordPolicyMutation.mutate(passwordPolicyFormData)
@@ -1662,6 +1746,7 @@ const SettingsPage: React.FC = () => {
     themeLoading ||
     securityLoading ||
     contestantVisibilityLoading ||
+    publishedResultsVisibilityLoading ||
     passwordPolicyLoading ||
     (canManageBackupSettings && backupSettingsLoading) ||
     databaseInfoLoading ||
@@ -4482,6 +4567,92 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
                     >
                       {updateContestantVisibilityMutation.isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="h-5 w-5 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="cgr-surface overflow-hidden rounded-lg">
+              <button
+                onClick={() => toggleSection('published-results-visibility')}
+                className="w-full flex items-center justify-between p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center">
+                  <TrophyIcon className="h-6 w-6 mr-3 text-indigo-600 dark:text-indigo-400" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Published Results Visibility</h2>
+                </div>
+                {expandedSections.includes('published-results-visibility') ? (
+                  <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                )}
+              </button>
+
+              {expandedSections.includes('published-results-visibility') && (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                  <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+                    Tenant defaults control which roles can view published detailed results, winners, and publication progress. Event-level overrides can narrow or broaden these defaults for a single event.
+                  </div>
+
+                  {[
+                    {
+                      key: 'detailedResultsRoles' as const,
+                      title: 'Detailed Results Roles',
+                      description: 'Roles allowed to open the detailed results explorer after contest publication.',
+                    },
+                    {
+                      key: 'winnersRoles' as const,
+                      title: 'Winners Roles',
+                      description: 'Roles allowed to view published winners for an event or contest.',
+                    },
+                    {
+                      key: 'progressRoles' as const,
+                      title: 'Publication Progress Roles',
+                      description: 'Roles allowed to see winners publication progress before event-level release conditions are satisfied.',
+                    },
+                  ].map((group) => (
+                    <div key={group.key} className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{group.title}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{group.description}</p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {RESULTS_VISIBILITY_ROLE_OPTIONS.map((role) => (
+                          <label
+                            key={`${group.key}-${role}`}
+                            className="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+                          >
+                            <span>{role.replace(/_/g, ' ')}</span>
+                            <input
+                              type="checkbox"
+                              checked={publishedResultsVisibilityFormData[group.key].includes(role)}
+                              onChange={(e) => togglePublishedResultsRole(group.key, role, e.target.checked)}
+                              className="h-4 w-4 text-blue-600 dark:text-blue-400 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => handleSaveSection('published-results-visibility')}
+                      disabled={updatePublishedResultsVisibilityMutation.isLoading}
+                      className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center"
+                    >
+                      {updatePublishedResultsVisibilityMutation.isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Saving...

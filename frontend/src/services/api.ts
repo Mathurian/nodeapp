@@ -528,6 +528,8 @@ export const settingsAPI = {
   // Contestant visibility settings
   getContestantVisibilitySettings: () => api.get('/settings/contestant-visibility'),
   updateContestantVisibilitySettings: (settings: any) => api.put('/settings/contestant-visibility', settings),
+  getPublishedResultsVisibilitySettings: () => api.get('/settings/published-results-visibility'),
+  updatePublishedResultsVisibilitySettings: (settings: any) => api.put('/settings/published-results-visibility', settings),
   // Password policy
   getPasswordPolicy: () => publicApi.get('/settings/password-policy'),
   updatePasswordPolicy: (policy: any) => api.put('/settings/password-policy', policy),

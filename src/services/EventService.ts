@@ -14,6 +14,7 @@ import { RestrictionService } from './RestrictionService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 // S4-4: Import MetricsService for soft delete tracking
 import { MetricsService } from './MetricsService';
+import { serializeVisibilityRoles } from '../utils/publishedResultsVisibility';
 
 // Proper type definitions for event responses
 type EventWithDetails = Prisma.EventGetPayload<{
@@ -53,6 +54,10 @@ interface CreateEventDto {
   contestantViewReleaseDate?: Date | string | null;
   requireAllTallyCertifiers?: boolean | null;
   requireAllAuditorCertifiers?: boolean | null;
+  resultsVisibleRolesOverride?: string[] | null;
+  winnersVisibleRolesOverride?: string[] | null;
+  progressVisibleRolesOverride?: string[] | null;
+  hideResultsUntilEventPublished?: boolean;
 }
 
 interface UpdateEventDto extends Partial<CreateEventDto> {}
@@ -215,6 +220,15 @@ export class EventService extends BaseService {
         endDate,
         contestantViewReleaseDate: data.contestantViewReleaseDate
           ? new Date(data.contestantViewReleaseDate)
+          : null,
+        resultsVisibleRolesOverride: Array.isArray(data.resultsVisibleRolesOverride)
+          ? serializeVisibilityRoles(data.resultsVisibleRolesOverride)
+          : null,
+        winnersVisibleRolesOverride: Array.isArray(data.winnersVisibleRolesOverride)
+          ? serializeVisibilityRoles(data.winnersVisibleRolesOverride)
+          : null,
+        progressVisibleRolesOverride: Array.isArray(data.progressVisibleRolesOverride)
+          ? serializeVisibilityRoles(data.progressVisibleRolesOverride)
           : null,
       });
 
@@ -499,6 +513,27 @@ export class EventService extends BaseService {
               contestantViewReleaseDate: data.contestantViewReleaseDate
                 ? new Date(data.contestantViewReleaseDate)
                 : null
+            }
+          : {}),
+        ...(data.resultsVisibleRolesOverride !== undefined
+          ? {
+              resultsVisibleRolesOverride: Array.isArray(data.resultsVisibleRolesOverride)
+                ? serializeVisibilityRoles(data.resultsVisibleRolesOverride)
+                : null,
+            }
+          : {}),
+        ...(data.winnersVisibleRolesOverride !== undefined
+          ? {
+              winnersVisibleRolesOverride: Array.isArray(data.winnersVisibleRolesOverride)
+                ? serializeVisibilityRoles(data.winnersVisibleRolesOverride)
+                : null,
+            }
+          : {}),
+        ...(data.progressVisibleRolesOverride !== undefined
+          ? {
+              progressVisibleRolesOverride: Array.isArray(data.progressVisibleRolesOverride)
+                ? serializeVisibilityRoles(data.progressVisibleRolesOverride)
+                : null,
             }
           : {}),
       });

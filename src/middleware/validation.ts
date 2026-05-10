@@ -220,7 +220,11 @@ export const createEventSchema = z.object({
   contestantViewRestricted: z.boolean().optional(),
   contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional(),
   requireAllTallyCertifiers: z.boolean().nullable().optional(),
-  requireAllAuditorCertifiers: z.boolean().nullable().optional()
+  requireAllAuditorCertifiers: z.boolean().nullable().optional(),
+  resultsVisibleRolesOverride: z.array(userRoleSchema).nullable().optional(),
+  winnersVisibleRolesOverride: z.array(userRoleSchema).nullable().optional(),
+  progressVisibleRolesOverride: z.array(userRoleSchema).nullable().optional(),
+  hideResultsUntilEventPublished: z.boolean().optional(),
 }).refine(data => {
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
@@ -244,7 +248,11 @@ export const updateEventSchema = z.object({
   contestantViewRestricted: z.boolean().optional(),
   contestantViewReleaseDate: z.string().datetime().or(z.date()).nullable().optional(),
   requireAllTallyCertifiers: z.boolean().nullable().optional(),
-  requireAllAuditorCertifiers: z.boolean().nullable().optional()
+  requireAllAuditorCertifiers: z.boolean().nullable().optional(),
+  resultsVisibleRolesOverride: z.array(userRoleSchema).nullable().optional(),
+  winnersVisibleRolesOverride: z.array(userRoleSchema).nullable().optional(),
+  progressVisibleRolesOverride: z.array(userRoleSchema).nullable().optional(),
+  hideResultsUntilEventPublished: z.boolean().optional(),
 });
 
 /**

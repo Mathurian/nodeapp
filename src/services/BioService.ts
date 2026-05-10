@@ -529,7 +529,7 @@ export class BioService extends BaseService {
       status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
     };
     const broadRoleFilter = {
-      role: { in: ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'] },
+      role: { in: ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'] as UserRole[] },
     };
     const allUsersScopeFilter = eventId
       ? {

@@ -42,6 +42,10 @@ interface Event {
   contestantViewReleaseDate?: string | null
   requireAllTallyCertifiers?: boolean | null
   requireAllAuditorCertifiers?: boolean | null
+  resultsVisibleRolesOverride?: string | null
+  winnersVisibleRolesOverride?: string | null
+  progressVisibleRolesOverride?: string | null
+  hideResultsUntilEventPublished?: boolean
   createdAt: string
   updatedAt: string
   tenant?: {
@@ -71,7 +75,23 @@ interface EventFormData {
   contestantViewReleaseDate?: string | null
   requireAllTallyCertifiers?: boolean | null
   requireAllAuditorCertifiers?: boolean | null
+  resultsVisibleRolesOverride?: string[] | null
+  winnersVisibleRolesOverride?: string[] | null
+  progressVisibleRolesOverride?: string[] | null
+  hideResultsUntilEventPublished?: boolean
 }
+
+const RESULTS_VISIBILITY_ROLE_OPTIONS = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'ORGANIZER',
+  'BOARD',
+  'TALLY_MASTER',
+  'AUDITOR',
+  'JUDGE',
+  'EMCEE',
+  'CONTESTANT',
+] as const
 
 interface EventTemplateFormState {
   name: string
@@ -89,6 +109,11 @@ const eventFormSchema = z.object({
   contestantViewReleaseDate: z.string().optional(),
   requireAllTallyCertifiers: z.string(),
   requireAllAuditorCertifiers: z.string(),
+  overrideResultsVisibility: z.boolean().optional(),
+  resultsVisibleRolesOverride: z.array(z.string()).optional(),
+  winnersVisibleRolesOverride: z.array(z.string()).optional(),
+  progressVisibleRolesOverride: z.array(z.string()).optional(),
+  hideResultsUntilEventPublished: z.boolean().optional(),
 }).refine(data => {
   if (data.startDate && data.endDate) {
     return new Date(data.endDate) >= new Date(data.startDate)
@@ -97,6 +122,16 @@ const eventFormSchema = z.object({
 }, { message: 'End date must be after start date', path: ['endDate'] })
 
 type EventFormValues = z.infer<typeof eventFormSchema>
+
+const parseRoleOverride = (rawValue?: string | null): string[] => {
+  if (!rawValue) return []
+  try {
+    const parsed = JSON.parse(rawValue)
+    return Array.isArray(parsed) ? parsed.map((value) => String(value)) : []
+  } catch {
+    return []
+  }
+}
 
 const EventsPage: React.FC = () => {
   const { user } = useAuth()
@@ -117,10 +152,16 @@ const EventsPage: React.FC = () => {
       contestantViewReleaseDate: '',
       requireAllTallyCertifiers: '',
       requireAllAuditorCertifiers: '',
+      overrideResultsVisibility: false,
+      resultsVisibleRolesOverride: [],
+      winnersVisibleRolesOverride: [],
+      progressVisibleRolesOverride: [],
+      hideResultsUntilEventPublished: false,
     },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, watch, formState: { errors } } = form
   const watchedScoringType = watch('scoringType')
+  const overrideResultsVisibility = watch('overrideResultsVisibility')
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showArchived, setShowArchived] = useState(false)
@@ -313,6 +354,11 @@ const EventsPage: React.FC = () => {
       contestantViewReleaseDate: '',
       requireAllTallyCertifiers: '',
       requireAllAuditorCertifiers: '',
+      overrideResultsVisibility: false,
+      resultsVisibleRolesOverride: [],
+      winnersVisibleRolesOverride: [],
+      progressVisibleRolesOverride: [],
+      hideResultsUntilEventPublished: false,
     })
     setEditingEvent(null)
     setIsFormOpen(false)
@@ -331,6 +377,15 @@ const EventsPage: React.FC = () => {
       contestantViewReleaseDate: event.contestantViewReleaseDate ? event.contestantViewReleaseDate.split('T')[0] : '',
       requireAllTallyCertifiers: event.requireAllTallyCertifiers == null ? '' : String(event.requireAllTallyCertifiers),
       requireAllAuditorCertifiers: event.requireAllAuditorCertifiers == null ? '' : String(event.requireAllAuditorCertifiers),
+      overrideResultsVisibility: Boolean(
+        event.resultsVisibleRolesOverride ||
+        event.winnersVisibleRolesOverride ||
+        event.progressVisibleRolesOverride
+      ),
+      resultsVisibleRolesOverride: parseRoleOverride(event.resultsVisibleRolesOverride),
+      winnersVisibleRolesOverride: parseRoleOverride(event.winnersVisibleRolesOverride),
+      progressVisibleRolesOverride: parseRoleOverride(event.progressVisibleRolesOverride),
+      hideResultsUntilEventPublished: Boolean(event.hideResultsUntilEventPublished),
     })
     setIsFormOpen(true)
   }
@@ -417,6 +472,10 @@ const EventsPage: React.FC = () => {
       contestantViewReleaseDate: data.contestantViewReleaseDate ? new Date(data.contestantViewReleaseDate).toISOString() : null,
       requireAllTallyCertifiers: data.requireAllTallyCertifiers === '' ? null : data.requireAllTallyCertifiers === 'true',
       requireAllAuditorCertifiers: data.requireAllAuditorCertifiers === '' ? null : data.requireAllAuditorCertifiers === 'true',
+      resultsVisibleRolesOverride: data.overrideResultsVisibility ? (data.resultsVisibleRolesOverride || []) : null,
+      winnersVisibleRolesOverride: data.overrideResultsVisibility ? (data.winnersVisibleRolesOverride || []) : null,
+      progressVisibleRolesOverride: data.overrideResultsVisibility ? (data.progressVisibleRolesOverride || []) : null,
+      hideResultsUntilEventPublished: data.overrideResultsVisibility ? !!data.hideResultsUntilEventPublished : false,
     }
 
     if (editingEvent) {
@@ -960,6 +1019,65 @@ const EventsPage: React.FC = () => {
                       <option value="false">Allow any assigned auditor</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
+                  <label htmlFor="pages-eventspage-10" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input id="pages-eventspage-10" type="checkbox" {...register('overrideResultsVisibility')} />
+                    Override tenant published-results visibility for this event
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Leave this off to inherit tenant-wide role visibility for detailed results, winners, and winners publication progress.
+                  </p>
+
+                  {overrideResultsVisibility && (
+                    <div className="space-y-4 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                      <label htmlFor="pages-eventspage-11" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <input id="pages-eventspage-11" type="checkbox" {...register('hideResultsUntilEventPublished')} />
+                        Hide winners, results, and publication progress from configured non-admin roles until every active contest in this event is published
+                      </label>
+
+                      {[
+                        {
+                          key: 'resultsVisibleRolesOverride',
+                          title: 'Detailed Results Roles',
+                          description: 'Roles allowed to access the detailed results explorer for this event.',
+                        },
+                        {
+                          key: 'winnersVisibleRolesOverride',
+                          title: 'Winners Roles',
+                          description: 'Roles allowed to view published winners for this event.',
+                        },
+                        {
+                          key: 'progressVisibleRolesOverride',
+                          title: 'Publication Progress Roles',
+                          description: 'Roles allowed to see winners publication progress for this event.',
+                        },
+                      ].map((group) => (
+                        <div key={group.key} className="space-y-2">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{group.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{group.description}</p>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {RESULTS_VISIBILITY_ROLE_OPTIONS.map((role) => (
+                              <label
+                                key={`${group.key}-${role}`}
+                                className="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+                              >
+                                <span>{role.replace(/_/g, ' ')}</span>
+                                <input
+                                  type="checkbox"
+                                  value={role}
+                                  {...register(group.key as 'resultsVisibleRolesOverride' | 'winnersVisibleRolesOverride' | 'progressVisibleRolesOverride')}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Form Actions */}
