@@ -82,6 +82,53 @@ export class JudgeScheduleService extends BaseService {
       return null;
     }
 
+    const spreadsheetMatch = trimmed.match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?)?$/i,
+    );
+    if (spreadsheetMatch) {
+      const month = Number(spreadsheetMatch[1]);
+      const day = Number(spreadsheetMatch[2]);
+      const year = Number(spreadsheetMatch[3]);
+      const rawHour = spreadsheetMatch[4] ? Number(spreadsheetMatch[4]) : 0;
+      const minute = spreadsheetMatch[5] ? Number(spreadsheetMatch[5]) : 0;
+      const second = spreadsheetMatch[6] ? Number(spreadsheetMatch[6]) : 0;
+      const meridiem = spreadsheetMatch[7]?.toUpperCase();
+
+      if (
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > 31 ||
+        rawHour < 0 ||
+        rawHour > 23 ||
+        minute < 0 ||
+        minute > 59 ||
+        second < 0 ||
+        second > 59
+      ) {
+        return null;
+      }
+
+      let hour = rawHour;
+      if (meridiem) {
+        if (rawHour < 1 || rawHour > 12) {
+          return null;
+        }
+        hour = rawHour % 12;
+        if (meridiem === 'PM') {
+          hour += 12;
+        }
+      }
+
+      const parsed = new Date(year, month - 1, day, hour, minute, second, 0);
+      return Number.isNaN(parsed.getTime()) ||
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+        ? null
+        : parsed;
+    }
+
     const normalized = trimmed.includes(' ')
       ? trimmed.replace(' ', 'T')
       : trimmed;
@@ -267,7 +314,7 @@ export class JudgeScheduleService extends BaseService {
         errors.push({
           row: rowNumber,
           field: 'startAt',
-          error: 'startAt must be a valid date/time (ISO 8601 or YYYY-MM-DD HH:mm)',
+          error: 'startAt must be a valid date/time (ISO 8601, YYYY-MM-DD HH:mm, or spreadsheet-style M/D/YYYY h:mm AM/PM)',
           value: startAtRaw,
         });
         hasError = true;
@@ -278,7 +325,7 @@ export class JudgeScheduleService extends BaseService {
         errors.push({
           row: rowNumber,
           field: 'endAt',
-          error: 'endAt must be a valid date/time (ISO 8601 or YYYY-MM-DD HH:mm)',
+          error: 'endAt must be a valid date/time (ISO 8601, YYYY-MM-DD HH:mm, or spreadsheet-style M/D/YYYY h:mm AM/PM)',
           value: endAtRaw,
         });
         hasError = true;

@@ -180,7 +180,7 @@ const JudgeSchedulesPage: React.FC = () => {
                 Supported columns: <code>judgeEmail</code>, <code>title</code>, <code>startAt</code>, <code>endAt</code>, <code>eventName</code>, <code>contestName</code>, <code>categoryName</code>, <code>location</code>, <code>notes</code>.
               </p>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Use ISO 8601 or <code>YYYY-MM-DD HH:mm</code> date/time values. Category rows require the contest name; ambiguous contest names require the event name.
+                Use ISO 8601, <code>YYYY-MM-DD HH:mm</code>, or spreadsheet-exported values like <code>5/20/2026 9:00 AM</code>. Category rows require the contest name; ambiguous contest names require the event name.
               </p>
             </div>
             <Button type="button" variant="ghost" onClick={() => void handleTemplateDownload()}>

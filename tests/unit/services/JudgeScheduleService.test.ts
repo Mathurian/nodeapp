@@ -56,6 +56,40 @@ describe('JudgeScheduleService', () => {
     });
   });
 
+  it('accepts spreadsheet-style date strings from the provided CSV template', async () => {
+    const csvBuffer = Buffer.from(
+      'judgeEmail,title,startAt,endAt,eventName,contestName,categoryName,location,notes\n' +
+      'judge@example.com,Interview,5/20/2026 9:00 AM,5/20/2026 10:15 AM,Spring Showcase,Miss Teen,Interview Room,Green Room,Spreadsheet export\n',
+      'utf-8',
+    );
+
+    prisma.judge.findMany.mockResolvedValue([{ id: 'judge-1', email: 'judge@example.com' }] as any);
+    prisma.event.findMany.mockResolvedValue([{ id: 'event-1', name: 'Spring Showcase' }] as any);
+    prisma.contest.findMany.mockResolvedValue([{ id: 'contest-1', eventId: 'event-1', name: 'Miss Teen' }] as any);
+    prisma.category.findMany.mockResolvedValue([{ id: 'category-1', contestId: 'contest-1', name: 'Interview Room' }] as any);
+    prisma.judgeScheduleEntry.createMany.mockResolvedValue({ count: 1 } as any);
+
+    const result = await service.importFromCsvBuffer(csvBuffer, 'tenant-1', 'admin-1');
+
+    expect(result.total).toBe(1);
+    expect(result.successful).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(result.errors).toEqual([]);
+
+    const createManyCall = prisma.judgeScheduleEntry.createMany.mock.calls[0]?.[0];
+    const insertedRow = createManyCall?.data?.[0];
+
+    expect(insertedRow?.startAt).toBeInstanceOf(Date);
+    expect(insertedRow?.startAt.getFullYear()).toBe(2026);
+    expect(insertedRow?.startAt.getMonth()).toBe(4);
+    expect(insertedRow?.startAt.getDate()).toBe(20);
+    expect(insertedRow?.startAt.getHours()).toBe(9);
+    expect(insertedRow?.startAt.getMinutes()).toBe(0);
+    expect(insertedRow?.endAt).toBeInstanceOf(Date);
+    expect(insertedRow?.endAt.getHours()).toBe(10);
+    expect(insertedRow?.endAt.getMinutes()).toBe(15);
+  });
+
   it('returns clear validation errors for malformed schedule rows', async () => {
     const csvBuffer = Buffer.from(
       'judgeEmail,title,startAt,endAt,eventName,contestName,categoryName\n' +
