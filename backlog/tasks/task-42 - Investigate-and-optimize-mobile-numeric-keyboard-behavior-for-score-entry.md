@@ -1,10 +1,11 @@
 ---
 id: TASK-42
 title: Investigate and optimize mobile numeric keyboard behavior for score entry
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 02:41'
-updated_date: '2026-05-10 02:42'
+updated_date: '2026-05-10 04:05'
 labels: []
 milestone: m-0
 dependencies: []
@@ -24,6 +25,14 @@ Investigate score-entry and other relevant numeric input fields on mobile device
 - [ ] #3 The implementation verifies that score entry, contestant numbers, counts, and other relevant numeric fields still behave correctly on desktop and mobile, including empty states and max/min constraints.
 - [ ] #4 Task notes document any fields intentionally left unchanged because browser behavior, accessibility, or component constraints make a keypad-only approach unsafe or unreliable.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Audit the active score-entry flow and other tenant-facing numeric fields (score entry, contestant numbers, counts, limits, and similar forms) to identify where mobile browsers are likely opening the full keyboard.
+2. Apply standards-compliant mobile numeric input hints where safe, using `inputMode`, `pattern`, and related attributes/components without breaking existing `type="number"`, validation, min/max, or empty-state behavior.
+3. Verify the updated fields across the scoring page and shared numeric forms, and document any inputs intentionally left unchanged because browser behavior or accessibility constraints make keypad-only optimization unsafe.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

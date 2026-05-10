@@ -64,7 +64,7 @@ const EMPTY_FORM: TemplateFormState = {
   name: '',
   description: '',
   contests: [{ id: uid(), name: '', description: '' }],
-  categories: [{ id: uid(), contestId: '', name: '', description: '', scoreCap: null, criteria: [] }],
+  categories: [{ id: uid(), contestId: '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', criteria: [] }],
 }
 
 const mapTemplate = (raw: any): EventTemplate => ({
@@ -299,7 +299,6 @@ const EventTemplatesPage: React.FC = () => {
       ...prev,
       categories: prev.categories.filter((_, categoryIndex) => categoryIndex !== index).length > 0
         ? prev.categories.filter((_, categoryIndex) => categoryIndex !== index)
-        : [{ id: uid(), contestId: prev.contests[0]?.id || '', name: '', description: '', scoreCap: null, criteria: [] }],
         : [{ id: uid(), contestId: prev.contests[0]?.id || '', name: '', description: '', scoreCap: null, commentaryMode: 'PER_CRITERION', criteria: [] }],
     }))
   }

@@ -46,6 +46,45 @@ export class ScoringController {
     return resolveRequestTenantId(req, { allowSuperAdminQueryOverride: true });
   }
 
+  private async getJudgeCategoryScoreCoverageStatus(
+    categoryId: string,
+    tenantId: string,
+    judgeId: string,
+  ): Promise<{ expected: number; submitted: number; isComplete: boolean }> {
+    const [categoryContestants, criteria, scores] = await Promise.all([
+      this.prisma.categoryContestant.findMany({
+        where: { tenantId, categoryId },
+        select: { contestantId: true },
+      }),
+      this.prisma.criterion.findMany({
+        where: { tenantId, categoryId },
+        select: { id: true },
+      }),
+      this.prisma.score.findMany({
+        where: { tenantId, categoryId, judgeId },
+        select: { contestantId: true, criterionId: true, score: true },
+      }),
+    ]);
+
+    const contestantIds = Array.from(new Set(categoryContestants.map((entry) => entry.contestantId)));
+    const criterionIds = Array.from(new Set(criteria.map((entry) => entry.id)));
+    const expected = criterionIds.length > 0
+      ? contestantIds.length * criterionIds.length
+      : contestantIds.length;
+    const submittedPairs = new Set(
+      scores
+        .filter((entry) => entry.score !== null && Number.isFinite(Number(entry.score)))
+        .map((entry) => `${entry.contestantId}:${entry.criterionId || '__category_total__'}`),
+    );
+    const submitted = submittedPairs.size;
+
+    return {
+      expected,
+      submitted,
+      isComplete: expected > 0 && submitted >= expected,
+    };
+  }
+
   /**
    * Get scores for a category
    * PHASE 2.1: Enforces contestant score visibility restrictions
@@ -667,6 +706,15 @@ export class ScoringController {
         sendBadRequest(res, 'Tenant context is required');
         return;
       }
+      const judgeId = req.user.judgeId || req.user.judge?.id || null;
+
+      if (judgeId) {
+        const coverage = await this.getJudgeCategoryScoreCoverageStatus(categoryId, tenantId, judgeId);
+        if (!coverage.isComplete) {
+          sendBadRequest(res, 'All assigned contestants and criteria must have explicit scores before certification');
+          return;
+        }
+      }
 
       const result = await this.scoringService.certifyScores(
         categoryId,
@@ -674,22 +722,26 @@ export class ScoringController {
         tenantId,
         {
           userRole: req.user.role,
-          judgeId: req.user.judgeId ?? req.user.judge?.id ?? null
+          judgeId
         }
       );
 
-      const judgeId = req.user.judgeId || req.user.judge?.id || null;
+      if (result.certifiedCount <= 0) {
+        sendBadRequest(res, 'No score rows were eligible for certification. Ensure score submissions have finished syncing before certifying.');
+        return;
+      }
+
       if (judgeId) {
         await this.prisma.judgeCertification.upsert({
           where: {
             tenantId_categoryId_judgeId: {
-              tenantId: req.user.tenantId,
+              tenantId,
               categoryId,
               judgeId
             }
           },
           create: {
-            tenantId: req.user.tenantId,
+            tenantId,
             categoryId,
             judgeId,
             signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
@@ -699,11 +751,11 @@ export class ScoringController {
             signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
           }
         });
-        await refreshJudgeStage(this.prisma, req.user.tenantId, categoryId, req.user.id);
+        await refreshJudgeStage(this.prisma, tenantId, categoryId, req.user.id);
       } else if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
         await applyCertificationStage({
           prisma: this.prisma,
-          tenantId: req.user.tenantId,
+          tenantId,
           categoryId,
           role: 'JUDGE',
           userId: req.user.id,

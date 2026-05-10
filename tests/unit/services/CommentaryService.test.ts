@@ -424,6 +424,124 @@ describe('CommentaryService', () => {
     });
   });
 
+  describe('category commentary', () => {
+    it('should retrieve category commentary for the active judge viewer', async () => {
+      const judgeComment = {
+        id: 'judge-comment-1',
+        categoryId: 'category1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Category-level note',
+        judge: { name: 'Judge One', email: 'judge1@example.com' },
+      };
+      mockPrisma.judgeComment.findFirst.mockResolvedValue(judgeComment as any);
+
+      const result = await service.getCategoryComment('category1', 'contestant1', judgeViewer);
+
+      expect(result).toEqual(judgeComment);
+      expect(mockPrisma.judgeComment.findFirst).toHaveBeenCalledWith({
+        where: {
+          categoryId: 'category1',
+          contestantId: 'contestant1',
+          judgeId: 'judge1',
+        },
+        include: {
+          judge: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('should require judge context for privileged viewers when no judgeId is requested', async () => {
+      await expect(
+        service.getCategoryComment('category1', 'contestant1', adminViewer)
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should upsert category commentary when text is provided', async () => {
+      const upsertedComment = {
+        id: 'judge-comment-1',
+        categoryId: 'category1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: 'Saved category note',
+        judge: { name: 'Judge One', email: 'judge1@example.com' },
+      };
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category1' } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant1' } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge1' } as any);
+      mockPrisma.judgeComment.upsert.mockResolvedValue(upsertedComment as any);
+
+      const result = await service.upsertCategoryComment({
+        tenantId: 'tenant1',
+        categoryId: 'category1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: '  Saved category note  ',
+      });
+
+      expect(result).toEqual(upsertedComment);
+      expect(mockPrisma.judgeComment.upsert).toHaveBeenCalledWith({
+        where: {
+          tenantId_categoryId_contestantId_judgeId: {
+            tenantId: 'tenant1',
+            categoryId: 'category1',
+            contestantId: 'contestant1',
+            judgeId: 'judge1',
+          },
+        },
+        create: {
+          tenantId: 'tenant1',
+          categoryId: 'category1',
+          contestantId: 'contestant1',
+          judgeId: 'judge1',
+          comment: 'Saved category note',
+        },
+        update: {
+          comment: 'Saved category note',
+        },
+        include: {
+          judge: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('should delete existing category commentary when the comment is blank', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({ id: 'category1' } as any);
+      mockPrisma.contestant.findFirst.mockResolvedValue({ id: 'contestant1' } as any);
+      mockPrisma.judge.findFirst.mockResolvedValue({ id: 'judge1' } as any);
+      mockPrisma.judgeComment.deleteMany.mockResolvedValue({ count: 1 } as any);
+
+      const result = await service.upsertCategoryComment({
+        tenantId: 'tenant1',
+        categoryId: 'category1',
+        contestantId: 'contestant1',
+        judgeId: 'judge1',
+        comment: '   ',
+      });
+
+      expect(result).toBeNull();
+      expect(mockPrisma.judgeComment.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: 'tenant1',
+          categoryId: 'category1',
+          contestantId: 'contestant1',
+          judgeId: 'judge1',
+        },
+      });
+      expect(mockPrisma.judgeComment.upsert).not.toHaveBeenCalled();
+    });
+  });
+
   describe('update', () => {
     const existingComment = {
       id: 'comment1',

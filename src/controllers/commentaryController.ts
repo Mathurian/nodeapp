@@ -91,7 +91,7 @@ export class CommentaryController {
 
       const categoryId = getRequiredParam(req, 'categoryId');
       const contestantId = getRequiredParam(req, 'contestantId');
-      const judgeId = typeof req.query['judgeId'] === 'string' ? req.query['judgeId'] : undefined;
+      const judgeId = typeof req.query?.['judgeId'] === 'string' ? req.query['judgeId'] : undefined;
       const comment = await this.commentaryService.getCategoryComment(
         categoryId,
         contestantId,

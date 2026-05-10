@@ -119,6 +119,9 @@ describe('ScoringController', () => {
         findFirst: jest.fn(),
         findMany: jest.fn(),
       },
+      categoryContestant: {
+        findMany: jest.fn(),
+      },
       contestant: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
@@ -129,6 +132,7 @@ describe('ScoringController', () => {
       },
       criterion: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
       },
       user: {
         findUnique: jest.fn(),
@@ -436,6 +440,54 @@ describe('ScoringController', () => {
         { userRole: 'TALLY_MASTER', judgeId: null }
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, result);
+    });
+
+    it('should reject judge certification when score coverage is incomplete', async () => {
+      mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { typedSignature: 'Judge Signature' };
+      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1', judgeId: 'judge-1' } as any;
+      mockPrisma.categoryContestant.findMany.mockResolvedValue([
+        { contestantId: 'contestant-1' },
+        { contestantId: 'contestant-2' },
+      ]);
+      mockPrisma.criterion.findMany.mockResolvedValue([
+        { id: 'crit-1' },
+        { id: 'crit-2' },
+      ]);
+      mockPrisma.score.findMany.mockResolvedValue([
+        { contestantId: 'contestant-1', criterionId: 'crit-1', score: 88 },
+        { contestantId: 'contestant-1', criterionId: 'crit-2', score: 90 },
+        { contestantId: 'contestant-2', criterionId: 'crit-1', score: 87 },
+      ]);
+
+      await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(sendBadRequest).toHaveBeenCalledWith(
+        mockRes,
+        'All assigned contestants and criteria must have explicit scores before certification'
+      );
+      expect(mockScoringService.certifyScores).not.toHaveBeenCalled();
+      expect(mockPrisma.judgeCertification.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should reject certification when no score rows were eligible to certify', async () => {
+      mockReq.params = { categoryId: 'cat-1' };
+      mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
+      mockReq.body = { typedSignature: 'Tally Master' };
+      mockScoringService.certifyScores.mockResolvedValue({
+        certified: false,
+        certifiedCount: 0,
+        categoryId: 'cat-1',
+      } as any);
+
+      await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(sendBadRequest).toHaveBeenCalledWith(
+        mockRes,
+        'No score rows were eligible for certification. Ensure score submissions have finished syncing before certifying.'
+      );
+      expect(sendSuccess).not.toHaveBeenCalled();
+      expect(mockPrisma.judgeCertification.upsert).not.toHaveBeenCalled();
     });
 
     it('should return 401 when user is not authenticated', async () => {

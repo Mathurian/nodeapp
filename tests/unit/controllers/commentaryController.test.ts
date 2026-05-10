@@ -30,6 +30,8 @@ describe('CommentaryController', () => {
       create: jest.fn(),
       getCommentsForScore: jest.fn(),
       getCommentsByContestant: jest.fn(),
+      getCategoryComment: jest.fn(),
+      upsertCategoryComment: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     } as any;
@@ -37,6 +39,7 @@ describe('CommentaryController', () => {
     (container.resolve as jest.Mock) = jest.fn(() => mockService);
 
     controller = new CommentaryController();
+    ;(controller as any).commentaryService = mockService;
 
     mockReq = {
       params: {},
@@ -204,6 +207,69 @@ describe('CommentaryController', () => {
       await controller.getCommentsByContestant(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('category commentary', () => {
+    it('should get category commentary for the selected contestant', async () => {
+      mockReq.params = { categoryId: 'category-1', contestantId: 'contestant-1' };
+      const mockComment = { id: 'judge-comment-1', comment: 'Category note' };
+      mockService.getCategoryComment.mockResolvedValue(mockComment as any);
+
+      await controller.getCategoryComment(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockService.getCategoryComment).toHaveBeenCalledWith(
+        'category-1',
+        'contestant-1',
+        {
+          id: 'user-1',
+          role: 'JUDGE',
+          tenantId: undefined,
+          judgeId: 'judge-1',
+          contestantId: null,
+        },
+        undefined,
+      );
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockComment);
+    });
+
+    it('should upsert category commentary with the current tenant and judge context', async () => {
+      mockReq.method = 'PUT';
+      mockReq.originalUrl = '/commentary/category/category-1/contestant/contestant-1';
+      (mockReq as any).path = '/commentary/category/category-1/contestant/contestant-1';
+      mockReq.params = { categoryId: 'category-1', contestantId: 'contestant-1' };
+      mockReq.body = { comment: 'Updated category note' };
+      mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1', judgeId: 'judge-1' } as any;
+      const updatedComment = { id: 'judge-comment-1', comment: 'Updated category note' };
+      mockService.upsertCategoryComment.mockResolvedValue(updatedComment as any);
+
+      await controller.upsertCategoryComment(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockService.upsertCategoryComment).toHaveBeenCalledWith(
+        {
+          tenantId: 'tenant-1',
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          comment: 'Updated category note',
+        },
+        expect.any(Number),
+      );
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, updatedComment, 'Category commentary updated');
+    });
+
+    it('should reject category commentary updates without judge context', async () => {
+      mockReq.method = 'PUT';
+      mockReq.originalUrl = '/commentary/category/category-1/contestant/contestant-1';
+      (mockReq as any).path = '/commentary/category/category-1/contestant/contestant-1';
+      mockReq.params = { categoryId: 'category-1', contestantId: 'contestant-1' };
+      mockReq.body = { comment: 'Updated category note' };
+      mockReq.user = { id: 'admin-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
+
+      await controller.upsertCategoryComment(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockService.upsertCategoryComment).not.toHaveBeenCalled();
+      expect(sendForbidden).toHaveBeenCalledWith(mockRes, 'Judge context is required to update category commentary');
     });
   });
 

@@ -92,6 +92,9 @@ interface ScoreFormData {
   comment: string
 }
 
+type ScoreWriteReliabilityOutcome = 'persisted' | 'queued'
+type CategoryCommentPersistOutcome = ScoreWriteReliabilityOutcome | 'unchanged'
+
 interface ScoreAttachment {
   id: string
   fileName: string
@@ -265,6 +268,15 @@ const ScoringPage: React.FC = () => {
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
   const supportsCriterionCommentary = commentaryMode !== 'PER_CATEGORY'
   const supportsCategoryCommentary = commentaryMode === 'PER_CATEGORY' || commentaryMode === 'HYBRID'
+  const hasPendingScoreSync =
+    queueMetrics.queuedCount > 0 ||
+    queueMetrics.failedCount > 0 ||
+    queueMetrics.syncingCount > 0 ||
+    ['saving', 'retrying', 'queued', 'syncing', 'failed'].includes(saveStatus)
+
+  const hasExplicitScoreValue = (value: ScoreFormData['score']): value is number => (
+    value !== '' && Number.isFinite(Number(value))
+  )
 
   useEffect(() => {
     if (!OFFLINE_MUTATION_QUEUE_ENABLED) return
@@ -285,7 +297,7 @@ const ScoringPage: React.FC = () => {
     payload: unknown,
     entityKey: string,
     runner: (headers: Record<string, string>) => Promise<void>,
-  ) => {
+  ): Promise<ScoreWriteReliabilityOutcome> => {
     const idempotencyKey = createMutationIdempotencyKey(actionLabel)
     const headers = { [IDEMPOTENCY_HEADER]: idempotencyKey }
 
@@ -301,7 +313,7 @@ const ScoringPage: React.FC = () => {
         },
       )
       setSaveStatus('saved')
-      return
+      return 'persisted'
     } catch (error) {
       const classification = classifyNetworkError(error)
       const ownership = matchOfflineWriteOwnership(method, endpoint)
@@ -322,7 +334,7 @@ const ScoringPage: React.FC = () => {
         void recordOfflineSyncTelemetryEvent(method, endpoint, 'enqueued', 'app', classification)
         setSaveStatus('queued')
         toast('Saved offline. Will sync automatically.')
-        return
+        return 'queued'
       }
 
       setSaveStatus(classification.retryable ? 'failed' : 'error')
@@ -591,7 +603,7 @@ const ScoringPage: React.FC = () => {
 
   // Submit score mutation with optimistic updates
   const submitScoreMutation = useOptimisticMutation<
-    unknown,
+    { success: true; hasQueuedWrites: boolean },
     { categoryId: string; contestantId: string; scores: ScoreFormData[] }
   >({
     mutationFn: async (data) => {
@@ -599,18 +611,22 @@ const ScoringPage: React.FC = () => {
       const latestRaw = latestResponse.data?.data ?? latestResponse.data
       const latestScores: Score[] = Array.isArray(latestRaw) ? latestRaw : []
 
-      await Promise.all(data.scores.map(async (scoreData) => {
+      const writeOutcomes = await Promise.all(data.scores.map(async (scoreData) => {
+        if (!hasExplicitScoreValue(scoreData.score)) {
+          throw new Error('Each submitted score must include an explicit numeric value')
+        }
+
         const criterionId = scoreData.criterionId === '__category_total__' ? undefined : scoreData.criterionId
         const existing = criterionId
           ? latestScores.find((s) => s.criterionId === criterionId)
           : latestScores.find((s) => !s.criterionId)
         const payload = {
-          score: Number(scoreData.score) || 0,
+          score: Number(scoreData.score),
           comments: scoreData.comment || '',
         }
 
         if (existing?.id) {
-          await executeMutationWithReliability(
+          return await executeMutationWithReliability(
             `score-update:${existing.id}`,
             `/scoring/${existing.id}`,
             'PUT',
@@ -625,7 +641,7 @@ const ScoringPage: React.FC = () => {
             criteriaId: criterionId,
             ...payload,
           }
-          await executeMutationWithReliability(
+          return await executeMutationWithReliability(
             `score-submit:${data.categoryId}:${data.contestantId}:${criterionId || 'total'}`,
             `/scoring/category/${data.categoryId}/contestant/${data.contestantId}`,
             'POST',
@@ -637,7 +653,7 @@ const ScoringPage: React.FC = () => {
           )
         }
       }))
-      return { success: true }
+      return { success: true, hasQueuedWrites: writeOutcomes.includes('queued') }
     },
     queryKey: ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
     updateFn: (oldData, variables) => {
@@ -651,7 +667,7 @@ const ScoringPage: React.FC = () => {
         judgeId: user?.id || '',
         categoryId: variables.categoryId,
         criterionId: scoreData.criterionId,
-        score: Number(scoreData.score || 0),
+        score: Number(scoreData.score),
         deduction: 0,
         comment: scoreData.comment || null,
         isSigned: false,
@@ -741,7 +757,17 @@ const ScoringPage: React.FC = () => {
     setSaveStatus('saving')
     try {
       const scores = Object.values(scoreFormData)
-      const overCap = scores.find((entry) => {
+      const explicitScores = scores.filter((entry) => hasExplicitScoreValue(entry.score))
+      const missingScores = scores.filter((entry) => !hasExplicitScoreValue(entry.score))
+
+      if (requiresSignOff && missingScores.length > 0) {
+        toast.error('Enter a score for every criterion before certifying')
+        setSaveStatus('error')
+        setIsSubmitting(false)
+        return
+      }
+
+      const overCap = explicitScores.find((entry) => {
         const criterion = effectiveCriteria.find((c) => c.id === entry.criterionId)
         const maxScore = criterion?.maxScore ?? selectedCategory.scoreCap ?? 100
         return Number(entry.score) > Number(maxScore)
@@ -752,13 +778,27 @@ const ScoringPage: React.FC = () => {
         setIsSubmitting(false)
         return
       }
-      await submitScoreMutation.mutateAsync({
-        categoryId: selectedCategory.id,
-        contestantId: selectedContestant.id,
-        scores,
-      })
+      const submitResult = explicitScores.length > 0
+        ? await submitScoreMutation.mutateAsync({
+          categoryId: selectedCategory.id,
+          contestantId: selectedContestant.id,
+          scores: explicitScores,
+        })
+        : { success: true as const, hasQueuedWrites: false }
+      const categoryCommentOutcome = await persistCategoryComment()
+      await queryClient.invalidateQueries(['category-comment', selectedCategory.id, selectedContestant.id])
+      const hasQueuedWrites = submitResult.hasQueuedWrites || categoryCommentOutcome === 'queued'
       if (requiresSignOff) {
+        if (hasQueuedWrites || hasPendingScoreSync) {
+          setSaveStatus('queued')
+          toast.error('Scores are still pending sync. Certification is unavailable until syncing finishes.')
+          return
+        }
         setShowSignatureModal(true)
+        return
+      }
+      if (hasQueuedWrites) {
+        setSaveStatus('queued')
         return
       }
       setSaveStatus('saved')
@@ -831,6 +871,10 @@ const ScoringPage: React.FC = () => {
 
   const submitCertificationSignature = async () => {
     if (!selectedCategory) return
+    if (hasPendingScoreSync) {
+      toast.error('Scores are still pending sync. Wait for syncing to finish before certifying.')
+      return
+    }
     if (!typedSignature.trim() && !drawnSignatureData.trim()) {
       toast.error('Provide typed and/or drawn signature')
       return
@@ -877,7 +921,6 @@ const ScoringPage: React.FC = () => {
           await scoreFilesAPI.upload(formData, {
             headers: {
               [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(
-                `score-file-upload:${selectedCategory.id}:${selectedContestant.id}:${criterionId || 'contestant'}`,
                 `score-file-upload:${selectedCategory.id}:${selectedContestant.id}:${criterionId || 'category'}`,
               ),
             },
@@ -939,7 +982,7 @@ const ScoringPage: React.FC = () => {
     return Object.values(scoreFormData).reduce((sum, data) => sum + (Number(data.score) || 0), 0)
   }
 
-  const contestantLevelAttachments = scoreAttachments.filter((file) => file?.metadata?.contextType !== 'CRITERION_COMMENT')
+  const categoryLevelAttachments = scoreAttachments.filter((file) => file?.metadata?.contextType !== 'CRITERION_COMMENT')
   const criterionAttachments = (criterionId: string) => scoreAttachments.filter(
     (file) => file?.metadata?.contextType === 'CRITERION_COMMENT' && file?.metadata?.criterionId === criterionId
   )
@@ -964,6 +1007,34 @@ const ScoringPage: React.FC = () => {
     }
   }
 
+  const persistCategoryComment = async (): Promise<CategoryCommentPersistOutcome> => {
+    if (!selectedCategory || !selectedContestant || !supportsCategoryCommentary) {
+      return 'unchanged'
+    }
+
+    const nextComment = categoryComment.trim()
+    const currentComment = existingCategoryComment.trim()
+    if (nextComment === currentComment) {
+      return 'unchanged'
+    }
+
+    return await executeMutationWithReliability(
+      `category-comment-update:${selectedCategory.id}:${selectedContestant.id}`,
+      `/commentary/category/${selectedCategory.id}/contestant/${selectedContestant.id}`,
+      'PUT',
+      { comment: categoryComment },
+      `category-comment:${selectedCategory.id}:${selectedContestant.id}`,
+      async (headers) => {
+        await commentaryAPI.updateCategoryComment(
+          selectedCategory.id,
+          selectedContestant.id,
+          { comment: categoryComment },
+          { headers },
+        )
+      },
+    )
+  }
+
   const handleUpdateCommentary = async () => {
     if (!selectedCategory || !selectedContestant) return
 
@@ -975,11 +1046,12 @@ const ScoringPage: React.FC = () => {
         existingByCriterion.set(key, score)
       })
 
-      const commentUpdates = Array.from(existingByCriterion.entries()).map(async ([criterionKey, score]) => {
+      const commentUpdates = supportsCriterionCommentary
+        ? Array.from(existingByCriterion.entries()).map(async ([criterionKey, score]) => {
           const nextComment = scoreFormData[criterionKey]?.comment ?? ''
           const currentComment = score.comment ?? ''
           if (nextComment === currentComment) return null
-          await executeMutationWithReliability(
+          return await executeMutationWithReliability(
             `comment-update:${score.id}`,
             `/scoring/${score.id}`,
             'PUT',
@@ -989,11 +1061,13 @@ const ScoringPage: React.FC = () => {
               await scoringAPI.updateScore(score.id, { comments: nextComment }, { headers })
             },
           )
-          return true
         })
+        : []
       const commentResults = await Promise.all(commentUpdates)
-      if (commentResults.some(Boolean)) {
-        setSaveStatus('saved')
+      const categoryCommentOutcome = await persistCategoryComment()
+      if (commentResults.some(Boolean) || categoryCommentOutcome !== 'unchanged') {
+        const queuedCommentaryWrites = commentResults.includes('queued') || categoryCommentOutcome === 'queued'
+        setSaveStatus(queuedCommentaryWrites ? 'queued' : 'saved')
       }
 
       if (pendingCommentaryFiles.length > 0) {
@@ -1004,7 +1078,8 @@ const ScoringPage: React.FC = () => {
 
       await Promise.all([
         queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id]),
-        queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
+        queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id]),
+        queryClient.invalidateQueries(['category-comment', selectedCategory.id, selectedContestant.id]),
       ])
 
       setPendingCommentaryFiles([])
@@ -1325,9 +1400,25 @@ const ScoringPage: React.FC = () => {
                         </Link>
                       </div>
                     )}
+                    {(supportsCategoryCommentary || categoryLevelAttachments.length > 0 || pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0) && (
                     <div className="mt-3">
+                      {supportsCategoryCommentary && (
+                        <>
+                          <label htmlFor="pages-scoringpage-category-comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Category Commentary
+                          </label>
+                          <textarea
+                            id="pages-scoringpage-category-comment"
+                            placeholder="Category-level commentary"
+                            value={categoryComment}
+                            onChange={(e) => setCategoryComment(e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </>
+                      )}
                       <label htmlFor="pages-scoringpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Contestant Commentary Attachment
+                        Category Commentary Attachment
                       </label>
                       <input id="pages-scoringpage-2"
                         type="file"
@@ -1338,7 +1429,7 @@ const ScoringPage: React.FC = () => {
                         }}
                         className="block w-full text-sm text-gray-600 dark:text-gray-300"
                       />
-                      {uploadingContext === 'contestant' && (
+                      {uploadingContext === 'category' && (
                         <p className="mt-1 text-xs text-blue-600">Uploading...</p>
                       )}
                       {isCertifiedContext && pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0 && (
@@ -1357,9 +1448,9 @@ const ScoringPage: React.FC = () => {
                           ))}
                         </div>
                       )}
-                      {contestantLevelAttachments.length > 0 && (
+                      {categoryLevelAttachments.length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {contestantLevelAttachments.map((file) => (
+                          {categoryLevelAttachments.map((file) => (
                             <div key={file.id} className="flex items-center justify-between gap-2">
                               <a
                                 href={file.publicUrl || file.filePath}
@@ -1382,6 +1473,7 @@ const ScoringPage: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
 
                   {/* Scoring Criteria */}
@@ -1413,14 +1505,16 @@ const ScoringPage: React.FC = () => {
                             onChange={(e) => handleScoreChange(criterion.id, 'score', e.target.value === '' ? '' : Number(e.target.value))}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
-                          <textarea
-                            placeholder="Comments (optional)"
-                            value={scoreFormData[criterion.id]?.comment || ''}
-                            onChange={(e) => handleScoreChange(criterion.id, 'comment', e.target.value)}
-                            rows={2}
-                            className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          {criterion.id !== '__category_total__' && (
+                          {supportsCriterionCommentary && (
+                            <textarea
+                              placeholder="Comments (optional)"
+                              value={scoreFormData[criterion.id]?.comment || ''}
+                              onChange={(e) => handleScoreChange(criterion.id, 'comment', e.target.value)}
+                              rows={2}
+                              className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          )}
+                          {supportsCriterionCommentary && criterion.id !== '__category_total__' && (
                           <div className="mt-2">
                             <label htmlFor="pages-scoringpage-3" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Criterion Attachment

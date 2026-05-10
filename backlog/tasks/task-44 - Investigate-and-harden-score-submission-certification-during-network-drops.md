@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-10 03:49'
-updated_date: '2026-05-10 03:50'
+updated_date: '2026-05-10 04:05'
 labels: []
 milestone: m-0
 dependencies: []
@@ -34,6 +34,13 @@ Investigate why score entry during network interruption can result in certificat
 3. Implement guards so certification cannot run while score writes are queued/pending and score payloads do not silently coerce missing values to zero.
 4. Add targeted regression tests for the identified submit/certify network-drop scenario and verify the scoring flow end to end.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- Implemented frontend guards so blank scores are no longer coerced to zero and certification is blocked while writes are queued or syncing.
+- Added backend certification prechecks for complete judge score coverage and rejected zero-row certification attempts.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
