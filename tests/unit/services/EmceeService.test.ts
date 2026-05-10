@@ -18,6 +18,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
 import { EmceeService } from '../../../src/services/EmceeService';
+import { BioService } from '../../../src/services/BioService';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
 
 describe('EmceeService', () => {
@@ -31,6 +32,7 @@ describe('EmceeService', () => {
 
   afterEach(() => {
     mockReset(prismaMock);
+    jest.restoreAllMocks();
   });
 
   describe('getStats', () => {
@@ -250,217 +252,73 @@ describe('EmceeService', () => {
   });
 
   describe('getContestantBios', () => {
-    it('should retrieve contestant bios by categoryId', async () => {
-      const mockAssignments = [
-        {
-          contestant: {
-            id: 'cont1',
-            users: [{ id: 'u1', name: 'Alice Smith', bio: 'Bio...' }],
-            contestContestants: [],
-            categoryContestants: [],
-          },
-        },
+    it('should delegate contestant bios to BioService with shared filters', async () => {
+      const mockContestants = [
+        { id: 'cont1', name: 'Alice Smith', bio: 'Bio...', contests: [] },
       ];
+      const bioSpy = jest
+        .spyOn(BioService.prototype, 'getContestantBios')
+        .mockResolvedValue(mockContestants as any);
 
-      prismaMock.categoryContestant.findMany.mockResolvedValue(mockAssignments as any);
+      const result = await service.getContestantBios(
+        { eventId: 'event-1', contestId: 'contest-1', categoryId: 'cat-1', tenantId: 'tenant-1' }
+      );
 
-      const result = await service.getContestantBios({ categoryId: 'cat1' });
-
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('cont1');
-      expect(prismaMock.categoryContestant.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { categoryId: 'cat1' },
-        })
+      expect(result).toEqual(mockContestants);
+      expect(bioSpy).toHaveBeenCalledWith(
+        {
+          eventId: 'event-1',
+          contestId: 'contest-1',
+          categoryId: 'cat-1',
+        },
+        'tenant-1'
       );
     });
 
-    it('should retrieve contestant bios by eventId', async () => {
-      const mockContests = [{ id: 'c1' }, { id: 'c2' }];
-      const mockCategories = [{ id: 'cat1' }, { id: 'cat2' }];
-      const mockAssignments = [
-        { contestant: { id: 'cont1', users: [], contestContestants: [], categoryContestants: [] } },
-      ];
+    it('should require tenant context for contestant bios', async () => {
+      await expect(
+        service.getContestantBios({ eventId: 'event-1' })
+      ).rejects.toThrow(ValidationError);
 
-      prismaMock.contest.findMany.mockResolvedValue(mockContests as any);
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.categoryContestant.findMany.mockResolvedValue(mockAssignments as any);
-
-      const result = await service.getContestantBios({ eventId: 'e1' });
-
-      expect(result).toHaveLength(1);
-      expect(prismaMock.contest.findMany).toHaveBeenCalledWith({
-        where: { eventId: 'e1' },
-        select: { id: true },
-      });
-    });
-
-    it('should retrieve contestant bios by contestId', async () => {
-      const mockCategories = [{ id: 'cat1' }, { id: 'cat2' }];
-      const mockAssignments = [
-        { contestant: { id: 'cont1', users: [], contestContestants: [], categoryContestants: [] } },
-      ];
-
-      prismaMock.category.findMany.mockResolvedValue(mockCategories as any);
-      prismaMock.categoryContestant.findMany.mockResolvedValue(mockAssignments as any);
-
-      const result = await service.getContestantBios({ contestId: 'c1' });
-
-      expect(result).toHaveLength(1);
-      expect(prismaMock.category.findMany).toHaveBeenCalledWith({
-        where: { contestId: 'c1' },
-        select: { id: true },
-      });
-    });
-
-    it('should return empty array when no categories found', async () => {
-      prismaMock.contest.findMany.mockResolvedValue([]);
-      prismaMock.category.findMany.mockResolvedValue([]);
-
-      const result = await service.getContestantBios({ eventId: 'e1' });
-
-      expect(result).toEqual([]);
-    });
-
-    it('should deduplicate contestants', async () => {
-      const mockAssignments = [
-        { contestant: { id: 'cont1', name: 'Alice', users: [], contestContestants: [], categoryContestants: [] } },
-        { contestant: { id: 'cont1', name: 'Alice', users: [], contestContestants: [], categoryContestants: [] } },
-        { contestant: { id: 'cont2', name: 'Bob', users: [], contestContestants: [], categoryContestants: [] } },
-      ];
-
-      prismaMock.categoryContestant.findMany.mockResolvedValue(mockAssignments as any);
-
-      const result = await service.getContestantBios({ categoryId: 'cat1' });
-
-      expect(result).toHaveLength(3);
-      expect(result[0].id).toBe('cont1');
-      expect(result[1].id).toBe('cont1');
-      expect(result[2].id).toBe('cont2');
-    });
-
-    it('should sort contestants by name', async () => {
-      const mockAssignments = [
-        { contestant: { id: 'cont1', name: 'Zoe', users: [], contestContestants: [], categoryContestants: [] } },
-        { contestant: { id: 'cont2', name: 'Alice', users: [], contestContestants: [], categoryContestants: [] } },
-      ];
-
-      prismaMock.category.findMany.mockResolvedValue([{ id: 'cat1' }] as any);
-      prismaMock.categoryContestant.findMany.mockResolvedValue(mockAssignments as any);
-
-      const result = await service.getContestantBios({ contestId: 'c1' });
-
-      expect(result[0].name).toBe('Alice');
-      expect(result[1].name).toBe('Zoe');
+      await expect(
+        service.getContestantBios({ eventId: 'event-1' })
+      ).rejects.toThrow('Tenant context required');
     });
   });
 
   describe('getJudgeBios', () => {
-    it('should retrieve judge bios by categoryId', async () => {
-      const mockAssignments = [{ judgeId: 'j1' }, { judgeId: 'j2' }];
+    it('should delegate judge bios to BioService with shared filters', async () => {
       const mockJudges = [
-        { id: 'j1', name: 'Judge One', users: [{ id: 'u1' }] },
-        { id: 'j2', name: 'Judge Two', users: [{ id: 'u2' }] },
+        { id: 'judge-1', name: 'Judge One', bio: 'Bio...', contests: [] },
       ];
-      const mockUsers = [
-        { id: 'u1', name: 'Judge One', email: 'j1@test.com', role: 'JUDGE', judge: { id: 'j1' } },
-        { id: 'u2', name: 'Judge Two', email: 'j2@test.com', role: 'JUDGE', judge: { id: 'j2' } },
-      ];
+      const bioSpy = jest.spyOn(BioService.prototype, 'getJudgeBios').mockResolvedValue(mockJudges as any);
 
-      prismaMock.assignment.findMany.mockResolvedValue(mockAssignments as any);
-      prismaMock.judge.findMany.mockResolvedValue(mockJudges as any);
-      prismaMock.user.findMany.mockResolvedValue(mockUsers as any);
-
-      const result = await service.getJudgeBios({ categoryId: 'cat1' });
-
-      expect(result).toHaveLength(2);
-      expect(prismaMock.assignment.findMany).toHaveBeenCalledWith({
-        where: { categoryId: 'cat1' },
-        select: { judgeId: true },
-        distinct: ['judgeId'],
+      const result = await service.getJudgeBios({
+        eventId: 'event-1',
+        contestId: 'contest-1',
+        categoryId: 'cat-1',
+        tenantId: 'tenant-1',
       });
-    });
 
-    it('should retrieve judge bios by eventId', async () => {
-      const mockContests = [{ id: 'c1' }];
-      const mockAssignments = [{ judgeId: 'j1' }];
-      const mockJudges = [{ id: 'j1', name: 'Judge One', users: [{ id: 'u1' }] }];
-      const mockUsers = [{ id: 'u1', name: 'Judge One', role: 'JUDGE', judge: { id: 'j1' } }];
-
-      prismaMock.contest.findMany.mockResolvedValue(mockContests as any);
-      prismaMock.assignment.findMany.mockResolvedValue(mockAssignments as any);
-      prismaMock.judge.findMany.mockResolvedValue(mockJudges as any);
-      prismaMock.user.findMany.mockResolvedValue(mockUsers as any);
-
-      const result = await service.getJudgeBios({ eventId: 'e1' });
-
-      expect(result).toHaveLength(1);
-    });
-
-    it('should retrieve judge bios by contestId', async () => {
-      const mockAssignments = [{ judgeId: 'j1' }];
-      const mockJudges = [{ id: 'j1', name: 'Judge One', users: [{ id: 'u1' }] }];
-      const mockUsers = [{ id: 'u1', name: 'Judge One', role: 'JUDGE', judge: { id: 'j1' } }];
-
-      prismaMock.assignment.findMany.mockResolvedValue(mockAssignments as any);
-      prismaMock.judge.findMany.mockResolvedValue(mockJudges as any);
-      prismaMock.user.findMany.mockResolvedValue(mockUsers as any);
-
-      const result = await service.getJudgeBios({ contestId: 'c1' });
-
-      expect(result).toHaveLength(1);
-      expect(prismaMock.assignment.findMany).toHaveBeenCalledWith({
-        where: { contestId: { in: ['c1'] } },
-        select: { judgeId: true },
-        distinct: ['judgeId'],
-      });
-    });
-
-    it('should return empty array when no judges assigned', async () => {
-      prismaMock.assignment.findMany.mockResolvedValue([]);
-
-      const result = await service.getJudgeBios({ categoryId: 'cat1' });
-
-      expect(result).toEqual([]);
-    });
-
-    it('should filter by judge roles', async () => {
-      const mockAssignments = [{ judgeId: 'j1' }];
-      const mockJudges = [{ id: 'j1', users: [{ id: 'u1' }] }];
-
-      prismaMock.assignment.findMany.mockResolvedValue(mockAssignments as any);
-      prismaMock.judge.findMany.mockResolvedValue(mockJudges as any);
-      prismaMock.user.findMany.mockResolvedValue([]);
-
-      await service.getJudgeBios({ categoryId: 'cat1' });
-
-      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            role: { in: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'] },
-          }),
-        })
+      expect(result).toEqual(mockJudges);
+      expect(bioSpy).toHaveBeenCalledWith(
+        {
+          eventId: 'event-1',
+          contestId: 'contest-1',
+          categoryId: 'cat-1',
+        },
+        'tenant-1'
       );
     });
 
-    it('should return all judges when no filters provided', async () => {
-      const mockUsers = [
-        { id: 'u1', name: 'Judge One', role: 'JUDGE', judge: { id: 'j1' } },
-      ];
+    it('should require tenant context for judge bios', async () => {
+      await expect(
+        service.getJudgeBios({ categoryId: 'cat-1' })
+      ).rejects.toThrow(ValidationError);
 
-      prismaMock.user.findMany.mockResolvedValue(mockUsers as any);
-
-      const result = await service.getJudgeBios({});
-
-      expect(result).toHaveLength(1);
-      expect(prismaMock.user.findMany).toHaveBeenCalledWith({
-        where: {
-          role: { in: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'] },
-          judgeId: { not: null },
-        },
-        select: expect.any(Object),
-        orderBy: { name: 'asc' },
-      });
+      await expect(
+        service.getJudgeBios({ categoryId: 'cat-1' })
+      ).rejects.toThrow('Tenant context required');
     });
   });
 

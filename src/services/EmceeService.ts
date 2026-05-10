@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { BioService } from './BioService';
 
 // Prisma payload types for complex includes
 type EmceeScriptWithRelations = Prisma.EmceeScriptGetPayload<{
@@ -29,199 +30,6 @@ type EmceeScriptWithRelations = Prisma.EmceeScriptGetPayload<{
         scoreCap: true;
       };
     };
-  };
-}>;
-
-type ContestantWithFullRelations = Prisma.ContestantGetPayload<{
-  include: {
-    users: {
-      select: {
-        id: true;
-        name: true;
-        preferredName: true;
-        email: true;
-        pronouns: true;
-        gender: true;
-        imagePath: true;
-        phone: true;
-        address: true;
-        city: true;
-        state: true;
-        country: true;
-        bio: true;
-        contestantBio: true;
-        contestantAge: true;
-        contestantSchool: true;
-      };
-    };
-    contestContestants: {
-      include: {
-        contest: {
-          include: {
-            event: {
-              select: {
-                id: true;
-                name: true;
-                description: true;
-                startDate: true;
-                endDate: true;
-              };
-            };
-          };
-        };
-      };
-    };
-    categoryContestants: {
-      include: {
-        category: {
-          select: {
-            id: true;
-            name: true;
-            description: true;
-            scoreCap: true;
-          };
-        };
-      };
-    };
-  };
-}>;
-
-type ContestantWithBasicRelations = Prisma.ContestantGetPayload<{
-  include: {
-    users: {
-      select: {
-        id: true;
-        name: true;
-        preferredName: true;
-        email: true;
-        pronouns: true;
-      };
-    };
-    contestContestants: {
-      include: {
-        contest: {
-          include: {
-            event: {
-              select: {
-                id: true;
-                name: true;
-                description: true;
-                startDate: true;
-                endDate: true;
-              };
-            };
-          };
-        };
-      };
-    };
-    categoryContestants: {
-      include: {
-        category: {
-          select: {
-            id: true;
-            name: true;
-            description: true;
-            scoreCap: true;
-          };
-        };
-      };
-    };
-  };
-}>;
-
-type CategoryContestantWithContestant = Prisma.CategoryContestantGetPayload<{
-  include: {
-    contestant: {
-      include: {
-        users: {
-          select: {
-            id: true;
-            name: true;
-            preferredName: true;
-            email: true;
-            pronouns: true;
-            gender: true;
-            imagePath: true;
-            phone: true;
-            address: true;
-            city: true;
-            state: true;
-            country: true;
-            bio: true;
-            contestantBio: true;
-            contestantAge: true;
-            contestantSchool: true;
-          };
-        };
-        contestContestants: {
-          include: {
-            contest: {
-              include: {
-                event: {
-                  select: {
-                    id: true;
-                    name: true;
-                    description: true;
-                    startDate: true;
-                    endDate: true;
-                  };
-                };
-              };
-            };
-          };
-        };
-        categoryContestants: {
-          include: {
-            category: {
-              select: {
-                id: true;
-                name: true;
-                description: true;
-                scoreCap: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
-
-type JudgeWithUser = Prisma.JudgeGetPayload<{
-  include: {
-    users: {
-      select: { id: true };
-    };
-  };
-}>;
-
-type UserJudgeBio = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    preferredName: true;
-    email: true;
-    role: true;
-    pronouns: true;
-    gender: true;
-    imagePath: true;
-    phone: true;
-    address: true;
-    city: true;
-    state: true;
-    country: true;
-    judgeBio: true;
-    judgeSpecialties: true;
-    judgeCertifications: true;
-    judge: {
-      select: {
-        id: true;
-        bio: true;
-        imagePath: true;
-        isHeadJudge: true;
-      };
-    };
-    createdAt: true;
   };
 }>;
 
@@ -326,6 +134,10 @@ const emceeScriptRelations = {
 export class EmceeService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
+  }
+
+  private createBioService(): BioService {
+    return new BioService(this.prisma);
   }
 
   private normalizeScriptContent(content?: string | null, filePath?: string | null): string {
@@ -511,304 +323,47 @@ export class EmceeService extends BaseService {
   /**
    * Get contestant bios filtered by event/contest/category
    */
-  async getContestantBios(filters: { eventId?: string; contestId?: string; categoryId?: string }): Promise<ContestantWithFullRelations[] | ContestantWithBasicRelations[]> {
-    // If categoryId is provided, use direct approach
-    if (filters.categoryId) {
-      const assignments = await this.prisma.categoryContestant.findMany({
-        where: { categoryId: filters.categoryId },
-        include: {
-          contestant: {
-            include: {
-              users: {
-                select: {
-                  id: true,
-                  name: true,
-                  preferredName: true,
-                  email: true,
-                  pronouns: true,
-                  gender: true,
-                  imagePath: true,
-                  phone: true,
-                  address: true,
-                  city: true,
-                  state: true,
-                  country: true,
-                  bio: true,
-                  contestantBio: true,
-                  contestantAge: true,
-                  contestantSchool: true,
-                },
-              },
-              contestContestants: {
-                include: {
-                  contest: {
-                    include: {
-                      event: {
-                        select: {
-                          id: true,
-                          name: true,
-                          description: true,
-                          startDate: true,
-                          endDate: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              categoryContestants: {
-                include: {
-                  category: {
-                    select: {
-                      id: true,
-                      name: true,
-                      description: true,
-                      scoreCap: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      }) as CategoryContestantWithContestant[];
-
-      return assignments.map((a) => a.contestant);
+  async getContestantBios(filters: {
+    eventId?: string;
+    contestId?: string;
+    categoryId?: string;
+    tenantId?: string;
+  }): Promise<any[]> {
+    if (!filters.tenantId) {
+      throw this.validationError('Tenant context required');
     }
 
-    // For eventId or contestId, get all categories first
-    let categoryIds: string[] = [];
-
-    if (filters.eventId) {
-      const contests = await this.prisma.contest.findMany({
-        where: { eventId: filters.eventId },
-        select: { id: true },
-      });
-
-      const categories = await this.prisma.category.findMany({
-        where: { contestId: { in: contests.map((c) => c.id) } },
-        select: { id: true },
-      });
-
-      categoryIds = categories.map((c) => c.id);
-    } else if (filters.contestId) {
-      const categories = await this.prisma.category.findMany({
-        where: { contestId: filters.contestId },
-        select: { id: true },
-      });
-
-      categoryIds = categories.map((c) => c.id);
-    }
-
-    if (categoryIds.length === 0) {
-      return [];
-    }
-
-    const assignments = await this.prisma.categoryContestant.findMany({
-      where: { categoryId: { in: categoryIds } },
-      include: {
-        contestant: {
-          include: {
-            users: {
-              select: {
-                id: true,
-                name: true,
-                preferredName: true,
-                email: true,
-                pronouns: true,
-              },
-            },
-            contestContestants: {
-              include: {
-                contest: {
-                  include: {
-                    event: {
-                      select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        startDate: true,
-                        endDate: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            categoryContestants: {
-              include: {
-                category: {
-                  select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    scoreCap: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+    return this.createBioService().getContestantBios(
+      {
+        eventId: filters.eventId,
+        contestId: filters.contestId,
+        categoryId: filters.categoryId,
       },
-    }) as Prisma.CategoryContestantGetPayload<{
-      include: {
-        contestant: {
-          include: {
-            users: {
-              select: {
-                id: true;
-                name: true;
-                preferredName: true;
-                email: true;
-                pronouns: true;
-              };
-            };
-            contestContestants: {
-              include: {
-                contest: {
-                  include: {
-                    event: {
-                      select: {
-                        id: true;
-                        name: true;
-                        description: true;
-                        startDate: true;
-                        endDate: true;
-                      };
-                    };
-                  };
-                };
-              };
-            };
-            categoryContestants: {
-              include: {
-                category: {
-                  select: {
-                    id: true;
-                    name: true;
-                    description: true;
-                    scoreCap: true;
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-    }>[];
-
-    // Dedupe by contestant ID
-    const seen = new Map<string, boolean>();
-    const contestants: ContestantWithBasicRelations[] = [];
-    for (const assignment of assignments) {
-      if (!seen.has(assignment.contestant.id)) {
-        seen.set(assignment.contestant.id, true);
-        contestants.push(assignment.contestant);
-      }
-    }
-
-    return contestants.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      filters.tenantId
+    );
   }
 
   /**
    * Get judge bios filtered by event/contest/category
    */
-  async getJudgeBios(filters: { eventId?: string; contestId?: string; categoryId?: string }): Promise<UserJudgeBio[]> {
-    let userIds: string[] | null = null;
-
-    if (filters.eventId || filters.contestId || filters.categoryId) {
-      // If eventId is provided, get contests first, then assignments
-      let contestIds: string[] = [];
-
-      if (filters.eventId) {
-        const contests = await this.prisma.contest.findMany({
-          where: { eventId: filters.eventId },
-          select: { id: true },
-        });
-        contestIds = contests.map((c) => c.id);
-      } else if (filters.contestId) {
-        contestIds = [filters.contestId];
-      }
-
-      // Build assignment filter
-      const assignmentFilter: Prisma.AssignmentWhereInput = {};
-      if (filters.categoryId) {
-        assignmentFilter.categoryId = filters.categoryId;
-      }
-      if (contestIds.length > 0) {
-        assignmentFilter.contestId = { in: contestIds };
-      }
-
-      const assignments = await this.prisma.assignment.findMany({
-        where: assignmentFilter,
-        select: { judgeId: true },
-        distinct: ['judgeId'],
-      });
-
-      const judgeIds = assignments.map((a) => a.judgeId).filter(Boolean);
-
-      if (judgeIds.length === 0) {
-        return [];
-      }
-
-      const judges = await this.prisma.judge.findMany({
-        where: { id: { in: judgeIds } },
-        include: {
-          users: {
-            select: { id: true },
-          },
-        },
-      }) as JudgeWithUser[];
-
-      userIds = judges.flatMap((j) => (j.users || []).map((u) => u.id));
-
-      if (userIds.length === 0) {
-        return [];
-      }
+  async getJudgeBios(filters: {
+    eventId?: string;
+    contestId?: string;
+    categoryId?: string;
+    tenantId?: string;
+  }): Promise<any[]> {
+    if (!filters.tenantId) {
+      throw this.validationError('Tenant context required');
     }
 
-    const whereClause: Prisma.UserWhereInput = {
-      role: { in: ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER'] },
-      judgeId: { not: null },
-    };
-
-    if (userIds !== null) {
-      whereClause.id = { in: userIds };
-    }
-
-    const judges = await this.prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        preferredName: true,
-        email: true,
-        role: true,
-        pronouns: true,
-        gender: true,
-        imagePath: true,
-        phone: true,
-        address: true,
-        city: true,
-        state: true,
-        country: true,
-        judgeBio: true,
-        judgeSpecialties: true,
-        judgeCertifications: true,
-        judge: {
-          select: {
-            id: true,
-            bio: true,
-            imagePath: true,
-            isHeadJudge: true,
-          },
-        },
-        createdAt: true,
+    return this.createBioService().getJudgeBios(
+      {
+        eventId: filters.eventId,
+        contestId: filters.contestId,
+        categoryId: filters.categoryId,
       },
-      orderBy: { name: 'asc' },
-    }) as UserJudgeBio[];
-
-    return judges;
+      filters.tenantId
+    );
   }
 
   /**

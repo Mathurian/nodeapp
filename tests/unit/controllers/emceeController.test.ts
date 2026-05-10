@@ -235,6 +235,7 @@ describe('EmceeController', () => {
         eventId: undefined,
         contestId: undefined,
         categoryId: undefined,
+        tenantId: 'tenant-1',
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -257,7 +258,18 @@ describe('EmceeController', () => {
         eventId: 'event-1',
         contestId: undefined,
         categoryId: 'cat-1',
+        tenantId: 'tenant-1',
       });
+    });
+
+    it('should return 400 when contestant bios tenant context is missing', async () => {
+      mockReq.user = { id: 'user-1', role: 'EMCEE' } as any;
+
+      await controller.getContestantBios(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Tenant context required' });
+      expect(mockEmceeService.getContestantBios).not.toHaveBeenCalled();
     });
 
     it('should call next with error when service throws', async () => {
@@ -286,6 +298,7 @@ describe('EmceeController', () => {
         eventId: undefined,
         contestId: undefined,
         categoryId: undefined,
+        tenantId: 'tenant-1',
       });
       expect(sendSuccess).toHaveBeenCalledWith(
         mockRes,
@@ -308,7 +321,18 @@ describe('EmceeController', () => {
         eventId: 'event-1',
         contestId: 'contest-1',
         categoryId: 'cat-1',
+        tenantId: 'tenant-1',
       });
+    });
+
+    it('should return 400 when judge bios tenant context is missing', async () => {
+      mockReq.user = { id: 'user-1', role: 'EMCEE' } as any;
+
+      await controller.getJudgeBios(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Tenant context required' });
+      expect(mockEmceeService.getJudgeBios).not.toHaveBeenCalled();
     });
 
     it('should call next with error when service throws', async () => {

@@ -85,11 +85,18 @@ export class EmceeController {
     const log = createRequestLogger(req, 'emcee');
     try {
       const { eventId, contestId, categoryId } = req.query;
+      const tenantId = req.user?.tenantId;
+
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant context required' });
+        return;
+      }
 
       const contestants = await this.emceeService.getContestantBios({
         eventId: eventId as string,
         contestId: contestId as string,
         categoryId: categoryId as string,
+        tenantId,
       });
 
       sendSuccess(res, contestants, 'Contestant bios retrieved successfully');
@@ -106,11 +113,18 @@ export class EmceeController {
     const log = createRequestLogger(req, 'emcee');
     try {
       const { eventId, contestId, categoryId } = req.query;
+      const tenantId = req.user?.tenantId;
+
+      if (!tenantId) {
+        res.status(400).json({ error: 'Tenant context required' });
+        return;
+      }
 
       const judges = await this.emceeService.getJudgeBios({
         eventId: eventId as string,
         contestId: contestId as string,
         categoryId: categoryId as string,
+        tenantId,
       });
 
       sendSuccess(res, judges, 'Judge bios retrieved successfully');
