@@ -855,7 +855,7 @@ export function createTenantPrismaClient(
 
     const existing = await delegate.findFirst({
       where: setTenantWhere(where),
-      select: { id: true }
+      select: { tenantId: true }
     });
 
     if (!existing) {
@@ -985,7 +985,7 @@ export function createTenantPrismaClient(
                 if (delegate?.findFirst && delegate?.update && delegate?.create) {
                   const existing = await delegate.findFirst({
                     where: setTenantWhere(args['where']),
-                    select: { id: true }
+                    select: { tenantId: true }
                   });
 
                   if (existing) {

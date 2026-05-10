@@ -823,7 +823,12 @@ describe('AssignmentsController', () => {
     it('should return all contestant assignments', async () => {
       mockReq.query = {};
       const mockAssignments = [
-        { id: 'assign-1', contestantId: 'cont-1', categoryId: 'cat-1' },
+        {
+          contestantId: 'cont-1',
+          categoryId: 'cat-1',
+          createdAt: new Date('2026-05-01T00:00:00.000Z'),
+          assignedAt: new Date('2026-05-02T00:00:00.000Z'),
+        },
       ];
       mockAssignmentService.getAllContestantAssignments.mockResolvedValue(
         mockAssignments as any
@@ -850,8 +855,8 @@ describe('AssignmentsController', () => {
             category: undefined,
             contest: null,
             event: null,
-            assignedAt: null,
-            createdAt: null,
+            assignedAt: new Date('2026-05-02T00:00:00.000Z'),
+            createdAt: new Date('2026-05-01T00:00:00.000Z'),
           },
         ],
         'Contestant assignments retrieved successfully'

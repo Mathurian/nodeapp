@@ -391,7 +391,7 @@ export class AssignmentsController {
         contest: a.category?.contest ?? null,
         event: a.category?.contest?.event ?? null,
         assignedAt: (a as any).assignedAt ?? null,
-        createdAt: (a as any).assignedAt ?? null,
+        createdAt: (a as any).createdAt ?? null,
       }));
       return sendSuccess(res, assignments, 'Contestant assignments retrieved successfully');
     } catch (error) {

@@ -138,6 +138,20 @@ interface BulkDeleteAssignmentResponse {
   }
 }
 
+const formatAssignmentDate = (assignment: { assignedAt?: string | null; createdAt?: string | null }): string => {
+  const rawValue = assignment.assignedAt || assignment.createdAt
+  if (!rawValue) {
+    return '—'
+  }
+
+  const parsed = new Date(rawValue)
+  if (Number.isNaN(parsed.getTime())) {
+    return '—'
+  }
+
+  return parsed.toLocaleDateString()
+}
+
 interface AssignmentFormData {
   personIds: string[]
   assignmentLevel: 'event' | 'contest' | 'category'
@@ -1638,7 +1652,7 @@ const AssignmentsPage: React.FC = () => {
                         {assignment.event?.name ?? '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(assignment.assignedAt || assignment.createdAt).toLocaleDateString()}
+                        {formatAssignmentDate(assignment)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         {assignment._deleting ? (
