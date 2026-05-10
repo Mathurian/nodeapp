@@ -75,6 +75,21 @@ export const isDocxFile = (fileName?: string | null, mimeType?: string | null): 
   return getFileExtension(fileName) === '.docx'
 }
 
+const openUrlInNewTab = (url: string): boolean => {
+  if (!url || typeof window === 'undefined' || typeof document === 'undefined') {
+    return false
+  }
+
+  const link = document.createElement('a')
+  link.href = url
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  return true
+}
+
 export const appendDocxPreviewQuery = (url: string): string => {
   if (!url) return url
   return `${url}${url.includes('?') ? '&' : '?'}preview=html`
@@ -140,10 +155,8 @@ export const openDocumentUrl = (
 
   const standalone = isStandaloneAppContext()
   if (standalone && preferNewTabInStandalone) {
-    const popup = window.open(url, '_blank', 'noopener,noreferrer')
-    if (popup) {
-      return true
-    }
+    const opened = openUrlInNewTab(url)
+    if (opened) return true
 
     if (allowSameTabFallback) {
       window.location.assign(url)
@@ -158,8 +171,8 @@ export const openDocumentUrl = (
     return true
   }
 
-  const popup = window.open(url, '_blank', 'noopener,noreferrer')
-  if (popup) {
+  const opened = openUrlInNewTab(url)
+  if (opened) {
     return true
   }
 
