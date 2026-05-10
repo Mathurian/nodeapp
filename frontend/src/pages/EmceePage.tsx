@@ -8,6 +8,7 @@ import {
   appendDocxPreviewQuery,
   inferFileNameFromPath,
   isDocxFile,
+  isStandaloneAppContext,
   openDocumentUrl,
 } from '../utils/fileViewer'
 import {
@@ -461,11 +462,13 @@ const EmceePage: React.FC = () => {
     const targetUrl = isDocxFile(fileName)
       ? appendDocxPreviewQuery(directViewUrl)
       : directViewUrl
+    const isStandalone = isStandaloneAppContext()
 
     try {
       const opened = openDocumentUrl(targetUrl, {
-        preferSameTabInStandalone: true,
-        allowSameTabFallback: true,
+        preferSameTabInStandalone: false,
+        preferNewTabInStandalone: isStandalone,
+        allowSameTabFallback: !isStandalone,
       })
       if (!opened) {
         throw new Error('Unable to open script attachment')

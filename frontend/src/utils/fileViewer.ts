@@ -124,6 +124,7 @@ export const openBlobDocument = ({
 
 interface OpenDocumentUrlOptions {
   preferSameTabInStandalone?: boolean
+  preferNewTabInStandalone?: boolean
   allowSameTabFallback?: boolean
 }
 
@@ -131,12 +132,27 @@ export const openDocumentUrl = (
   url: string,
   {
     preferSameTabInStandalone = true,
+    preferNewTabInStandalone = false,
     allowSameTabFallback = true,
   }: OpenDocumentUrlOptions = {}
 ): boolean => {
   if (!url || typeof window === 'undefined') return false
 
   const standalone = isStandaloneAppContext()
+  if (standalone && preferNewTabInStandalone) {
+    const popup = window.open(url, '_blank', 'noopener,noreferrer')
+    if (popup) {
+      return true
+    }
+
+    if (allowSameTabFallback) {
+      window.location.assign(url)
+      return true
+    }
+
+    return false
+  }
+
   if (standalone && preferSameTabInStandalone) {
     window.location.assign(url)
     return true
