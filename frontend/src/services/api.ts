@@ -289,6 +289,7 @@ export const scoreFilesAPI = {
 export const resultsAPI = {
   getAll: () => api.get('/results'),
   getCategories: () => api.get('/results/categories'),
+  getScopeOptions: () => api.get('/results/scope-options'),
   getContestantResults: (contestantId: string) => api.get(`/results/contestant/${contestantId}`),
   getCategoryResults: (categoryId: string) => api.get(`/results/category/${categoryId}`),
   getContestResults: (contestId: string) => api.get(`/results/contest/${contestId}`),

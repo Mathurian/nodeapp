@@ -138,6 +138,12 @@ interface ContestantVisibilitySettings {
   canViewMinimumWinningScore: boolean
 }
 
+interface ResultsScopeOptions {
+  events: Event[]
+  contests: Contest[]
+  categories: Category[]
+}
+
 const ResultsPage: React.FC = () => {
   const { user } = useAuth()
   const [selectedEventId, setSelectedEventId] = useState<string>('')
@@ -166,59 +172,21 @@ const ResultsPage: React.FC = () => {
     ? contestantVisibility?.canViewMinimumWinningScore === true
     : staffCanViewMinimumWinningScore
 
-  // Fetch events
-  const { data: events, isLoading: eventsLoading, error: eventsError } = useQuery<Event[]>(
-    'results-events',
+  const { data: scopeOptions, isLoading: scopeLoading, error: scopeError } = useQuery<ResultsScopeOptions>(
+    'results-scope-options',
     async () => {
-      const response = await resultsAPI.getCategories()
+      const response = await resultsAPI.getScopeOptions()
       const payload = response.data?.data || response.data
-      const categories = Array.isArray(payload) ? payload : []
-      const eventMap = new Map<string, Event>()
-      for (const category of categories) {
-        const event = category?.contest?.event
-        if (event?.id && !eventMap.has(event.id)) {
-          eventMap.set(event.id, {
-            id: event.id,
-            name: event.name,
-            startDate: event.startDate || '',
-            endDate: event.endDate || '',
-          })
-        }
+      return {
+        events: Array.isArray(payload?.events) ? payload.events : [],
+        contests: Array.isArray(payload?.contests) ? payload.contests : [],
+        categories: Array.isArray(payload?.categories) ? payload.categories : [],
       }
-      return Array.from(eventMap.values())
     },
     {
+      enabled: Boolean(user?.id),
       retry: 1,
-      onError: (err) => console.error('Fetch events failed:', err),
-    }
-  )
-
-  // Fetch contests for selected event
-  const { data: contests, isLoading: contestsLoading, error: contestsError } = useQuery<Contest[]>(
-    ['results-contests', selectedEventId],
-    async () => {
-      if (!selectedEventId) return []
-      const response = await resultsAPI.getCategories()
-      const payload = response.data?.data || response.data
-      const categories = Array.isArray(payload) ? payload : []
-      const contestMap = new Map<string, Contest>()
-      for (const category of categories) {
-        const contest = category?.contest
-        if (contest?.id && contest.eventId === selectedEventId && !contestMap.has(contest.id)) {
-          contestMap.set(contest.id, {
-            id: contest.id,
-            name: contest.name,
-            eventId: contest.eventId,
-            event: contest.event ? { name: contest.event.name } : undefined,
-          })
-        }
-      }
-      return Array.from(contestMap.values())
-    },
-    {
-      enabled: !!selectedEventId,
-      retry: 1,
-      onError: (err) => console.error('Fetch contests failed:', err),
+      onError: (err) => console.error('Fetch results scope options failed:', err),
     }
   )
 
@@ -235,22 +203,18 @@ const ResultsPage: React.FC = () => {
     }
   )
 
-  // Fetch categories for selected contest
-  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>(
-    ['results-categories', selectedContestId],
-    async () => {
-      if (!selectedContestId) return []
-      const response = await resultsAPI.getCategories()
-      const payload = response.data?.data || response.data
-      const categories = Array.isArray(payload) ? payload : []
-      return categories.filter((c: Category) => c.contestId === selectedContestId)
-    },
-    {
-      enabled: !!selectedContestId,
-      retry: 1,
-      onError: (err) => console.error('Fetch categories failed:', err),
-    }
-  )
+  const events = scopeOptions?.events || []
+  const contests = useMemo(() => {
+    const allContests = scopeOptions?.contests || []
+    if (!selectedEventId) return []
+    return allContests.filter((contest) => contest.eventId === selectedEventId)
+  }, [scopeOptions?.contests, selectedEventId])
+
+  const categories = useMemo(() => {
+    const allCategories = scopeOptions?.categories || []
+    if (!selectedContestId) return []
+    return allCategories.filter((category) => category.contestId === selectedContestId)
+  }, [scopeOptions?.categories, selectedContestId])
 
   // Fetch results for selected category
   const { data: categoryResults, isLoading: resultsLoading, error: resultsError } = useQuery<CategoryResults | null>(
@@ -475,31 +439,11 @@ const ResultsPage: React.FC = () => {
   const minimumWinningScore = minimumWinningScoreData?.minimumWinningScore
 
   // Early return for error states
-  if (eventsError) {
+  if (scopeError) {
     return (
       <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
-        <p className="text-red-800 dark:text-red-200 mb-4">{String(eventsError)}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
-      </div>
-    )
-  }
-
-  if (contestsError) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
-        <p className="text-red-800 dark:text-red-200 mb-4">{String(contestsError)}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
-      </div>
-    )
-  }
-
-  if (categoriesError) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Data</h2>
-        <p className="text-red-800 dark:text-red-200 mb-4">{String(categoriesError)}</p>
+        <p className="text-red-800 dark:text-red-200 mb-4">{String(scopeError)}</p>
         <button onClick={() => window.location.reload()} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Reload Page</button>
       </div>
     )
@@ -677,7 +621,7 @@ const ResultsPage: React.FC = () => {
                   scrollToRef(resultsSectionRef, { delayMs: 140 })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={eventsLoading}
+                disabled={scopeLoading}
               >
                 <option value="">Select an event...</option>
                 {sortedEvents.map((event) => (
@@ -701,7 +645,7 @@ const ResultsPage: React.FC = () => {
                   scrollToRef(resultsSectionRef, { delayMs: 140 })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!selectedEventId || contestsLoading}
+                disabled={!selectedEventId || scopeLoading}
               >
                 <option value="">Select a contest...</option>
                 {sortedContests.map((contest) => (
@@ -724,7 +668,7 @@ const ResultsPage: React.FC = () => {
                   scrollToRef(resultsSectionRef, { delayMs: 140 })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!selectedContestId || categoriesLoading}
+                disabled={!selectedContestId || scopeLoading}
               >
                 <option value="">Select a category...</option>
                 {sortedCategories.map((category) => (
@@ -770,7 +714,7 @@ const ResultsPage: React.FC = () => {
 
         {/* Results Display */}
         <div ref={resultsSectionRef}>
-        {(resultsLoading || contestResultsLoading) ? (
+        {(scopeLoading || resultsLoading || contestResultsLoading) ? (
           <Card className="rounded-lg p-12 text-center">
             <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Loading results...</p>

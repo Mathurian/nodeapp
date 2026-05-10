@@ -190,6 +190,36 @@ interface CategoriesFilter {
   userId: string;
 }
 
+interface ResultsScopeEvent {
+  id: string;
+  name: string;
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+interface ResultsScopeContest {
+  id: string;
+  name: string;
+  eventId: string;
+  event: ResultsScopeEvent;
+}
+
+interface ResultsScopeCategory {
+  id: string;
+  name: string;
+  contestId: string;
+  scoreCap: number | null;
+  boardApproved: boolean;
+  totalsCertified: boolean;
+  contest: ResultsScopeContest;
+}
+
+interface ResultsScopeOptions {
+  events: ResultsScopeEvent[];
+  contests: ResultsScopeContest[];
+  categories: ResultsScopeCategory[];
+}
+
 // Complex return type interfaces
 interface ResultWithTotals extends ScoreWithRelations {
   certificationStatus: 'CERTIFIED' | 'PENDING';
@@ -792,6 +822,48 @@ export class ResultsService extends BaseService {
     }
 
     return categories;
+  }
+
+  async getScopeOptions(filter: CategoriesFilter): Promise<ResultsScopeOptions> {
+    const categories = await this.getCategories(filter);
+    const eventMap = new Map<string, ResultsScopeEvent>();
+    const contestMap = new Map<string, ResultsScopeContest>();
+
+    const normalizedCategories: ResultsScopeCategory[] = categories.map((category) => {
+      const event = {
+        id: category.contest.event.id,
+        name: category.contest.event.name,
+        startDate: category.contest.event.startDate,
+        endDate: category.contest.event.endDate,
+      };
+
+      eventMap.set(event.id, event);
+
+      const contest = {
+        id: category.contest.id,
+        name: category.contest.name,
+        eventId: category.contest.eventId,
+        event,
+      };
+
+      contestMap.set(contest.id, contest);
+
+      return {
+        id: category.id,
+        name: category.name,
+        contestId: category.contestId,
+        scoreCap: category.scoreCap ?? null,
+        boardApproved: Boolean(category.boardApproved),
+        totalsCertified: Boolean(category.totalsCertified),
+        contest,
+      };
+    });
+
+    return {
+      events: Array.from(eventMap.values()),
+      contests: Array.from(contestMap.values()),
+      categories: normalizedCategories,
+    };
   }
 
   /**

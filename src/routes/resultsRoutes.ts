@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { getAllResults, getCategories, getContestantResults, getCategoryResults, getContestResults, getEventResults } from '../controllers/resultsController';
+import { getAllResults, getCategories, getScopeOptions, getContestantResults, getCategoryResults, getContestResults, getEventResults } from '../controllers/resultsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router: Router = express.Router();
@@ -37,6 +37,7 @@ router.get('/', getAllResults)
  *         description: Categories retrieved successfully
  */
 router.get('/categories', getCategories)
+router.get('/scope-options', getScopeOptions)
 
 /**
  * @swagger

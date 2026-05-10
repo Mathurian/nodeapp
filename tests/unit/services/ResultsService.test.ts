@@ -304,6 +304,81 @@ describe('ResultsService', () => {
     });
   });
 
+  describe('getScopeOptions', () => {
+    it('should derive events, contests, and categories from role-filtered categories', async () => {
+      const mockCategories = [
+        {
+          id: 'category-1',
+          name: 'Talent',
+          contestId: 'contest-1',
+          scoreCap: 100,
+          boardApproved: true,
+          totalsCertified: true,
+          contest: {
+            id: 'contest-1',
+            name: 'Contest 1',
+            eventId: 'event-1',
+            event: {
+              id: 'event-1',
+              name: 'Event 1',
+              startDate: new Date('2026-05-01T00:00:00.000Z'),
+              endDate: new Date('2026-05-03T00:00:00.000Z'),
+            },
+          },
+        },
+        {
+          id: 'category-2',
+          name: 'Interview',
+          contestId: 'contest-1',
+          scoreCap: 50,
+          boardApproved: false,
+          totalsCertified: false,
+          contest: {
+            id: 'contest-1',
+            name: 'Contest 1',
+            eventId: 'event-1',
+            event: {
+              id: 'event-1',
+              name: 'Event 1',
+              startDate: new Date('2026-05-01T00:00:00.000Z'),
+              endDate: new Date('2026-05-03T00:00:00.000Z'),
+            },
+          },
+        },
+      ];
+
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue(mockCategories);
+
+      const result = await service.getScopeOptions({
+        userRole: 'ADMIN' as UserRole,
+        userId: 'admin-1',
+      });
+
+      expect(result.events).toEqual([
+        expect.objectContaining({
+          id: 'event-1',
+          name: 'Event 1',
+        }),
+      ]);
+      expect(result.contests).toEqual([
+        expect.objectContaining({
+          id: 'contest-1',
+          name: 'Contest 1',
+          eventId: 'event-1',
+        }),
+      ]);
+      expect(result.categories).toHaveLength(2);
+      expect(result.categories[0]).toEqual(
+        expect.objectContaining({
+          id: 'category-1',
+          contestId: 'contest-1',
+          boardApproved: true,
+          totalsCertified: true,
+        })
+      );
+    });
+  });
+
   describe('getContestantResults', () => {
     it('should return results for specific contestant', async () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({

@@ -78,6 +78,28 @@ export class ResultsController {
   };
 
   /**
+   * Get event/contest/category scope options for the results workspace
+   */
+  getScopeOptions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const log = createRequestLogger(req, 'results');
+    try {
+      const userRole = req.user?.role as UserRole;
+      const userId = req.user?.id;
+
+      if (!userRole || !userId) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const scopes = await this.resultsService.getScopeOptions({ userRole, userId });
+      res.json(scopes);
+    } catch (error) {
+      log.error('Get result scope options error:', error);
+      return next(error);
+    }
+  };
+
+  /**
    * Get results for a specific contestant
    */
   getContestantResults = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -228,6 +250,7 @@ export class ResultsController {
 const controller = new ResultsController();
 export const getAllResults = controller.getAllResults;
 export const getCategories = controller.getCategories;
+export const getScopeOptions = controller.getScopeOptions;
 export const getContestantResults = controller.getContestantResults;
 export const getCategoryResults = controller.getCategoryResults;
 export const getContestResults = controller.getContestResults;
