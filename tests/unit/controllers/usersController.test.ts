@@ -122,6 +122,7 @@ describe('UsersController', () => {
       json: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
       setHeader: jest.fn().mockReturnThis(),
+      download: jest.fn().mockReturnThis(),
     };
 
     mockNext = jest.fn();
@@ -1257,6 +1258,116 @@ John Doe,john@test.com,Pass123!,ADMIN`;
       await controller.getCSVTemplate(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
+    });
+  });
+
+  describe('contestant private profile permissions', () => {
+    it('allows a judge to view private contestant metadata for an assigned contestant', async () => {
+      mockReq.user = { id: 'judge-user-1', role: 'JUDGE', tenantId: 'tenant-1' };
+      mockReq.params = { id: 'contestant-user-1' };
+
+      mockPrisma.user.findFirst
+        .mockResolvedValueOnce({
+          id: 'contestant-user-1',
+          role: 'CONTESTANT',
+          contestantId: 'contestant-1',
+          contestantAccommodations: 'Wheelchair access',
+          contestantPrivateNotes: 'Internal note',
+          contestantRecommendationNotes: 'Recommendation note',
+          contestantPrivateDocuments: [],
+        } as any)
+        .mockResolvedValueOnce({
+          judgeId: 'judge-1',
+        } as any);
+      mockPrisma.categoryContestant.findFirst.mockResolvedValue({ tenantId: 'tenant-1' } as any);
+
+      await controller.getContestantPrivateProfile(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockSendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        expect.objectContaining({
+          accommodations: 'Wheelchair access',
+          privateNotes: 'Internal note',
+          recommendationNotes: 'Recommendation note',
+          privateDocuments: [],
+        })
+      );
+    });
+
+    it('blocks a judge from viewing private contestant metadata when not assigned to the contestant', async () => {
+      mockReq.user = { id: 'judge-user-1', role: 'JUDGE', tenantId: 'tenant-1' };
+      mockReq.params = { id: 'contestant-user-1' };
+
+      mockPrisma.user.findFirst
+        .mockResolvedValueOnce({
+          id: 'contestant-user-1',
+          role: 'CONTESTANT',
+          contestantId: 'contestant-1',
+          contestantAccommodations: 'Wheelchair access',
+          contestantPrivateNotes: 'Internal note',
+          contestantRecommendationNotes: 'Recommendation note',
+          contestantPrivateDocuments: [],
+        } as any)
+        .mockResolvedValueOnce({
+          judgeId: 'judge-1',
+        } as any);
+      mockPrisma.categoryContestant.findFirst.mockResolvedValue(null);
+
+      await controller.getContestantPrivateProfile(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockSendError).toHaveBeenCalledWith(
+        mockRes,
+        'You do not have permission to access contestant private profile data',
+        403
+      );
+    });
+
+    it('blocks non-authorized roles from viewing contestant private metadata', async () => {
+      mockReq.user = { id: 'contestant-user-self', role: 'CONTESTANT', tenantId: 'tenant-1' };
+      mockReq.params = { id: 'contestant-user-1' };
+
+      await controller.getContestantPrivateProfile(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockSendError).toHaveBeenCalledWith(
+        mockRes,
+        'You do not have permission to access contestant private profile data',
+        403
+      );
+    });
+
+    it('allows a judge to download private contestant documents for an assigned contestant', async () => {
+      mockReq.user = { id: 'judge-user-1', role: 'JUDGE', tenantId: 'tenant-1' };
+      mockReq.params = { id: 'contestant-user-1', fileId: 'doc-1' };
+
+      mockPrisma.user.findFirst
+        .mockResolvedValueOnce({
+          id: 'contestant-user-1',
+          role: 'CONTESTANT',
+          contestantId: 'contestant-1',
+          contestantPrivateDocuments: [
+            {
+              id: 'doc-1',
+              filename: 'stored-file.pdf',
+              originalName: 'recommendation.pdf',
+              mimeType: 'application/pdf',
+              size: 10,
+              path: 'uploads/users/contestant-private/stored-file.pdf',
+              uploadedAt: '2026-05-10T00:00:00.000Z',
+              uploadedBy: 'admin-1',
+            },
+          ],
+        } as any)
+        .mockResolvedValueOnce({
+          judgeId: 'judge-1',
+        } as any);
+      mockPrisma.categoryContestant.findFirst.mockResolvedValue({ tenantId: 'tenant-1' } as any);
+
+      await controller.downloadContestantPrivateFile(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockRes.download).toHaveBeenCalledWith(
+        expect.stringContaining('uploads/users/contestant-private/stored-file.pdf'),
+        'recommendation.pdf'
+      );
     });
   });
 });

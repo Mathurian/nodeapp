@@ -21,7 +21,7 @@ import {
   errorResponse
 } from '../utils/responseHelpers';
 import { ErrorCode } from '../types/errors';
-import { PrismaClient, Prisma, User, Judge, Contestant, FileCategory } from '@prisma/client';
+import { PrismaClient, Prisma, User, Judge, Contestant, FileCategory, AssignmentStatus } from '@prisma/client';
 import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 import { FILE_SIZE } from '../config/constants';
@@ -72,6 +72,72 @@ export class UsersController {
     return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(role || '');
   }
 
+  private canViewContestantPrivateProfile(role: string | undefined): boolean {
+    return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'].includes(role || '');
+  }
+
+  private async judgeCanViewContestantPrivateProfile(
+    requesterUserId: string,
+    tenantId: string,
+    contestantId: string
+  ): Promise<boolean> {
+    const requester = await this.prisma.user.findFirst({
+      where: { id: requesterUserId, tenantId },
+      select: { judgeId: true },
+    });
+
+    if (!requester?.judgeId) {
+      return false;
+    }
+
+    const assignment = await this.prisma.categoryContestant.findFirst({
+      where: {
+        contestantId,
+        tenantId,
+        category: {
+          OR: [
+            {
+              assignments: {
+                some: {
+                  judgeId: requester.judgeId,
+                  tenantId,
+                  status: {
+                    in: [
+                      AssignmentStatus.ACTIVE,
+                      AssignmentStatus.PENDING,
+                      AssignmentStatus.COMPLETED,
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              contest: {
+                assignments: {
+                  some: {
+                    judgeId: requester.judgeId,
+                    tenantId,
+                    categoryId: null,
+                    status: {
+                      in: [
+                        AssignmentStatus.ACTIVE,
+                        AssignmentStatus.PENDING,
+                        AssignmentStatus.COMPLETED,
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+      select: { tenantId: true },
+    });
+
+    return Boolean(assignment);
+  }
+
   private stripContestantPrivateProfileFields<T extends Record<string, unknown>>(user: T) {
     return stripContestantPrivateFields(user);
   }
@@ -84,6 +150,48 @@ export class UsersController {
       privateDocuments: parseContestantPrivateDocuments(user.contestantPrivateDocuments),
       supportedFields: ['accommodations', 'privateNotes', 'recommendationNotes', 'privateDocuments'],
     };
+  }
+
+  private async getAuthorizedContestantPrivateProfileUser(
+    authReq: AuthenticatedRequest,
+    id: string,
+    select: Prisma.UserSelect
+  ) {
+    const where =
+      authReq.user?.role === 'SUPER_ADMIN'
+        ? { id }
+        : { id, tenantId: authReq.user?.tenantId };
+
+    const user = await this.prisma.user.findFirst({
+      where,
+      select: {
+        id: true,
+        role: true,
+        contestantId: true,
+        ...select,
+      },
+    });
+
+    if (!user) {
+      return { user: null, accessError: 'not_found' as const };
+    }
+
+    if (user.role !== 'CONTESTANT' || !user.contestantId) {
+      return { user, accessError: 'invalid_target' as const };
+    }
+
+    if (
+      authReq.user?.role === 'JUDGE' &&
+      !(await this.judgeCanViewContestantPrivateProfile(
+        authReq.user.id,
+        authReq.user.tenantId,
+        user.contestantId
+      ))
+    ) {
+      return { user, accessError: 'forbidden' as const };
+    }
+
+    return { user, accessError: null };
   }
 
   /**
@@ -1307,32 +1415,30 @@ export class UsersController {
       if (!id) {
         return sendError(res, 'User ID is required', 400);
       }
-      if (!this.canManageContestantPrivateProfile(authReq.user?.role)) {
+      if (!this.canViewContestantPrivateProfile(authReq.user?.role)) {
         return sendError(res, 'You do not have permission to access contestant private profile data', 403);
       }
 
-      const where =
-        authReq.user?.role === 'SUPER_ADMIN'
-          ? { id }
-          : { id, tenantId: authReq.user?.tenantId };
-
-      const user = await this.prisma.user.findFirst({
-        where,
-        select: {
+      const { user, accessError } = await this.getAuthorizedContestantPrivateProfileUser(
+        authReq,
+        id,
+        {
           id: true,
-          role: true,
           contestantAccommodations: true,
           contestantPrivateNotes: true,
           contestantRecommendationNotes: true,
           contestantPrivateDocuments: true,
         },
-      });
+      );
 
-      if (!user) {
+      if (accessError === 'not_found') {
         return sendNotFound(res, 'User not found');
       }
-      if (user.role !== 'CONTESTANT') {
+      if (accessError === 'invalid_target') {
         return sendBadRequest(res, 'Private contestant profile is only available for contestants');
+      }
+      if (accessError === 'forbidden') {
+        return sendError(res, 'You do not have permission to access contestant private profile data', 403);
       }
 
       return sendSuccess(res, this.buildContestantPrivateProfileResponse(user));
@@ -1415,28 +1521,26 @@ export class UsersController {
       if (!id || !fileId) {
         return sendError(res, 'User ID and file ID are required', 400);
       }
-      if (!this.canManageContestantPrivateProfile(authReq.user?.role)) {
+      if (!this.canViewContestantPrivateProfile(authReq.user?.role)) {
         return sendError(res, 'You do not have permission to download contestant private documents', 403);
       }
 
-      const where =
-        authReq.user?.role === 'SUPER_ADMIN'
-          ? { id }
-          : { id, tenantId: authReq.user?.tenantId };
-
-      const user = await this.prisma.user.findFirst({
-        where,
-        select: {
-          role: true,
+      const { user, accessError } = await this.getAuthorizedContestantPrivateProfileUser(
+        authReq,
+        id,
+        {
           contestantPrivateDocuments: true,
         },
-      });
+      );
 
-      if (!user) {
+      if (accessError === 'not_found') {
         return sendNotFound(res, 'User not found');
       }
-      if (user.role !== 'CONTESTANT') {
+      if (accessError === 'invalid_target') {
         return sendBadRequest(res, 'Private contestant documents are only available for contestants');
+      }
+      if (accessError === 'forbidden') {
+        return sendError(res, 'You do not have permission to download contestant private documents', 403);
       }
 
       const file = parseContestantPrivateDocuments(user.contestantPrivateDocuments).find((entry) => entry.id === fileId);

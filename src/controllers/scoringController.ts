@@ -1070,6 +1070,7 @@ export class ScoringController {
                   imagePath: true,
                   users: {
                     select: {
+                      id: true,
                       bio: true,
                       contestantBio: true,
                       imagePath: true
@@ -1104,6 +1105,7 @@ export class ScoringController {
 
               return {
                 id: contestant.id,
+                userId: user?.id || null,
                 name: contestant.name,
                 contestantNumber: contestant.contestantNumber,
                 bio: resolvedBio.bio,

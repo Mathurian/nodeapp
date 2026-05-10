@@ -158,9 +158,9 @@ router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'B
 // Role-based user lookup — must be before /:id to prevent route shadowing
 router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
 router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
-router.get('/:id/contestant-private-profile', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getContestantPrivateProfile)
+router.get('/:id/contestant-private-profile', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']), getContestantPrivateProfile)
 router.post('/:id/contestant-private-files', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), contestantPrivateDocumentUpload.array('files', 10), logActivity('UPLOAD_CONTESTANT_PRIVATE_FILES', 'USER'), uploadContestantPrivateFiles)
-router.get('/:id/contestant-private-files/:fileId/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), downloadContestantPrivateFile)
+router.get('/:id/contestant-private-files/:fileId/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']), downloadContestantPrivateFile)
 router.delete('/:id/contestant-private-files/:fileId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('DELETE_CONTESTANT_PRIVATE_FILE', 'USER'), deleteContestantPrivateFile)
 
 /**

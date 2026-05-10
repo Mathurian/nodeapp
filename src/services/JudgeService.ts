@@ -594,6 +594,7 @@ export class JudgeService extends BaseService {
       ]);
       return {
         ...contestant,
+        userId: firstUser?.id || null,
         bio: resolved.bio,
         bioFilePath: resolved.bioFilePath,
         imagePath: contestant.imagePath || firstUser?.imagePath || null,
@@ -693,6 +694,7 @@ export class JudgeService extends BaseService {
 
     return {
       ...contestant,
+      userId: firstUser?.id || null,
       bio: resolved.bio,
       bioFilePath: resolved.bioFilePath,
       imagePath: contestant.imagePath || firstUser?.imagePath || null,

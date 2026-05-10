@@ -3,8 +3,7 @@ import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { scoringAPI } from '../services/api'
-import { scoreFilesAPI } from '../services/api'
+import { scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from '../services/idempotency'
@@ -49,6 +48,7 @@ interface Category {
 
 interface Contestant {
   id: string
+  userId?: string | null
   name: string
   contestantNumber: number | null
   bio: string | null
@@ -114,6 +114,20 @@ interface ContestOption {
   id: string
   name: string
   eventName: string
+}
+
+interface ContestantPrivateDocument {
+  id: string
+  originalName: string
+  uploadedAt: string
+  mimeType: string
+}
+
+interface ContestantPrivateProfile {
+  accommodations: string | null
+  privateNotes: string | null
+  recommendationNotes: string | null
+  privateDocuments: ContestantPrivateDocument[]
 }
 
 const OFFLINE_MUTATION_QUEUE_ENABLED = import.meta.env.VITE_OFFLINE_MUTATION_QUEUE_ENABLED === 'true'
@@ -222,6 +236,7 @@ const openBioFile = async (path?: string | null) => {
 const ScoringPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const canViewPrivateContestantProfile = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'].includes(user?.role || '')
 
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [selectedContestId, setSelectedContestId] = useState<string>('')
@@ -344,6 +359,29 @@ const ScoringPage: React.FC = () => {
       enabled: !!selectedCategory,
       retry: 1,
       onError: (err) => console.error('Fetch contestants failed:', err),
+    }
+  )
+
+  const {
+    data: contestantPrivateProfile,
+    isLoading: contestantPrivateProfileLoading,
+  } = useQuery<ContestantPrivateProfile | null>(
+    ['contestant-private-profile', selectedContestant?.userId],
+    async () => {
+      if (!selectedContestant?.userId) return null
+      const response = await usersAPI.getContestantPrivateProfile(selectedContestant.userId)
+      const payload = response.data?.data ?? response.data
+      return {
+        accommodations: payload?.accommodations || null,
+        privateNotes: payload?.privateNotes || null,
+        recommendationNotes: payload?.recommendationNotes || null,
+        privateDocuments: Array.isArray(payload?.privateDocuments) ? payload.privateDocuments : [],
+      }
+    },
+    {
+      enabled: canViewPrivateContestantProfile && !!selectedContestant?.userId,
+      retry: 1,
+      onError: (err) => console.error('Fetch contestant private profile failed:', err),
     }
   )
 
@@ -843,6 +881,26 @@ const ScoringPage: React.FC = () => {
     await uploadAttachmentNow(file, criterionId)
   }
 
+  const handleDownloadContestantPrivateDocument = async (fileId: string, originalName: string) => {
+    if (!selectedContestant?.userId) return
+
+    try {
+      const response = await usersAPI.downloadContestantPrivateFile(selectedContestant.userId, fileId)
+      const blob = new Blob([response.data])
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = originalName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to download private document'
+      toast.error(errorMessage)
+    }
+  }
+
   const getTotalScore = () => {
     return Object.values(scoreFormData).reduce((sum, data) => sum + (Number(data.score) || 0), 0)
   }
@@ -1170,6 +1228,58 @@ const ScoringPage: React.FC = () => {
                       >
                         View uploaded bio file
                       </button>
+                    )}
+                    {canViewPrivateContestantProfile && (
+                      <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                          Private Contestant Notes
+                        </div>
+                        {contestantPrivateProfileLoading ? (
+                          <div className="mt-2 text-sm text-amber-700 dark:text-amber-300">Loading private profile...</div>
+                        ) : contestantPrivateProfile ? (
+                          <div className="mt-2 space-y-3 text-sm text-amber-900 dark:text-amber-100">
+                            <div>
+                              <div className="font-medium">Accommodations</div>
+                              <div className="whitespace-pre-wrap">
+                                {contestantPrivateProfile.accommodations?.trim() || 'None recorded'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium">Recommendation Notes</div>
+                              <div className="whitespace-pre-wrap">
+                                {contestantPrivateProfile.recommendationNotes?.trim() || 'None recorded'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium">Internal Notes</div>
+                              <div className="whitespace-pre-wrap">
+                                {contestantPrivateProfile.privateNotes?.trim() || 'None recorded'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium">Private Documents</div>
+                              {contestantPrivateProfile.privateDocuments.length > 0 ? (
+                                <div className="mt-1 space-y-1">
+                                  {contestantPrivateProfile.privateDocuments.map((file) => (
+                                    <button
+                                      key={file.id}
+                                      type="button"
+                                      onClick={() => void handleDownloadContestantPrivateDocument(file.id, file.originalName)}
+                                      className="block text-left text-sm text-blue-700 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                    >
+                                      {file.originalName}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div>None uploaded</div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm text-amber-700 dark:text-amber-300">No private profile available.</div>
+                        )}
+                      </div>
                     )}
                     {user?.role === 'JUDGE' && hasCertifiedScores && (
                       <div className="mt-3">

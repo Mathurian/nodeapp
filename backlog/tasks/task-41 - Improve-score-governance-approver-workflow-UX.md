@@ -1,10 +1,11 @@
 ---
 id: TASK-41
 title: Improve score governance approver workflow UX
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 01:18'
-updated_date: '2026-05-10 01:19'
+updated_date: '2026-05-10 02:40'
 labels: []
 milestone: m-0
 dependencies: []
@@ -24,6 +25,15 @@ The current governance UI is difficult for approvers to use because pending task
 - [ ] #3 Approvers can still access supporting context and non-pending/history sections without losing required workflow information.
 - [ ] #4 The updated flow is verified for the approver roles that use governance.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inspect the current governance approver page layout and identify where pending actions are rendered versus supporting/history sections.
+2. Rework the page so pending approvals and required actions render first, with summary/context below them and reduced scrolling.
+3. Preserve all existing approver actions and context access while tightening labels, grouping, and navigation cues.
+4. Run targeted frontend verification and capture any residual follow-up UX gaps.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
