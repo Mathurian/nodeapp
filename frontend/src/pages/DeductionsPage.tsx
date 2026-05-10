@@ -379,6 +379,7 @@ const DeductionsPage: React.FC = () => {
               </select>
               <input
                 type="number"
+                inputMode="numeric"
                 min="1"
                 value={requestAmount}
                 onChange={(e) => setRequestAmount(e.target.value)}

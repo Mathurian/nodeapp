@@ -355,6 +355,7 @@ const UserForm: React.FC<UserFormProps> = ({
           <input
             id={inputId}
             type="number"
+            inputMode="decimal"
             value={value as string}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
@@ -570,6 +571,7 @@ const UserForm: React.FC<UserFormProps> = ({
                 <input
                   id={`${idBase}-contestant-number`}
                   type="number"
+                  inputMode="numeric"
                   {...register('contestantNumber')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., 1, 2, 3..."

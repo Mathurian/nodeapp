@@ -613,6 +613,7 @@ const ScoreGovernancePage: React.FC = () => {
                 <label htmlFor="pages-scoregovernancepage-1" className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Required Additional Approvals</label>
                 <input id="pages-scoregovernancepage-1"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={10}
                   value={requiredAdditionalApprovals}
@@ -706,6 +707,7 @@ const ScoreGovernancePage: React.FC = () => {
           {actionType === 'ADJUST' && (
             <input
               type="number"
+              inputMode="decimal"
               step="0.01"
               value={adjustmentDelta}
               onChange={(e) => setAdjustmentDelta(e.target.value)}

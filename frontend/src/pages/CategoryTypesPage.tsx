@@ -284,6 +284,7 @@ const CategoryTypesPage: React.FC = () => {
                     </label>
                     <input id="pages-categorytypespage-4"
                       type="number"
+                      inputMode="numeric"
                       value={formData.minScore}
                       onChange={(e) => setFormData({ ...formData, minScore: parseInt(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
@@ -295,6 +296,7 @@ const CategoryTypesPage: React.FC = () => {
                     </label>
                     <input id="pages-categorytypespage-5"
                       type="number"
+                      inputMode="numeric"
                       value={formData.maxScore}
                       onChange={(e) => setFormData({ ...formData, maxScore: parseInt(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"

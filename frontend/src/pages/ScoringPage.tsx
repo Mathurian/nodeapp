@@ -1498,6 +1498,7 @@ const ScoringPage: React.FC = () => {
                           )}
                           <input
                             type="number"
+                            inputMode="decimal"
                             min="0"
                             max={criterion.maxScore}
                             value={scoreFormData[criterion.id]?.score ?? ''}

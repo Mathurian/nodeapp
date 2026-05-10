@@ -522,6 +522,7 @@ const EventTemplatesPage: React.FC = () => {
                         />
                         <input
                           type="number"
+                          inputMode="numeric"
                           placeholder="Score cap"
                           value={category.scoreCap ?? ''}
                           onChange={(e) => updateCategory(index, { scoreCap: e.target.value ? Number(e.target.value) : null })}
@@ -560,6 +561,7 @@ const EventTemplatesPage: React.FC = () => {
                               />
                               <input
                                 type="number"
+                                inputMode="numeric"
                                 value={criterion.maxScore}
                                 onChange={(e) => updateCriterion(index, criterionIndex, { maxScore: Number(e.target.value) || 10 })}
                                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

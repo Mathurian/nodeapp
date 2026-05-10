@@ -1121,6 +1121,7 @@ const CategoriesPage: React.FC = () => {
                     </label>
                     <input id="pages-categoriespage-5"
                       type="number"
+                      inputMode="numeric"
                       min="0"
                       {...register('scoreCap')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1133,6 +1134,7 @@ const CategoriesPage: React.FC = () => {
                     </label>
                     <input id="pages-categoriespage-6"
                       type="number"
+                      inputMode="numeric"
                       min="0"
                       {...register('timeLimit')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1169,6 +1171,7 @@ const CategoriesPage: React.FC = () => {
                     </label>
                     <input id="pages-categoriespage-7"
                       type="number"
+                      inputMode="numeric"
                       min="0"
                       {...register('contestantMin')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1181,6 +1184,7 @@ const CategoriesPage: React.FC = () => {
                     </label>
                     <input id="pages-categoriespage-8"
                       type="number"
+                      inputMode="numeric"
                       min="0"
                       {...register('contestantMax')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1234,6 +1238,7 @@ const CategoriesPage: React.FC = () => {
                           />
                           <input
                             type="number"
+                            inputMode="numeric"
                             min="1"
                             value={criterion.maxScore}
                             onChange={(e) => updateCriterionRow(index, 'maxScore', e.target.value)}

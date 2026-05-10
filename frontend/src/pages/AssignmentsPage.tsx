@@ -1366,6 +1366,7 @@ const AssignmentsPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     value={tenantPolicyInput}
                     onChange={(e) => setTenantPolicyInput(e.target.value)}
@@ -1418,6 +1419,7 @@ const AssignmentsPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     value={eventPolicyInput}
                     onChange={(e) => setEventPolicyInput(e.target.value)}
