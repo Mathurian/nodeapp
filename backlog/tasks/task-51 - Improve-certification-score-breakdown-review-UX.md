@@ -1,11 +1,11 @@
 ---
 id: TASK-51
 title: Improve certification score breakdown review UX
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-10 06:38'
-updated_date: '2026-05-10 06:42'
+updated_date: '2026-05-10 06:54'
 labels:
   - ux
   - certifications
@@ -23,11 +23,11 @@ The certification overview and related tally/auditor review surfaces currently p
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Certification review surfaces used by tally masters, auditors, and related reviewer roles present score breakdowns in a structured format that is materially easier to scan than the current long flat list.
-- [ ] #2 The updated breakdown design helps reviewers understand score composition by contestant, judge, category, criterion, or other appropriate grouping without hiding necessary detail.
-- [ ] #3 The review flow makes it practical to identify missing, unusual, or outlier scores and navigate back to the relevant certification context efficiently.
-- [ ] #4 The implementation preserves the underlying certification data accuracy while improving reviewer usability on both desktop and mobile where relevant.
-- [ ] #5 The updated certification score-breakdown review experience remains practical on mobile, with grouped sections, anomaly cues, and navigation patterns that avoid reintroducing long flat scrolling review flows on smaller screens.
+- [x] #1 Certification review surfaces used by tally masters, auditors, and related reviewer roles present score breakdowns in a structured format that is materially easier to scan than the current long flat list.
+- [x] #2 The updated breakdown design helps reviewers understand score composition by contestant, judge, category, criterion, or other appropriate grouping without hiding necessary detail.
+- [x] #3 The review flow makes it practical to identify missing, unusual, or outlier scores and navigate back to the relevant certification context efficiently.
+- [x] #4 The implementation preserves the underlying certification data accuracy while improving reviewer usability on both desktop and mobile where relevant.
+- [x] #5 The updated certification score-breakdown review experience remains practical on mobile, with grouped sections, anomaly cues, and navigation patterns that avoid reintroducing long flat scrolling review flows on smaller screens.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -40,9 +40,33 @@ The certification overview and related tally/auditor review surfaces currently p
 5. Run focused frontend verification and capture the reviewed surfaces, chosen grouping approach, and any intentionally deferred follow-up ideas in task notes/final summary.
 <!-- SECTION:PLAN:END -->
 
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- Reworked CertificationOverviewWorkspace score review from a flat row dump into contestant-first review groups with nested judge and criterion detail, using the existing score governance payload only.
+- Added category-level review rollups and anomaly chips for missing, uncertified, unlocked, and commented rows so tally/auditor users see attention signals before row-level detail.
+- Added mobile quick-jump navigation for contestant sections inside expanded score review panels to keep smaller-screen auditing practical without long linear scrolling.
+- Verified with `cd frontend && npm run type-check` and `cd frontend && npm run build`.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Restructured the certification score breakdown UX in `CertificationOverviewWorkspace` so reviewer roles no longer have to parse a long flat list of score rows.
+
+Changes:
+- Added derived review grouping from the existing score review payload, organized by contestant with nested judge and criterion detail.
+- Added overview rollups and anomaly chips for missing, uncertified, unlocked, and commented rows to surface review risk quickly.
+- Added mobile quick-jump navigation between contestant sections so the breakdown remains usable on smaller screens.
+
+Verification:
+- `cd frontend && npm run type-check`
+- `cd frontend && npm run build`
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->

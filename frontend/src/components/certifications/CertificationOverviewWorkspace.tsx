@@ -112,6 +112,168 @@ interface CategoryScoreRow {
   } | null
 }
 
+interface ScoreReviewCounts {
+  totalRows: number
+  missingScores: number
+  uncertifiedRows: number
+  unlockedRows: number
+  commentedRows: number
+}
+
+interface JudgeScoreGroup {
+  judgeId: string
+  judgeName: string
+  rows: CategoryScoreRow[]
+  counts: ScoreReviewCounts
+}
+
+interface ContestantScoreGroup {
+  contestantId: string
+  contestantName: string
+  contestantNumber?: number | null
+  judgeGroups: JudgeScoreGroup[]
+  counts: ScoreReviewCounts
+  judgesCount: number
+  criteriaCount: number
+  totalScore: number
+  totalPossibleScore: number | null
+}
+
+interface CategoryScoreReviewGroup {
+  contestantGroups: ContestantScoreGroup[]
+  counts: ScoreReviewCounts
+  judgesCount: number
+  contestantsCount: number
+  criteriaCount: number
+}
+
+const createEmptyScoreCounts = (): ScoreReviewCounts => ({
+  totalRows: 0,
+  missingScores: 0,
+  uncertifiedRows: 0,
+  unlockedRows: 0,
+  commentedRows: 0,
+})
+
+const tallyScoreCounts = (rows: CategoryScoreRow[]): ScoreReviewCounts => {
+  return rows.reduce<ScoreReviewCounts>(
+    (counts, row) => {
+      counts.totalRows += 1
+      if (row.score == null) counts.missingScores += 1
+      if (!row.isCertified) counts.uncertifiedRows += 1
+      if (!row.isLocked) counts.unlockedRows += 1
+      if (row.comment?.trim()) counts.commentedRows += 1
+      return counts
+    },
+    createEmptyScoreCounts()
+  )
+}
+
+const compareOptionalNumbers = (left?: number | null, right?: number | null): number => {
+  const leftHasValue = typeof left === 'number'
+  const rightHasValue = typeof right === 'number'
+  if (leftHasValue && rightHasValue) return left! - right!
+  if (leftHasValue) return -1
+  if (rightHasValue) return 1
+  return 0
+}
+
+const compareRowsByCriterion = (left: CategoryScoreRow, right: CategoryScoreRow): number => {
+  const leftHasCriterion = Boolean(left.criterion?.name)
+  const rightHasCriterion = Boolean(right.criterion?.name)
+  if (leftHasCriterion && rightHasCriterion) {
+    return left.criterion!.name.localeCompare(right.criterion!.name)
+  }
+  if (leftHasCriterion) return -1
+  if (rightHasCriterion) return 1
+  return 0
+}
+
+const buildCategoryScoreReviewGroup = (rows: CategoryScoreRow[]): CategoryScoreReviewGroup => {
+  const contestantMap = new Map<string, CategoryScoreRow[]>()
+
+  rows.forEach((row) => {
+    const contestantId = row.contestant?.id || 'unknown-contestant'
+    const existing = contestantMap.get(contestantId)
+    if (existing) existing.push(row)
+    else contestantMap.set(contestantId, [row])
+  })
+
+  const contestantGroups = Array.from(contestantMap.entries())
+    .map(([contestantId, contestantRows]) => {
+      const judgeMap = new Map<string, CategoryScoreRow[]>()
+      contestantRows.forEach((row) => {
+        const judgeId = row.judge?.id || 'unknown-judge'
+        const existing = judgeMap.get(judgeId)
+        if (existing) existing.push(row)
+        else judgeMap.set(judgeId, [row])
+      })
+
+      const judgeGroups = Array.from(judgeMap.entries())
+        .map(([judgeId, judgeRows]) => ({
+          judgeId,
+          judgeName: judgeRows[0]?.judge?.name || 'Unknown Judge',
+          rows: [...judgeRows].sort(compareRowsByCriterion),
+          counts: tallyScoreCounts(judgeRows),
+        }))
+        .sort((left, right) => left.judgeName.localeCompare(right.judgeName))
+
+      const criteriaIds = new Set(
+        contestantRows.map((row) => row.criterion?.id || `overall:${row.category?.id || row.id}`)
+      )
+      const totalScore = contestantRows.reduce((sum, row) => sum + (row.score ?? 0), 0)
+      const possibleScores = contestantRows.map((row) => row.criterion?.maxScore ?? row.category?.scoreCap ?? null)
+      const hasUnknownPossible = possibleScores.some((value) => value == null)
+      const totalPossibleScore = hasUnknownPossible
+        ? null
+        : possibleScores.reduce((sum, value) => sum + (value || 0), 0)
+
+      return {
+        contestantId,
+        contestantName: contestantRows[0]?.contestant?.name || 'Unknown Contestant',
+        contestantNumber: contestantRows[0]?.contestant?.contestantNumber ?? null,
+        judgeGroups,
+        counts: tallyScoreCounts(contestantRows),
+        judgesCount: judgeGroups.length,
+        criteriaCount: criteriaIds.size,
+        totalScore,
+        totalPossibleScore,
+      }
+    })
+    .sort((left, right) => {
+      const numberComparison = compareOptionalNumbers(left.contestantNumber, right.contestantNumber)
+      if (numberComparison !== 0) return numberComparison
+      return left.contestantName.localeCompare(right.contestantName)
+    })
+
+  const judgeIds = new Set(rows.map((row) => row.judge?.id || 'unknown-judge'))
+  const criteriaIds = new Set(rows.map((row) => row.criterion?.id || `overall:${row.category?.id || row.id}`))
+
+  return {
+    contestantGroups,
+    counts: tallyScoreCounts(rows),
+    judgesCount: judgeIds.size,
+    contestantsCount: contestantGroups.length,
+    criteriaCount: criteriaIds.size,
+  }
+}
+
+const scoreCountChipClass = (count: number, tone: 'danger' | 'warning' | 'info'): string => {
+  if (count <= 0) return 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
+  if (tone === 'danger') return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+  if (tone === 'warning') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+  return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'
+}
+
+const rowStatusChipClass = (active: boolean, tone: 'good' | 'warning'): string => {
+  if (active) {
+    return tone === 'good'
+      ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'
+      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+  }
+  return 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
+}
+
 const statusClass = (status: StageStatus): string => {
   if (status === 'CERTIFIED') return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
   if (status === 'IN_PROGRESS') return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
@@ -203,6 +365,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const filtersSectionRef = React.useRef<HTMLDivElement | null>(null)
   const categoriesSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const contestantSectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
   const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
 
   const loadOverview = async () => {
@@ -255,6 +418,17 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
       rejected: modeFiltered.filter((c) => c.status === 'REJECTED').length
     }
   }, [modeFiltered])
+
+  const categoryScoreReviewGroups = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(categoryScores).map(([categoryId, rows]) => [categoryId, buildCategoryScoreReviewGroup(rows)])
+    ) as Record<string, CategoryScoreReviewGroup>
+  }, [categoryScores])
+
+  const scrollToContestantSection = (categoryId: string, contestantId: string) => {
+    const target = contestantSectionRefs.current[`${categoryId}:${contestantId}`]
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const toggleJudges = (categoryId: string) => {
     setExpandedCategories((prev) => {
@@ -609,6 +783,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                   const judgeStageComplete = isJudgeStageComplete(cat)
                   const compact = density === 'compact'
                   const defaultAction = resolveDefaultCertificationAction(cat, user?.role)
+                  const scoreReviewGroup = categoryScoreReviewGroups[cat.categoryId]
                   const showCustomCertify = allowCertify && Boolean(onCertifyCategory) && (!canCertifyCategory || canCertifyCategory(cat))
                   const showDefaultCertify = allowCertify && !onCertifyCategory && Boolean(defaultAction) && Boolean(cat.certificationId)
                   const certifyActionLabel = showCustomCertify ? certifyLabel : (defaultAction?.label || 'Certify')
@@ -727,24 +902,175 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                               {(categoryScores[cat.categoryId] || []).length === 0 ? (
                                 <div className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-500 dark:text-gray-400`}>No submitted scores found.</div>
                               ) : (
-                                (categoryScores[cat.categoryId] || []).map((row) => (
-                                  <div key={`mobile-score-${row.id}`} className={`rounded border border-gray-200 dark:border-gray-700 ${compact ? 'p-1.5 text-[11px] space-y-0.5' : 'p-2 text-xs space-y-1'}`}>
-                                    <div className="font-medium text-gray-900 dark:text-white">
-                                      {row.contestant?.name || 'Unknown'}{row.contestant?.contestantNumber ? ` (#${row.contestant.contestantNumber})` : ''}
-                                    </div>
-                                    <div className="text-gray-600 dark:text-gray-300">Judge: {row.judge?.name || 'Unknown'}</div>
-                                    <div className="text-gray-600 dark:text-gray-300">Criterion: {row.criterion?.name || 'Overall'}</div>
-                                    <div className="text-gray-600 dark:text-gray-300">
-                                      Score: {(() => {
-                                        const possible = row.criterion?.maxScore ?? row.category?.scoreCap ?? null
-                                        if (row.score == null) return '-'
-                                        return possible != null ? `${row.score} / ${possible}` : String(row.score)
-                                      })()}
-                                    </div>
-                                    <div className="text-gray-600 dark:text-gray-300">Certified: {row.isCertified ? 'Yes' : 'No'} | Locked: {row.isLocked ? 'Yes' : 'No'}</div>
-                                    <div className="text-gray-500 dark:text-gray-400">Comment: {row.comment || '-'}</div>
-                                  </div>
-                                ))
+                                <div className="space-y-3">
+                                  {scoreReviewGroup && (
+                                    <>
+                                      <div className={`grid grid-cols-2 md:grid-cols-5 gap-2 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+                                        <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40">
+                                          <div className="text-gray-500 dark:text-gray-400">Contestants</div>
+                                          <div className="font-semibold text-gray-900 dark:text-white">{scoreReviewGroup.contestantsCount}</div>
+                                        </div>
+                                        <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40">
+                                          <div className="text-gray-500 dark:text-gray-400">Judges</div>
+                                          <div className="font-semibold text-gray-900 dark:text-white">{scoreReviewGroup.judgesCount}</div>
+                                        </div>
+                                        <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40">
+                                          <div className="text-gray-500 dark:text-gray-400">Rows</div>
+                                          <div className="font-semibold text-gray-900 dark:text-white">{scoreReviewGroup.counts.totalRows}</div>
+                                        </div>
+                                        <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40">
+                                          <div className="text-gray-500 dark:text-gray-400">Criteria</div>
+                                          <div className="font-semibold text-gray-900 dark:text-white">{scoreReviewGroup.criteriaCount}</div>
+                                        </div>
+                                        <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/40">
+                                          <div className="text-gray-500 dark:text-gray-400">Comments</div>
+                                          <div className="font-semibold text-gray-900 dark:text-white">{scoreReviewGroup.counts.commentedRows}</div>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-1.5">
+                                        <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(scoreReviewGroup.counts.missingScores, 'danger')}`}>
+                                          Missing {scoreReviewGroup.counts.missingScores}
+                                        </span>
+                                        <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(scoreReviewGroup.counts.uncertifiedRows, 'warning')}`}>
+                                          Uncertified {scoreReviewGroup.counts.uncertifiedRows}
+                                        </span>
+                                        <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(scoreReviewGroup.counts.unlockedRows, 'warning')}`}>
+                                          Unlocked {scoreReviewGroup.counts.unlockedRows}
+                                        </span>
+                                      </div>
+
+                                      {scoreReviewGroup.contestantGroups.length > 1 && (
+                                        <MobileWorkflowNav
+                                          title="Jump to contestant"
+                                          className="mt-1"
+                                          actions={scoreReviewGroup.contestantGroups.map((contestant) => ({
+                                            label: contestant.contestantNumber
+                                              ? `#${contestant.contestantNumber}`
+                                              : contestant.contestantName,
+                                            onClick: () => scrollToContestantSection(cat.categoryId, contestant.contestantId),
+                                          }))}
+                                        />
+                                      )}
+
+                                      <div className="space-y-2">
+                                        {scoreReviewGroup.contestantGroups.map((contestant) => (
+                                          <div
+                                            key={`${cat.categoryId}-${contestant.contestantId}`}
+                                            ref={(node) => {
+                                              contestantSectionRefs.current[`${cat.categoryId}:${contestant.contestantId}`] = node
+                                            }}
+                                            className={`rounded border border-gray-200 bg-gray-50/70 dark:border-gray-700 dark:bg-gray-900/30 ${
+                                              compact ? 'p-2 space-y-1.5' : 'p-3 space-y-2'
+                                            }`}
+                                          >
+                                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                              <div>
+                                                <div className={`font-semibold text-gray-900 dark:text-white ${compact ? 'text-xs' : 'text-sm'}`}>
+                                                  {contestant.contestantName}
+                                                  {contestant.contestantNumber ? ` (#${contestant.contestantNumber})` : ''}
+                                                </div>
+                                                <div className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-500 dark:text-gray-400`}>
+                                                  {contestant.judgesCount} judges • {contestant.criteriaCount} criteria • {contestant.counts.totalRows} rows
+                                                </div>
+                                              </div>
+                                              <div className={`${compact ? 'text-[11px]' : 'text-xs'} font-medium text-gray-700 dark:text-gray-200`}>
+                                                Total:{' '}
+                                                {contestant.totalPossibleScore != null
+                                                  ? `${contestant.totalScore} / ${contestant.totalPossibleScore}`
+                                                  : contestant.totalScore}
+                                              </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-1.5">
+                                              <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(contestant.counts.missingScores, 'danger')}`}>
+                                                Missing {contestant.counts.missingScores}
+                                              </span>
+                                              <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(contestant.counts.uncertifiedRows, 'warning')}`}>
+                                                Uncertified {contestant.counts.uncertifiedRows}
+                                              </span>
+                                              <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(contestant.counts.unlockedRows, 'warning')}`}>
+                                                Unlocked {contestant.counts.unlockedRows}
+                                              </span>
+                                              <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(contestant.counts.commentedRows, 'info')}`}>
+                                                Comments {contestant.counts.commentedRows}
+                                              </span>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                              {contestant.judgeGroups.map((judgeGroup) => (
+                                                <div
+                                                  key={`${cat.categoryId}-${contestant.contestantId}-${judgeGroup.judgeId}`}
+                                                  className={`rounded border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${
+                                                    compact ? 'p-1.5 space-y-1.5' : 'p-2 space-y-2'
+                                                  }`}
+                                                >
+                                                  <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                    <div className={`font-medium text-gray-900 dark:text-white ${compact ? 'text-[11px]' : 'text-xs'}`}>
+                                                      {judgeGroup.judgeName}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                      <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(judgeGroup.counts.missingScores, 'danger')}`}>
+                                                        Missing {judgeGroup.counts.missingScores}
+                                                      </span>
+                                                      <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(judgeGroup.counts.uncertifiedRows, 'warning')}`}>
+                                                        Uncertified {judgeGroup.counts.uncertifiedRows}
+                                                      </span>
+                                                      <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${scoreCountChipClass(judgeGroup.counts.unlockedRows, 'warning')}`}>
+                                                        Unlocked {judgeGroup.counts.unlockedRows}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="space-y-1">
+                                                    {judgeGroup.rows.map((row) => {
+                                                      const possible = row.criterion?.maxScore ?? row.category?.scoreCap ?? null
+                                                      return (
+                                                        <div
+                                                          key={`mobile-score-${row.id}`}
+                                                          className={`rounded border border-gray-200 dark:border-gray-700 ${
+                                                            compact ? 'p-1.5 text-[11px] space-y-1' : 'p-2 text-xs space-y-1.5'
+                                                          }`}
+                                                        >
+                                                          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                            <div className="font-medium text-gray-900 dark:text-white">
+                                                              {row.criterion?.name || 'Overall'}
+                                                            </div>
+                                                            <div className="text-gray-700 dark:text-gray-200">
+                                                              {row.score == null
+                                                                ? 'No score entered'
+                                                                : possible != null
+                                                                  ? `${row.score} / ${possible}`
+                                                                  : String(row.score)}
+                                                            </div>
+                                                          </div>
+                                                          <div className="flex flex-wrap gap-1.5">
+                                                            <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${rowStatusChipClass(row.score != null, 'good')}`}>
+                                                              {row.score != null ? 'Scored' : 'Missing'}
+                                                            </span>
+                                                            <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${rowStatusChipClass(row.isCertified, 'good')}`}>
+                                                              {row.isCertified ? 'Certified' : 'Not Certified'}
+                                                            </span>
+                                                            <span className={`rounded-full px-2 py-1 ${compact ? 'text-[11px]' : 'text-xs'} ${rowStatusChipClass(row.isLocked, 'good')}`}>
+                                                              {row.isLocked ? 'Locked' : 'Unlocked'}
+                                                            </span>
+                                                          </div>
+                                                          <div className="text-gray-500 dark:text-gray-400">
+                                                            Comment: {row.comment?.trim() || '-'}
+                                                          </div>
+                                                        </div>
+                                                      )
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
