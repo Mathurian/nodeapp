@@ -8,10 +8,32 @@ import { CommentaryService } from '../../../src/services/CommentaryService';
 import { PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from '../../../src/services/BaseService';
+import { CommentaryViewerContext } from '../../../src/utils/commentaryAccess';
 
 describe('CommentaryService', () => {
   let service: CommentaryService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
+  const adminViewer: CommentaryViewerContext = {
+    id: 'admin-user',
+    role: 'ADMIN',
+    tenantId: 'tenant1',
+    judgeId: null,
+    contestantId: null,
+  };
+  const judgeViewer: CommentaryViewerContext = {
+    id: 'judge-user',
+    role: 'JUDGE',
+    tenantId: 'tenant1',
+    judgeId: 'judge1',
+    contestantId: null,
+  };
+  const contestantViewer: CommentaryViewerContext = {
+    id: 'contestant-user',
+    role: 'CONTESTANT',
+    tenantId: 'tenant1',
+    judgeId: null,
+    contestantId: 'contestant1',
+  };
 
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
@@ -189,7 +211,7 @@ describe('CommentaryService', () => {
     it('should retrieve all comments for admin users', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockComments as any);
 
-      const result = await service.getCommentsForScore('score1', 'ADMIN');
+      const result = await service.getCommentsForScore('score1', adminViewer);
 
       expect(result).toEqual(mockComments);
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
@@ -202,7 +224,10 @@ describe('CommentaryService', () => {
     it('should retrieve all comments for organizer users', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockComments as any);
 
-      await service.getCommentsForScore('score1', 'ORGANIZER');
+      await service.getCommentsForScore('score1', {
+        ...adminViewer,
+        role: 'ORGANIZER',
+      });
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
         where: { scoreId: 'score1' },
@@ -214,7 +239,10 @@ describe('CommentaryService', () => {
     it('should retrieve all comments for board users', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockComments as any);
 
-      await service.getCommentsForScore('score1', 'BOARD');
+      await service.getCommentsForScore('score1', {
+        ...adminViewer,
+        role: 'BOARD',
+      });
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
         where: { scoreId: 'score1' },
@@ -223,26 +251,26 @@ describe('CommentaryService', () => {
       });
     });
 
-    it('should filter private comments for non-privileged users', async () => {
+    it('should restrict judges to their own commentary records', async () => {
       const publicComments = [mockComments[0]];
       mockPrisma.scoreComment.findMany.mockResolvedValue(publicComments as any);
 
-      await service.getCommentsForScore('score1', 'JUDGE');
+      await service.getCommentsForScore('score1', judgeViewer);
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
-        where: { scoreId: 'score1', isPrivate: false },
+        where: { scoreId: 'score1', judgeId: 'judge1' },
         include: expect.any(Object),
         orderBy: { createdAt: 'asc' }
       });
     });
 
-    it('should filter private comments for contestant users', async () => {
+    it('should restrict contestants to commentary for their own contestant record', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue([mockComments[0]] as any);
 
-      await service.getCommentsForScore('score1', 'CONTESTANT');
+      await service.getCommentsForScore('score1', contestantViewer);
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
-        where: { scoreId: 'score1', isPrivate: false },
+        where: { scoreId: 'score1', contestantId: 'contestant1' },
         include: expect.any(Object),
         orderBy: { createdAt: 'asc' }
       });
@@ -251,7 +279,7 @@ describe('CommentaryService', () => {
     it('should sort comments by createdAt ascending', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockComments as any);
 
-      await service.getCommentsForScore('score1', 'ADMIN');
+      await service.getCommentsForScore('score1', adminViewer);
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -263,7 +291,7 @@ describe('CommentaryService', () => {
     it('should return empty array when no comments found', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue([]);
 
-      const result = await service.getCommentsForScore('score999', 'ADMIN');
+      const result = await service.getCommentsForScore('score999', adminViewer);
 
       expect(result).toEqual([]);
     });
@@ -310,7 +338,7 @@ describe('CommentaryService', () => {
     it('should retrieve all comments for contestant for admin users', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockContestantComments as any);
 
-      const result = await service.getCommentsByContestant('contestant1', 'ADMIN');
+      const result = await service.getCommentsByContestant('contestant1', adminViewer);
 
       expect(result).toEqual(mockContestantComments);
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
@@ -327,13 +355,25 @@ describe('CommentaryService', () => {
       });
     });
 
-    it('should filter private comments for non-admin users', async () => {
+    it('should restrict judges to their own contestant commentary records', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue([mockContestantComments[0]] as any);
 
-      await service.getCommentsByContestant('contestant1', 'JUDGE');
+      await service.getCommentsByContestant('contestant1', judgeViewer);
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
-        where: { contestantId: 'contestant1', isPrivate: false },
+        where: { contestantId: 'contestant1', judgeId: 'judge1' },
+        include: expect.any(Object),
+        orderBy: expect.any(Array)
+      });
+    });
+
+    it('should restrict contestants to their own contestant commentary records', async () => {
+      mockPrisma.scoreComment.findMany.mockResolvedValue([mockContestantComments[0]] as any);
+
+      await service.getCommentsByContestant('contestant1', contestantViewer);
+
+      expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith({
+        where: { contestantId: 'contestant1' },
         include: expect.any(Object),
         orderBy: expect.any(Array)
       });
@@ -342,7 +382,7 @@ describe('CommentaryService', () => {
     it('should include nested relationships', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockContestantComments as any);
 
-      await service.getCommentsByContestant('contestant1', 'ADMIN');
+      await service.getCommentsByContestant('contestant1', adminViewer);
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -368,7 +408,10 @@ describe('CommentaryService', () => {
     it('should sort by scoreId desc and createdAt asc', async () => {
       mockPrisma.scoreComment.findMany.mockResolvedValue(mockContestantComments as any);
 
-      await service.getCommentsByContestant('contestant1', 'ORGANIZER');
+      await service.getCommentsByContestant('contestant1', {
+        ...adminViewer,
+        role: 'ORGANIZER',
+      });
 
       expect(mockPrisma.scoreComment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

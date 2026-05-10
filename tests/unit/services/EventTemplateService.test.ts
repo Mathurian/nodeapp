@@ -6,6 +6,7 @@ import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import {
   CreateContestFromTemplateDto,
   CreateEventFromTemplateDto,
+  CreateTemplateFromEventDto,
   CreateTemplateDto,
   EventTemplateService,
   UpdateTemplateDto,
@@ -137,6 +138,159 @@ describe('EventTemplateService', () => {
         name: 'Template Owner',
         email: 'owner@example.com',
       });
+    });
+  });
+
+  describe('createFromEvent', () => {
+    it('creates a tenant-scoped template from the event structure', async () => {
+      const input: CreateTemplateFromEventDto = {
+        eventId: 'event-1',
+        name: 'Spring Competition Template',
+        description: 'Reusable spring structure',
+        createdBy: TEST_USER_ID,
+        tenantId: TEST_TENANT_ID,
+      };
+
+      prismaMock.event.findFirst.mockResolvedValue({
+        id: 'event-1',
+        name: 'Spring Competition',
+        description: 'Event source description',
+        contests: [
+          {
+            id: 'contest-1',
+            name: 'Talent',
+            description: 'Talent show',
+            categories: [
+              {
+                id: 'category-1',
+                name: 'Solo',
+                description: 'Solo division',
+                scoreCap: 100,
+                timeLimit: 300,
+                contestantMin: 1,
+                contestantMax: 20,
+                criteria: [
+                  { name: 'Technique', maxScore: 10 },
+                  { name: 'Creativity', maxScore: 15 },
+                ],
+              },
+            ],
+          },
+        ],
+      } as any);
+      prismaMock.eventTemplate.create.mockResolvedValue(
+        buildTemplateRecord({
+          name: input.name,
+          description: input.description,
+        }) as any
+      );
+
+      const result = await service.createFromEvent(input);
+
+      expect(prismaMock.event.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: input.eventId,
+          tenantId: TEST_TENANT_ID,
+          deletedAt: null,
+        },
+        include: {
+          contests: {
+            where: {
+              deletedAt: null,
+              archived: false,
+            },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              categories: {
+                where: {
+                  deletedAt: null,
+                },
+                orderBy: { createdAt: 'asc' },
+                include: {
+                  criteria: {
+                    orderBy: { createdAt: 'asc' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(prismaMock.eventTemplate.create).toHaveBeenCalledWith({
+        data: {
+          name: input.name,
+          description: input.description,
+          contests: JSON.stringify([
+            { id: 'contest-1', name: 'Talent', description: 'Talent show' },
+          ]),
+          categories: JSON.stringify([
+            {
+              id: 'category-1',
+              contestId: 'contest-1',
+              name: 'Solo',
+              description: 'Solo division',
+              scoreCap: 100,
+              timeLimit: 300,
+              contestantMin: 1,
+              contestantMax: 20,
+              criteria: [
+                { name: 'Technique', maxScore: 10 },
+                { name: 'Creativity', maxScore: 15 },
+              ],
+            },
+          ]),
+          createdBy: TEST_USER_ID,
+          tenantId: TEST_TENANT_ID,
+        },
+      });
+      expect(result).toMatchObject({
+        id: 'template-1',
+        name: input.name,
+        description: input.description,
+      });
+    });
+
+    it('falls back to the source event description when a template description is omitted', async () => {
+      prismaMock.event.findFirst.mockResolvedValue({
+        id: 'event-1',
+        name: 'Spring Competition',
+        description: 'Event source description',
+        contests: [],
+      } as any);
+      prismaMock.eventTemplate.create.mockResolvedValue(
+        buildTemplateRecord({
+          name: 'Spring Competition Template',
+          description: 'Event source description',
+          contests: JSON.stringify([]),
+          categories: JSON.stringify([]),
+        }) as any
+      );
+
+      await service.createFromEvent({
+        eventId: 'event-1',
+        name: 'Spring Competition Template',
+        createdBy: TEST_USER_ID,
+        tenantId: TEST_TENANT_ID,
+      });
+
+      expect(prismaMock.eventTemplate.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          description: 'Event source description',
+        }),
+      });
+    });
+
+    it('throws NotFoundError when the source event is missing', async () => {
+      prismaMock.event.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createFromEvent({
+          eventId: 'missing',
+          name: 'Missing Event Template',
+          createdBy: TEST_USER_ID,
+          tenantId: TEST_TENANT_ID,
+        })
+      ).rejects.toThrow(NotFoundError);
     });
   });
 

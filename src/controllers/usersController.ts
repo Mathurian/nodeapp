@@ -5,6 +5,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
+import fs from 'fs/promises';
+import path from 'path';
+import { randomUUID } from 'crypto';
 import { UserService, CreateUserDTO, UpdateUserDTO } from '../services/UserService';
 import { AssignmentService } from '../services/AssignmentService';
 import { AuditLogService } from '../services/AuditLogService';
@@ -23,6 +26,11 @@ import { userCache } from '../utils/cache';
 import { createRequestLogger } from '../utils/logger';
 import { FILE_SIZE } from '../config/constants';
 import { resolveRequestTenantId } from '../utils/tenantContext';
+import {
+  ContestantPrivateDocumentRecord,
+  parseContestantPrivateDocuments,
+  stripContestantPrivateFields,
+} from '../utils/contestantPrivateProfile';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -32,6 +40,7 @@ type AuthenticatedRequest = Request & {
   };
   tenantId?: string;
   file?: Express.Multer.File;
+  files?: Express.Multer.File[];
 };
 
 interface UserWithRelations extends User {
@@ -57,6 +66,24 @@ export class UsersController {
     }
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private canManageContestantPrivateProfile(role: string | undefined): boolean {
+    return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(role || '');
+  }
+
+  private stripContestantPrivateProfileFields<T extends Record<string, unknown>>(user: T) {
+    return stripContestantPrivateFields(user);
+  }
+
+  private buildContestantPrivateProfileResponse(user: Pick<User, 'contestantAccommodations' | 'contestantPrivateNotes' | 'contestantRecommendationNotes' | 'contestantPrivateDocuments'>) {
+    return {
+      accommodations: user.contestantAccommodations || null,
+      privateNotes: user.contestantPrivateNotes || null,
+      recommendationNotes: user.contestantRecommendationNotes || null,
+      privateDocuments: parseContestantPrivateDocuments(user.contestantPrivateDocuments),
+      supportedFields: ['accommodations', 'privateNotes', 'recommendationNotes', 'privateDocuments'],
+    };
   }
 
   /**
@@ -148,7 +175,9 @@ export class UsersController {
         },
         orderBy
       });
-      const safeUsers = usersWithRelations.map(({ password: _password, ...user }) => user);
+      const safeUsers = usersWithRelations.map(({ password: _password, ...user }) =>
+        this.stripContestantPrivateProfileFields(user)
+      );
 
       log.info('Users retrieved successfully', { count: safeUsers.length, isSuperAdmin });
       sendSuccess(res, safeUsers);
@@ -176,7 +205,7 @@ export class UsersController {
       }
 
       log.debug('User retrieved successfully', { userId: id, email: user.email });
-      sendSuccess(res, user);
+      sendSuccess(res, this.stripContestantPrivateProfileFields(user as unknown as Record<string, unknown>));
     } catch (error) {
       log.error('Get user error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
@@ -253,7 +282,7 @@ export class UsersController {
       }
 
       // Create user with role-specific data
-      const userData: Partial<CreateUserDTO> & Record<string, string | number | boolean | null | undefined> = {
+      const userData: Partial<CreateUserDTO> & Record<string, unknown> = {
         tenantId,
         name: data.name,
         email: data.email,
@@ -278,6 +307,9 @@ export class UsersController {
         userData.contestantNumber = data.contestantNumber ?? undefined;
         userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
         userData['contestantSchool'] = data.school ?? undefined;
+        userData['contestantAccommodations'] = this.normalizeOptionalString(data.accommodations);
+        userData['contestantPrivateNotes'] = this.normalizeOptionalString(data.privateNotes);
+        userData['contestantRecommendationNotes'] = this.normalizeOptionalString(data.recommendationNotes);
       } else if (data.role !== 'BOARD') {
         userData.boardRole = undefined;
       }
@@ -383,7 +415,7 @@ export class UsersController {
       }
 
       const { password: _password, ...safeUser } = createdUser;
-      sendCreated(res, safeUser);
+      sendCreated(res, this.stripContestantPrivateProfileFields(safeUser));
     } catch (error) {
       log.error('Create user error', { error: (error as Error).message, email: req.body['email'] });
       const prismaError = error as Prisma.PrismaClientKnownRequestError;
@@ -462,7 +494,7 @@ export class UsersController {
         newRole: data.role
       });
 
-      const userData: Partial<UpdateUserDTO> & Record<string, string | number | boolean | null | undefined> = {};
+      const userData: Partial<UpdateUserDTO> & Record<string, unknown> = {};
 
       if (data.name !== undefined) userData.name = data.name;
       if (data.email !== undefined) userData.email = data.email;
@@ -490,6 +522,9 @@ export class UsersController {
         if (data.contestantNumber !== undefined) userData.contestantNumber = data.contestantNumber ?? undefined;
         if (data.age !== undefined) userData['contestantAge'] = data.age ? parseInt(String(data.age)) : undefined;
         if (data.school !== undefined) userData['contestantSchool'] = data.school ?? undefined;
+        if (data.accommodations !== undefined) userData['contestantAccommodations'] = this.normalizeOptionalString(data.accommodations) ?? null;
+        if (data.privateNotes !== undefined) userData['contestantPrivateNotes'] = this.normalizeOptionalString(data.privateNotes) ?? null;
+        if (data.recommendationNotes !== undefined) userData['contestantRecommendationNotes'] = this.normalizeOptionalString(data.recommendationNotes) ?? null;
       } else if (data.role === 'BOARD') {
         if (data.boardRole !== undefined) {
           userData.boardRole = this.normalizeOptionalString(data.boardRole) ?? null;
@@ -515,6 +550,10 @@ export class UsersController {
           (userData as Record<string, string | number | boolean | null | undefined>)['contestantNumber'] = null;
           (userData as Record<string, string | number | boolean | null | undefined>)['contestantAge'] = null;
           (userData as Record<string, string | number | boolean | null | undefined>)['contestantSchool'] = null;
+          (userData as Record<string, unknown>)['contestantAccommodations'] = null;
+          (userData as Record<string, unknown>)['contestantPrivateNotes'] = null;
+          (userData as Record<string, unknown>)['contestantRecommendationNotes'] = null;
+          (userData as Record<string, unknown>)['contestantPrivateDocuments'] = Prisma.JsonNull;
         }
         if (targetRole !== 'BOARD') {
           userData.boardRole = null;
@@ -674,7 +713,7 @@ export class UsersController {
       }
 
       log.info('User updated successfully', { userId: id, email: user.email });
-      sendSuccess(res, user);
+      sendSuccess(res, this.stripContestantPrivateProfileFields(user as unknown as Record<string, unknown>));
     } catch (error) {
       log.error('Update user error', { error: (error as Error).message, userId: req.params['id'] });
       return next(error);
@@ -1007,7 +1046,7 @@ export class UsersController {
       sendSuccess(res, {
         message: 'Image uploaded successfully',
         imagePath,
-        user
+        user: this.stripContestantPrivateProfileFields(user as unknown as Record<string, unknown>)
       });
     } catch (error) {
       log.error('Upload user image error', { error: (error as Error).message, userId: req.params['id'] });
@@ -1055,7 +1094,7 @@ export class UsersController {
         return sendNotFound(res, 'User not found');
       }
 
-      const updateData: Partial<User> & Record<string, string | number | boolean | null | undefined> = {};
+      const updateData: Partial<User> & Record<string, unknown> = {};
 
       // Update based on role
       if (currentUser.role === 'JUDGE') {
@@ -1121,10 +1160,10 @@ export class UsersController {
         userCache.invalidate(id);
 
         log.info('User role fields updated successfully', { userId: id, role: currentUser.role });
-        return sendSuccess(res, updatedUser, 'Role-specific fields updated successfully');
+        return sendSuccess(res, this.stripContestantPrivateProfileFields(updatedUser as unknown as Record<string, unknown>), 'Role-specific fields updated successfully');
       } else {
         log.info('No role fields to update', { userId: id });
-        return sendSuccess(res, currentUser, 'No changes to update');
+        return sendSuccess(res, this.stripContestantPrivateProfileFields(currentUser as unknown as Record<string, unknown>), 'No changes to update');
       }
     } catch (error) {
       const log = createRequestLogger(req, 'users');
@@ -1251,11 +1290,223 @@ export class UsersController {
       return sendSuccess(res, {
         message: 'Bio file uploaded successfully',
         bioFilePath,
-        user: updatedUser
+        user: this.stripContestantPrivateProfileFields(updatedUser as unknown as Record<string, unknown>)
       });
     } catch (error) {
       const log = createRequestLogger(req, 'users');
       log.error('Upload user bio file error', { error: (error as Error).message, userId: req.params['id'] });
+      return next(error);
+    }
+  };
+
+  getContestantPrivateProfile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = authReq.params;
+
+      if (!id) {
+        return sendError(res, 'User ID is required', 400);
+      }
+      if (!this.canManageContestantPrivateProfile(authReq.user?.role)) {
+        return sendError(res, 'You do not have permission to access contestant private profile data', 403);
+      }
+
+      const where =
+        authReq.user?.role === 'SUPER_ADMIN'
+          ? { id }
+          : { id, tenantId: authReq.user?.tenantId };
+
+      const user = await this.prisma.user.findFirst({
+        where,
+        select: {
+          id: true,
+          role: true,
+          contestantAccommodations: true,
+          contestantPrivateNotes: true,
+          contestantRecommendationNotes: true,
+          contestantPrivateDocuments: true,
+        },
+      });
+
+      if (!user) {
+        return sendNotFound(res, 'User not found');
+      }
+      if (user.role !== 'CONTESTANT') {
+        return sendBadRequest(res, 'Private contestant profile is only available for contestants');
+      }
+
+      return sendSuccess(res, this.buildContestantPrivateProfileResponse(user));
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  uploadContestantPrivateFiles = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = authReq.params;
+      const files = authReq.files || [];
+
+      if (!id) {
+        return sendError(res, 'User ID is required', 400);
+      }
+      if (!this.canManageContestantPrivateProfile(authReq.user?.role)) {
+        return sendError(res, 'You do not have permission to upload contestant private documents', 403);
+      }
+      if (files.length === 0) {
+        return sendError(res, 'No files provided', 400);
+      }
+
+      const where =
+        authReq.user?.role === 'SUPER_ADMIN'
+          ? { id }
+          : { id, tenantId: authReq.user?.tenantId };
+
+      const user = await this.prisma.user.findFirst({
+        where,
+        select: {
+          id: true,
+          role: true,
+          contestantPrivateDocuments: true,
+        },
+      });
+
+      if (!user) {
+        return sendNotFound(res, 'User not found');
+      }
+      if (user.role !== 'CONTESTANT') {
+        return sendBadRequest(res, 'Private contestant documents are only available for contestants');
+      }
+
+      const existingDocuments = parseContestantPrivateDocuments(user.contestantPrivateDocuments);
+      const uploadedBy = authReq.user?.id || id;
+      const uploadedAt = new Date().toISOString();
+      const newDocuments: ContestantPrivateDocumentRecord[] = files.map((file) => ({
+        id: randomUUID(),
+        filename: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        path: `uploads/users/contestant-private/${file.filename}`,
+        uploadedAt,
+        uploadedBy,
+      }));
+
+      const updatedDocuments = [...existingDocuments, ...newDocuments];
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          contestantPrivateDocuments: updatedDocuments as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      userCache.invalidate(id);
+      return sendSuccess(res, { privateDocuments: updatedDocuments }, 'Contestant private documents uploaded successfully');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  downloadContestantPrivateFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id, fileId } = authReq.params;
+
+      if (!id || !fileId) {
+        return sendError(res, 'User ID and file ID are required', 400);
+      }
+      if (!this.canManageContestantPrivateProfile(authReq.user?.role)) {
+        return sendError(res, 'You do not have permission to download contestant private documents', 403);
+      }
+
+      const where =
+        authReq.user?.role === 'SUPER_ADMIN'
+          ? { id }
+          : { id, tenantId: authReq.user?.tenantId };
+
+      const user = await this.prisma.user.findFirst({
+        where,
+        select: {
+          role: true,
+          contestantPrivateDocuments: true,
+        },
+      });
+
+      if (!user) {
+        return sendNotFound(res, 'User not found');
+      }
+      if (user.role !== 'CONTESTANT') {
+        return sendBadRequest(res, 'Private contestant documents are only available for contestants');
+      }
+
+      const file = parseContestantPrivateDocuments(user.contestantPrivateDocuments).find((entry) => entry.id === fileId);
+      if (!file) {
+        return sendNotFound(res, 'Private contestant document not found');
+      }
+
+      return res.download(path.resolve(process.cwd(), file.path), file.originalName);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  deleteContestantPrivateFile = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id, fileId } = authReq.params;
+
+      if (!id || !fileId) {
+        return sendError(res, 'User ID and file ID are required', 400);
+      }
+      if (!this.canManageContestantPrivateProfile(authReq.user?.role)) {
+        return sendError(res, 'You do not have permission to delete contestant private documents', 403);
+      }
+
+      const where =
+        authReq.user?.role === 'SUPER_ADMIN'
+          ? { id }
+          : { id, tenantId: authReq.user?.tenantId };
+
+      const user = await this.prisma.user.findFirst({
+        where,
+        select: {
+          role: true,
+          contestantPrivateDocuments: true,
+        },
+      });
+
+      if (!user) {
+        return sendNotFound(res, 'User not found');
+      }
+      if (user.role !== 'CONTESTANT') {
+        return sendBadRequest(res, 'Private contestant documents are only available for contestants');
+      }
+
+      const existingDocuments = parseContestantPrivateDocuments(user.contestantPrivateDocuments);
+      const documentToDelete = existingDocuments.find((entry) => entry.id === fileId);
+
+      if (!documentToDelete) {
+        return sendNotFound(res, 'Private contestant document not found');
+      }
+
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          contestantPrivateDocuments: existingDocuments.filter((entry) => entry.id !== fileId) as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      try {
+        await fs.unlink(path.resolve(process.cwd(), documentToDelete.path));
+      } catch (unlinkError) {
+        if ((unlinkError as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw unlinkError;
+        }
+      }
+
+      userCache.invalidate(id);
+      return sendSuccess(res, null, 'Contestant private document deleted successfully');
+    } catch (error) {
       return next(error);
     }
   };
@@ -1812,6 +2063,10 @@ export const importUsersFromCSV = controller.importUsersFromCSV;
 export const getCSVTemplate = controller.getCSVTemplate;
 export const updateUserRoleFields = controller.updateUserRoleFields;
 export const uploadUserBioFile = controller.uploadUserBioFile;
+export const getContestantPrivateProfile = controller.getContestantPrivateProfile;
+export const uploadContestantPrivateFiles = controller.uploadContestantPrivateFiles;
+export const downloadContestantPrivateFile = controller.downloadContestantPrivateFile;
+export const deleteContestantPrivateFile = controller.deleteContestantPrivateFile;
 export const bulkUploadUsers = controller.bulkUploadUsers;
 export const bulkDeleteUsers = controller.bulkDeleteUsers;
 export const getBulkUploadTemplate = controller.getBulkUploadTemplate;

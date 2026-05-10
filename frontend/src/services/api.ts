@@ -152,6 +152,8 @@ export const eventsAPI = {
   update: (id: string, data: any) => api.put(`/events/${id}`, data),
   archive: (id: string) => api.post(`/events/${id}/archive`),
   unarchive: (id: string) => api.post(`/events/${id}/unarchive`),
+  createTemplateFromEvent: (id: string, data: { name: string; description?: string }) =>
+    api.post(`/event-templates/from-event/${id}`, data),
   delete: (id: string) => api.delete(`/events/${id}`),
 }
 
@@ -283,6 +285,7 @@ export const usersAPI = {
   getAll: (params?: { includeInactive?: boolean; search?: string; createdAfter?: string; createdBefore?: string; sortBy?: string; sortDirection?: 'asc' | 'desc' }) =>
     api.get('/users', { params }),
   getById: (id: string) => api.get(`/users/${id}`),
+  getContestantPrivateProfile: (id: string) => api.get(`/users/${id}/contestant-private-profile`),
   create: (data: any) => api.post('/users', data),
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
   updateProfile: (id: string, data: any) => api.put(`/users/profile/${id}`, data),
@@ -292,6 +295,12 @@ export const usersAPI = {
   uploadBioFile: (id: string, formData: FormData) => api.post(`/users/${id}/bio-file`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  uploadContestantPrivateFiles: (id: string, formData: FormData) => api.post(`/users/${id}/contestant-private-files`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  downloadContestantPrivateFile: (id: string, fileId: string) =>
+    api.get(`/users/${id}/contestant-private-files/${fileId}/download`, { responseType: 'blob' }),
+  deleteContestantPrivateFile: (id: string, fileId: string) => api.delete(`/users/${id}/contestant-private-files/${fileId}`),
   delete: (id: string) => api.delete(`/users/${id}`),
   bulkDelete: (data: { userIds: string[]; forceDeleteAdmin?: boolean }) => api.post('/users/bulk-delete', data),
   reassignTenant: (id: string, tenantId: string) => api.put(`/users/${id}/tenant`, { tenantId }),

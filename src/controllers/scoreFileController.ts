@@ -15,6 +15,7 @@ import {
   getOfflineWriteTimeoutMs,
   matchOfflineWriteOwnershipRoute,
 } from '../config/offlineWriteOwnership.config';
+import { createCommentaryViewerContext } from '../utils/commentaryAccess';
 
 export class ScoreFileController {
   private scoreFileService: ScoreFileService;
@@ -97,7 +98,11 @@ export class ScoreFileController {
 
       const id = getRequiredParam(req, 'id');
 
-      const file = await this.scoreFileService.getScoreFileById(id, req.user.tenantId);
+      const file = await this.scoreFileService.getScoreFileById(
+        id,
+        req.user.tenantId,
+        createCommentaryViewerContext(req.user),
+      );
 
       if (!file) {
         sendError(res, 'Score file not found', 404);
@@ -125,7 +130,11 @@ export class ScoreFileController {
 
       const categoryId = getRequiredParam(req, 'categoryId');
 
-      const files = await this.scoreFileService.getScoreFilesByCategory(categoryId, req.user.tenantId);
+      const files = await this.scoreFileService.getScoreFilesByCategory(
+        categoryId,
+        req.user.tenantId,
+        createCommentaryViewerContext(req.user),
+      );
 
       log.info('Score files retrieved by category', { categoryId, count: files.length });
       sendSuccess(res, files);
@@ -148,7 +157,11 @@ export class ScoreFileController {
 
       const judgeId = getRequiredParam(req, 'judgeId');
 
-      const files = await this.scoreFileService.getScoreFilesByJudge(judgeId, req.user.tenantId);
+      const files = await this.scoreFileService.getScoreFilesByJudge(
+        judgeId,
+        req.user.tenantId,
+        createCommentaryViewerContext(req.user),
+      );
 
       log.info('Score files retrieved by judge', { judgeId, count: files.length });
       sendSuccess(res, files);
@@ -171,7 +184,11 @@ export class ScoreFileController {
 
       const contestantId = getRequiredParam(req, 'contestantId');
 
-      const files = await this.scoreFileService.getScoreFilesByContestant(contestantId, req.user.tenantId);
+      const files = await this.scoreFileService.getScoreFilesByContestant(
+        contestantId,
+        req.user.tenantId,
+        createCommentaryViewerContext(req.user),
+      );
 
       log.info('Score files retrieved by contestant', { contestantId, count: files.length });
       sendSuccess(res, files);
@@ -194,12 +211,16 @@ export class ScoreFileController {
 
       const { categoryId, judgeId, contestantId, status, criterionId, contextType } = req.query;
 
-      const files = await this.scoreFileService.getAllScoreFiles(req.user.tenantId, {
-        categoryId: categoryId as string | undefined,
-        judgeId: judgeId as string | undefined,
-        contestantId: contestantId as string | undefined,
-        status: status as string | undefined
-      });
+      const files = await this.scoreFileService.getAllScoreFiles(
+        req.user.tenantId,
+        {
+          categoryId: categoryId as string | undefined,
+          judgeId: judgeId as string | undefined,
+          contestantId: contestantId as string | undefined,
+          status: status as string | undefined
+        },
+        createCommentaryViewerContext(req.user),
+      );
 
       const filteredFiles = files.filter((file: any) => {
         if (criterionId && file?.metadata?.criterionId !== criterionId) return false;
@@ -289,7 +310,11 @@ export class ScoreFileController {
         throw new Error('User not authenticated');
       }
 
-      const fileInfo = await this.scoreFileService.getScoreFileById(id, req.user.tenantId);
+      const fileInfo = await this.scoreFileService.getScoreFileById(
+        id,
+        req.user.tenantId,
+        createCommentaryViewerContext(req.user),
+      );
 
       if (!fileInfo) {
         sendError(res, 'Score file not found', 404);

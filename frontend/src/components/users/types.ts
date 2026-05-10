@@ -30,6 +30,17 @@ export interface User {
   }
 }
 
+export interface ContestantPrivateDocument {
+  id: string
+  filename: string
+  originalName: string
+  mimeType: string
+  size: number
+  path: string
+  uploadedAt: string
+  uploadedBy: string
+}
+
 export interface UserFormData {
   name: string
   preferredName: string
@@ -44,6 +55,9 @@ export interface UserFormData {
   imagePath: string
   isActive: boolean
   contestantNumber?: string
+  accommodations?: string
+  privateNotes?: string
+  recommendationNotes?: string
   customFields?: Record<string, unknown>
 }
 

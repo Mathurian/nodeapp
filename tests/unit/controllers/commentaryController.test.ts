@@ -123,7 +123,13 @@ describe('CommentaryController', () => {
 
       await controller.getCommentsForScore(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.getCommentsForScore).toHaveBeenCalledWith('score-1', 'JUDGE');
+      expect(mockService.getCommentsForScore).toHaveBeenCalledWith('score-1', {
+        id: 'user-1',
+        role: 'JUDGE',
+        tenantId: undefined,
+        judgeId: 'judge-1',
+        contestantId: null,
+      });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockComments);
     });
 
@@ -134,7 +140,13 @@ describe('CommentaryController', () => {
 
       await controller.getCommentsForScore(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.getCommentsForScore).toHaveBeenCalledWith('score-1', 'ADMIN');
+      expect(mockService.getCommentsForScore).toHaveBeenCalledWith('score-1', {
+        id: 'admin-1',
+        role: 'ADMIN',
+        tenantId: 'tenant-1',
+        judgeId: null,
+        contestantId: null,
+      });
     });
 
     it('should call next with error when service throws', async () => {
@@ -158,7 +170,13 @@ describe('CommentaryController', () => {
 
       await controller.getCommentsByContestant(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.getCommentsByContestant).toHaveBeenCalledWith('cont-1', 'JUDGE');
+      expect(mockService.getCommentsByContestant).toHaveBeenCalledWith('cont-1', {
+        id: 'user-1',
+        role: 'JUDGE',
+        tenantId: undefined,
+        judgeId: 'judge-1',
+        contestantId: null,
+      });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, mockComments);
     });
 
@@ -169,7 +187,13 @@ describe('CommentaryController', () => {
 
       await controller.getCommentsByContestant(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockService.getCommentsByContestant).toHaveBeenCalledWith('cont-1', 'TALLY_MASTER');
+      expect(mockService.getCommentsByContestant).toHaveBeenCalledWith('cont-1', {
+        id: 'tally-1',
+        role: 'TALLY_MASTER',
+        tenantId: 'tenant-1',
+        judgeId: null,
+        contestantId: null,
+      });
     });
 
     it('should call next with error when service throws', async () => {

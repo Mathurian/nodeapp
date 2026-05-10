@@ -3,6 +3,7 @@ import { BaseService } from './BaseService';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
 import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
+import { buildCommentaryReadWhere, CommentaryViewerContext } from '../utils/commentaryAccess';
 
 // P2-4: Proper type definitions for commentary responses
 type ScoreCommentWithJudge = Prisma.ScoreCommentGetPayload<{
@@ -143,12 +144,14 @@ export class CommentaryService extends BaseService {
     }
   }
 
-  async getCommentsForScore(scoreId: string, userRole: string): Promise<ScoreCommentWithDetails[]> {
-    const whereClause: Prisma.ScoreCommentWhereInput = { scoreId };
-
-    if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
-      whereClause.isPrivate = false;
-    }
+  async getCommentsForScore(
+    scoreId: string,
+    viewer: CommentaryViewerContext,
+  ): Promise<ScoreCommentWithDetails[]> {
+    const whereClause: Prisma.ScoreCommentWhereInput = {
+      scoreId,
+      ...buildCommentaryReadWhere(viewer),
+    };
 
     return await this.prisma.scoreComment.findMany({
       where: whereClause,
@@ -169,12 +172,14 @@ export class CommentaryService extends BaseService {
     });
   }
 
-  async getCommentsByContestant(contestantId: string, userRole: string): Promise<ScoreCommentWithFullDetails[]> {
-    const whereClause: Prisma.ScoreCommentWhereInput = { contestantId };
-
-    if (!['ADMIN', 'ORGANIZER', 'BOARD'].includes(userRole)) {
-      whereClause.isPrivate = false;
-    }
+  async getCommentsByContestant(
+    contestantId: string,
+    viewer: CommentaryViewerContext,
+  ): Promise<ScoreCommentWithFullDetails[]> {
+    const whereClause: Prisma.ScoreCommentWhereInput = {
+      contestantId,
+      ...buildCommentaryReadWhere(viewer),
+    };
 
     return await this.prisma.scoreComment.findMany({
       where: whereClause,

@@ -329,6 +329,10 @@ model User {
   contestantNumber      String?
   contestantAge         Int?
   contestantSchool      String?
+  contestantAccommodations      String?
+  contestantPrivateNotes        String?
+  contestantRecommendationNotes String?
+  contestantPrivateDocuments    Json?
   bio                   String?
   imagePath             String?
   phone                 String?

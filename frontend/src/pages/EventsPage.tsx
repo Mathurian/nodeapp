@@ -19,6 +19,7 @@ import {
   CheckIcon,
   ArchiveBoxIcon,
   TrophyIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline'
 import DateFilterControls, { DateFilters } from '../components/DateFilterControls'
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
@@ -72,6 +73,11 @@ interface EventFormData {
   requireAllAuditorCertifiers?: boolean | null
 }
 
+interface EventTemplateFormState {
+  name: string
+  description: string
+}
+
 const eventFormSchema = z.object({
   name: z.string().min(1, 'Event name is required').max(200, 'Name must be less than 200 characters'),
   description: z.string(),
@@ -121,6 +127,14 @@ const EventsPage: React.FC = () => {
   const [selectedTenantId, setSelectedTenantId] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
+  const [templateSourceEvent, setTemplateSourceEvent] = useState<Event | null>(null)
+  const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false)
+  const [creatingTemplate, setCreatingTemplate] = useState(false)
+  const [templateForm, setTemplateForm] = useState<EventTemplateFormState>({
+    name: '',
+    description: '',
+  })
+  const [templateFormError, setTemplateFormError] = useState<string | null>(null)
   const [dateFilters, setDateFilters] = useState<DateFilters>({
     sortDirection: 'asc',
   })
@@ -328,6 +342,55 @@ const EventsPage: React.FC = () => {
   const handleArchive = (event: Event) => {
     if (!confirm(`Archive "${event.name}"? You can restore it later.`)) return
     archiveMutation.mutate(event.id)
+  }
+
+  const openCreateTemplateModal = (event: Event) => {
+    setTemplateSourceEvent(event)
+    setTemplateForm({
+      name: `${event.name} Template`,
+      description: event.description || '',
+    })
+    setTemplateFormError(null)
+    setShowCreateTemplateModal(true)
+  }
+
+  const closeCreateTemplateModal = () => {
+    setTemplateSourceEvent(null)
+    setTemplateForm({ name: '', description: '' })
+    setTemplateFormError(null)
+    setShowCreateTemplateModal(false)
+  }
+
+  const createTemplateFromEvent = async () => {
+    if (!templateSourceEvent) return
+
+    const name = templateForm.name.trim()
+    const description = templateForm.description.trim()
+
+    if (!name) {
+      setTemplateFormError('Template name is required')
+      return
+    }
+
+    try {
+      setCreatingTemplate(true)
+      await eventsAPI.createTemplateFromEvent(templateSourceEvent.id, {
+        name,
+        description: description || undefined,
+      })
+      closeCreateTemplateModal()
+      toast.success('Event template created successfully!')
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to create event template'
+      setTemplateFormError(errorMessage)
+      toast.error(`Error creating template: ${errorMessage}`)
+    } finally {
+      setCreatingTemplate(false)
+    }
   }
 
   const handleUnarchive = (event: Event) => {
@@ -581,6 +644,14 @@ const EventsPage: React.FC = () => {
                   </button>
                   {canManageEvents && (
                     <>
+                      <button
+                        onClick={() => openCreateTemplateModal(event)}
+                        data-disable-card-click="true"
+                        className="w-full sm:flex-1 sm:min-w-[9rem] px-3 py-2 bg-violet-600 dark:bg-violet-500 text-white rounded-md hover:bg-violet-700 dark:hover:bg-violet-600 flex items-center justify-center text-sm"
+                      >
+                        <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
+                        Create Template
+                      </button>
                       {event.archived ? (
                         <button
                           onClick={() => handleUnarchive(event)}
@@ -633,6 +704,99 @@ const EventsPage: React.FC = () => {
                 : 'No events yet. Create your first event to get started.'}
             </p>
           </Card>
+        )}
+
+        {showCreateTemplateModal && templateSourceEvent && (
+          <div className="cgr-modal-overlay">
+            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md sm:max-w-lg p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Create Event Template
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Save the reusable contest, category, and criteria structure from{' '}
+                    <span className="font-semibold text-gray-700 dark:text-gray-200">
+                      {templateSourceEvent.name}
+                    </span>
+                    .
+                  </p>
+                </div>
+                <button
+                  onClick={closeCreateTemplateModal}
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label="Close dialog"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="event-template-name"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Template Name <span className="text-red-500 dark:text-red-400">*</span>
+                  </label>
+                  <input
+                    id="event-template-name"
+                    type="text"
+                    value={templateForm.name}
+                    onChange={(e) => {
+                      setTemplateForm((prev) => ({ ...prev, name: e.target.value }))
+                      if (templateFormError) {
+                        setTemplateFormError(null)
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter template name"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="event-template-description"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Template Description
+                  </label>
+                  <textarea
+                    id="event-template-description"
+                    value={templateForm.description}
+                    onChange={(e) => setTemplateForm((prev) => ({ ...prev, description: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Describe when to use this template"
+                  />
+                </div>
+
+                <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm text-blue-900 dark:text-blue-100">
+                  Active contests and their categories and criteria will be copied into a tenant-level event template.
+                </div>
+
+                {templateFormError && (
+                  <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+                    {templateFormError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    variant="secondary"
+                    onClick={closeCreateTemplateModal}
+                    disabled={creatingTemplate}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={createTemplateFromEvent} disabled={creatingTemplate}>
+                    <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Create/Edit Form Modal */}

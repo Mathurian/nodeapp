@@ -18,12 +18,20 @@ import {
   UserFormData,
   CustomField,
   Tenant,
+  ContestantPrivateDocument,
 } from '../components/users'
 
 /** Extended User type with optimistic state flags */
 interface OptimisticUser extends User {
   _optimistic?: boolean
   _deleting?: boolean
+}
+
+interface ContestantPrivateProfileResponse {
+  accommodations: string | null
+  privateNotes: string | null
+  recommendationNotes: string | null
+  privateDocuments: ContestantPrivateDocument[]
 }
 
 /**
@@ -57,6 +65,8 @@ const UsersPage: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedBioFile, setSelectedBioFile] = useState<File | null>(null)
+  const [selectedContestantPrivateFiles, setSelectedContestantPrivateFiles] = useState<File[]>([])
+  const [existingContestantPrivateDocuments, setExistingContestantPrivateDocuments] = useState<ContestantPrivateDocument[]>([])
 
   // Reset password state
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
@@ -85,6 +95,7 @@ const UsersPage: React.FC = () => {
   // Check permissions
   const canManageUsers = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(currentUser?.role || '')
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
+  const canManageContestantPrivateData = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(currentUser?.role || '')
 
   // Fetch custom fields for USER entity type
   React.useEffect(() => {
@@ -187,6 +198,9 @@ const UsersPage: React.FC = () => {
         if (selectedBioFile && userId) {
           uploadBioFileMutation.mutate({ userId, file: selectedBioFile })
         }
+        if (selectedContestantPrivateFiles.length > 0 && userId) {
+          uploadContestantPrivateFilesMutation.mutate({ userId, files: selectedContestantPrivateFiles })
+        }
         resetForm()
         toast.success('User created successfully!')
       },
@@ -228,6 +242,9 @@ const UsersPage: React.FC = () => {
         // Upload bio file if selected
         if (selectedBioFile && userId) {
           uploadBioFileMutation.mutate({ userId, file: selectedBioFile })
+        }
+        if (selectedContestantPrivateFiles.length > 0 && userId) {
+          uploadContestantPrivateFilesMutation.mutate({ userId, files: selectedContestantPrivateFiles })
         }
         resetForm()
         toast.success('User updated successfully!')
@@ -350,6 +367,42 @@ const UsersPage: React.FC = () => {
     }
   )
 
+  const uploadContestantPrivateFilesMutation = useMutation(
+    async ({ userId, files }: { userId: string; files: File[] }) => {
+      const formData = new FormData()
+      files.forEach((file) => formData.append('files', file))
+      const response = await usersAPI.uploadContestantPrivateFiles(userId, formData)
+      return response.data
+    },
+    {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries('users')
+        const documents = data.data?.privateDocuments || data.privateDocuments || []
+        setExistingContestantPrivateDocuments(Array.isArray(documents) ? documents : [])
+        toast.success('Private contestant documents uploaded successfully!')
+      },
+      onError: (error: Error) => {
+        toast.error(`Error uploading private documents: ${error.message}`)
+      },
+    }
+  )
+
+  const deleteContestantPrivateFileMutation = useMutation(
+    async ({ userId, fileId }: { userId: string; fileId: string }) => {
+      const response = await usersAPI.deleteContestantPrivateFile(userId, fileId)
+      return response.data
+    },
+    {
+      onSuccess: (_, { fileId }) => {
+        setExistingContestantPrivateDocuments((prev) => prev.filter((file) => file.id !== fileId))
+        toast.success('Private contestant document deleted successfully!')
+      },
+      onError: (error: Error) => {
+        toast.error(`Error deleting private document: ${error.message}`)
+      },
+    }
+  )
+
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation(
     async (userIds: string[]) => {
@@ -397,11 +450,14 @@ const UsersPage: React.FC = () => {
     setSelectedImage(null)
     setImagePreview(null)
     setSelectedBioFile(null)
+    setSelectedContestantPrivateFiles([])
+    setExistingContestantPrivateDocuments([])
   }
 
   // Handle edit user
   const handleEdit = async (user: User) => {
     setEditingUser(user)
+    setSelectedContestantPrivateFiles([])
 
     // Fetch custom field values for this user
     const userCustomFields: Record<string, unknown> = {}
@@ -416,6 +472,26 @@ const UsersPage: React.FC = () => {
       })
     } catch (error) {
       console.error('Failed to fetch custom field values:', error)
+    }
+
+    let privateProfile: ContestantPrivateProfileResponse | null = null
+    if (user.role === 'CONTESTANT' && canManageContestantPrivateData) {
+      try {
+        const response = await usersAPI.getContestantPrivateProfile(user.id)
+        const payload = response.data.data || response.data
+        privateProfile = {
+          accommodations: payload.accommodations || '',
+          privateNotes: payload.privateNotes || '',
+          recommendationNotes: payload.recommendationNotes || '',
+          privateDocuments: Array.isArray(payload.privateDocuments) ? payload.privateDocuments : [],
+        }
+        setExistingContestantPrivateDocuments(privateProfile.privateDocuments)
+      } catch (error) {
+        console.error('Failed to fetch contestant private profile:', error)
+        setExistingContestantPrivateDocuments([])
+      }
+    } else {
+      setExistingContestantPrivateDocuments([])
     }
 
     setFormDefaultValues({
@@ -434,9 +510,32 @@ const UsersPage: React.FC = () => {
       contestantNumber: user.contestant?.contestantNumber != null
         ? String(user.contestant.contestantNumber)
         : '',
+      accommodations: privateProfile?.accommodations || '',
+      privateNotes: privateProfile?.privateNotes || '',
+      recommendationNotes: privateProfile?.recommendationNotes || '',
       customFields: userCustomFields,
     })
     setIsFormOpen(true)
+  }
+
+  const handleDownloadContestantPrivateDocument = async (fileId: string, originalName: string) => {
+    if (!editingUser) return
+
+    try {
+      const response = await usersAPI.downloadContestantPrivateFile(editingUser.id, fileId)
+      const blob = new Blob([response.data])
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = originalName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to download private document'
+      toast.error(errorMessage)
+    }
   }
 
   // Handle delete user
@@ -679,8 +778,17 @@ const UsersPage: React.FC = () => {
           onImagePreviewChange={setImagePreview}
           selectedBioFile={selectedBioFile}
           onBioFileSelect={setSelectedBioFile}
+          selectedContestantPrivateFiles={selectedContestantPrivateFiles}
+          onContestantPrivateFilesChange={setSelectedContestantPrivateFiles}
+          existingContestantPrivateDocuments={existingContestantPrivateDocuments}
+          onDeleteContestantPrivateDocument={(fileId) => {
+            if (!editingUser) return
+            deleteContestantPrivateFileMutation.mutate({ userId: editingUser.id, fileId })
+          }}
+          onDownloadContestantPrivateDocument={handleDownloadContestantPrivateDocument}
           isSubmitting={createMutation.isLoading || updateMutation.isLoading}
           currentUserRole={currentUser?.role}
+          canManageContestantPrivateData={canManageContestantPrivateData}
           onSubmit={handleSubmit}
           onClose={resetForm}
         />

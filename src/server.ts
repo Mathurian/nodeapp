@@ -56,6 +56,10 @@ import {
   getOfflineReliabilityInvariantState,
   initializeOfflineReliabilityInvariants,
 } from './config/offlineReliability.config';
+import {
+  canViewScoreFile,
+  createCommentaryViewerContext,
+} from './utils/commentaryAccess';
 
 // Services
 import ScheduledBackupService from './services/scheduledBackupService';
@@ -456,6 +460,24 @@ const buildUploadPathCandidates = (relativePath: string): string[] => {
   return Array.from(candidates);
 };
 
+const findScoreFileByTenantAndPath = async (tenantId: string, relativePath: string) => {
+  const pathCandidates = buildUploadPathCandidates(relativePath);
+  return prisma.scoreFile.findFirst({
+    where: {
+      tenantId,
+      OR: [
+        { filePath: { in: pathCandidates } },
+        { filePath: { endsWith: `/${relativePath}` } }
+      ]
+    },
+    select: {
+      id: true,
+      uploadedById: true,
+      contestantId: true,
+    }
+  });
+};
+
 const isUploadPathReferencedByTenant = async (tenantId: string, relativePath: string): Promise<boolean> => {
   const pathCandidates = buildUploadPathCandidates(relativePath);
   const basename = path.posix.basename(relativePath);
@@ -473,7 +495,17 @@ const isUploadPathReferencedByTenant = async (tenantId: string, relativePath: st
   });
   if (dbFile) return true;
 
-  const [userRef, contestantRef, judgeRef, emceeRef] = await Promise.all([
+  const [scoreFileRef, userRef, contestantRef, judgeRef, emceeRef] = await Promise.all([
+    prisma.scoreFile.findFirst({
+      where: {
+        tenantId,
+        OR: [
+          { filePath: { in: pathCandidates } },
+          { filePath: { endsWith: `/${relativePath}` } }
+        ]
+      },
+      select: { id: true }
+    }),
     prisma.user.findFirst({
       where: {
         tenantId,
@@ -518,7 +550,7 @@ const isUploadPathReferencedByTenant = async (tenantId: string, relativePath: st
     })
   ]);
 
-  return Boolean(userRef || contestantRef || judgeRef || emceeRef);
+  return Boolean(scoreFileRef || userRef || contestantRef || judgeRef || emceeRef);
 };
 
 app.get('/uploads/*', async (req: Request, res: Response, next: NextFunction) => {
@@ -577,6 +609,15 @@ app.get('/uploads/*', async (req: Request, res: Response, next: NextFunction) =>
         if (!tenantId) {
           res.status(400).json({ success: false, error: 'Tenant context required' });
           return;
+        }
+
+        const scoreFile = await findScoreFileByTenantAndPath(tenantId, relativePath);
+        if (scoreFile) {
+          const viewer = createCommentaryViewerContext(req.user);
+          if (!canViewScoreFile(viewer, scoreFile)) {
+            res.status(403).json({ success: false, error: 'Access denied' });
+            return;
+          }
         }
 
         const hasAccess = await isUploadPathReferencedByTenant(tenantId, relativePath);

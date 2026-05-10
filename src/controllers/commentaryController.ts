@@ -7,6 +7,7 @@ import {
   getOfflineWriteTimeoutMs,
   matchOfflineWriteOwnershipRoute,
 } from '../config/offlineWriteOwnership.config';
+import { createCommentaryViewerContext } from '../utils/commentaryAccess';
 
 export class CommentaryController {
   private commentaryService: CommentaryService;
@@ -53,7 +54,10 @@ export class CommentaryController {
       }
 
       const scoreId = getRequiredParam(req, 'scoreId');
-      const comments = await this.commentaryService.getCommentsForScore(scoreId, req.user.role);
+      const comments = await this.commentaryService.getCommentsForScore(
+        scoreId,
+        createCommentaryViewerContext(req.user),
+      );
       return sendSuccess(res, comments);
     } catch (error) {
       return next(error);
@@ -68,7 +72,10 @@ export class CommentaryController {
       }
 
       const contestantId = getRequiredParam(req, 'contestantId');
-      const comments = await this.commentaryService.getCommentsByContestant(contestantId, req.user.role);
+      const comments = await this.commentaryService.getCommentsByContestant(
+        contestantId,
+        createCommentaryViewerContext(req.user),
+      );
       return sendSuccess(res, comments);
     } catch (error) {
       return next(error);

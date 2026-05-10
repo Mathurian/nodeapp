@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
 import bcrypt from 'bcrypt';
@@ -6,7 +7,7 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('UsersRoutes');
 import {
-  getAllUsers, getUserById, createUser, updateUser, deleteUser, resetPassword, importUsersFromCSV, getCSVTemplate, updateLastLogin, bulkRemoveUsers, removeAllUsersByRole, getUsersByRole, updateUserRoleFields, getUserStats, uploadUserImage, uploadUserBioFile, bulkUploadUsers, bulkDeleteUsers, getBulkUploadTemplate
+  getAllUsers, getUserById, createUser, updateUser, deleteUser, resetPassword, importUsersFromCSV, getCSVTemplate, updateLastLogin, bulkRemoveUsers, removeAllUsersByRole, getUsersByRole, updateUserRoleFields, getUserStats, uploadUserImage, uploadUserBioFile, bulkUploadUsers, bulkDeleteUsers, getBulkUploadTemplate, getContestantPrivateProfile, uploadContestantPrivateFiles, downloadContestantPrivateFile, deleteContestantPrivateFile
 } from '../controllers/usersController';
 import {
   authenticateToken, requireRole
@@ -17,6 +18,7 @@ import {
 import {
   logActivity
 } from '../middleware/errorHandler';
+import { FILE_SIZE } from '../config/constants';
 
 const router: Router = express.Router();
 
@@ -91,6 +93,35 @@ const userBioUpload = multer({
   }
 });
 
+const contestantPrivateDocumentStorage = multer.diskStorage({
+  destination: (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+    fs.mkdirSync('uploads/users/contestant-private/', { recursive: true });
+    cb(null, 'uploads/users/contestant-private/');
+  },
+  filename: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'contestant-private-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const contestantPrivateDocumentUpload = multer({
+  storage: contestantPrivateDocumentStorage,
+  limits: { fileSize: FILE_SIZE.MAX_DOCUMENT_UPLOAD },
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowedMimeTypes = [
+      'text/plain',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only TXT, PDF, DOC, and DOCX files are allowed.') as any, false);
+    }
+  }
+});
+
 // Apply authentication to all routes
 router.use(authenticateToken)
 
@@ -127,6 +158,10 @@ router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'B
 // Role-based user lookup — must be before /:id to prevent route shadowing
 router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
 router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
+router.get('/:id/contestant-private-profile', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getContestantPrivateProfile)
+router.post('/:id/contestant-private-files', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), contestantPrivateDocumentUpload.array('files', 10), logActivity('UPLOAD_CONTESTANT_PRIVATE_FILES', 'USER'), uploadContestantPrivateFiles)
+router.get('/:id/contestant-private-files/:fileId/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), downloadContestantPrivateFile)
+router.delete('/:id/contestant-private-files/:fileId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('DELETE_CONTESTANT_PRIVATE_FILE', 'USER'), deleteContestantPrivateFile)
 
 /**
  * @swagger

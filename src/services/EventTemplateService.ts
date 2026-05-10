@@ -72,6 +72,14 @@ export interface CreateEventFromTemplateDto {
   tenantId: string;
 }
 
+export interface CreateTemplateFromEventDto {
+  eventId: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  tenantId: string;
+}
+
 export interface CreateContestFromTemplateDto {
   templateId: string;
   templateContestId: string;
@@ -240,6 +248,92 @@ export class EventTemplateService extends BaseService {
       contests: JSON.parse(template.contests as string) as ContestTemplate[],
       categories: JSON.parse(template.categories as string) as CategoryTemplate[],
       createdAt: template.createdAt
+    };
+  }
+
+  async createFromEvent(data: CreateTemplateFromEventDto): Promise<TemplateResponse> {
+    if (!data.eventId) {
+      throw this.badRequestError('Event ID is required');
+    }
+    if (!data.name?.trim()) {
+      throw this.badRequestError('Template name is required');
+    }
+
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: data.eventId,
+        tenantId: data.tenantId,
+        deletedAt: null,
+      },
+      include: {
+        contests: {
+          where: {
+            deletedAt: null,
+            archived: false,
+          },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            categories: {
+              where: {
+                deletedAt: null,
+              },
+              orderBy: { createdAt: 'asc' },
+              include: {
+                criteria: {
+                  orderBy: { createdAt: 'asc' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw this.notFoundError('Event', data.eventId);
+    }
+
+    const contests: ContestTemplate[] = event.contests.map((contest) => ({
+      id: contest.id,
+      name: contest.name,
+      description: contest.description || undefined,
+    }));
+
+    const categories: CategoryTemplate[] = event.contests.flatMap((contest) =>
+      contest.categories.map((category) => ({
+        id: category.id,
+        contestId: contest.id,
+        name: category.name,
+        description: category.description || undefined,
+        scoreCap: category.scoreCap ?? undefined,
+        timeLimit: category.timeLimit ?? undefined,
+        contestantMin: category.contestantMin ?? undefined,
+        contestantMax: category.contestantMax ?? undefined,
+        criteria: category.criteria.map((criterion) => ({
+          name: criterion.name,
+          maxScore: criterion.maxScore,
+        })),
+      }))
+    );
+
+    const template = await this.prisma.eventTemplate.create({
+      data: {
+        name: data.name.trim(),
+        description: data.description?.trim() || event.description || null,
+        contests: JSON.stringify(contests),
+        categories: JSON.stringify(categories),
+        createdBy: data.createdBy,
+        tenantId: data.tenantId,
+      },
+    });
+
+    return {
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      contests: JSON.parse(template.contests as string) as ContestTemplate[],
+      categories: JSON.parse(template.categories as string) as CategoryTemplate[],
+      createdAt: template.createdAt,
     };
   }
 

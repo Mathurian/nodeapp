@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import {
   createTemplate,
+  createTemplateFromEvent,
   getTemplates,
   getTemplate,
   updateTemplate,
@@ -10,7 +11,7 @@ import {
 } from '../controllers/eventTemplateController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import { validate, createContestFromTemplateSchema } from '../middleware/validation';
+import { validate, createContestFromTemplateSchema, createTemplateFromEventSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
 
@@ -46,6 +47,7 @@ router.use(authenticateToken)
 router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getTemplates)
 router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getTemplate)
 router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
+router.post('/from-event/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createTemplateFromEventSchema), logActivity('CREATE_EVENT_TEMPLATE_FROM_EVENT', 'EVENT_TEMPLATE'), createTemplateFromEvent)
 router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), updateTemplate)
 router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), deleteTemplate)
 router.post('/:id/create-event', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createEventFromTemplate)

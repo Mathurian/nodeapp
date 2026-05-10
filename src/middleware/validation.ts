@@ -133,6 +133,10 @@ export const createUserSchema = z.object({
   pronouns: z.string().optional(),
   phone: z.string().optional(),
   bio: z.string().optional(),
+  contestantNumber: z.union([z.string(), z.number()]).optional(),
+  accommodations: z.string().max(5000).optional(),
+  privateNotes: z.string().max(5000).optional(),
+  recommendationNotes: z.string().max(5000).optional(),
   isActive: z.boolean().optional()
 });
 
@@ -151,6 +155,10 @@ export const updateUserSchema = z.object({
   pronouns: z.string().optional(),
   phone: z.string().optional(),
   bio: z.string().optional(),
+  contestantNumber: z.union([z.string(), z.number()]).optional(),
+  accommodations: z.string().max(5000).optional(),
+  privateNotes: z.string().max(5000).optional(),
+  recommendationNotes: z.string().max(5000).optional(),
   isActive: z.boolean().optional()
 });
 
@@ -367,6 +375,11 @@ export const importCriteriaSchema = z
   });
 
 export const createTemplateFromCategorySchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(1000).optional(),
+});
+
+export const createTemplateFromEventSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(1000).optional(),
 });

@@ -9,7 +9,7 @@ import {
   DocumentIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
-import { User, UserFormData, CustomField, ROLES } from './types'
+import { User, UserFormData, CustomField, ROLES, ContestantPrivateDocument } from './types'
 import UploadProgress, { UploadStatus } from '../ui/UploadProgress'
 import { emailSchema, nameSchema, passwordSchema } from '../../lib/validation'
 
@@ -45,6 +45,16 @@ export interface UserFormProps {
   selectedBioFile: File | null
   /** Callback when bio file is selected */
   onBioFileSelect: (file: File | null) => void
+  /** Selected private contestant files for upload */
+  selectedContestantPrivateFiles: File[]
+  /** Callback when private contestant files change */
+  onContestantPrivateFilesChange: (files: File[]) => void
+  /** Existing stored private contestant documents */
+  existingContestantPrivateDocuments: ContestantPrivateDocument[]
+  /** Remove an existing stored private contestant document */
+  onDeleteContestantPrivateDocument?: (fileId: string) => void
+  /** Download an existing stored private contestant document */
+  onDownloadContestantPrivateDocument?: (fileId: string, originalName: string) => void
   /** Image upload progress state */
   imageUploadState?: FileUploadState
   /** Bio file upload progress state */
@@ -57,6 +67,8 @@ export interface UserFormProps {
   isSubmitting: boolean
   /** Current authenticated user role (used for role assignment restrictions) */
   currentUserRole?: string
+  /** Whether the private contestant section should be shown */
+  canManageContestantPrivateData?: boolean
   /** Callback when form is submitted with validated data */
   onSubmit: (data: UserFormData) => void
   /** Callback when form is closed/reset */
@@ -77,6 +89,9 @@ const userFormSchema = z.object({
   bio: z.string().optional(),
   isActive: z.boolean(),
   contestantNumber: z.string().optional(),
+  accommodations: z.string().optional(),
+  privateNotes: z.string().optional(),
+  recommendationNotes: z.string().optional(),
 })
 
 type UserFormFields = z.infer<typeof userFormSchema>
@@ -98,12 +113,18 @@ const UserForm: React.FC<UserFormProps> = ({
   onImagePreviewChange,
   selectedBioFile,
   onBioFileSelect,
+  selectedContestantPrivateFiles,
+  onContestantPrivateFilesChange,
+  existingContestantPrivateDocuments,
+  onDeleteContestantPrivateDocument,
+  onDownloadContestantPrivateDocument,
   imageUploadState,
   bioUploadState,
   onCancelImageUpload,
   onCancelBioUpload,
   isSubmitting,
   currentUserRole,
+  canManageContestantPrivateData,
   onSubmit,
   onClose,
 }) => {
@@ -137,6 +158,9 @@ const UserForm: React.FC<UserFormProps> = ({
       bio: defaultValues?.bio ?? '',
       isActive: defaultValues?.isActive ?? true,
       contestantNumber: defaultValues?.contestantNumber ?? '',
+      accommodations: defaultValues?.accommodations ?? '',
+      privateNotes: defaultValues?.privateNotes ?? '',
+      recommendationNotes: defaultValues?.recommendationNotes ?? '',
     },
   })
 
@@ -156,6 +180,9 @@ const UserForm: React.FC<UserFormProps> = ({
         bio: defaultValues.bio ?? '',
         isActive: defaultValues.isActive ?? true,
         contestantNumber: defaultValues.contestantNumber ?? '',
+        accommodations: defaultValues.accommodations ?? '',
+        privateNotes: defaultValues.privateNotes ?? '',
+        recommendationNotes: defaultValues.recommendationNotes ?? '',
       })
     }
   }, [defaultValues, reset])
@@ -260,6 +287,37 @@ const UserForm: React.FC<UserFormProps> = ({
     if (bioFileInputRef.current) {
       bioFileInputRef.current.value = ''
     }
+  }
+
+  const handleContestantPrivateFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFiles = Array.from(e.target.files || [])
+    if (nextFiles.length === 0) {
+      return
+    }
+
+    const allowedTypes = [
+      'text/plain',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ]
+
+    for (const file of nextFiles) {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Please select TXT, PDF, DOC, or DOCX files')
+        return
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error('Private document size must be less than 20MB')
+        return
+      }
+    }
+
+    onContestantPrivateFilesChange([...selectedContestantPrivateFiles, ...nextFiles])
+  }
+
+  const handleRemoveContestantPrivateFile = (index: number) => {
+    onContestantPrivateFilesChange(selectedContestantPrivateFiles.filter((_, currentIndex) => currentIndex !== index))
   }
 
   /**
@@ -504,18 +562,132 @@ const UserForm: React.FC<UserFormProps> = ({
 
           {/* Contestant Number — only shown for CONTESTANT role */}
           {watchedRole === 'CONTESTANT' && (
-            <div>
-              <label htmlFor={`${idBase}-contestant-number`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Contestant Number
-              </label>
-              <input
-                id={`${idBase}-contestant-number`}
-                type="number"
-                {...register('contestantNumber')}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., 1, 2, 3..."
-                min={1}
-              />
+            <div className="space-y-4">
+              <div>
+                <label htmlFor={`${idBase}-contestant-number`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Contestant Number
+                </label>
+                <input
+                  id={`${idBase}-contestant-number`}
+                  type="number"
+                  {...register('contestantNumber')}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., 1, 2, 3..."
+                  min={1}
+                />
+              </div>
+
+              {canManageContestantPrivateData && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-amber-900 dark:text-amber-100">
+                      Private Contestant Profile
+                    </h3>
+                    <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                      These fields are intended for staff-only contestant accommodations, recommendation context, and internal notes.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor={`${idBase}-accommodations`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      ADA / Access Accommodations
+                    </label>
+                    <textarea
+                      id={`${idBase}-accommodations`}
+                      {...register('accommodations')}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Record accommodations or access needs for staff use."
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor={`${idBase}-recommendation-notes`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Recommendation / Supporting Notes
+                    </label>
+                    <textarea
+                      id={`${idBase}-recommendation-notes`}
+                      {...register('recommendationNotes')}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Capture recommendation highlights or supporting context."
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor={`${idBase}-private-notes`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Internal Staff Notes
+                    </label>
+                    <textarea
+                      id={`${idBase}-private-notes`}
+                      {...register('privateNotes')}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Add internal-only notes for admin and organizer workflows."
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor={`${idBase}-private-documents`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Private Supporting Documents
+                    </label>
+                    <input
+                      id={`${idBase}-private-documents`}
+                      type="file"
+                      multiple
+                      accept=".txt,.pdf,.doc,.docx"
+                      onChange={handleContestantPrivateFilesSelect}
+                      className="block w-full text-sm text-gray-700 dark:text-gray-300"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      TXT, PDF, DOC, and DOCX files up to 20MB each.
+                    </p>
+
+                    {selectedContestantPrivateFiles.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {selectedContestantPrivateFiles.map((file, index) => (
+                          <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm">
+                            <span className="text-gray-800 dark:text-gray-200">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveContestantPrivateFile(index)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {existingContestantPrivateDocuments.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Existing Documents
+                        </p>
+                        {existingContestantPrivateDocuments.map((file) => (
+                          <div key={file.id} className="flex items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm">
+                            <button
+                              type="button"
+                              onClick={() => onDownloadContestantPrivateDocument?.(file.id, file.originalName)}
+                              className="text-left text-blue-600 hover:text-blue-700"
+                            >
+                              {file.originalName}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteContestantPrivateDocument?.(file.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -3,10 +3,11 @@ id: TASK-35
 title: >-
   Investigate certification overview mismatch for judge and category/contestant
   status
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-09 22:59'
-updated_date: '2026-05-09 23:00'
+updated_date: '2026-05-10 00:00'
 labels:
   - certifications
   - bug

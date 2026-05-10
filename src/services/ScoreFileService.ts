@@ -3,13 +3,18 @@
  * Manages uploaded score sheets and judge documents
  */
 
-import { PrismaClient, ScoreFile } from '@prisma/client';
+import { PrismaClient, Prisma, ScoreFile } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { promises as fs } from 'fs';
 import { createLogger } from '../utils/logger';
 import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
 import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
+import {
+  buildScoreFileReadWhere,
+  canViewScoreFile,
+  CommentaryViewerContext,
+} from '../utils/commentaryAccess';
 
 const logger = createLogger('ScoreFileService');
 
@@ -162,19 +167,40 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score file by ID
    */
-  async getScoreFileById(id: string, tenantId: string): Promise<ScoreFileInfo | null> {
+  async getScoreFileById(
+    id: string,
+    tenantId: string,
+    viewer?: CommentaryViewerContext,
+  ): Promise<ScoreFileInfo | null> {
     const file = await this.prisma.scoreFile.findFirst({
       where: { id, tenantId }
     });
-    return file ? this.normalizeScoreFile(file) : null;
+
+    if (!file) {
+      return null;
+    }
+
+    if (viewer && !canViewScoreFile(viewer, file)) {
+      throw this.forbiddenError('You do not have permission to view this score file');
+    }
+
+    return this.normalizeScoreFile(file);
   }
 
   /**
    * Get score files for a category
    */
-  async getScoreFilesByCategory(categoryId: string, tenantId: string): Promise<ScoreFileInfo[]> {
+  async getScoreFilesByCategory(
+    categoryId: string,
+    tenantId: string,
+    viewer?: CommentaryViewerContext,
+  ): Promise<ScoreFileInfo[]> {
     const files = await this.prisma.scoreFile.findMany({
-      where: { categoryId, tenantId },
+      where: {
+        categoryId,
+        tenantId,
+        ...(viewer ? buildScoreFileReadWhere(viewer) : {})
+      },
       orderBy: { createdAt: 'desc' }
     });
     return files.map((f) => this.normalizeScoreFile(f));
@@ -183,9 +209,17 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score files for a judge
    */
-  async getScoreFilesByJudge(judgeId: string, tenantId: string): Promise<ScoreFileInfo[]> {
+  async getScoreFilesByJudge(
+    judgeId: string,
+    tenantId: string,
+    viewer?: CommentaryViewerContext,
+  ): Promise<ScoreFileInfo[]> {
     const files = await this.prisma.scoreFile.findMany({
-      where: { judgeId, tenantId },
+      where: {
+        judgeId,
+        tenantId,
+        ...(viewer ? buildScoreFileReadWhere(viewer) : {})
+      },
       orderBy: { createdAt: 'desc' }
     });
     return files.map((f) => this.normalizeScoreFile(f));
@@ -194,9 +228,17 @@ export class ScoreFileService extends BaseService {
   /**
    * Get score files for a contestant
    */
-  async getScoreFilesByContestant(contestantId: string, tenantId: string): Promise<ScoreFileInfo[]> {
+  async getScoreFilesByContestant(
+    contestantId: string,
+    tenantId: string,
+    viewer?: CommentaryViewerContext,
+  ): Promise<ScoreFileInfo[]> {
     const files = await this.prisma.scoreFile.findMany({
-      where: { contestantId, tenantId },
+      where: {
+        contestantId,
+        tenantId,
+        ...(viewer ? buildScoreFileReadWhere(viewer) : {})
+      },
       orderBy: { createdAt: 'desc' }
     });
     return files.map((f) => this.normalizeScoreFile(f));
@@ -302,15 +344,19 @@ export class ScoreFileService extends BaseService {
     judgeId?: string;
     contestantId?: string;
     status?: string;
-  }): Promise<ScoreFileInfo[]> {
+  }, viewer?: CommentaryViewerContext): Promise<ScoreFileInfo[]> {
+    const readWhere = viewer ? buildScoreFileReadWhere(viewer) : {};
+    const whereClause: Prisma.ScoreFileWhereInput = {
+      tenantId,
+      categoryId: filters?.categoryId,
+      judgeId: filters?.judgeId,
+      contestantId: filters?.contestantId,
+      status: filters?.status,
+      ...readWhere,
+    };
+
     const files = await this.prisma.scoreFile.findMany({
-      where: {
-        tenantId,
-        categoryId: filters?.categoryId,
-        judgeId: filters?.judgeId,
-        contestantId: filters?.contestantId,
-        status: filters?.status
-      },
+      where: whereClause,
       orderBy: { createdAt: 'desc' }
     });
     return files.map((f) => this.normalizeScoreFile(f));

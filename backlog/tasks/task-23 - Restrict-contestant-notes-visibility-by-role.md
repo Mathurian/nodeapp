@@ -2,9 +2,10 @@
 id: TASK-23
 title: Restrict contestant notes visibility by role
 status: To Do
-assignee: []
+assignee:
+  - '@codex'
 created_date: '2026-05-09 20:32'
-updated_date: '2026-05-09 20:59'
+updated_date: '2026-05-10 00:00'
 labels:
   - privacy
   - permissions
@@ -27,6 +28,15 @@ Ensure sensitive private contestant metadata such as ADA accommodations, letters
 - [ ] #2 All private contestant metadata endpoints or payloads enforce the same role-based visibility rules server-side.
 - [ ] #3 Unauthorized users cannot retrieve protected contestant metadata through direct requests, alternate views, exports, or existing bio/image flows.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Split contestant private metadata access into read and management paths so ADMIN, ORGANIZER, and JUDGE can view it, while only admin-side roles retain edit/upload capabilities and unauthorized roles are blocked server-side.
+2. Extend judge-facing contestant payloads and admin/organizer contestant profile views to surface private metadata in the existing scoring/bio experiences instead of creating a separate disconnected UI.
+3. Ensure generic users, bio directory, and other existing contestant payloads continue to exclude private metadata for unauthorized roles and direct requests, including private document download attempts.
+4. Add focused verification for allowed versus denied roles and the updated UI exposure, then run targeted backend/frontend checks before closing the task.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

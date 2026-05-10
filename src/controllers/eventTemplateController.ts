@@ -32,6 +32,28 @@ export class EventTemplateController {
     }
   };
 
+  createTemplateFromEvent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const eventId = req.params['id'] as string;
+      const { name, description } = req.body;
+      const template = await this.eventTemplateService.createFromEvent({
+        eventId,
+        name,
+        description,
+        createdBy: req.user.id,
+        tenantId: req.user.tenantId,
+      });
+      return sendSuccess(res, template, 'Template created from event', 201);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   getTemplates = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -146,6 +168,7 @@ export class EventTemplateController {
 
 const controller = new EventTemplateController();
 export const createTemplate = controller.createTemplate;
+export const createTemplateFromEvent = controller.createTemplateFromEvent;
 export const getTemplates = controller.getTemplates;
 export const getTemplate = controller.getTemplate;
 export const updateTemplate = controller.updateTemplate;

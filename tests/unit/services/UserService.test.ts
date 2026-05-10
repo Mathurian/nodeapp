@@ -10,7 +10,6 @@ import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import bcrypt from 'bcrypt';
 import { ConflictError, ValidationError, NotFoundError } from '../../../src/services/BaseService';
 import { createMockUser } from '../../helpers/mockData';
-import { EmailService } from '../../../src/services/EmailService';
 
 // Mock dependencies
 jest.mock('bcrypt');
@@ -22,7 +21,6 @@ describe('UserService', () => {
   let userService: UserService;
   let mockUserRepository: jest.Mocked<UserRepository>;
   let mockPrisma: DeepMockProxy<PrismaClient>;
-  let mockEmailService: jest.Mocked<EmailService>;
 
   // Sample user data
   const mockUser = createMockUser();
@@ -49,15 +47,8 @@ describe('UserService', () => {
     } as any;
 
     mockPrisma = mockDeep<PrismaClient>();
-    mockEmailService = {
-      sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
-      sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
-      sendPasswordChangedEmail: jest.fn().mockResolvedValue(undefined),
-      sendEmail: jest.fn().mockResolvedValue(undefined),
-    } as any;
-
     // Create service instance with all required dependencies
-    userService = new UserService(mockUserRepository, mockPrisma as any, mockEmailService);
+    userService = new UserService(mockUserRepository, mockPrisma as any);
   });
 
   afterEach(() => {

@@ -27,6 +27,7 @@ export type {
   CustomField,
   Tenant,
   RoleInfo,
+  ContestantPrivateDocument,
 } from './types'
 
 export { ROLES, getRoleInfo } from './types'

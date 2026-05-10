@@ -3,6 +3,7 @@ import { ScoreFileService } from '../../../src/services/ScoreFileService';
 import { PrismaClient, ScoreFile } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { promises as fs } from 'fs';
+import { CommentaryViewerContext } from '../../../src/utils/commentaryAccess';
 
 // Use the global fs.promises mock from jest.globalMocks.ts
 const mockUnlink = fs.unlink as jest.Mock;
@@ -10,8 +11,21 @@ const mockUnlink = fs.unlink as jest.Mock;
 describe('ScoreFileService', () => {
   let service: ScoreFileService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
-
   const tenantId = 'tenant-123';
+  const judgeViewer: CommentaryViewerContext = {
+    id: 'user-123',
+    role: 'JUDGE',
+    tenantId,
+    judgeId: 'judge-123',
+    contestantId: null,
+  };
+  const contestantViewer: CommentaryViewerContext = {
+    id: 'contestant-user',
+    role: 'CONTESTANT',
+    tenantId,
+    judgeId: null,
+    contestantId: 'contestant-123',
+  };
 
   const mockScoreFile: ScoreFile = {
     id: 'file-123',
@@ -180,6 +194,17 @@ describe('ScoreFileService', () => {
 
       expect(result).toBeNull();
     });
+
+    it('should reject unauthorized access to a specific score file', async () => {
+      mockPrisma.scoreFile.findFirst.mockResolvedValue({
+        ...mockScoreFile,
+        uploadedById: 'different-user',
+      } as any);
+
+      await expect(
+        service.getScoreFileById('file-123', tenantId, judgeViewer)
+      ).rejects.toThrow('You do not have permission to view this score file');
+    });
   });
 
   describe('getScoreFilesByCategory', () => {
@@ -192,6 +217,17 @@ describe('ScoreFileService', () => {
       expect(result).toEqual(files.map((file) => normalizedScoreFile(file as ScoreFile)));
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
         where: { categoryId: 'cat-123', tenantId },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('should scope category file listings to the uploading judge', async () => {
+      mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
+
+      await service.getScoreFilesByCategory('cat-123', tenantId, judgeViewer);
+
+      expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
+        where: { categoryId: 'cat-123', tenantId, uploadedById: 'user-123' },
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -228,6 +264,17 @@ describe('ScoreFileService', () => {
       const result = await service.getScoreFilesByContestant('contestant-123', tenantId);
 
       expect(result).toEqual(files.map((file) => normalizedScoreFile(file as ScoreFile)));
+      expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
+        where: { contestantId: 'contestant-123', tenantId },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('should scope contestant file listings to the contestant viewer', async () => {
+      mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
+
+      await service.getScoreFilesByContestant('contestant-123', tenantId, contestantViewer);
+
       expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
         where: { contestantId: 'contestant-123', tenantId },
         orderBy: { createdAt: 'desc' },
@@ -466,6 +513,24 @@ describe('ScoreFileService', () => {
           status: 'approved',
           tenantId,
         }),
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('should scope list queries to the uploading judge', async () => {
+      mockPrisma.scoreFile.findMany.mockResolvedValue([mockScoreFile] as any);
+
+      await service.getAllScoreFiles(tenantId, { categoryId: 'cat-123' }, judgeViewer);
+
+      expect(mockPrisma.scoreFile.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId,
+          categoryId: 'cat-123',
+          judgeId: undefined,
+          contestantId: undefined,
+          status: undefined,
+          uploadedById: 'user-123',
+        },
         orderBy: { createdAt: 'desc' },
       });
     });

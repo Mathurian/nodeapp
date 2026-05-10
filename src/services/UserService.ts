@@ -9,13 +9,8 @@ import bcrypt from 'bcrypt';
 import { BaseService, ConflictError, ValidationError, NotFoundError } from './BaseService';
 import { UserRepository } from '../repositories/UserRepository';
 import { invalidateCache, userCache } from '../utils/cache';
-import { EmailService } from './EmailService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 import { validatePassword, isPasswordSimilarToUserInfo } from '../utils/passwordValidator';
-import { env } from '../config/env';
-import { createLogger } from '../utils/logger';
-
-const logger = createLogger('UserService');
 
 export interface CreateUserDTO {
   tenantId?: string;
@@ -36,6 +31,9 @@ export interface CreateUserDTO {
   contestantNumber?: number;
   age?: number;
   school?: string;
+  accommodations?: string;
+  privateNotes?: string;
+  recommendationNotes?: string;
   grade?: string;
   parentGuardian?: string;
   parentPhone?: string;
@@ -64,6 +62,9 @@ export interface UpdateUserDTO {
   contestantNumber?: number;
   age?: number;
   school?: string;
+  accommodations?: string;
+  privateNotes?: string;
+  recommendationNotes?: string;
   grade?: string;
   parentGuardian?: string;
   parentPhone?: string;
@@ -128,7 +129,6 @@ export class UserService extends BaseService {
   constructor(
     @inject(UserRepository) private userRepository: UserRepository,
     @inject('PrismaClient') private prisma: PrismaClient,
-    @inject(EmailService) private emailService: EmailService
   ) {
     super();
   }
@@ -400,20 +400,13 @@ export class UserService extends BaseService {
         pronouns: data.pronouns,
         phone: data.phone,
         address: data.address,
-        bio: data.bio
+        bio: data.bio,
+        contestantAccommodations: data.accommodations,
+        contestantPrivateNotes: data.privateNotes,
+        contestantRecommendationNotes: data.recommendationNotes,
       });
 
       this.logInfo('User created', { userId: user.id, name: user.name });
-
-      // Send welcome email (non-blocking - don't wait for completion)
-      this.emailService.sendWelcomeEmail(
-        user.email,
-        user.preferredName || user.name,
-        `${env.get('FRONTEND_URL')}/verify-email?userId=${user.id}`
-      ).catch(error => {
-        logger.error('Failed to send welcome email', { error });
-        // Don't throw - user creation should succeed even if email fails
-      });
 
       // Invalidate cache
       await invalidateCache('users:*');
