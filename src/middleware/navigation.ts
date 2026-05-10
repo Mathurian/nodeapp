@@ -131,7 +131,7 @@ const getNavigationItems = (userRole: string): any[] => {
       {
         id: 'emcee-scripts',
         label: 'Emcee Scripts',
-        path: '/emcee-scripts',
+        path: '/emcee?tab=scripts',
         icon: 'DocumentTextIcon',
         roles: ['BOARD', 'ORGANIZER']
       },
@@ -279,29 +279,15 @@ const getNavigationItems = (userRole: string): any[] => {
       {
         id: 'scripts',
         label: 'Scripts',
-        path: '/emcee',
+        path: '/emcee?tab=scripts',
         icon: 'DocumentTextIcon',
         roles: ['EMCEE', 'ORGANIZER', 'BOARD']
       },
       {
-        id: 'contestant-bios',
-        label: 'Contestant Bios',
-        path: '/contestant-bios',
+        id: 'bios',
+        label: 'Bios',
+        path: '/bios',
         icon: 'UserGroupIcon',
-        roles: ['EMCEE', 'ORGANIZER', 'BOARD']
-      },
-      {
-        id: 'judge-bios',
-        label: 'Judge Bios',
-        path: '/judge-bios',
-        icon: 'UsersIcon',
-        roles: ['EMCEE', 'ORGANIZER', 'BOARD']
-      },
-      {
-        id: 'event-management',
-        label: 'Event Management',
-        path: '/event-management',
-        icon: 'CalendarIcon',
         roles: ['EMCEE', 'ORGANIZER', 'BOARD']
       }
     ],

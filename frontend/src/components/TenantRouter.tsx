@@ -128,7 +128,18 @@ const AliasRedirect: React.FC<{ targetPath: string }> = ({ targetPath }) => {
   const location = useLocation()
   const { tenantSlug } = parseUrlPath(location.pathname)
   const basePath = tenantSlug ? `/${tenantSlug}` : ''
-  return <Navigate to={`${basePath}${targetPath}${location.search}${location.hash}`} replace />
+
+  const [targetWithSearch, targetHash = ''] = targetPath.split('#')
+  const [pathname, targetSearch = ''] = targetWithSearch.split('?')
+  const params = new URLSearchParams(location.search)
+  const targetParams = new URLSearchParams(targetSearch)
+  targetParams.forEach((value, key) => {
+    params.set(key, value)
+  })
+  const search = params.toString()
+  const hash = targetHash ? `#${targetHash}` : location.hash
+
+  return <Navigate to={`${basePath}${pathname}${search ? `?${search}` : ''}${hash}`} replace />
 }
 
 const TenantPublicOrAppRoute: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenCommandPalette }) => {
@@ -218,6 +229,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
+            <Route path="/emcee-scripts" element={<AliasRedirect targetPath="/emcee?tab=scripts" />} />
             <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
@@ -246,6 +258,9 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
             <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/bios" element={<BiosPage />} />
+            <Route path="/contestant-bios" element={<AliasRedirect targetPath="/bios" />} />
+            <Route path="/judge-bios" element={<AliasRedirect targetPath="/bios" />} />
+            <Route path="/event-management" element={<AliasRedirect targetPath="/emcee" />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/judge-schedules" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']}><JudgeSchedulesPage /></ProtectedRoute>} />
             <Route path="/judges-schedules" element={<AliasRedirect targetPath="/judge-schedules" />} />
@@ -285,6 +300,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/settings" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><SettingsPage /></ProtectedRoute>} />
             <Route path="/:slug/profile" element={<ProfilePage />} />
             <Route path="/:slug/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
+            <Route path="/:slug/emcee-scripts" element={<AliasRedirect targetPath="/emcee?tab=scripts" />} />
             <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
             <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
@@ -311,6 +327,9 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/field-visibility" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><FieldVisibilityPage /></ProtectedRoute>} />
             <Route path="/:slug/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/:slug/bios" element={<BiosPage />} />
+            <Route path="/:slug/contestant-bios" element={<AliasRedirect targetPath="/bios" />} />
+            <Route path="/:slug/judge-bios" element={<AliasRedirect targetPath="/bios" />} />
+            <Route path="/:slug/event-management" element={<AliasRedirect targetPath="/emcee" />} />
             <Route path="/:slug/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="/:slug/judge-schedules" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']}><JudgeSchedulesPage /></ProtectedRoute>} />
             <Route path="/:slug/judges-schedules" element={<AliasRedirect targetPath="/judge-schedules" />} />
