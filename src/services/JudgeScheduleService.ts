@@ -82,13 +82,23 @@ export class JudgeScheduleService extends BaseService {
       return null;
     }
 
+    if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+      const serial = Number(trimmed);
+      if (Number.isFinite(serial) && serial > 0) {
+        const excelEpoch = new Date(1899, 11, 30).getTime();
+        const parsed = new Date(excelEpoch + serial * 24 * 60 * 60 * 1000);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+    }
+
     const spreadsheetMatch = trimmed.match(
-      /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?)?$/i,
+      /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})(?:[ T](\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?)?$/i,
     );
     if (spreadsheetMatch) {
       const month = Number(spreadsheetMatch[1]);
       const day = Number(spreadsheetMatch[2]);
-      const year = Number(spreadsheetMatch[3]);
+      const yearToken = spreadsheetMatch[3] || '';
+      const year = yearToken.length === 2 ? 2000 + Number(yearToken) : Number(yearToken);
       const rawHour = spreadsheetMatch[4] ? Number(spreadsheetMatch[4]) : 0;
       const minute = spreadsheetMatch[5] ? Number(spreadsheetMatch[5]) : 0;
       const second = spreadsheetMatch[6] ? Number(spreadsheetMatch[6]) : 0;
