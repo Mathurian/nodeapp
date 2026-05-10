@@ -368,6 +368,67 @@ describe('EmailService', () => {
     });
   });
 
+  describe('welcome email onboarding context', () => {
+    it('should skip welcome email when the explicit setting is disabled', async () => {
+      mockPrisma.systemSetting.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      const result = await service.sendWelcomeEmailIfEnabled('new.user@test.com', 'New User', {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+      });
+
+      expect(result).toEqual({
+        success: true,
+        to: 'new.user@test.com',
+        subject: 'Welcome to Event Manager',
+        message: 'Welcome email skipped (disabled)',
+      });
+    });
+
+    it('should resolve tenant branding and login URL when welcome email is enabled', async () => {
+      mockPrisma.systemSetting.findFirst
+        .mockResolvedValueOnce({ value: 'Tenant App' } as any)
+        .mockResolvedValueOnce({ value: 'support@tenant.test' } as any)
+        .mockResolvedValueOnce({ value: 'true' } as any)
+        .mockResolvedValueOnce({ value: 'Tenant App' } as any)
+        .mockResolvedValueOnce({ value: 'support@tenant.test' } as any);
+      mockPrisma.tenant.findUnique
+        .mockResolvedValueOnce({ slug: 'tenant-slug', name: 'Tenant Name' } as any)
+        .mockResolvedValueOnce({ slug: 'tenant-slug', name: 'Tenant Name' } as any);
+
+      const sendTemplatedEmailSpy = jest
+        .spyOn(service, 'sendTemplatedEmail')
+        .mockResolvedValue({ success: true, to: 'new.user@test.com', subject: 'Welcome to Tenant App' });
+
+      await service.sendWelcomeEmailIfEnabled('new.user@test.com', 'New User', {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+      });
+
+      expect(sendTemplatedEmailSpy).toHaveBeenCalledWith(
+        'new.user@test.com',
+        'Welcome to Tenant App',
+        'welcome',
+        expect.objectContaining({
+          appName: 'Tenant App',
+          supportEmail: 'support@tenant.test',
+          actionUrl: expect.stringContaining('/tenant-slug/login'),
+          actionLabel: 'Open Sign In',
+          hasSupportEmail: true,
+        }),
+        expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+        })
+      );
+
+      sendTemplatedEmailSpy.mockRestore();
+    });
+  });
+
   describe('error handling', () => {
     it('should handle database connection errors in getConfig', async () => {
       mockPrisma.systemSetting.findMany.mockRejectedValue(new Error('Connection failed'));

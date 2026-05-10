@@ -30,7 +30,8 @@ export const useAuthPermissions = (options?: { enabled?: boolean }) => {
     },
     {
       staleTime: 60_000,
-      retry: 1,
+      retry: 2,
+      retryDelay: 150,
       enabled
     }
   )

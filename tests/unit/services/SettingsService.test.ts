@@ -219,6 +219,32 @@ describe('SettingsService', () => {
     });
   });
 
+  describe('getGeneralSettings', () => {
+    it('should return welcome email enablement independently from email verification', async () => {
+      mockPrisma.systemSetting.findFirst
+        .mockResolvedValueOnce({ id: '1', key: 'app_name', value: 'Tenant App', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '2', key: 'app_description', value: 'Desc', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '3', key: 'footer_contactEmail', value: 'support@tenant.test', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '4', key: 'security_email', value: 'security@tenant.test', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '5', key: 'allow_registration', value: 'false', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '6', key: 'require_email_verification', value: 'false', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '7', key: 'welcome_email_enabled', value: 'true', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '8', key: 'notification_email_enabled', value: 'true', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '9', key: 'maintenance_mode', value: 'false', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '10', key: 'default_language', value: 'en', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '11', key: 'default_timezone', value: 'America/Chicago', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '12', key: 'max_file_size', value: '10485760', category: 'general' } as any)
+        .mockResolvedValueOnce({ id: '13', key: 'session_timeout', value: '86400', category: 'general' } as any);
+
+      const result = await service.getGeneralSettings('tenant-1');
+
+      expect(result.requireEmailVerification).toBe(false);
+      expect(result.welcomeEmailEnabled).toBe(true);
+      expect(result.contactEmail).toBe('support@tenant.test');
+      expect(result.securityEmail).toBe('security@tenant.test');
+    });
+  });
+
   describe('getContestantVisibilitySettings', () => {
     it('should return contestant visibility settings', async () => {
       const mockSettings = [

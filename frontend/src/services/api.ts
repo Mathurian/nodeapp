@@ -96,10 +96,11 @@ api.interceptors.response.use(
     // Handle 401 - redirect to login
     if (error.response?.status === 401) {
       const requestUrl = String(originalRequest?.url || '')
-      const isProfileProbe = requestUrl.includes('/auth/profile')
+      const isAuthIdentityProbe =
+        requestUrl.includes('/auth/profile') || requestUrl.includes('/auth/permissions')
       const isRetryableAuthExpiry = classification.code === 'IDEMPOTENCY_AUTH_EXPIRED_RETRYABLE'
       // On public pages and auth profile probing, unauthenticated 401 is expected
-      if (!isRetryableAuthExpiry && !isPublicPath(window.location.pathname) && !isProfileProbe) {
+      if (!isRetryableAuthExpiry && !isPublicPath(window.location.pathname) && !isAuthIdentityProbe) {
         window.location.href = buildTenantAwareLoginPath(window.location.pathname)
       }
       return Promise.reject(error)

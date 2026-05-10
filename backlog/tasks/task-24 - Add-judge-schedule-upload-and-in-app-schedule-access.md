@@ -1,10 +1,11 @@
 ---
 id: TASK-24
 title: Add judge schedule upload and in-app schedule access
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-09 20:32'
-updated_date: '2026-05-09 20:59'
+updated_date: '2026-05-10 03:25'
 labels:
   - judges
   - scheduling
@@ -27,6 +28,15 @@ Add support for judge schedules in the application, including an upload path and
 - [ ] #2 Judges can access their schedule in the application, and authorized staff can review uploaded schedule data.
 - [ ] #3 The feature validates malformed uploads and provides clear feedback for import errors or unsupported schedule rows.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add a tenant-scoped judge schedule storage model and migration so uploaded schedule rows can be linked to a judge plus optional event, contest, and category context.
+2. Add backend schedule import/read APIs using CSV as the supported upload format, including row-level validation, clear import errors, and staff access to review imported schedule data.
+3. Add an admin/organizer UI to upload a schedule CSV and review imported rows, plus a judge-facing in-app schedule view scoped to the signed-in judge.
+4. Add targeted backend/frontend tests and run focused verification before closing the task.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

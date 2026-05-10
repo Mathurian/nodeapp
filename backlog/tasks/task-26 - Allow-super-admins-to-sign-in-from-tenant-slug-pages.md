@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-09 20:34'
-updated_date: '2026-05-10 03:13'
+updated_date: '2026-05-10 03:18'
 labels:
   - auth
   - multi-tenant
@@ -46,6 +46,10 @@ Fix tenant-slug login behavior so super admins can authenticate from a tenant-br
 
 - Regression report: production test from /OKCKW/login using default superadmin admin@revnatech.com redirects back to login with a browser 401 after sign-in.
 - Initial investigation: TASK-26 backend slug fallback in AuthService appears intact; likely failure is the first authenticated frontend request after navigation rather than the credential lookup itself.
+
+- Console trace confirmed login POST succeeded and the first failing request was GET /auth/permissions returning 401, which immediately triggered the frontend global 401 redirect back to /:slug/login.
+- Adjusted frontend auth bootstrap so /auth/permissions 401 responses are treated like identity bootstrap probes rather than immediate hard redirects, and increased the permission hook retry window slightly to tolerate post-login cookie/session establishment timing.
+- Verification: cd frontend && npm run type-check; cd frontend && npm run build.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

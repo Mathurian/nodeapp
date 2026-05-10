@@ -1084,11 +1084,32 @@ Jane Smith,jane@test.com,Pass456!,JUDGE`;
       } as any;
 
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      mockUserService.createUser.mockResolvedValue({ id: 'user-1' } as any);
+      mockUserService.createUser
+        .mockResolvedValueOnce({ id: 'user-1', email: 'john@test.com', name: 'John Doe' } as any)
+        .mockResolvedValueOnce({ id: 'user-2', email: 'jane@test.com', name: 'Jane Smith' } as any);
       mockPrisma.judge.create.mockResolvedValue({ id: 'judge-1' } as any);
 
       await controller.bulkUploadUsers(mockReq as Request, mockRes as Response, mockNext);
 
+      expect(mockEmailService.sendWelcomeEmailIfEnabled).toHaveBeenCalledTimes(2);
+      expect(mockEmailService.sendWelcomeEmailIfEnabled).toHaveBeenNthCalledWith(
+        1,
+        'john@test.com',
+        'John Doe',
+        expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+        })
+      );
+      expect(mockEmailService.sendWelcomeEmailIfEnabled).toHaveBeenNthCalledWith(
+        2,
+        'jane@test.com',
+        'Jane Smith',
+        expect.objectContaining({
+          tenantId: 'tenant-1',
+          userId: 'user-2',
+        })
+      );
       expect(mockSendSuccess).toHaveBeenCalledWith(
         mockRes,
         expect.objectContaining({
