@@ -47,6 +47,35 @@ export interface StageCompletionState {
   pendingCount: number;
 }
 
+export interface ScoreCoverageRow {
+  judgeId: string;
+  contestantId: string;
+  criterionId: string | null;
+  isCertified: boolean;
+  isLocked: boolean;
+}
+
+export interface JudgeScoreCoverage {
+  judgeId: string;
+  expected: number;
+  submitted: number;
+  certified: number;
+  locked: number;
+  scoreComplete: boolean;
+}
+
+export interface CategoryScoreCoverageSummary {
+  total: number;
+  submitted: number;
+  certified: number;
+  locked: number;
+  judges: number;
+  contestants: number;
+  criteria: number;
+  isComplete: boolean;
+  perJudge: Map<string, JudgeScoreCoverage>;
+}
+
 const parseBooleanSetting = (value: string | null | undefined, fallback: boolean): boolean => {
   if (value == null) return fallback;
   const normalized = String(value).trim().toLowerCase();
@@ -86,6 +115,94 @@ async function getSystemSettingValue(
 const uniqueIds = (values: Array<string | null | undefined>): string[] => (
   Array.from(new Set(values.filter((value): value is string => Boolean(value))))
 );
+
+const NO_CRITERIA_ENTRY_KEY = '__NO_CRITERIA__';
+
+export function calculateCategoryScoreCoverage({
+  requiredJudgeIds,
+  contestantIds,
+  criterionIds,
+  scores,
+}: {
+  requiredJudgeIds: Iterable<string>;
+  contestantIds: Iterable<string>;
+  criterionIds: Iterable<string>;
+  scores: ScoreCoverageRow[];
+}): CategoryScoreCoverageSummary {
+  const judgeIds = uniqueIds(Array.from(requiredJudgeIds));
+  const contestantIdList = uniqueIds(Array.from(contestantIds));
+  const criterionIdList = uniqueIds(Array.from(criterionIds));
+  const criterionKeys = criterionIdList.length > 0 ? criterionIdList : [NO_CRITERIA_ENTRY_KEY];
+  const criterionKeySet = new Set<string>(criterionKeys);
+  const judgeIdSet = new Set<string>(judgeIds);
+  const contestantIdSet = new Set<string>(contestantIdList);
+
+  const submittedKeys = new Set<string>();
+  const certifiedKeys = new Set<string>();
+  const lockedKeys = new Set<string>();
+  const submittedKeysByJudge = new Map<string, Set<string>>();
+  const certifiedKeysByJudge = new Map<string, Set<string>>();
+  const lockedKeysByJudge = new Map<string, Set<string>>();
+
+  for (const judgeId of judgeIds) {
+    submittedKeysByJudge.set(judgeId, new Set<string>());
+    certifiedKeysByJudge.set(judgeId, new Set<string>());
+    lockedKeysByJudge.set(judgeId, new Set<string>());
+  }
+
+  for (const score of scores) {
+    if (!judgeIdSet.has(score.judgeId) || !contestantIdSet.has(score.contestantId)) {
+      continue;
+    }
+
+    const criterionKey = score.criterionId || NO_CRITERIA_ENTRY_KEY;
+    if (!criterionKeySet.has(criterionKey)) {
+      continue;
+    }
+
+    const entryKey = `${score.judgeId}:${score.contestantId}:${criterionKey}`;
+    submittedKeys.add(entryKey);
+    submittedKeysByJudge.get(score.judgeId)?.add(entryKey);
+
+    if (score.isCertified) {
+      certifiedKeys.add(entryKey);
+      certifiedKeysByJudge.get(score.judgeId)?.add(entryKey);
+    }
+
+    if (score.isLocked) {
+      lockedKeys.add(entryKey);
+      lockedKeysByJudge.get(score.judgeId)?.add(entryKey);
+    }
+  }
+
+  const expectedPerJudge = contestantIdList.length * criterionKeys.length;
+  const perJudge = new Map<string, JudgeScoreCoverage>();
+  for (const judgeId of judgeIds) {
+    const submitted = submittedKeysByJudge.get(judgeId)?.size || 0;
+    perJudge.set(judgeId, {
+      judgeId,
+      expected: expectedPerJudge,
+      submitted,
+      certified: certifiedKeysByJudge.get(judgeId)?.size || 0,
+      locked: lockedKeysByJudge.get(judgeId)?.size || 0,
+      scoreComplete: expectedPerJudge > 0 && submitted >= expectedPerJudge,
+    });
+  }
+
+  const total = judgeIds.length * expectedPerJudge;
+
+  return {
+    total,
+    submitted: submittedKeys.size,
+    certified: certifiedKeys.size,
+    locked: lockedKeys.size,
+    judges: judgeIds.length,
+    contestants: contestantIdList.length,
+    criteria: criterionIdList.length,
+    isComplete: total > 0 && submittedKeys.size >= total,
+    perJudge,
+  };
+}
 
 function buildScopedAssignmentFilter(categoryId: string, contestId: string, eventId: string) {
   return {
@@ -534,7 +651,13 @@ export async function refreshJudgeStage(
     throw new Error('Category not found');
   }
 
-  const [requiredJudgesFromCategory, requiredJudgesFromAssignments] = await Promise.all([
+  const [
+    requiredJudgesFromCategory,
+    requiredJudgesFromAssignments,
+    categoryContestants,
+    criteria,
+    scores,
+  ] = await Promise.all([
     prisma.categoryJudge.findMany({
       where: {
         categoryId,
@@ -558,6 +681,38 @@ export async function refreshJudgeStage(
         ]
       }
     }).then((rows) => rows.map((row) => row.judgeId))
+    ,
+    prisma.categoryContestant.findMany({
+      where: {
+        tenantId,
+        categoryId,
+      },
+      select: {
+        contestantId: true,
+      }
+    }),
+    prisma.criterion.findMany({
+      where: {
+        tenantId,
+        categoryId,
+      },
+      select: {
+        id: true,
+      }
+    }),
+    prisma.score.findMany({
+      where: {
+        tenantId,
+        categoryId,
+      },
+      select: {
+        judgeId: true,
+        contestantId: true,
+        criterionId: true,
+        isCertified: true,
+        isLocked: true,
+      }
+    })
   ]);
 
   const requiredJudgeIds = new Set<string>(
@@ -580,9 +735,18 @@ export async function refreshJudgeStage(
     }).then((rows) => rows.map((row) => row.judgeId))
   );
 
+  const scoreCoverage = calculateCategoryScoreCoverage({
+    requiredJudgeIds,
+    contestantIds: categoryContestants.map((row) => row.contestantId),
+    criterionIds: criteria.map((row) => row.id),
+    scores,
+  });
+
   const judgeCertified = requiredJudgeIds.size > 0
-    ? Array.from(requiredJudgeIds).every((judgeId) => certifiedJudgeIds.has(judgeId))
-    : certifiedJudgeIds.size > 0;
+    ? Array.from(requiredJudgeIds).every(
+      (judgeId) => certifiedJudgeIds.has(judgeId) && Boolean(scoreCoverage.perJudge.get(judgeId)?.scoreComplete)
+    )
+    : false;
 
   const currentStep = certification.boardApproved
     ? 4

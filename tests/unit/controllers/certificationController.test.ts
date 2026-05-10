@@ -14,6 +14,7 @@ import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { UserRole } from '@prisma/client';
 import {
   applyCertificationStage,
+  calculateCategoryScoreCoverage,
   refreshJudgeStage,
   refreshRoleStages,
   upsertCategoryRoleCertification,
@@ -24,6 +25,7 @@ jest.mock('../../../src/utils/logger');
 jest.mock('../../../src/utils/responseHelpers');
 jest.mock('../../../src/utils/certificationPipeline', () => ({
   applyCertificationStage: jest.fn(),
+  calculateCategoryScoreCoverage: jest.fn(),
   refreshJudgeStage: jest.fn(),
   refreshRoleStages: jest.fn(),
   upsertCategoryRoleCertification: jest.fn(),
@@ -88,12 +90,24 @@ describe('CertificationController', () => {
 
     mockPrisma = mockDeep<PrismaClient>();
     mockPrisma.category.findMany.mockResolvedValue([{ id: 'cat-1', name: 'Category 1' }] as any);
+    mockPrisma.categoryJudge.findMany.mockResolvedValue([] as any);
     mockPrisma.contest.findMany.mockResolvedValue([{ id: 'contest-1', name: 'Contest 1' }] as any);
     mockPrisma.event.findMany.mockResolvedValue([{ id: 'event-1', name: 'Event 1' }] as any);
     mockPrisma.judgeCertification.upsert.mockResolvedValue({} as any);
     (applyCertificationStage as jest.Mock).mockResolvedValue({
       ...mockCertification,
       status: 'IN_PROGRESS',
+    });
+    (calculateCategoryScoreCoverage as jest.Mock).mockReturnValue({
+      total: 0,
+      submitted: 0,
+      certified: 0,
+      locked: 0,
+      judges: 0,
+      contestants: 0,
+      criteria: 0,
+      isComplete: false,
+      perJudge: new Map(),
     });
     (refreshJudgeStage as jest.Mock).mockResolvedValue({
       ...mockCertification,
@@ -1044,6 +1058,139 @@ describe('CertificationController', () => {
           completionRate: '0%',
           rejectionRate: '0%',
           averageStep: '0',
+        })
+      );
+    });
+  });
+
+  describe('getCertificationOverview', () => {
+    it('does not report judges complete when score coverage is incomplete', async () => {
+      const signedAt = new Date('2026-05-10T00:00:00.000Z');
+      mockPrisma.category.findMany.mockResolvedValue([
+        {
+          id: 'cat-1',
+          name: 'Category 1',
+          contestId: 'contest-1',
+          contest: {
+            id: 'contest-1',
+            name: 'Contest 1',
+            event: {
+              id: 'event-1',
+              name: 'Event 1',
+            },
+          },
+        },
+      ] as any);
+      mockPrisma.certification.findMany.mockResolvedValue([
+        {
+          ...mockCertification,
+          judgeCertified: true,
+          status: 'IN_PROGRESS',
+        },
+      ] as any);
+      mockPrisma.assignment.findMany.mockResolvedValue([
+        {
+          categoryId: 'cat-1',
+          contestId: 'contest-1',
+          eventId: 'event-1',
+          judgeId: 'judge-1',
+          judge: {
+            id: 'judge-1',
+            name: 'Judge One',
+          },
+        },
+      ] as any);
+      mockPrisma.categoryJudge.findMany.mockResolvedValue([] as any);
+      mockPrisma.judgeCertification.findMany.mockResolvedValue([
+        {
+          categoryId: 'cat-1',
+          judgeId: 'judge-1',
+          certifiedAt: signedAt,
+        },
+      ] as any);
+      mockPrisma.score.findMany.mockResolvedValue([
+        {
+          categoryId: 'cat-1',
+          judgeId: 'judge-1',
+          contestantId: 'contestant-1',
+          criterionId: 'criterion-1',
+          isCertified: true,
+          isLocked: true,
+        },
+      ] as any);
+      mockPrisma.categoryContestant.findMany.mockResolvedValue([
+        { categoryId: 'cat-1', contestantId: 'contestant-1' },
+        { categoryId: 'cat-1', contestantId: 'contestant-2' },
+      ] as any);
+      mockPrisma.criterion.findMany.mockResolvedValue([
+        { categoryId: 'cat-1', id: 'criterion-1' },
+      ] as any);
+      mockPrisma.tallyMasterAssignment.findMany.mockResolvedValue([] as any);
+      mockPrisma.auditorAssignment.findMany.mockResolvedValue([] as any);
+      mockPrisma.categoryCertification.findMany.mockResolvedValue([] as any);
+      mockPrisma.systemSetting.findMany.mockResolvedValue([] as any);
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'event-1',
+          requireAllTallyCertifiers: true,
+          requireAllAuditorCertifiers: true,
+        },
+      ] as any);
+      (calculateCategoryScoreCoverage as jest.Mock).mockReturnValue({
+        total: 2,
+        submitted: 1,
+        certified: 1,
+        locked: 1,
+        judges: 1,
+        contestants: 2,
+        criteria: 1,
+        isComplete: false,
+        perJudge: new Map([
+          ['judge-1', {
+            judgeId: 'judge-1',
+            expected: 2,
+            submitted: 1,
+            certified: 1,
+            locked: 1,
+            scoreComplete: false,
+          }],
+        ]),
+      });
+
+      await controller.getCertificationOverview(
+        mockReq as Request,
+        mockRes as Response,
+        mockNext
+      );
+
+      const payload = (sendSuccess as jest.Mock).mock.calls.at(-1)?.[1];
+      expect(payload).toBeDefined();
+      expect(payload.contests).toHaveLength(1);
+      expect(payload.contests[0].categories[0]).toEqual(
+        expect.objectContaining({
+          status: 'PENDING',
+          currentStep: 1,
+          judgeCertified: false,
+          judgeProgress: {
+            certified: 0,
+            total: 1,
+          },
+          scoreProgress: {
+            total: 2,
+            submitted: 1,
+            certified: 1,
+            locked: 1,
+            judges: 1,
+            contestants: 2,
+            criteria: 1,
+          },
+          judges: [
+            expect.objectContaining({
+              judgeId: 'judge-1',
+              certified: false,
+              certifiedAt: signedAt,
+            }),
+          ],
         })
       );
     });
