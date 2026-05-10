@@ -5,7 +5,7 @@
 
 import { injectable } from 'tsyringe';
 import { BaseRepository } from './BaseRepository';
-import { CategoryTemplate } from '@prisma/client';
+import { CategoryTemplate, CommentaryMode } from '@prisma/client';
 import { prisma } from '../config/database';
 
 export interface TemplateWithCriteria extends CategoryTemplate {
@@ -20,6 +20,7 @@ export interface TemplateWithCriteria extends CategoryTemplate {
 export interface CreateTemplateData {
   name: string;
   description?: string | null;
+  commentaryMode?: CommentaryMode;
   tenantId: string;
   criteria?: Array<{
     name: string;
@@ -30,6 +31,7 @@ export interface CreateTemplateData {
 export interface UpdateTemplateData {
   name?: string;
   description?: string | null;
+  commentaryMode?: CommentaryMode;
   criteria?: Array<{
     name: string;
     maxScore: number;
@@ -96,6 +98,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       data: {
         name: data.name,
         description: data.description || null,
+        commentaryMode: data.commentaryMode || 'PER_CRITERION',
         tenantId: data.tenantId
       }
     });
@@ -133,7 +136,8 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
           where: { id },
           data: {
             name: data.name,
-            description: data.description || null
+            description: data.description || null,
+            ...(data.commentaryMode !== undefined ? { commentaryMode: data.commentaryMode } : {}),
           }
         });
 
@@ -176,7 +180,8 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       where: { id },
       data: {
         name: data.name,
-        description: data.description || null
+        description: data.description || null,
+        ...(data.commentaryMode !== undefined ? { commentaryMode: data.commentaryMode } : {}),
       }
     });
     const updatedCriteria = await this.prisma.templateCriterion.findMany({
@@ -202,6 +207,7 @@ export class TemplateRepository extends BaseRepository<CategoryTemplate> {
       data: {
         name: `${original.name} (Copy)`,
         description: original.description,
+        commentaryMode: original.commentaryMode,
         tenantId
       }
     });

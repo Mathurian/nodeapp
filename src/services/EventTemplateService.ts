@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
-import { PrismaClient, Prisma, EventTemplate, Event } from '@prisma/client';
+import { PrismaClient, Prisma, EventTemplate, Event, CommentaryMode } from '@prisma/client';
 
 // Prisma payload types - Export all for external use
 export type EventTemplateWithCreator = Prisma.EventTemplateGetPayload<{
@@ -37,6 +37,7 @@ export interface CategoryTemplate {
   timeLimit?: number;
   contestantMin?: number;
   contestantMax?: number;
+  commentaryMode?: CommentaryMode;
   criteria?: CriterionTemplate[];
 }
 
@@ -196,6 +197,7 @@ export class EventTemplateService extends BaseService {
           timeLimit: categoryTemplate.timeLimit || null,
           contestantMin: categoryTemplate.contestantMin || null,
           contestantMax: categoryTemplate.contestantMax || null,
+          commentaryMode: categoryTemplate.commentaryMode || 'PER_CRITERION',
           tenantId: input.tenantId,
         },
       });
@@ -309,6 +311,7 @@ export class EventTemplateService extends BaseService {
         timeLimit: category.timeLimit ?? undefined,
         contestantMin: category.contestantMin ?? undefined,
         contestantMax: category.contestantMax ?? undefined,
+        commentaryMode: category.commentaryMode,
         criteria: category.criteria.map((criterion) => ({
           name: criterion.name,
           maxScore: criterion.maxScore,

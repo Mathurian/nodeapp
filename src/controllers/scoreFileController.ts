@@ -30,7 +30,7 @@ export class ScoreFileController {
   uploadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { categoryId, contestantId, criterionId, notes } = req.body;
+      const { categoryId, contestantId, criterionId, notes, contextType } = req.body;
 
       if (!req.user) {
         throw new Error('User not authenticated');
@@ -55,8 +55,12 @@ export class ScoreFileController {
       const timeoutMs = getOfflineWriteTimeoutMs(
         matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
       );
+      const normalizedContextType = typeof contextType === 'string'
+        && ['CRITERION_COMMENT', 'CONTESTANT', 'CATEGORY'].includes(contextType)
+        ? contextType
+        : undefined;
       const contextMetadata = {
-        contextType: criterionId ? 'CRITERION_COMMENT' : (contestantId ? 'CONTESTANT' : 'CATEGORY'),
+        contextType: normalizedContextType || (criterionId ? 'CRITERION_COMMENT' : (contestantId ? 'CONTESTANT' : 'CATEGORY')),
         criterionId: criterionId || null,
         noteText: notes || null
       };

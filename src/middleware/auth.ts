@@ -122,14 +122,20 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
+    const decodedRole = String(decoded.role || '').trim().toUpperCase();
+    const authLookupPrisma = createTenantPrismaClient(
+      decoded.tenantId,
+      decodedRole === 'SUPER_ADMIN'
+    ) as typeof prisma;
+
     // Try to get user from cache first (50-70% reduction in DB queries)
     let user = userCache.getById(decoded.userId) as (User & { judge?: any; contestant?: any }) | null;
     let fromCache = false;
 
     if (!user) {
-      // Cache miss - fetch from database
-      // SECURITY FIX: Add tenantId filter to prevent cross-tenant authentication bypass
-      user = await prisma.user.findFirst({
+      // Cache miss - fetch from the token tenant context, not the request override tenant.
+      // This is required for SUPER_ADMIN users authenticating from a different tenant slug.
+      user = await authLookupPrisma.user.findFirst({
         where: {
           id: decoded.userId,
           tenantId: decoded.tenantId
@@ -209,7 +215,7 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     if (fromCache) {
       // Fetch fresh session version from database for cached users
       // This prevents race condition where session is invalidated but cache is stale
-      const freshSessionData = await prisma.user.findUnique({
+      const freshSessionData = await authLookupPrisma.user.findUnique({
         where: { id: decoded.userId },
         select: { sessionVersion: true }
       });

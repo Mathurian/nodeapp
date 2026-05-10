@@ -60,6 +60,20 @@ export function buildCommentaryReadWhere(
   return { id: NO_ACCESS_SENTINEL };
 }
 
+export function buildJudgeCommentReadWhere(
+  viewer: CommentaryViewerContext,
+): Prisma.JudgeCommentWhereInput {
+  if (isPrivilegedCommentaryRole(viewer.role)) {
+    return {};
+  }
+
+  if (viewer.role === 'JUDGE' && viewer.judgeId) {
+    return { judgeId: viewer.judgeId };
+  }
+
+  return { id: NO_ACCESS_SENTINEL };
+}
+
 export function buildScoreFileReadWhere(
   viewer: CommentaryViewerContext,
 ): Prisma.ScoreFileWhereInput {

@@ -1,10 +1,11 @@
 ---
 id: TASK-43
 title: Investigate category-level judge commentary and attachment workflow
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 02:48'
-updated_date: '2026-05-10 02:49'
+updated_date: '2026-05-10 03:30'
 labels: []
 milestone: m-0
 dependencies: []
@@ -24,6 +25,15 @@ Investigate whether judge comments and commentary attachments should be captured
 - [ ] #3 The investigation evaluates whether organizers should be able to choose per-criterion, per-category, or hybrid commentary behavior and documents the recommended product decision and configuration approach.
 - [ ] #4 If feasible within scope, a standards-compliant implementation is delivered or a clearly scoped follow-up implementation plan is recorded with risks, constraints, and dependencies.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Document the current state: per-criterion text comments live on score rows, commentary APIs still require score and criterion context, category-level attachments already exist, and the existing `JudgeComment` category+contestant+judge model is currently unused in the active scoring flow.
+2. Define the recommended product shape: add an explicit commentary mode configuration at the category level (`PER_CRITERION`, `PER_CATEGORY`, `HYBRID`) and use `JudgeComment` as the canonical store for category-level text while preserving existing score-row comments for per-criterion mode.
+3. If the implementation scope stays contained, add the backend/frontend path for category-level commentary and hybrid support: category config, scoring UI branching, category-level read/write endpoints, and reporting/read-model updates.
+4. Add focused regression coverage and record any follow-up constraints if full reporting/export parity cannot ship in the same change.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

@@ -1,11 +1,11 @@
 ---
 id: TASK-24
 title: Add judge schedule upload and in-app schedule access
-status: In Progress
+status: To Do
 assignee:
   - '@codex'
 created_date: '2026-05-09 20:32'
-updated_date: '2026-05-10 03:25'
+updated_date: '2026-05-10 03:28'
 labels:
   - judges
   - scheduling

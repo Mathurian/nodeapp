@@ -135,6 +135,7 @@ model Category {
   timeLimit       Int?
   contestantMin   Int?
   contestantMax   Int?
+  commentaryMode  CommentaryMode @default(PER_CRITERION)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   totalsCertified Boolean  @default(false)
@@ -588,6 +589,7 @@ model CategoryTemplate {
   id          String   @id @default(cuid())
   name        String
   description String?
+  commentaryMode CommentaryMode @default(PER_CRITERION)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   tenantId    String
@@ -2197,6 +2199,12 @@ enum EmailStatus {
 enum ScoringType {
   STRAIGHT  // Average all scores
   OLYMPIC   // Drop highest and lowest, then average
+}
+
+enum CommentaryMode {
+  PER_CRITERION
+  PER_CATEGORY
+  HYBRID
 }
 
 enum IdempotencyActorType {

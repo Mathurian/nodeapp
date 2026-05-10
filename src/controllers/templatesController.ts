@@ -63,11 +63,12 @@ export class TemplatesController {
         return;
       }
 
-      const { name, description, criteria } = req.body;
+      const { name, description, commentaryMode, criteria } = req.body;
 
       const template = await this.templateService.createTemplate({
         name,
         description,
+        commentaryMode,
         criteria,
         tenantId: req.user.tenantId
       });
@@ -89,11 +90,12 @@ export class TemplatesController {
       }
 
       const id = req.params['id'] as string;
-      const { name, description, criteria } = req.body;
+      const { name, description, commentaryMode, criteria } = req.body;
 
       const template = await this.templateService.updateTemplate(id, req.user.tenantId, {
         name,
         description,
+        commentaryMode,
         criteria
       });
 
@@ -168,7 +170,7 @@ export class TemplatesController {
       }
 
       const id = req.params['id'] as string;
-      const { contestId, name, description, scoreCap, timeLimit, contestantMin, contestantMax } = req.body;
+      const { contestId, name, description, scoreCap, timeLimit, contestantMin, contestantMax, commentaryMode } = req.body;
       const category = await this.structureCopyService.createCategoryFromTemplate({
         tenantId: req.user.tenantId,
         templateId: id,
@@ -179,6 +181,7 @@ export class TemplatesController {
         timeLimit,
         contestantMin,
         contestantMax,
+        commentaryMode,
       });
       sendCreated(res, category, 'Category created from template successfully');
     } catch (error) {

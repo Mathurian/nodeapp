@@ -211,6 +211,7 @@ export const categoriesAPI = {
     timeLimit?: number;
     contestantMin?: number;
     contestantMax?: number;
+    commentaryMode?: 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID';
   }) => api.post(`/templates/${templateId}/create-category`, data),
   delete: (id: string) => api.delete(`/categories/${id}`),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
@@ -221,6 +222,19 @@ export const categoriesAPI = {
   deleteCriterion: (criterionId: string) => api.delete(`/categories/criteria/${criterionId}`),
   createTemplateFromCategory: (categoryId: string, data: { name: string; description?: string }) =>
     api.post(`/templates/categories/from-category/${categoryId}`, data),
+}
+
+export const commentaryAPI = {
+  getCategoryComment: (categoryId: string, contestantId: string, judgeId?: string) =>
+    api.get(`/commentary/category/${categoryId}/contestant/${contestantId}`, {
+      params: judgeId ? { judgeId } : undefined,
+    }),
+  updateCategoryComment: (
+    categoryId: string,
+    contestantId: string,
+    data: { comment: string; judgeId?: string },
+    config?: any,
+  ) => api.put(`/commentary/category/${categoryId}/contestant/${contestantId}`, data, config),
 }
 
 export const scoringAPI = {

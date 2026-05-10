@@ -1,11 +1,11 @@
 ---
 id: TASK-26
 title: Allow super admins to sign in from tenant slug pages
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-09 20:34'
-updated_date: '2026-05-10 03:18'
+updated_date: '2026-05-10 03:50'
 labels:
   - auth
   - multi-tenant
@@ -50,6 +50,13 @@ Fix tenant-slug login behavior so super admins can authenticate from a tenant-br
 - Console trace confirmed login POST succeeded and the first failing request was GET /auth/permissions returning 401, which immediately triggered the frontend global 401 redirect back to /:slug/login.
 - Adjusted frontend auth bootstrap so /auth/permissions 401 responses are treated like identity bootstrap probes rather than immediate hard redirects, and increased the permission hook retry window slightly to tolerate post-login cookie/session establishment timing.
 - Verification: cd frontend && npm run type-check; cd frontend && npm run build.
+
+- Deployed current TASK-26 workspace state to dev only by rebuilding backend and frontend in /srv/event-manager/dev and restarting event-manager-dev.service.
+- Verification: systemctl is-active event-manager-dev.service; curl -sS http://127.0.0.1:3002/health; curl -sSI https://dev.conmgr.com/health.
+
+- Investigated the remaining dev 401s and confirmed the access_token cookie was present on /auth/permissions, but auth was loading the user under the request override tenant RLS context instead of the token tenant context.
+- Patched authenticateToken to use a token-tenant Prisma context for the initial user lookup and fresh session-version check; added auth middleware regression coverage for SUPER_ADMIN token-tenant authentication under tenant override requests.
+- Verification: npx jest tests/unit/middleware/auth.test.ts --runInBand. Backend build still reports unrelated commentaryMode Prisma/type drift, but dist/middleware/auth.js emitted the hotfix and was restarted on dev.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
@@ -64,6 +71,12 @@ Tests:
 - `cd frontend && npm run type-check`
 - `npm run build`
 - `cd frontend && npm run build`
+
+Follow-up fix: authenticateToken now validates super-admin sessions against the token tenant context before applying tenant override request scope, which resolved the /auth/permissions 401 redirect loop on slug login.
+
+Additional verification:
+- `npx jest tests/unit/middleware/auth.test.ts --runInBand`
+- Dev deploy verified via `event-manager-dev.service` restart and successful retest on `https://dev.conmgr.com/dev-testing/login`.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done

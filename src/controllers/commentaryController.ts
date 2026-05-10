@@ -82,6 +82,66 @@ export class CommentaryController {
     }
   };
 
+  getCategoryComment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const categoryId = getRequiredParam(req, 'categoryId');
+      const contestantId = getRequiredParam(req, 'contestantId');
+      const judgeId = typeof req.query['judgeId'] === 'string' ? req.query['judgeId'] : undefined;
+      const comment = await this.commentaryService.getCategoryComment(
+        categoryId,
+        contestantId,
+        createCommentaryViewerContext(req.user),
+        judgeId,
+      );
+      return sendSuccess(res, comment);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  upsertCategoryComment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const categoryId = getRequiredParam(req, 'categoryId');
+      const contestantId = getRequiredParam(req, 'contestantId');
+      const { comment, judgeId: requestedJudgeId } = req.body as { comment?: string; judgeId?: string };
+      const viewer = createCommentaryViewerContext(req.user);
+      const resolvedJudgeId = viewer.role === 'JUDGE' && viewer.judgeId
+        ? viewer.judgeId
+        : requestedJudgeId;
+      if (!resolvedJudgeId) {
+        sendForbidden(res, 'Judge context is required to update category commentary');
+        return;
+      }
+
+      const timeoutMs = getOfflineWriteTimeoutMs(
+        matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
+      );
+      const updatedComment = await this.commentaryService.upsertCategoryComment(
+        {
+          tenantId: req.user.tenantId,
+          categoryId,
+          contestantId,
+          judgeId: resolvedJudgeId,
+          comment: comment || '',
+        },
+        timeoutMs,
+      );
+      return sendSuccess(res, updatedComment, 'Category commentary updated');
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   updateComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -130,6 +190,8 @@ const controller = new CommentaryController();
 export const createComment = controller.createComment;
 export const getCommentsForScore = controller.getCommentsForScore;
 export const getCommentsByContestant = controller.getCommentsByContestant;
+export const getCategoryComment = controller.getCategoryComment;
+export const upsertCategoryComment = controller.upsertCategoryComment;
 export const updateComment = controller.updateComment;
 export const deleteComment = controller.deleteComment;
 

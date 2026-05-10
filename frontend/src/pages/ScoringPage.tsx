@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
+import { commentaryAPI, scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from '../services/idempotency'
@@ -27,11 +27,14 @@ import {
 import { format } from 'date-fns'
 import { compareCategories, compareContestants, compareContests, stableSort } from '../utils/listOrdering'
 
+type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+
 interface Category {
   id: string
   name: string
   description: string | null
   scoreCap: number | null
+  commentaryMode?: CommentaryMode
   contest: {
     id: string
     name: string
@@ -242,6 +245,7 @@ const ScoringPage: React.FC = () => {
   const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null)
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
+  const [categoryComment, setCategoryComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSignOffChecked, setIsSignOffChecked] = useState(false)
   const [saveStatus, setSaveStatus] = useState<OptimisticStatus>('idle')
@@ -258,6 +262,9 @@ const ScoringPage: React.FC = () => {
   const basePath = currentPath.replace(/\/scoring\/?$/, '')
   const signatureCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const requiresSignOff = user?.role === 'JUDGE'
+  const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
+  const supportsCriterionCommentary = commentaryMode !== 'PER_CATEGORY'
+  const supportsCategoryCommentary = commentaryMode === 'PER_CATEGORY' || commentaryMode === 'HYBRID'
 
   useEffect(() => {
     if (!OFFLINE_MUTATION_QUEUE_ENABLED) return
@@ -435,6 +442,21 @@ const ScoringPage: React.FC = () => {
     }
   )
 
+  const { data: existingCategoryComment = '' } = useQuery<string>(
+    ['category-comment', selectedCategory?.id, selectedContestant?.id],
+    async () => {
+      if (!selectedCategory || !selectedContestant) return ''
+      const response = await commentaryAPI.getCategoryComment(selectedCategory.id, selectedContestant.id)
+      const payload = response.data?.data ?? response.data
+      return typeof payload?.comment === 'string' ? payload.comment : ''
+    },
+    {
+      enabled: !!selectedCategory && !!selectedContestant && supportsCategoryCommentary,
+      retry: 1,
+      onError: (err) => console.error('Fetch category comment failed:', err),
+    }
+  )
+
   const sortedCategories = useMemo<Category[]>(() => {
     if (!categories || categories.length === 0) return []
     return stableSort(categories, compareCategories)
@@ -508,6 +530,14 @@ const ScoringPage: React.FC = () => {
       setScoreFormData(initialFormData)
     }
   }, [effectiveCriteria, selectedContestant, normalizedExistingScores])
+
+  useEffect(() => {
+    if (!selectedCategory || !selectedContestant || !supportsCategoryCommentary) {
+      setCategoryComment('')
+      return
+    }
+    setCategoryComment(existingCategoryComment || '')
+  }, [existingCategoryComment, selectedCategory, selectedContestant, supportsCategoryCommentary])
 
   useEffect(() => {
     setIsSignOffChecked(false)
@@ -829,7 +859,7 @@ const ScoringPage: React.FC = () => {
 
   const uploadAttachmentNow = async (file: File, criterionId?: string, silent = false) => {
     if (!selectedCategory || !selectedContestant || !file) return
-    const contextKey = criterionId ? `criterion-${criterionId}` : 'contestant'
+    const contextKey = criterionId ? `criterion-${criterionId}` : 'category'
     setUploadingContext(contextKey)
     try {
       const formData = new FormData()
@@ -838,6 +868,9 @@ const ScoringPage: React.FC = () => {
       formData.append('contestantId', selectedContestant.id)
       if (criterionId) {
         formData.append('criterionId', criterionId)
+        formData.append('contextType', 'CRITERION_COMMENT')
+      } else {
+        formData.append('contextType', 'CATEGORY')
       }
       await executeWithRetry(
         async () => {
@@ -845,6 +878,7 @@ const ScoringPage: React.FC = () => {
             headers: {
               [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(
                 `score-file-upload:${selectedCategory.id}:${selectedContestant.id}:${criterionId || 'contestant'}`,
+                `score-file-upload:${selectedCategory.id}:${selectedContestant.id}:${criterionId || 'category'}`,
               ),
             },
           })

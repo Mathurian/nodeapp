@@ -26,6 +26,14 @@ import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
 import { isInteractiveElement } from '../utils/interactive'
 
+type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+
+const COMMENTARY_MODE_OPTIONS: Array<{ value: CommentaryMode; label: string }> = [
+  { value: 'PER_CRITERION', label: 'Per Criterion' },
+  { value: 'PER_CATEGORY', label: 'Per Category' },
+  { value: 'HYBRID', label: 'Hybrid' },
+]
+
 interface Contest {
   id: string
   name: string
@@ -47,6 +55,7 @@ interface Category {
   timeLimit: number | null
   contestantMin: number | null
   contestantMax: number | null
+  commentaryMode: CommentaryMode
   totalsCertified: boolean
   createdAt: string
   updatedAt: string
@@ -72,6 +81,7 @@ interface CategoryFormData {
   timeLimit: string
   contestantMin: string
   contestantMax: string
+  commentaryMode: CommentaryMode
 }
 
 interface CriterionDraft {
@@ -89,6 +99,7 @@ interface CategoryTemplateOption {
     name: string
     maxScore: number
   }>
+  commentaryMode?: CommentaryMode
 }
 
 const categoryFormSchema = z.object({
@@ -99,6 +110,7 @@ const categoryFormSchema = z.object({
   timeLimit: z.string(),
   contestantMin: z.string(),
   contestantMax: z.string(),
+  commentaryMode: z.enum(['PER_CRITERION', 'PER_CATEGORY', 'HYBRID']),
 })
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>
@@ -122,7 +134,7 @@ const CategoriesPage: React.FC = () => {
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
-    defaultValues: { contestId: contestId || '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '' },
+    defaultValues: { contestId: contestId || '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '', commentaryMode: 'PER_CRITERION' },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, formState: { errors } } = form
 
@@ -307,6 +319,7 @@ const CategoriesPage: React.FC = () => {
         timeLimit: toOptionalNumber(data.timeLimit),
         contestantMin: toOptionalNumber(data.contestantMin),
         contestantMax: toOptionalNumber(data.contestantMax),
+        commentaryMode: data.commentaryMode,
       }
       const response = await categoriesAPI.create(payload)
       return response.data
@@ -326,6 +339,7 @@ const CategoriesPage: React.FC = () => {
         timeLimit: toOptionalNumber(data.timeLimit),
         contestantMin: toOptionalNumber(data.contestantMin),
         contestantMax: toOptionalNumber(data.contestantMax),
+        commentaryMode: data.commentaryMode,
       }
       const response = await categoriesAPI.createFromTemplate(selectedCategoryTemplateId, payload)
       return response.data?.data || response.data
@@ -342,6 +356,7 @@ const CategoriesPage: React.FC = () => {
         timeLimit: toOptionalNumber(data.timeLimit),
         contestantMin: toOptionalNumber(data.contestantMin),
         contestantMax: toOptionalNumber(data.contestantMax),
+        commentaryMode: data.commentaryMode,
       }
       const response = await categoriesAPI.update(id, payload)
       return response.data
@@ -423,6 +438,7 @@ const CategoriesPage: React.FC = () => {
       timeLimit: '',
       contestantMin: '',
       contestantMax: '',
+      commentaryMode: 'PER_CRITERION',
     })
     setEditingCategory(null)
     setCriterionDrafts([])
@@ -451,6 +467,7 @@ const CategoriesPage: React.FC = () => {
       timeLimit: category.timeLimit?.toString() || '',
       contestantMin: category.contestantMin?.toString() || '',
       contestantMax: category.contestantMax?.toString() || '',
+      commentaryMode: category.commentaryMode || 'PER_CRITERION',
     })
     setIsFormOpen(true)
     setCriteriaLoading(true)
@@ -985,6 +1002,7 @@ const CategoriesPage: React.FC = () => {
                                   timeLimit: form.getValues('timeLimit'),
                                   contestantMin: form.getValues('contestantMin'),
                                   contestantMax: form.getValues('contestantMax'),
+                                  commentaryMode: template.commentaryMode || 'PER_CRITERION',
                                 })
                               }
                             }}
@@ -1121,6 +1139,26 @@ const CategoriesPage: React.FC = () => {
                       placeholder="Minutes"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="pages-categoriespage-commentary-mode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Commentary Mode
+                  </label>
+                  <select
+                    id="pages-categoriespage-commentary-mode"
+                    {...register('commentaryMode')}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {COMMENTARY_MODE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Choose whether judges comment per criterion, once for the whole category, or both.
+                  </p>
                 </div>
 
                 {/* Contestant Limits */}

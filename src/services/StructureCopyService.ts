@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient } from '@prisma/client';
+import { CommentaryMode, PrismaClient } from '@prisma/client';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
 
@@ -47,6 +47,7 @@ interface CreateCategoryFromTemplateInput {
   timeLimit?: number;
   contestantMin?: number;
   contestantMax?: number;
+  commentaryMode?: CommentaryMode;
 }
 
 @injectable()
@@ -188,6 +189,7 @@ export class StructureCopyService extends BaseService {
                 timeLimit: category.timeLimit,
                 contestantMin: category.contestantMin,
                 contestantMax: category.contestantMax,
+                commentaryMode: category.commentaryMode,
                 tenantId: resolvedTenantId,
                 totalsCertified: false,
                 boardApproved: false,
@@ -294,6 +296,7 @@ export class StructureCopyService extends BaseService {
             timeLimit: sourceCategory.timeLimit,
             contestantMin: sourceCategory.contestantMin,
             contestantMax: sourceCategory.contestantMax,
+            commentaryMode: sourceCategory.commentaryMode,
             tenantId: resolvedTenantId,
             totalsCertified: false,
             boardApproved: false,
@@ -446,6 +449,7 @@ export class StructureCopyService extends BaseService {
           data: {
             name: input.name.trim(),
             description: input.description?.trim() || sourceCategory.description || null,
+            commentaryMode: sourceCategory.commentaryMode,
             tenantId: input.tenantId,
           },
         });
@@ -519,6 +523,7 @@ export class StructureCopyService extends BaseService {
             timeLimit: input.timeLimit ?? null,
             contestantMin: input.contestantMin ?? null,
             contestantMax: input.contestantMax ?? null,
+            commentaryMode: input.commentaryMode ?? template.commentaryMode,
             tenantId: input.tenantId,
             totalsCertified: false,
             boardApproved: false,

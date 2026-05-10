@@ -19,6 +19,12 @@ let tokenSequence = 0;
 // Mock dependencies - must mock the correct path (config/database, not utils/prisma)
 const mockFindFirst = jest.fn();
 const mockFindUnique = jest.fn();
+const mockCreateTenantPrismaClient = jest.fn(() => ({
+  user: {
+    findFirst: (...args: any[]) => mockFindFirst(...args),
+    findUnique: (...args: any[]) => mockFindUnique(...args),
+  },
+}));
 
 jest.mock('../../../src/config/database', () => ({
   __esModule: true,
@@ -73,7 +79,7 @@ jest.mock('../../../src/utils/logger', () => ({
 
 // Mock tenant middleware
 jest.mock('../../../src/middleware/tenantMiddleware', () => ({
-  createTenantPrismaClient: jest.fn(),
+  createTenantPrismaClient: (...args: any[]) => mockCreateTenantPrismaClient(...args),
 }));
 
 // Import after mocks
@@ -132,6 +138,12 @@ describe('Authentication Middleware', () => {
     res = mockResponse();
     next = mockNext();
     jest.clearAllMocks();
+    mockCreateTenantPrismaClient.mockReturnValue({
+      user: {
+        findFirst: (...args: any[]) => mockFindFirst(...args),
+        findUnique: (...args: any[]) => mockFindUnique(...args),
+      },
+    });
 
     tokenPayloads.clear();
     tokenSequence = 0;
@@ -255,6 +267,35 @@ describe('Authentication Middleware', () => {
         },
       });
       expect(mockSetById).toHaveBeenCalledWith(userId, mockUser, 3600);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should authenticate super admins against the token tenant context', async () => {
+      const userId = 'user-123';
+      const tokenTenantId = 'default_tenant';
+      const requestTenantId = 'tenant-override';
+      const token = generateToken(userId, UserRole.SUPER_ADMIN, 1, tokenTenantId);
+      const mockUser = createMockUser({
+        id: userId,
+        role: UserRole.SUPER_ADMIN,
+        tenantId: tokenTenantId,
+      } as any);
+
+      req.cookies = { access_token: token };
+      req.tenantId = requestTenantId;
+      mockGetById.mockReturnValue(null);
+      mockFindFirst.mockResolvedValue(mockUser);
+
+      await authenticateToken(req as Request, res as Response, next);
+
+      expect(mockCreateTenantPrismaClient).toHaveBeenCalledWith(tokenTenantId, true);
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: { id: userId, tenantId: tokenTenantId },
+        include: {
+          judge: true,
+          contestant: true,
+        },
+      });
       expect(next).toHaveBeenCalled();
     });
 
