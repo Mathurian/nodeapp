@@ -548,6 +548,18 @@ export const assignmentsAPI = {
   ) => api.put('/assignments/policies/judge-contest-limit', data, { params }),
 }
 
+export const judgeSchedulesAPI = {
+  list: (params?: { judgeId?: string; eventId?: string; includePast?: boolean }) =>
+    api.get('/judge-schedules', { params }),
+  importCsv: (formData: FormData) =>
+    api.post('/judge-schedules/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
+  downloadTemplate: () => api.get('/judge-schedules/template', { responseType: 'blob' }),
+}
+
 export const roleAssignmentsAPI = {
   getAll: (params?: { role?: string; contestId?: string; eventId?: string; categoryId?: string }) =>
     api.get('/role-assignments', { params }),

@@ -33,6 +33,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'score-removal', path: '/score-removal', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'], resource: 'scores', allowCrudReadOverride: true },
   { id: 'score-removal-requests', path: '/score-removal-requests', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'], resource: 'scores', allowCrudReadOverride: true },
   { id: 'deductions', path: '/deductions', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'TALLY_MASTER', 'AUDITOR'], resource: 'scores', allowCrudReadOverride: true },
+  { id: 'judge-schedules', path: '/judge-schedules', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'], resource: 'assignments', allowCrudReadOverride: true },
 
   { id: 'results', path: '/results', baseRoles: ALL_ROLES, resource: 'results', allowCrudReadOverride: true },
   { id: 'winners', path: '/winners', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'], resource: 'results', allowCrudReadOverride: true },

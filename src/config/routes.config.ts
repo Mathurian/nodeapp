@@ -89,6 +89,7 @@ import databaseHealthRoutes from '../routes/databaseHealthRoutes'
 import monitoringRoutes from '../routes/monitoringRoutes'
 import telemetryRoutes from '../routes/telemetryRoutes'
 import searchRoutes from '../routes/searchRoutes'
+import judgeScheduleRoutes from '../routes/judgeScheduleRoutes'
 
 /**
  * Helper to register routes for both legacy and versioned paths
@@ -220,6 +221,7 @@ export const registerRoutes = (app: Application): void => {
 
   // Assignments and tracking
   registerRoute(app, '/assignments', assignmentsRoutes);
+  registerRoute(app, '/judge-schedules', judgeScheduleRoutes);
   registerRoute(app, '/judges', judgesRoutes);
   registerRoute(app, '/contestants', contestantsRoutes);
   registerRoute(app, '/tracker', trackerRoutes);

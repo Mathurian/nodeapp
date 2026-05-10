@@ -85,6 +85,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'ORGANIZER', 'BOARD'],
     items: [
       { id: 'scoring', name: 'Judge Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], description: 'Enter and manage scores', keywords: ['score', 'judge', 'points'], priority: 80 },
+      { id: 'judge-schedules', name: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'], description: 'Upload or view judge schedules', keywords: ['schedule', 'calendar', 'judge'], priority: 79 },
       { id: 'tally-master', name: 'Tally Dashboard', href: '/tally-master', icon: CalculatorIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'] },
       { id: 'auditor', name: 'Auditor', href: '/auditor', icon: ClipboardDocumentCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'] },
       { id: 'board-certifications', name: 'Board Certifications', href: '/board/certifications', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'] },

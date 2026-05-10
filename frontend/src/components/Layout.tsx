@@ -98,6 +98,7 @@ const ROUTE_LABELS: Record<string, string> = {
   'test-event-setup': 'Test Event Setup',
   bios: 'Bios',
   assignments: 'Assignments',
+  'judge-schedules': 'Judge Schedules',
   'rate-limit-configs': 'Rate Limit Configs',
   auditor: 'Auditor',
   board: 'Board',

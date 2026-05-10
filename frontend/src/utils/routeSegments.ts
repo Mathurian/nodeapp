@@ -7,7 +7,7 @@ const KNOWN_ROUTE_SEGMENTS = new Set([
   'certifications', 'logs', 'performance', 'data-wipe', 'event-templates',
   'bulk-operations', 'category-types', 'field-visibility',
   'test-event-setup', 'help', 'bios', 'assignments', 'rate-limit-configs',
-  'activity', 'auditor', 'board', 'permissions', 'test-runner', 'uat-ids', 'tally-master',
+  'activity', 'auditor', 'board', 'permissions', 'test-runner', 'uat-ids', 'tally-master', 'judge-schedules',
   'winners', 'score-governance', 'login-locations',
 ])
 

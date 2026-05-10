@@ -54,6 +54,7 @@ const FieldVisibilityPage = lazyWithRetry(() => import('../pages/FieldVisibility
 const TestEventSetupPage = lazyWithRetry(() => import('../pages/TestEventSetupPage'), 'TestEventSetupPage')
 const BiosPage = lazyWithRetry(() => import('../pages/BiosPage'), 'BiosPage')
 const AssignmentsPage = lazyWithRetry(() => import('../pages/AssignmentsPage'), 'AssignmentsPage')
+const JudgeSchedulesPage = lazyWithRetry(() => import('../pages/JudgeSchedulesPage'), 'JudgeSchedulesPage')
 const RateLimitConfigPage = lazyWithRetry(() => import('../pages/RateLimitConfigPage'), 'RateLimitConfigPage')
 const ActivityLogPage = lazyWithRetry(() => import('../pages/ActivityLogPage'), 'ActivityLogPage')
 const LoginLocationsPage = lazyWithRetry(() => import('../pages/LoginLocationsPage'), 'LoginLocationsPage')
@@ -246,6 +247,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/test-event-setup" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><TestEventSetupPage /></ProtectedRoute>} />
             <Route path="/bios" element={<BiosPage />} />
             <Route path="/assignments" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><AssignmentsPage /></ProtectedRoute>} />
+            <Route path="/judge-schedules" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']}><JudgeSchedulesPage /></ProtectedRoute>} />
             <Route path="/rate-limit-configs" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><RateLimitConfigPage /></ProtectedRoute>} />
             <Route path="/uat-ids" element={<ProtectedRoute requiredRole={MONITORING_ROLES}><UatIdsPage /></ProtectedRoute>} />
             <Route path="/test-runner" element={<ProtectedRoute requiredRole={SUPER_ADMIN_ONLY}><TestRunnerPage /></ProtectedRoute>} />

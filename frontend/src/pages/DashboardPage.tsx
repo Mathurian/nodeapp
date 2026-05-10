@@ -185,6 +185,7 @@ const DashboardPage: React.FC = () => {
     const actions: Record<string, Array<{ label: string; href: string; icon: any; color: string }>> = {
       JUDGE: [
         { label: 'Score Categories', href: '/scoring', icon: TrophyIcon, color: 'blue' },
+        { label: 'My Schedule', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
         { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
       ],
       CONTESTANT: [
@@ -215,6 +216,7 @@ const DashboardPage: React.FC = () => {
       ADMIN: [
         { label: 'System Admin', href: '/admin', icon: UsersIcon, color: 'blue' },
         { label: 'Events', href: '/events', icon: CalendarIcon, color: 'green' },
+        { label: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
         { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'indigo' },
         { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
         { label: 'Settings', href: '/settings', icon: UsersIcon, color: 'orange' },
@@ -223,6 +225,7 @@ const DashboardPage: React.FC = () => {
       ORGANIZER: [
         { label: 'Create Event', href: '/events', icon: CalendarIcon, color: 'blue' },
         { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'green' },
+        { label: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
         { label: 'View Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
         { label: 'Event Templates', href: '/event-templates', icon: TrophyIcon, color: 'orange' },
         { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },

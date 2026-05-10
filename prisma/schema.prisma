@@ -70,6 +70,7 @@ model Event {
   auditorAssignments     AuditorAssignment[]
   roleAssignments        RoleAssignment[]
   scoreGovernanceRequests ScoreGovernanceRequest[]
+  judgeScheduleEntries   JudgeScheduleEntry[]
 
   @@index([tenantId])
   @@index([tenantId, archived])
@@ -115,6 +116,7 @@ model Contest {
   contestCertifications  ContestCertification[]
   roleAssignments        RoleAssignment[]
   scoreGovernanceRequests ScoreGovernanceRequest[]
+  judgeScheduleEntries   JudgeScheduleEntry[]
 
   @@index([tenantId])
   @@index([eventId])
@@ -173,6 +175,7 @@ model Category {
   roleAssignments              RoleAssignment[]
   scoreGovernanceRequests      ScoreGovernanceRequest[]
   scoreFiles                   ScoreFile[]
+  judgeScheduleEntries         JudgeScheduleEntry[]
 
   @@index([tenantId])
   @@index([contestId])
@@ -243,6 +246,7 @@ model Judge {
   reviewJudgeScoreCertifications ReviewJudgeScoreCertification[]
   scoreFiles                   ScoreFile[]
   scoreGovernanceRequests      ScoreGovernanceRequest[]
+  judgeScheduleEntries         JudgeScheduleEntry[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -432,6 +436,38 @@ model JudgeCertification {
   @@index([tenantId, categoryId])
   @@index([categoryId, judgeId])
   @@map("judge_certifications")
+}
+
+model JudgeScheduleEntry {
+  id             String   @id @default(cuid())
+  judgeId        String
+  eventId        String?
+  contestId      String?
+  categoryId     String?
+  title          String
+  startAt        DateTime
+  endAt          DateTime?
+  location       String?
+  notes          String?
+  importBatchId  String
+  sourceRowNumber Int?
+  uploadedById   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenantId       String
+
+  judge          Judge    @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  event          Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  contest        Contest? @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  category       Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, judgeId, startAt])
+  @@index([tenantId, importBatchId])
+  @@index([eventId])
+  @@index([contestId])
+  @@index([categoryId])
+  @@map("judge_schedule_entries")
 }
 
 model OverallDeduction {

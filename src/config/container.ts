@@ -93,6 +93,7 @@ import { DataWipeService } from '../services/DataWipeService';
 import { TestEventSetupService } from '../services/TestEventSetupService';
 import { BulkCertificationResetService } from '../services/BulkCertificationResetService';
 import { SearchService } from '../services/SearchService';
+import { JudgeScheduleService } from '../services/JudgeScheduleService';
 import { BusinessMetricsCollector } from '../services/BusinessMetricsCollector';
 import { ServiceMonitor } from '../services/ServiceMonitor';
 import { ActiveSessionTracker } from '../services/ActiveSessionTracker';
@@ -324,6 +325,7 @@ export function setupContainer(): void {
   container.register(TestEventSetupService, TestEventSetupService);
   container.register(BulkCertificationResetService, BulkCertificationResetService);
   container.register(SearchService, SearchService);
+  container.register(JudgeScheduleService, JudgeScheduleService);
 
   // Register MetricsRegistry from MetricsService for BusinessMetricsCollector
   // This must be done after MetricsService is registered
