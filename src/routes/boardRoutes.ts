@@ -5,10 +5,6 @@ import {
   approveCertification,
   rejectCertification,
   getCertificationStatus,
-  getEmceeScripts,
-  createEmceeScript,
-  updateEmceeScript,
-  deleteEmceeScript,
   getScoreRemovalRequests,
   approveScoreRemoval,
   rejectScoreRemoval
@@ -75,12 +71,6 @@ router.post('/category/:categoryId/certification/submit', logActivity('SUBMIT_BO
 router.get('/pending-approvals', getPendingBoardApprovals)
 router.get('/approved-categories', getApprovedCategories)
 router.delete('/category/:categoryId/certification/revoke', logActivity('REVOKE_BOARD_CERTIFICATION', 'CATEGORY'), revokeBoardCertification)
-
-// Emcee script management
-router.get('/emcee-scripts', getEmceeScripts)
-router.post('/emcee-scripts', logActivity('CREATE_EMCEE_SCRIPT', 'EMCEE_SCRIPT'), createEmceeScript)
-router.put('/emcee-scripts/:id', logActivity('UPDATE_EMCEE_SCRIPT', 'EMCEE_SCRIPT'), updateEmceeScript)
-router.delete('/emcee-scripts/:id', logActivity('DELETE_EMCEE_SCRIPT', 'EMCEE_SCRIPT'), deleteEmceeScript)
 
 // Score removal requests (legacy)
 router.get('/score-removal-requests-old', getScoreRemovalRequests)

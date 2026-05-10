@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
-import { PrismaClient, Prisma, EmceeScript, RequestStatus } from '@prisma/client';
+import { PrismaClient, Prisma, RequestStatus } from '@prisma/client';
 import { applyCertificationStage, refreshRoleStages, upsertCategoryRoleCertification } from '../utils/certificationPipeline';
 
 type ScoreRemovalRequestWithDetails = Prisma.JudgeScoreRemovalRequestGetPayload<{
@@ -75,13 +75,9 @@ interface ApprovalResponse {
   categoryId: string;
 }
 
-interface DeleteResponse {
-  message: string;
-}
-
 /**
  * Service for Board functionality
- * Handles certifications, emcee scripts, and board-level reports
+ * Handles certifications and board-level reports
  */
 @injectable()
 export class BoardService extends BaseService {
@@ -364,95 +360,6 @@ export class BoardService extends BaseService {
     };
 
     return status;
-  }
-
-  /**
-   * Get all emcee scripts
-   */
-  async getEmceeScripts(): Promise<EmceeScript[]> {
-    return await this.prisma.emceeScript.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  /**
-   * Create emcee script
-   */
-  async createEmceeScript(data: {
-    title: string;
-    content: string;
-    type?: string;
-    eventId?: string;
-    contestId?: string;
-    categoryId?: string;
-    order?: number;
-    notes?: string;
-    userId: string;
-    tenantId: string;
-  }): Promise<EmceeScript> {
-    this.validateRequired(data as unknown as Record<string, unknown>, ['title', 'content', 'tenantId']);
-
-    const script: EmceeScript = await this.prisma.emceeScript.create({
-      data: {
-        tenantId: data.tenantId,
-        title: data.title,
-        content: data.content,
-        eventId: data.eventId,
-        contestId: data.contestId,
-        categoryId: data.categoryId,
-        order: data.order || 0,
-      },
-    });
-
-    return script;
-  }
-
-  /**
-   * Update emcee script
-   */
-  async updateEmceeScript(
-    scriptId: string,
-    data: {
-      title?: string;
-      content?: string;
-      type?: string;
-      eventId?: string;
-      contestId?: string;
-      categoryId?: string;
-      order?: number;
-      notes?: string;
-    },
-    tenantId?: string
-  ): Promise<EmceeScript> {
-    if (tenantId) {
-      await this.prisma.emceeScript.findFirstOrThrow({
-        where: { id: scriptId, tenantId },
-      });
-    }
-
-    const script: EmceeScript = await this.prisma.emceeScript.update({
-      where: { id: scriptId },
-      data,
-    });
-
-    return script;
-  }
-
-  /**
-   * Delete emcee script
-   */
-  async deleteEmceeScript(scriptId: string, tenantId?: string): Promise<DeleteResponse> {
-    if (tenantId) {
-      await this.prisma.emceeScript.findFirstOrThrow({
-        where: { id: scriptId, tenantId },
-      });
-    }
-
-    await this.prisma.emceeScript.delete({
-      where: { id: scriptId },
-    });
-
-    return { message: 'Emcee script deleted successfully' };
   }
 
   /**

@@ -3,13 +3,12 @@ import 'reflect-metadata';
  * BoardService Tests
  *
  * Comprehensive test suite for board-level functionality including final
- * approval workflow, certification management, and emcee script oversight.
+ * approval workflow, certification management, and score removal handling.
  *
  * Test Coverage:
  * - Dashboard statistics
  * - Certification approval/rejection
  * - Certification status tracking
- * - Emcee script management
  * - Score removal request handling
  * - Final board approval workflow
  */
@@ -17,7 +16,7 @@ import 'reflect-metadata';
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { mockDeep, DeepMockProxy, mockReset } from 'jest-mock-extended';
 import { PrismaClient } from '@prisma/client';
-import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
+import { NotFoundError } from '../../../src/services/BaseService';
 jest.mock('../../../src/utils/certificationPipeline', () => ({
   applyCertificationStage: jest.fn(),
   refreshRoleStages: jest.fn(),
@@ -412,190 +411,6 @@ describe('BoardService', () => {
         certified: 0,
         approved: 0,
       });
-    });
-  });
-
-  describe('getEmceeScripts', () => {
-    it('should retrieve all emcee scripts', async () => {
-      const mockScripts = [
-        { id: 's1', title: 'Opening' },
-        { id: 's2', title: 'Closing' },
-      ];
-
-      prismaMock.emceeScript.findMany.mockResolvedValue(mockScripts as any);
-
-      const result = await service.getEmceeScripts();
-
-      expect(result).toEqual(mockScripts);
-      expect(prismaMock.emceeScript.findMany).toHaveBeenCalledWith({
-        orderBy: { createdAt: 'desc' },
-      });
-    });
-
-    it('should return empty array when no scripts exist', async () => {
-      prismaMock.emceeScript.findMany.mockResolvedValue([]);
-
-      const result = await service.getEmceeScripts();
-
-      expect(result).toEqual([]);
-    });
-  });
-
-  describe('createEmceeScript', () => {
-    it('should create a new emcee script', async () => {
-      const mockScript = {
-        id: 's1',
-        title: 'Opening Ceremony',
-        content: 'Welcome everyone...',
-        isActive: true,
-      };
-
-      prismaMock.emceeScript.create.mockResolvedValue(mockScript as any);
-
-      const result = await service.createEmceeScript({
-        title: 'Opening Ceremony',
-        content: 'Welcome everyone...',
-        userId: 'u1',
-        tenantId: 't1',
-      });
-
-      expect(result).toEqual(mockScript);
-      expect(prismaMock.emceeScript.create).toHaveBeenCalledWith({
-        data: {
-          tenantId: 't1',
-          title: 'Opening Ceremony',
-          content: 'Welcome everyone...',
-          eventId: undefined,
-          contestId: undefined,
-          categoryId: undefined,
-          order: 0,
-        },
-      });
-    });
-
-    it('should throw ValidationError when title is missing', async () => {
-      await expect(
-        service.createEmceeScript({ title: '', content: 'Test', userId: 'u1', tenantId: 't1' } as any)
-      ).rejects.toThrow(ValidationError);
-    });
-
-    it('should throw ValidationError when content is missing', async () => {
-      await expect(
-        service.createEmceeScript({ title: 'Test', content: '', userId: 'u1', tenantId: 't1' } as any)
-      ).rejects.toThrow(ValidationError);
-    });
-
-    it('should set custom order and relations', async () => {
-      prismaMock.emceeScript.create.mockResolvedValue({} as any);
-
-      await service.createEmceeScript({
-        title: 'Script',
-        content: 'Content',
-        eventId: 'e1',
-        contestId: 'c1',
-        categoryId: 'cat1',
-        order: 5,
-        userId: 'u1',
-        tenantId: 't1',
-      });
-
-      expect(prismaMock.emceeScript.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          eventId: 'e1',
-          contestId: 'c1',
-          categoryId: 'cat1',
-          order: 5,
-        }),
-      });
-    });
-
-    it('should set notes and type', async () => {
-      prismaMock.emceeScript.create.mockResolvedValue({} as any);
-
-      await service.createEmceeScript({
-        title: 'Script',
-        content: 'Content',
-        type: 'OPENING',
-        notes: 'Important notes',
-        userId: 'u1',
-        tenantId: 't1',
-      });
-
-      // Note: The current service implementation doesn't use type and notes fields
-      // It only includes: tenantId, title, content, eventId, contestId, categoryId, order
-      expect(prismaMock.emceeScript.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          title: 'Script',
-          content: 'Content',
-        }),
-      });
-    });
-  });
-
-  describe('updateEmceeScript', () => {
-    it('should update emcee script properties', async () => {
-      const mockUpdated = {
-        id: 's1',
-        title: 'Updated Title',
-        content: 'Updated content',
-      };
-
-      prismaMock.emceeScript.update.mockResolvedValue(mockUpdated as any);
-
-      const result = await service.updateEmceeScript('s1', {
-        title: 'Updated Title',
-        content: 'Updated content',
-      });
-
-      expect(result).toEqual(mockUpdated);
-      expect(prismaMock.emceeScript.update).toHaveBeenCalledWith({
-        where: { id: 's1' },
-        data: {
-          title: 'Updated Title',
-          content: 'Updated content',
-        },
-      });
-    });
-
-    it('should update isActive status', async () => {
-      prismaMock.emceeScript.update.mockResolvedValue({} as any);
-
-      await service.updateEmceeScript('s1', { isActive: false } as any);
-
-      expect(prismaMock.emceeScript.update).toHaveBeenCalledWith({
-        where: { id: 's1' },
-        data: { isActive: false } as any,
-      });
-    });
-
-    it('should update order', async () => {
-      prismaMock.emceeScript.update.mockResolvedValue({} as any);
-
-      await service.updateEmceeScript('s1', { order: 10 });
-
-      expect(prismaMock.emceeScript.update).toHaveBeenCalledWith({
-        where: { id: 's1' },
-        data: { order: 10 },
-      });
-    });
-  });
-
-  describe('deleteEmceeScript', () => {
-    it('should delete an emcee script', async () => {
-      prismaMock.emceeScript.delete.mockResolvedValue({} as any);
-
-      const result = await service.deleteEmceeScript('s1');
-
-      expect(result.message).toBe('Emcee script deleted successfully');
-      expect(prismaMock.emceeScript.delete).toHaveBeenCalledWith({
-        where: { id: 's1' },
-      });
-    });
-
-    it('should propagate Prisma errors', async () => {
-      prismaMock.emceeScript.delete.mockRejectedValue(new Error('Record not found'));
-
-      await expect(service.deleteEmceeScript('nonexistent')).rejects.toThrow('Record not found');
     });
   });
 

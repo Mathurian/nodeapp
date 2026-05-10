@@ -1,10 +1,11 @@
 ---
 id: TASK-55
 title: Audit and remediate dead emcee navigation targets
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 17:19'
-updated_date: '2026-05-10 17:21'
+updated_date: '2026-05-10 18:04'
 labels:
   - emcee
   - navigation
@@ -29,6 +30,16 @@ Review the emcee-related entries emitted by current navigation systems and remov
 - [ ] #4 Navigation changes preserve tenant-prefixed route behavior and do not introduce new dead ends or broken app-route recognition.
 - [ ] #5 The final outcome clearly documents which emcee navigation entries remain canonical and which legacy entries were removed or redirected.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inventory the emcee-related navigation emitted by the active frontend config and the legacy `/api/navigation` middleware, and classify each entry as canonical, redundant, misleading, or dead.
+2. Confirm legacy navigation API usage in the codebase; if there are no active in-repo consumers, treat the middleware output as legacy compatibility surface and clean it up without preserving duplicate dead entries.
+3. Update the legacy navigation middleware so emcee-related entries point at canonical routes: scripts to `/emcee?tab=scripts`, bios to `/bios`, and remove or consolidate dead entries that no longer map to a real product surface.
+4. Add safe frontend route aliases and route-segment recognition for old legacy emcee paths so bookmarked or externally-rendered links like `/emcee-scripts`, `/contestant-bios`, `/judge-bios`, and `/event-management` resolve to valid tenant-aware destinations instead of dead ends.
+5. Run focused backend/frontend verification, then document which emcee navigation entries remain canonical and which legacy targets were corrected or aliased.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

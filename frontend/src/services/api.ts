@@ -602,7 +602,6 @@ export const boardAPI = {
   approveCertification: (id: string, signature?: any) => api.post(`/board/certifications/${id}/approve`, signature || {}),
   rejectCertification: (id: string, reason: string) => api.post(`/board/certifications/${id}/reject`, { reason }),
   getCertificationStatus: () => api.get('/board/certification-status'),
-  getEmceeScripts: () => api.get('/board/emcee-scripts'),
 }
 
 export const tallyMasterAPI = {

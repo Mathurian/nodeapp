@@ -7,7 +7,7 @@ import { RequestStatus } from '@prisma/client';
 
 /**
  * Controller for Board functionality
- * Handles certification approvals, emcee scripts, and board-level reports
+ * Handles certification approvals and board-level reports
  */
 export class BoardController {
   private boardService: BoardService;
@@ -137,127 +137,6 @@ export class BoardController {
   };
 
   /**
-   * Get all emcee scripts
-   */
-  getEmceeScripts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const log = createRequestLogger(req, 'board');
-    try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
-
-      const scripts = await this.boardService.getEmceeScripts();
-      res.json(scripts);
-    } catch (error) {
-      log.error('Get emcee scripts error', error);
-      return next(error);
-    }
-  };
-
-  /**
-   * Create emcee script
-   */
-  createEmceeScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const log = createRequestLogger(req, 'board');
-    try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
-
-      const { title, content, type, eventId, contestId, categoryId, order, notes } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const script = await this.boardService.createEmceeScript({
-        title,
-        content,
-        type,
-        eventId,
-        contestId,
-        categoryId,
-        order,
-        notes,
-        userId,
-        tenantId: req.user.tenantId,
-      });
-
-      res.status(201).json(script);
-    } catch (error) {
-      log.error('Create emcee script error', error);
-      return next(error);
-    }
-  };
-
-  /**
-   * Update emcee script
-   */
-  updateEmceeScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const log = createRequestLogger(req, 'board');
-    try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
-
-      const { id } = req.params;
-      const { title, content, type, eventId, contestId, categoryId, order, notes } = req.body;
-
-      if (!id) {
-        res.status(400).json({ error: 'Script ID required' });
-        return;
-      }
-
-      const script = await this.boardService.updateEmceeScript(id, {
-        title,
-        content,
-        type,
-        eventId,
-        contestId,
-        categoryId,
-        order,
-        notes,
-      }, req.user.tenantId);
-
-      res.json(script);
-    } catch (error) {
-      log.error('Update emcee script error', error);
-      return next(error);
-    }
-  };
-
-  /**
-   * Delete emcee script
-   */
-  deleteEmceeScript = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const log = createRequestLogger(req, 'board');
-    try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
-
-      const { id } = req.params;
-
-      if (!id) {
-        res.status(400).json({ error: 'Script ID required' });
-        return;
-      }
-
-      const result = await this.boardService.deleteEmceeScript(id, req.user.tenantId);
-      res.json(result);
-    } catch (error) {
-      log.error('Delete emcee script error', error);
-      return next(error);
-    }
-  };
-
-  /**
    * Get score removal requests
    */
   getScoreRemovalRequests = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -344,10 +223,6 @@ export const getCertifications = controller.getCertifications;
 export const approveCertification = controller.approveCertification;
 export const rejectCertification = controller.rejectCertification;
 export const getCertificationStatus = controller.getCertificationStatus;
-export const getEmceeScripts = controller.getEmceeScripts;
-export const createEmceeScript = controller.createEmceeScript;
-export const updateEmceeScript = controller.updateEmceeScript;
-export const deleteEmceeScript = controller.deleteEmceeScript;
 export const getScoreRemovalRequests = controller.getScoreRemovalRequests;
 export const approveScoreRemoval = controller.approveScoreRemoval;
 export const rejectScoreRemoval = controller.rejectScoreRemoval;
