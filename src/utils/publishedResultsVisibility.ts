@@ -28,7 +28,6 @@ export const DEFAULT_PUBLISHED_RESULTS_VISIBILITY: PublishedResultsVisibilitySet
     UserRole.TALLY_MASTER,
     UserRole.AUDITOR,
     UserRole.JUDGE,
-    UserRole.EMCEE,
   ],
   winnersRoles: [
     UserRole.SUPER_ADMIN,

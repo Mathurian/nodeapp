@@ -20,6 +20,7 @@ export {
   useOptimisticListHelpers,
   generateOptimisticId
 } from './useOptimisticMutation'
+export { useResultsScopeOptions } from './useResultsScopeOptions'
 export type {
   UseOptimisticMutationOptions,
   UseOptimisticMutationResult,

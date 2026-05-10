@@ -302,6 +302,50 @@ describe('ResultsService', () => {
       });
       expect(result).toEqual(mockCategories);
     });
+
+    it('should deny EMCEE detailed results by default when no explicit visibility override allows them', async () => {
+      const mockCategories = [
+        {
+          id: 'category-1',
+          name: 'Talent',
+          contestId: 'contest-1',
+          scoreCap: 100,
+          boardApproved: true,
+          totalsCertified: true,
+          contest: {
+            id: 'contest-1',
+            name: 'Contest 1',
+            eventId: 'event-1',
+            winnersPublished: true,
+            event: {
+              id: 'event-1',
+              name: 'Event 1',
+              startDate: new Date('2026-05-01T00:00:00.000Z'),
+              endDate: new Date('2026-05-03T00:00:00.000Z'),
+            },
+          },
+        },
+      ];
+
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue(mockCategories);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ tenantId: 'tenant-1' });
+      (mockPrisma.systemSetting.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.event.findFirst as jest.Mock).mockResolvedValue({
+        id: 'event-1',
+        hideResultsUntilEventPublished: false,
+        resultsVisibleRolesOverride: null,
+        winnersVisibleRolesOverride: null,
+        progressVisibleRolesOverride: null,
+        contests: [{ id: 'contest-1', winnersPublished: true }],
+      });
+
+      const result = await service.getCategories({
+        userRole: 'EMCEE' as UserRole,
+        userId: 'emcee-1',
+      });
+
+      expect(result).toEqual([]);
+    });
   });
 
   describe('getScopeOptions', () => {
@@ -667,7 +711,7 @@ describe('ResultsService', () => {
       );
     });
 
-    it('should restrict EMCEE event results to published contests only', async () => {
+    it('should deny EMCEE event results by default when no detailed-results visibility override allows them', async () => {
       (mockPrisma.event.findUnique as jest.Mock).mockResolvedValue({
         id: 'event-1',
         name: 'Event 1',
@@ -685,24 +729,14 @@ describe('ResultsService', () => {
       });
       (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([]);
 
-      await service.getEventResults({
+      const result = await service.getEventResults({
         eventId: 'event-1',
         userRole: 'EMCEE' as UserRole,
         userId: 'emcee-1'
       });
 
-      expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            category: {
-              contest: {
-                eventId: 'event-1',
-                winnersPublished: true,
-              }
-            }
-          })
-        })
-      );
+      expect(result).toEqual([]);
+      expect(mockPrisma.score.findMany).not.toHaveBeenCalled();
     });
   });
 });

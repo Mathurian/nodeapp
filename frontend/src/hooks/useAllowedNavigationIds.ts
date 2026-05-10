@@ -5,6 +5,7 @@ import { NAV_SECTIONS } from '../config/navigationConfig'
 import { useAuthPermissions } from './useAuthPermissions'
 import { canAccessNavItem } from '../utils/pageAccess'
 import { settingsAPI } from '../services/api'
+import { useResultsScopeOptions } from './useResultsScopeOptions'
 
 /**
  * Fetches server-scoped navigation IDs for the current user session.
@@ -15,6 +16,10 @@ export const useAllowedNavigationIds = () => {
   const { data } = useAuthPermissions({ enabled: Boolean(user) })
   const permissions = data?.permissions
   const normalizedRole = String(user?.role || '').trim().toUpperCase()
+  const {
+    hasAccessibleScope: hasAccessibleResultsScope,
+    isRestrictedRole: isRestrictedResultsRole,
+  } = useResultsScopeOptions()
   const { data: publishedResultsVisibility } = useQuery<any>(
     ['nav-published-results-visibility'],
     async () => {
@@ -51,10 +56,11 @@ export const useAllowedNavigationIds = () => {
           return
         }
         if (canAccessNavItem(item.id, item.href, normalizedRole, permissions)) {
-          if (item.id === 'results' && normalizedRole === 'EMCEE' && !detailedResultsRoles.includes(normalizedRole)) {
-            return
-          }
-          if (item.id === 'results' && normalizedRole === 'JUDGE' && !detailedResultsRoles.includes(normalizedRole)) {
+          if (
+            item.id === 'results' &&
+            isRestrictedResultsRole &&
+            (!detailedResultsRoles.includes(normalizedRole) || !hasAccessibleResultsScope)
+          ) {
             return
           }
           if (
@@ -70,7 +76,7 @@ export const useAllowedNavigationIds = () => {
       })
     })
     return ids
-  }, [normalizedRole, permissions, publishedResultsVisibility])
+  }, [hasAccessibleResultsScope, isRestrictedResultsRole, normalizedRole, permissions, publishedResultsVisibility])
 }
 
 export default useAllowedNavigationIds

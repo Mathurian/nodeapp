@@ -17,7 +17,7 @@ import * as XLSX from 'xlsx'
 import { safeFormatDate } from '../utils/dateUtils'
 import { Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
-import { useMobileWorkflowNavigation } from '../hooks'
+import { useMobileWorkflowNavigation, useResultsScopeOptions } from '../hooks'
 import { compareCategories, compareContests, compareContestants, compareEvents, stableSort } from '../utils/listOrdering'
 
 interface Event {
@@ -138,12 +138,6 @@ interface ContestantVisibilitySettings {
   canViewMinimumWinningScore: boolean
 }
 
-interface ResultsScopeOptions {
-  events: Event[]
-  contests: Contest[]
-  categories: Category[]
-}
-
 const ResultsPage: React.FC = () => {
   const { user } = useAuth()
   const [selectedEventId, setSelectedEventId] = useState<string>('')
@@ -172,23 +166,13 @@ const ResultsPage: React.FC = () => {
     ? contestantVisibility?.canViewMinimumWinningScore === true
     : staffCanViewMinimumWinningScore
 
-  const { data: scopeOptions, isLoading: scopeLoading, error: scopeError } = useQuery<ResultsScopeOptions>(
-    'results-scope-options',
-    async () => {
-      const response = await resultsAPI.getScopeOptions()
-      const payload = response.data?.data || response.data
-      return {
-        events: Array.isArray(payload?.events) ? payload.events : [],
-        contests: Array.isArray(payload?.contests) ? payload.contests : [],
-        categories: Array.isArray(payload?.categories) ? payload.categories : [],
-      }
-    },
-    {
-      enabled: Boolean(user?.id),
-      retry: 1,
-      onError: (err) => console.error('Fetch results scope options failed:', err),
-    }
-  )
+  const {
+    data: scopeOptions,
+    isLoading: scopeLoading,
+    error: scopeError,
+    hasAccessibleScope,
+    isRestrictedRole: isRestrictedResultsRole,
+  } = useResultsScopeOptions()
 
   const { data: minimumWinningScoreData } = useQuery<{ contestId: string; minimumWinningScore: number | null }>(
     ['results-minimum-winning-score', selectedContestId],
@@ -437,8 +421,28 @@ const ResultsPage: React.FC = () => {
   const hasContestResults = Boolean(selectedContestId && !selectedCategoryId && contestLevelResults.length > 0)
   const selectedContestName = contests?.find((c) => c.id === selectedContestId)?.name || ''
   const minimumWinningScore = minimumWinningScoreData?.minimumWinningScore
+  const shouldBlockDirectResultsAccess =
+    isRestrictedResultsRole &&
+    !scopeLoading &&
+    !scopeError &&
+    !hasAccessibleScope
 
   // Early return for error states
+  if (shouldBlockDirectResultsAccess) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="cgr-page-container">
+          <Card className="rounded-lg p-8 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Access Denied</h2>
+            <p className="text-gray-600 dark:text-gray-300">
+              You do not currently have access to detailed results.
+            </p>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   if (scopeError) {
     return (
       <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6">
