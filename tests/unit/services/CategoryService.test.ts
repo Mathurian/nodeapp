@@ -5,6 +5,7 @@
 
 import { CategoryService } from '../../../src/services/CategoryService';
 import { CategoryRepository } from '../../../src/repositories/CategoryRepository';
+import { ContestRepository } from '../../../src/repositories/ContestRepository';
 import { CacheService } from '../../../src/services/CacheService';
 import { MetricsService } from '../../../src/services/MetricsService';
 import { NotFoundError, ValidationError } from '../../../src/services/BaseService';
@@ -12,6 +13,7 @@ import { NotFoundError, ValidationError } from '../../../src/services/BaseServic
 describe('CategoryService', () => {
   let categoryService: CategoryService;
   let mockCategoryRepo: jest.Mocked<CategoryRepository>;
+  let mockContestRepo: jest.Mocked<ContestRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
   let mockMetricsService: jest.Mocked<MetricsService>;
 
@@ -27,6 +29,10 @@ describe('CategoryService', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    } as any;
+
+    mockContestRepo = {
+      findById: jest.fn(),
     } as any;
 
     mockCacheService = {
@@ -48,7 +54,12 @@ describe('CategoryService', () => {
       recordSoftDeleteRestore: jest.fn(),
     } as any;
 
-    categoryService = new CategoryService(mockCategoryRepo, mockCacheService, mockMetricsService);
+    categoryService = new CategoryService(
+      mockCategoryRepo,
+      mockContestRepo,
+      mockCacheService,
+      mockMetricsService,
+    );
   });
 
   afterEach(() => {
@@ -65,12 +76,24 @@ describe('CategoryService', () => {
         tenantId: 'tenant-1',
       };
       const createdCategory = { id: '1', ...categoryData };
+      mockContestRepo.findById.mockResolvedValue({
+        id: 'contest-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'PER_CRITERION',
+        commentaryScope: 'CATEGORY',
+      } as any);
       mockCategoryRepo.create.mockResolvedValue(createdCategory as any);
 
       const result = await categoryService.createCategory(categoryData);
 
       expect(result).toEqual(createdCategory);
-      expect(mockCategoryRepo.create).toHaveBeenCalledWith(categoryData);
+      expect(mockCategoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...categoryData,
+          commentaryMode: 'PER_CRITERION',
+          commentaryScope: 'CATEGORY',
+        }),
+      );
       expect(mockCacheService.del).toHaveBeenCalledWith('categories:contest:contest-1');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
@@ -105,11 +128,75 @@ describe('CategoryService', () => {
         tenantId: 'tenant-1',
       };
       const createdCategory = { id: '1', ...categoryData };
+      mockContestRepo.findById.mockResolvedValue({
+        id: 'contest-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'PER_CRITERION',
+        commentaryScope: 'CATEGORY',
+      } as any);
       mockCategoryRepo.create.mockResolvedValue(createdCategory as any);
 
       const result = await categoryService.createCategory(categoryData);
 
       expect(result).toEqual(createdCategory);
+    });
+
+    it('inherits contest commentary defaults when the category payload omits them', async () => {
+      const categoryData = {
+        name: 'Talent',
+        contestId: 'contest-1',
+        tenantId: 'tenant-1',
+      };
+      mockContestRepo.findById.mockResolvedValue({
+        id: 'contest-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
+      } as any);
+      mockCategoryRepo.create.mockResolvedValue({
+        id: '1',
+        ...categoryData,
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
+      } as any);
+
+      await categoryService.createCategory(categoryData);
+
+      expect(mockCategoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          commentaryMode: 'HYBRID',
+          commentaryScope: 'EVENT',
+        }),
+      );
+    });
+
+    it('keeps explicit category commentary values instead of contest defaults', async () => {
+      const categoryData = {
+        name: 'Talent',
+        contestId: 'contest-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'PER_CATEGORY' as const,
+        commentaryScope: 'CONTEST' as const,
+      };
+      mockContestRepo.findById.mockResolvedValue({
+        id: 'contest-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
+      } as any);
+      mockCategoryRepo.create.mockResolvedValue({
+        id: '1',
+        ...categoryData,
+      } as any);
+
+      await categoryService.createCategory(categoryData);
+
+      expect(mockCategoryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          commentaryMode: 'PER_CATEGORY',
+          commentaryScope: 'CONTEST',
+        }),
+      );
     });
   });
 

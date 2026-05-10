@@ -227,13 +227,15 @@ export class ContestsController {
       if (!event) {
         return sendError(res, 'Event not found', 404);
       }
-      const { name, description, contestantNumberingMode } = req.body;
+      const { name, description, commentaryMode, commentaryScope, contestantNumberingMode } = req.body;
 
       const contest = await this.contestService.createContest({
         tenantId,
         eventId,
         name,
         description,
+        commentaryMode,
+        commentaryScope,
         contestantNumberingMode,
       });
 
@@ -252,11 +254,13 @@ export class ContestsController {
       if (!id) {
         return sendError(res, 'Contest ID is required', 400);
       }
-      const { name, description, contestantNumberingMode } = req.body;
+      const { name, description, commentaryMode, commentaryScope, contestantNumberingMode } = req.body;
 
       const contest = await this.contestService.updateContest(id, {
         name,
         description,
+        commentaryMode,
+        commentaryScope,
         contestantNumberingMode,
       });
 

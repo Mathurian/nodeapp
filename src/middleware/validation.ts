@@ -309,6 +309,8 @@ export const createContestSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   archived: z.boolean().optional(),
+  commentaryMode: commentaryModeSchema.optional(),
+  commentaryScope: commentaryScopeSchema.optional(),
   contestantNumberingMode: contestantNumberingModeSchema.optional(),
   nextContestantNumber: z.number().int().positive().optional()
 });
@@ -320,6 +322,8 @@ export const updateContestSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
   archived: z.boolean().optional(),
+  commentaryMode: commentaryModeSchema.optional(),
+  commentaryScope: commentaryScopeSchema.optional(),
   contestantNumberingMode: contestantNumberingModeSchema.optional(),
   nextContestantNumber: z.number().int().positive().optional()
 });
@@ -407,6 +411,8 @@ export const createContestFromTemplateSchema = z.object({
   targetEventId: compatIdSchema,
   contestName: z.string().trim().min(1).max(200).optional(),
   contestDescription: z.string().trim().max(1000).optional(),
+  commentaryMode: commentaryModeSchema.optional(),
+  commentaryScope: commentaryScopeSchema.optional(),
 });
 
 /**

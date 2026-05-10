@@ -46,6 +46,8 @@ export interface ContestTemplate {
   id?: string;
   name: string;
   description?: string;
+  commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
 }
 
 // DTO interfaces
@@ -88,6 +90,8 @@ export interface CreateContestFromTemplateDto {
   targetEventId: string;
   contestName?: string;
   contestDescription?: string;
+  commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
   tenantId: string;
 }
 
@@ -173,6 +177,8 @@ export class EventTemplateService extends BaseService {
       categories: CategoryTemplate[];
       contestName?: string;
       contestDescription?: string;
+      commentaryMode?: CommentaryMode;
+      commentaryScope?: CommentaryScope;
     }
   ): Promise<ContestCreationFromTemplateResponse> {
     const contest = await tx.contest.create({
@@ -180,6 +186,8 @@ export class EventTemplateService extends BaseService {
         eventId: input.eventId,
         name: input.contestName?.trim() || input.contestTemplate.name,
         description: input.contestDescription?.trim() || input.contestTemplate.description || null,
+        commentaryMode: input.commentaryMode || input.contestTemplate.commentaryMode || 'PER_CRITERION',
+        commentaryScope: input.commentaryScope || input.contestTemplate.commentaryScope || 'CATEGORY',
         tenantId: input.tenantId,
       },
     });
@@ -301,6 +309,8 @@ export class EventTemplateService extends BaseService {
       id: contest.id,
       name: contest.name,
       description: contest.description || undefined,
+      commentaryMode: contest.commentaryMode,
+      commentaryScope: contest.commentaryScope,
     }));
 
     const categories: CategoryTemplate[] = event.contests.flatMap((contest) =>
@@ -550,6 +560,8 @@ export class EventTemplateService extends BaseService {
         categories,
         contestName: data.contestName,
         contestDescription: data.contestDescription,
+        commentaryMode: data.commentaryMode,
+        commentaryScope: data.commentaryScope,
       })
     );
 

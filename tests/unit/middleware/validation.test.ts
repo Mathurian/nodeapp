@@ -1,10 +1,38 @@
 import {
+  createContestSchema,
   createCategoryFromTemplateSchema,
   createCategorySchema,
+  updateContestSchema,
   updateCategorySchema,
 } from '../../../src/middleware/validation';
 
 describe('validation middleware', () => {
+  it('allows commentary defaults in contest create payloads', async () => {
+    await expect(
+      createContestSchema.parseAsync({
+        eventId: 'cm9z6g0sh0001uoxxabcdef12',
+        name: 'Miss Teen',
+        commentaryMode: 'PER_CATEGORY',
+        commentaryScope: 'CONTEST',
+      }),
+    ).resolves.toMatchObject({
+      commentaryMode: 'PER_CATEGORY',
+      commentaryScope: 'CONTEST',
+    });
+  });
+
+  it('allows commentary defaults in contest update payloads', async () => {
+    await expect(
+      updateContestSchema.parseAsync({
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
+      }),
+    ).resolves.toMatchObject({
+      commentaryMode: 'HYBRID',
+      commentaryScope: 'EVENT',
+    });
+  });
+
   it('allows commentaryMode in category create payloads', async () => {
     await expect(
       createCategorySchema.parseAsync({
@@ -45,6 +73,12 @@ describe('validation middleware', () => {
   });
 
   it('rejects invalid commentaryMode or commentaryScope values', async () => {
+    await expect(
+      updateContestSchema.parseAsync({
+        commentaryMode: 'BY_CONTEST',
+      }),
+    ).rejects.toThrow();
+
     await expect(
       updateCategorySchema.parseAsync({
         commentaryMode: 'BY_CATEGORY',

@@ -150,13 +150,22 @@ export class EventTemplateController {
       }
 
       const templateId = req.params['id'] || req.body.templateId;
-      const { templateContestId, targetEventId, contestName, contestDescription } = req.body;
+      const {
+        templateContestId,
+        targetEventId,
+        contestName,
+        contestDescription,
+        commentaryMode,
+        commentaryScope,
+      } = req.body;
       const contest = await this.eventTemplateService.createContestFromTemplate({
         templateId,
         templateContestId,
         targetEventId,
         contestName,
         contestDescription,
+        commentaryMode,
+        commentaryScope,
         tenantId: req.user.tenantId
       });
       return sendSuccess(res, contest, 'Contest created from template', 201);

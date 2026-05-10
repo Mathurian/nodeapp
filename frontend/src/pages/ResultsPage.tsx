@@ -15,8 +15,9 @@ import {
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 import { safeFormatDate } from '../utils/dateUtils'
-import { Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
+import { useMobileWorkflowNavigation } from '../hooks'
 import { compareCategories, compareContests, compareContestants, compareEvents, stableSort } from '../utils/listOrdering'
 
 interface Event {
@@ -142,6 +143,9 @@ const ResultsPage: React.FC = () => {
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
+  const filtersSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const resultsSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
   const [showScoreBreakdowns, setShowScoreBreakdowns] = useState(false)
   const isContestant = user?.role === 'CONTESTANT'
   const staffCanViewMinimumWinningScore = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE'].includes(user?.role || '')
@@ -632,7 +636,26 @@ const ResultsPage: React.FC = () => {
           icon={TrophyIcon}
         />
 
+        <MobileWorkflowNav
+          className="mb-4"
+          actions={[
+            {
+              label: 'Filters',
+              onClick: () => scrollToRef(filtersSectionRef),
+            },
+            {
+              label: 'Results',
+              onClick: () => scrollToRef(resultsSectionRef),
+            },
+            {
+              label: 'Top',
+              onClick: () => scrollToTop(),
+            },
+          ]}
+        />
+
         {/* Filters */}
+        <div ref={filtersSectionRef}>
         <Card className="rounded-lg p-6 mb-6">
           <div className="flex items-center mb-4">
             <FunnelIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
@@ -651,6 +674,7 @@ const ResultsPage: React.FC = () => {
                   setSelectedEventId(e.target.value)
                   setSelectedContestId('')
                   setSelectedCategoryId('')
+                  scrollToRef(resultsSectionRef, { delayMs: 140 })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={eventsLoading}
@@ -674,6 +698,7 @@ const ResultsPage: React.FC = () => {
                 onChange={(e) => {
                   setSelectedContestId(e.target.value)
                   setSelectedCategoryId('')
+                  scrollToRef(resultsSectionRef, { delayMs: 140 })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!selectedEventId || contestsLoading}
@@ -694,7 +719,10 @@ const ResultsPage: React.FC = () => {
               </label>
               <select id="pages-resultspage-3"
                 value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCategoryId(e.target.value)
+                  scrollToRef(resultsSectionRef, { delayMs: 140 })
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!selectedContestId || categoriesLoading}
               >
@@ -738,8 +766,10 @@ const ResultsPage: React.FC = () => {
             </div>
           )}
         </Card>
+        </div>
 
         {/* Results Display */}
+        <div ref={resultsSectionRef}>
         {(resultsLoading || contestResultsLoading) ? (
           <Card className="rounded-lg p-12 text-center">
             <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
@@ -782,6 +812,21 @@ const ResultsPage: React.FC = () => {
                 )}
               </div>
             </div>
+
+            <MobileWorkflowNav
+              className="mb-4"
+              title="Results navigation"
+              actions={[
+                {
+                  label: 'Filters',
+                  onClick: () => scrollToRef(filtersSectionRef),
+                },
+                {
+                  label: 'Top',
+                  onClick: () => scrollToTop(),
+                },
+              ]}
+            />
 
             {/* Winners List */}
             <div className="space-y-4">
@@ -960,6 +1005,20 @@ const ResultsPage: React.FC = () => {
                     </tbody>
                   </table>
           </ResponsiveTable>
+                <MobileWorkflowNav
+                  className="mb-4"
+                  title="Results navigation"
+                  actions={[
+                    {
+                      label: 'Filters',
+                      onClick: () => scrollToRef(filtersSectionRef),
+                    },
+                    {
+                      label: 'Top',
+                      onClick: () => scrollToTop(),
+                    },
+                  ]}
+                />
                 {contestLevelResults.map((winner, idx) => (
                   <div
                     key={winner.contestantId}
@@ -1030,6 +1089,7 @@ const ResultsPage: React.FC = () => {
             </p>
           </Card>
         )}
+        </div>
       </div>
     </div>
   )

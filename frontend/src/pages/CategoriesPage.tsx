@@ -45,6 +45,8 @@ interface Contest {
   id: string
   name: string
   eventId: string
+  commentaryMode?: CommentaryMode
+  commentaryScope?: CommentaryScope
   tenantId?: string
   event?: {
     id: string
@@ -147,7 +149,8 @@ const CategoriesPage: React.FC = () => {
     resolver: zodResolver(categoryFormSchema),
     defaultValues: { contestId: contestId || '', name: '', description: '', scoreCap: '', timeLimit: '', contestantMin: '', contestantMax: '', commentaryMode: 'PER_CRITERION', commentaryScope: 'CATEGORY' },
   })
-  const { register, handleSubmit: rhfHandleSubmit, reset, formState: { errors } } = form
+  const selectedFormContestId = form.watch('contestId')
+  const { register, handleSubmit: rhfHandleSubmit, reset, setValue, formState: { errors } } = form
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedContestFilter, setSelectedContestFilter] = useState<string>(contestId || '')
@@ -210,6 +213,20 @@ const CategoriesPage: React.FC = () => {
       onError: (err) => console.error('Fetch contests failed:', err),
     }
   )
+
+  useEffect(() => {
+    if (editingCategory || creationMode !== 'blank') {
+      return
+    }
+
+    const selectedContest = contests?.find((contest) => contest.id === selectedFormContestId)
+    if (!selectedContest) {
+      return
+    }
+
+    setValue('commentaryMode', selectedContest.commentaryMode || 'PER_CRITERION')
+    setValue('commentaryScope', selectedContest.commentaryScope || 'CATEGORY')
+  }, [contests, creationMode, editingCategory, selectedFormContestId, setValue])
 
   const currentEditingContest = editingCategory
     ? contests?.find((contest) => contest.id === editingCategory.contestId)
@@ -1176,7 +1193,7 @@ const CategoriesPage: React.FC = () => {
                     ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Choose whether judges comment per criterion, once for the whole category, or both.
+                    New categories start from the contest default. Change this only when this category needs different commentary behavior.
                   </p>
                 </div>
 
@@ -1196,7 +1213,7 @@ const CategoriesPage: React.FC = () => {
                     ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Choose whether the shared non-criterion comment is unique to this category, shared across the contest, or shared across the event.
+                    This overrides the contest default only for this category.
                   </p>
                 </div>
 

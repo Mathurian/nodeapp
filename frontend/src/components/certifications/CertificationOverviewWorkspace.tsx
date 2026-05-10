@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import { api, scoreGovernanceAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { useMobileWorkflowNavigation } from '../../hooks'
+import { MobileWorkflowNav } from '../ui'
 
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'CERTIFIED' | 'REJECTED'
 
@@ -199,6 +201,9 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
   const [drawnSignatureData, setDrawnSignatureData] = useState<string>('')
   const [isDrawing, setIsDrawing] = useState(false)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
+  const filtersSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const categoriesSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
 
   const loadOverview = async () => {
     try {
@@ -485,6 +490,23 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
           </button>
         </div>
 
+        <MobileWorkflowNav
+          actions={[
+            {
+              label: 'Filters',
+              onClick: () => scrollToRef(filtersSectionRef),
+            },
+            {
+              label: 'Categories',
+              onClick: () => scrollToRef(categoriesSectionRef),
+            },
+            {
+              label: 'Top',
+              onClick: () => scrollToTop(),
+            },
+          ]}
+        />
+
         {error && (
           <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900 dark:border-red-700 text-red-800 dark:text-red-200">
             {error}
@@ -514,10 +536,13 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div ref={filtersSectionRef} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <select
             value={selectedContest}
-            onChange={(e) => setSelectedContest(e.target.value)}
+            onChange={(e) => {
+              setSelectedContest(e.target.value)
+              scrollToRef(categoriesSectionRef, { delayMs: 140 })
+            }}
             className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           >
             <option value="ALL">All Contests</option>
@@ -530,7 +555,10 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
 
           <select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value as 'ALL' | StageStatus)}
+            onChange={(e) => {
+              setSelectedStatus(e.target.value as 'ALL' | StageStatus)
+              scrollToRef(categoriesSectionRef, { delayMs: 140 })
+            }}
             className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           >
             <option value="ALL">All Statuses</option>
@@ -569,7 +597,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div ref={categoriesSectionRef} className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           {categories.length === 0 ? (
             <div className="p-10 text-center text-gray-500 dark:text-gray-400">No categories match current filters.</div>
           ) : (
@@ -730,6 +758,22 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
             </>
           )}
         </div>
+
+        {categories.length > 0 && (
+          <MobileWorkflowNav
+            title="Navigate workspace"
+            actions={[
+              {
+                label: 'Filters',
+                onClick: () => scrollToRef(filtersSectionRef),
+              },
+              {
+                label: 'Top',
+                onClick: () => scrollToTop(),
+              },
+            ]}
+          />
+        )}
 
         {pendingCertification && (
           <div className="cgr-modal-overlay-soft">

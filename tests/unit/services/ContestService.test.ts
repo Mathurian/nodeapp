@@ -90,6 +90,8 @@ describe('ContestService', () => {
         eventId: 'event-1',
         description: 'Test Contest',
         tenantId: 'tenant-1',
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
       };
       const createdContest = { id: '1', ...contestData };
       mockContestRepo.create.mockResolvedValue(createdContest as any);
@@ -112,6 +114,26 @@ describe('ContestService', () => {
       const invalidData = { eventId: 'event-1' } as any;
 
       await expect(contestService.createContest(invalidData)).rejects.toThrow();
+    });
+
+    it('should persist contest commentary defaults when provided', async () => {
+      const contestData = {
+        name: 'Talent Contest',
+        eventId: 'event-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'PER_CATEGORY' as const,
+        commentaryScope: 'CONTEST' as const,
+      };
+      mockContestRepo.create.mockResolvedValue({ id: '1', ...contestData } as any);
+
+      await contestService.createContest(contestData);
+
+      expect(mockContestRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          commentaryMode: 'PER_CATEGORY',
+          commentaryScope: 'CONTEST',
+        }),
+      );
     });
   });
 

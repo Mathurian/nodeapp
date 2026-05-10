@@ -158,6 +158,8 @@ export class StructureCopyService extends BaseService {
             eventId: targetEvent.id,
             name: this.buildCloneName(sourceContest.name, input.name),
             description: sourceContest.description,
+            commentaryMode: sourceContest.commentaryMode,
+            commentaryScope: sourceContest.commentaryScope,
             contestantNumberingMode: sourceContest.contestantNumberingMode,
             nextContestantNumber: 1,
             contestantViewRestricted: sourceContest.contestantViewRestricted,

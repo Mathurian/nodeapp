@@ -84,6 +84,8 @@ model Contest {
   eventId                   String
   name                      String
   description               String?
+  commentaryMode            CommentaryMode          @default(PER_CRITERION)
+  commentaryScope           CommentaryScope         @default(CATEGORY)
   createdAt                 DateTime                @default(now())
   updatedAt                 DateTime                @updatedAt
   contestantNumberingMode   ContestantNumberingMode @default(MANUAL)

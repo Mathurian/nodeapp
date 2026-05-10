@@ -4,7 +4,8 @@ import toast from 'react-hot-toast'
 import { useLocation } from 'react-router-dom'
 import { assignmentsAPI, categoriesAPI, contestsAPI, scoreGovernanceAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { useMobileWorkflowNavigation } from '../hooks'
+import { Button, Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
 
 type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY' | 'ADJUST'
 type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL' | 'CONTEST_LEVEL'
@@ -30,6 +31,11 @@ const ScoreGovernancePage: React.FC = () => {
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
   const [isDrawing, setIsDrawing] = useState(false)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
+  const queueSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const filtersSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const createRequestSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const reviewSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
 
   const [requiredAdditionalApprovals, setRequiredAdditionalApprovals] = useState(2)
   const [approverRoles, setApproverRoles] = useState<string[]>(['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'])
@@ -258,6 +264,7 @@ const ScoreGovernancePage: React.FC = () => {
       setJudgeId('')
       await queryClient.invalidateQueries('governance-requests')
       await queryClient.invalidateQueries('governance-review')
+      scrollToRef(queueSectionRef, { delayMs: 150 })
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to submit request')
@@ -396,6 +403,31 @@ const ScoreGovernancePage: React.FC = () => {
         subtitle="Queue-first governance workspace for throw-outs, un-certifications, and score adjustments."
       />
 
+      <MobileWorkflowNav
+        actions={[
+          {
+            label: 'Queue',
+            onClick: () => scrollToRef(queueSectionRef),
+          },
+          {
+            label: 'Filters',
+            onClick: () => scrollToRef(filtersSectionRef),
+          },
+          {
+            label: 'Create request',
+            onClick: () => scrollToRef(createRequestSectionRef),
+          },
+          {
+            label: 'Review rows',
+            onClick: () => scrollToRef(reviewSectionRef),
+          },
+          {
+            label: 'Top',
+            onClick: () => scrollToTop(),
+          },
+        ]}
+      />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="rounded-lg p-4">
           <p className="text-xs uppercase text-gray-500 dark:text-gray-400">Total Requests</p>
@@ -447,6 +479,7 @@ const ScoreGovernancePage: React.FC = () => {
         </div>
       </Card>
 
+      <div ref={queueSectionRef}>
       <Card className="rounded-lg p-4 space-y-3">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
@@ -462,6 +495,7 @@ const ScoreGovernancePage: React.FC = () => {
           </div>
         </div>
       </Card>
+      </div>
 
       <Card className="rounded-lg p-0 overflow-x-auto">
         <ResponsiveTable caption="Governance requests" minWidth="1200px">
@@ -588,22 +622,45 @@ const ScoreGovernancePage: React.FC = () => {
         </ResponsiveTable>
       </Card>
 
+      <div ref={filtersSectionRef}>
       <Card className="rounded-lg p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select value={contestId} onChange={(e) => setContestId(e.target.value)} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <select
+            value={contestId}
+            onChange={(e) => {
+              setContestId(e.target.value)
+              scrollToRef(reviewSectionRef, { delayMs: 140 })
+            }}
+            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
             <option value="">All Contests</option>
             {contests.map((contest: any) => <option key={contest.id} value={contest.id}>{contest.name}</option>)}
           </select>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <select
+            value={categoryId}
+            onChange={(e) => {
+              setCategoryId(e.target.value)
+              scrollToRef(reviewSectionRef, { delayMs: 140 })
+            }}
+            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
             <option value="">All Categories</option>
             {categories.map((category: any) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
-          <select value={contestantId} onChange={(e) => setContestantId(e.target.value)} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <select
+            value={contestantId}
+            onChange={(e) => {
+              setContestantId(e.target.value)
+              scrollToRef(reviewSectionRef, { delayMs: 140 })
+            }}
+            className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
             <option value="">All Contestants</option>
             {contestants.map((contestant) => <option key={contestant.id} value={contestant.id}>#{contestant.contestantNumber ?? 'N/A'} {contestant.name}</option>)}
           </select>
         </div>
         </Card>
+      </div>
 
         {canConfigure && (
           <Card className="rounded-lg p-4 space-y-3">
@@ -643,6 +700,7 @@ const ScoreGovernancePage: React.FC = () => {
           </Card>
         )}
 
+        <div ref={createRequestSectionRef}>
         <Card className="rounded-lg p-4 space-y-3" data-testid="create-governance-request">
           <h2 className="font-semibold text-gray-900 dark:text-white">Create Governance Request</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -736,8 +794,29 @@ const ScoreGovernancePage: React.FC = () => {
           </div>
 
           <Button onClick={submitRequest} data-testid="create-governance-request-button">Create Request</Button>
-        </Card>
 
+          <MobileWorkflowNav
+            className="mt-2"
+            title="After request setup"
+            actions={[
+              {
+                label: 'Queue',
+                onClick: () => scrollToRef(queueSectionRef),
+              },
+              {
+                label: 'Review rows',
+                onClick: () => scrollToRef(reviewSectionRef),
+              },
+              {
+                label: 'Top',
+                onClick: () => scrollToTop(),
+              },
+            ]}
+          />
+        </Card>
+        </div>
+
+      <div ref={reviewSectionRef}>
       <Card className="rounded-lg p-0 overflow-x-auto">
           <ResponsiveTable caption="Governance score review rows" minWidth="1100px">
             <table className="w-full min-w-[1100px]">
@@ -768,6 +847,7 @@ const ScoreGovernancePage: React.FC = () => {
             </table>
           </ResponsiveTable>
         </Card>
+      </div>
 
     </div>
   )

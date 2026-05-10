@@ -3,7 +3,7 @@
  * Business logic layer for Contest entity with caching support
  */
 
-import { Contest, Prisma } from '@prisma/client';
+import { CommentaryMode, CommentaryScope, Contest, Prisma } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError } from './BaseService';
 import { ContestRepository } from '../repositories/ContestRepository';
@@ -38,6 +38,8 @@ interface CreateContestDto {
   eventId: string;
   name: string;
   description?: string;
+  commentaryMode?: CommentaryMode;
+  commentaryScope?: CommentaryScope;
   contestantNumberingMode?: 'MANUAL' | 'AUTO_INDEXED' | 'OPTIONAL';
 }
 

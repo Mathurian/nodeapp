@@ -3,6 +3,8 @@
 
 export { default as Button } from './Button'
 export type { ButtonProps } from './Button'
+export { default as MobileWorkflowNav } from './MobileWorkflowNav'
+export type { MobileWorkflowNavProps } from './MobileWorkflowNav'
 
 export { default as Card } from './Card'
 export type { CardProps } from './Card'

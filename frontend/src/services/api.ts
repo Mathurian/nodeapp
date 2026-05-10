@@ -176,7 +176,14 @@ export const contestsAPI = {
   update: (id: string, data: any) => api.put(`/contests/${id}`, data),
   clone: (id: string, data: { targetEventId: string; name?: string; includeCategories?: boolean; includeCriteria?: boolean }) =>
     api.post(`/contests/${id}/clone`, data),
-  createFromTemplate: (templateId: string, data: { templateContestId: string; targetEventId: string; contestName?: string; contestDescription?: string }) =>
+  createFromTemplate: (templateId: string, data: {
+    templateContestId: string;
+    targetEventId: string;
+    contestName?: string;
+    contestDescription?: string;
+    commentaryMode?: 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID';
+    commentaryScope?: 'CATEGORY' | 'CONTEST' | 'EVENT';
+  }) =>
     api.post(`/event-templates/${templateId}/create-contest`, data),
   archive: (id: string) => api.post(`/contests/${id}/archive`),
   reactivate: (id: string) => api.post(`/contests/${id}/reactivate`),

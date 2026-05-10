@@ -29,6 +29,21 @@ import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
 import { isInteractiveElement } from '../utils/interactive'
 
+type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
+
+const COMMENTARY_MODE_OPTIONS: Array<{ value: CommentaryMode; label: string }> = [
+  { value: 'PER_CRITERION', label: 'Per Criterion' },
+  { value: 'PER_CATEGORY', label: 'Per Category' },
+  { value: 'HYBRID', label: 'Hybrid' },
+]
+
+const COMMENTARY_SCOPE_OPTIONS: Array<{ value: CommentaryScope; label: string }> = [
+  { value: 'CATEGORY', label: 'Category Scoped' },
+  { value: 'CONTEST', label: 'Contest Scoped' },
+  { value: 'EVENT', label: 'Event Scoped' },
+]
+
 interface Event {
   id: string
   name: string
@@ -40,6 +55,8 @@ interface Contest {
   name: string
   description: string | null
   eventId: string
+  commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
   tenantId?: string
   archived: boolean
   isLocked: boolean
@@ -59,6 +76,8 @@ interface EventTemplateContestOption {
   id?: string
   name: string
   description?: string
+  commentaryMode?: CommentaryMode
+  commentaryScope?: CommentaryScope
 }
 
 interface EventTemplateOption {
@@ -72,6 +91,8 @@ interface ContestFormData {
   name: string
   description: string
   eventId: string
+  commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
   scoringType?: 'STRAIGHT' | 'OLYMPIC' | null
 }
 
@@ -79,6 +100,8 @@ const contestFormSchema = z.object({
   eventId: z.string().min(1, 'Please select an event'),
   name: z.string().min(1, 'Contest name is required').max(200, 'Name must be less than 200 characters'),
   description: z.string(),
+  commentaryMode: z.enum(['PER_CRITERION', 'PER_CATEGORY', 'HYBRID']),
+  commentaryScope: z.enum(['CATEGORY', 'CONTEST', 'EVENT']),
   scoringType: z.string(),
 })
 
@@ -109,7 +132,14 @@ const ContestsPage: React.FC = () => {
 
   const form = useForm<ContestFormValues>({
     resolver: zodResolver(contestFormSchema),
-    defaultValues: { eventId: '', name: '', description: '', scoringType: '' },
+    defaultValues: {
+      eventId: '',
+      name: '',
+      description: '',
+      commentaryMode: 'PER_CRITERION',
+      commentaryScope: 'CATEGORY',
+      scoringType: '',
+    },
   })
   const { register, handleSubmit: rhfHandleSubmit, reset, setValue, formState: { errors } } = form
 
@@ -273,7 +303,15 @@ const ContestsPage: React.FC = () => {
   )
 
   const createFromTemplateMutation = useMutation(
-    async (payload: { templateId: string; templateContestId: string; targetEventId: string; contestName?: string; contestDescription?: string }) => {
+    async (payload: {
+      templateId: string;
+      templateContestId: string;
+      targetEventId: string;
+      contestName?: string;
+      contestDescription?: string;
+      commentaryMode?: CommentaryMode;
+      commentaryScope?: CommentaryScope;
+    }) => {
       const response = await contestsAPI.createFromTemplate(payload.templateId, payload)
       return response.data?.data || response.data
     },
@@ -393,7 +431,14 @@ const ContestsPage: React.FC = () => {
   )
 
   const resetForm = () => {
-    reset({ eventId: '', name: '', description: '', scoringType: '' })
+    reset({
+      eventId: '',
+      name: '',
+      description: '',
+      commentaryMode: 'PER_CRITERION',
+      commentaryScope: 'CATEGORY',
+      scoringType: '',
+    })
     setEditingContest(null)
     setMinimumWinningScoreInput('')
     setCreationMode('blank')
@@ -408,6 +453,8 @@ const ContestsPage: React.FC = () => {
       name: contest.name,
       description: contest.description || '',
       eventId: contest.eventId,
+      commentaryMode: contest.commentaryMode || 'PER_CRITERION',
+      commentaryScope: contest.commentaryScope || 'CATEGORY',
       scoringType: contest.scoringType || '',
     })
     setIsFormOpen(true)
@@ -472,6 +519,8 @@ const ContestsPage: React.FC = () => {
         targetEventId: data.eventId,
         contestName: data.name,
         contestDescription: data.description,
+        commentaryMode: data.commentaryMode,
+        commentaryScope: data.commentaryScope,
       })
       return
     }
@@ -480,6 +529,8 @@ const ContestsPage: React.FC = () => {
       name: data.name,
       description: data.description,
       eventId: data.eventId,
+      commentaryMode: data.commentaryMode,
+      commentaryScope: data.commentaryScope,
       scoringType: data.scoringType ? (data.scoringType as 'STRAIGHT' | 'OLYMPIC') : null,
     }
 
@@ -937,6 +988,8 @@ const ContestsPage: React.FC = () => {
                               if (templateContest) {
                                 setValue('name', templateContest.name || '')
                                 setValue('description', templateContest.description || '')
+                                setValue('commentaryMode', templateContest.commentaryMode || 'PER_CRITERION')
+                                setValue('commentaryScope', templateContest.commentaryScope || 'CATEGORY')
                               }
                             }}
                             disabled={!selectedTemplateId}
@@ -1013,6 +1066,46 @@ const ContestsPage: React.FC = () => {
                     placeholder="Enter contest description"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="pages-contestspage-commentary-mode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Default Commentary Mode
+                    </label>
+                    <select
+                      id="pages-contestspage-commentary-mode"
+                      {...register('commentaryMode')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {COMMENTARY_MODE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="pages-contestspage-commentary-scope" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Default Shared Commentary Scope
+                    </label>
+                    <select
+                      id="pages-contestspage-commentary-scope"
+                      {...register('commentaryScope')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {COMMENTARY_SCOPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  These settings define the default commentary behavior for new categories in this contest. Category editors can still override them for exceptions.
+                </p>
 
                 {/* Scoring Type */}
                 <div>

@@ -4,8 +4,8 @@ import toast from 'react-hot-toast'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { commentaryAPI, scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
-import { useOptimisticMutation } from '../hooks'
-import { Card, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
+import { useMobileWorkflowNavigation, useOptimisticMutation } from '../hooks'
+import { Card, MobileWorkflowNav, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from '../services/idempotency'
 import { executeWithRetry } from '../services/retryExecutor'
 import { classifyNetworkError } from '../services/networkErrorClassifier'
@@ -266,6 +266,12 @@ const ScoringPage: React.FC = () => {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/scoring'
   const basePath = currentPath.replace(/\/scoring\/?$/, '')
   const signatureCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
+  const categorySectionRef = React.useRef<HTMLDivElement | null>(null)
+  const contestantSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const scoreSheetSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const criteriaSectionRef = React.useRef<HTMLDivElement | null>(null)
+  const scoringActionsRef = React.useRef<HTMLDivElement | null>(null)
+  const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
   const requiresSignOff = user?.role === 'JUDGE'
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
   const commentaryScope = selectedCategory?.commentaryScope || 'CATEGORY'
@@ -818,6 +824,7 @@ const ScoringPage: React.FC = () => {
       }
       setSaveStatus('saved')
       toast.success('Scores submitted successfully!')
+      scrollToRef(contestantSectionRef, { delayMs: 150 })
     } catch (error: unknown) {
       setSaveStatus('error')
       const err = error as { response?: { data?: { message?: string } }; message?: string }
@@ -908,6 +915,7 @@ const ScoringPage: React.FC = () => {
       setDrawnSignatureData('')
       setSaveStatus('saved')
       toast.success('Scores submitted and certified successfully!')
+      scrollToRef(contestantSectionRef, { delayMs: 150 })
     } catch (error: any) {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to certify scores')
       setSaveStatus('error')
@@ -1187,7 +1195,7 @@ const ScoringPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Categories */}
-          <div className="lg:col-span-1">
+          <div ref={categorySectionRef} className="lg:col-span-1">
             <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Your Categories
@@ -1222,6 +1230,7 @@ const ScoringPage: React.FC = () => {
                       onClick={() => {
                         setSelectedCategory(category)
                         setSelectedContestant(null)
+                        scrollToRef(contestantSectionRef, { delayMs: 140 })
                       }}
                       className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                         selectedCategory?.id === category.id
@@ -1251,7 +1260,7 @@ const ScoringPage: React.FC = () => {
           </div>
 
           {/* Middle Column: Contestants */}
-          <div className="lg:col-span-1">
+          <div ref={contestantSectionRef} className="lg:col-span-1">
             <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Contestants
@@ -1266,7 +1275,10 @@ const ScoringPage: React.FC = () => {
                     {sortedContestants.map(contestant => (
                       <button
                         key={contestant.id}
-                        onClick={() => setSelectedContestant(contestant)}
+                        onClick={() => {
+                          setSelectedContestant(contestant)
+                          scrollToRef(criteriaSectionRef, { delayMs: 180 })
+                        }}
                         className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                           selectedContestant?.id === contestant.id
                             ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40 shadow-sm'
@@ -1314,13 +1326,34 @@ const ScoringPage: React.FC = () => {
           </div>
 
           {/* Right Column: Scoring Form */}
-          <div className="lg:col-span-1">
+          <div ref={scoreSheetSectionRef} className="lg:col-span-1">
             <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Score Sheet
               </h2>
               {selectedCategory && selectedContestant ? (
                 <div>
+                  <MobileWorkflowNav
+                    className="mb-4"
+                    actions={[
+                      {
+                        label: 'Top',
+                        onClick: () => scrollToTop(),
+                      },
+                      {
+                        label: 'Categories',
+                        onClick: () => scrollToRef(categorySectionRef),
+                      },
+                      {
+                        label: 'Contestants',
+                        onClick: () => scrollToRef(contestantSectionRef),
+                      },
+                      {
+                        label: 'Criteria',
+                        onClick: () => scrollToRef(criteriaSectionRef),
+                      },
+                    ]}
+                  />
                   {/* Contestant Info */}
                   <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                     <div className="flex items-start gap-3">
@@ -1497,7 +1530,7 @@ const ScoringPage: React.FC = () => {
                       <ArrowPathIcon className="mx-auto h-8 w-8 text-blue-500 animate-spin" />
                     </div>
                   ) : effectiveCriteria.length > 0 ? (
-                    <div className="space-y-6">
+                    <div ref={criteriaSectionRef} className="space-y-6">
                       {effectiveCriteria.map(criterion => (
                         <div key={criterion.id} className="border-b pb-4">
                           <label htmlFor="pages-scoringpage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1608,7 +1641,7 @@ const ScoringPage: React.FC = () => {
                       </div>
 
                       {/* Submit Button with Save Status */}
-                      <div className="space-y-2">
+                      <div ref={scoringActionsRef} className="space-y-2">
                         {isCertifiedContext && (
                           <button
                             onClick={handleUpdateCommentary}
@@ -1672,6 +1705,24 @@ const ScoringPage: React.FC = () => {
                               : `${queueMetrics.queuedCount} queued updates waiting for sync`}
                           </div>
                         )}
+                        <MobileWorkflowNav
+                          className="mt-3"
+                          title="After scoring"
+                          actions={[
+                            {
+                              label: 'Change contestant',
+                              onClick: () => scrollToRef(contestantSectionRef),
+                            },
+                            {
+                              label: 'Change category',
+                              onClick: () => scrollToRef(categorySectionRef),
+                            },
+                            {
+                              label: 'Top',
+                              onClick: () => scrollToTop(),
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   ) : (

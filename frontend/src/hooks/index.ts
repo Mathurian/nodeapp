@@ -14,6 +14,7 @@ export {
 export { useCommands } from './useCommands'
 export { useFileUpload } from './useFileUpload'
 export type { UseFileUploadOptions, UseFileUploadReturn } from './useFileUpload'
+export { useMobileWorkflowNavigation } from './useMobileWorkflowNavigation'
 export {
   useOptimisticMutation,
   useOptimisticListHelpers,

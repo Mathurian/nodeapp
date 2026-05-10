@@ -209,6 +209,8 @@ describe('ContestsController', () => {
       mockReq.body = {
         name: 'New Contest',
         description: 'Contest description',
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
         contestantNumberingMode: 'SEQUENTIAL',
       };
       (mockReq as any).tenantId = 'tenant-1';
@@ -221,6 +223,8 @@ describe('ContestsController', () => {
         eventId: 'event-1',
         name: 'New Contest',
         description: 'Contest description',
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'EVENT',
         contestantNumberingMode: 'SEQUENTIAL',
       });
       expect(sendCreated).toHaveBeenCalledWith(mockRes, mockContest, 'Contest created successfully');
@@ -249,6 +253,8 @@ describe('ContestsController', () => {
         eventId: 'event-1',
         name: 'Minimal Contest',
         description: undefined,
+        commentaryMode: undefined,
+        commentaryScope: undefined,
         contestantNumberingMode: undefined,
       });
     });
@@ -272,6 +278,8 @@ describe('ContestsController', () => {
       mockReq.body = {
         name: 'Updated Contest',
         description: 'Updated description',
+        commentaryMode: 'PER_CATEGORY',
+        commentaryScope: 'CONTEST',
         contestantNumberingMode: 'BY_CATEGORY',
       };
       const updatedContest = { ...mockContest, ...mockReq.body };
@@ -282,6 +290,8 @@ describe('ContestsController', () => {
       expect(mockContestService.updateContest).toHaveBeenCalledWith('contest-1', {
         name: 'Updated Contest',
         description: 'Updated description',
+        commentaryMode: 'PER_CATEGORY',
+        commentaryScope: 'CONTEST',
         contestantNumberingMode: 'BY_CATEGORY',
       });
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, updatedContest, 'Contest updated successfully');
@@ -307,6 +317,8 @@ describe('ContestsController', () => {
       expect(mockContestService.updateContest).toHaveBeenCalledWith('contest-1', {
         name: 'New Name Only',
         description: undefined,
+        commentaryMode: undefined,
+        commentaryScope: undefined,
         contestantNumberingMode: undefined,
       });
     });

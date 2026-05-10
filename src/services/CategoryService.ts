@@ -7,6 +7,7 @@ import { Category, CommentaryMode, CommentaryScope, Prisma } from '@prisma/clien
 import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, NotFoundError } from './BaseService';
 import { CategoryRepository } from '../repositories/CategoryRepository';
+import { ContestRepository } from '../repositories/ContestRepository';
 import { CacheService } from './CacheService';
 import { PaginationOptions, PaginatedResponse } from '../utils/pagination';
 import { MetricsService } from './MetricsService';
@@ -46,6 +47,7 @@ interface UpdateCategoryDto extends Partial<CreateCategoryDto> {}
 export class CategoryService extends BaseService {
   constructor(
     @inject('CategoryRepository') private categoryRepo: CategoryRepository,
+    @inject('ContestRepository') private contestRepo: ContestRepository,
     @inject('CacheService') private cacheService: CacheService,
     @inject(MetricsService) private metricsService: MetricsService
   ) {
@@ -78,8 +80,18 @@ export class CategoryService extends BaseService {
         throw new ValidationError('Score cap must be non-negative');
       }
 
+      const contest = await this.contestRepo.findById(data.contestId);
+      if (!contest || contest.tenantId !== data.tenantId) {
+        throw this.notFoundError('Contest', data.contestId);
+      }
+
+      const commentaryMode = data.commentaryMode ?? contest.commentaryMode;
+      const commentaryScope = data.commentaryScope ?? contest.commentaryScope;
+
       const category = await this.categoryRepo.create({
         ...data,
+        commentaryMode,
+        commentaryScope,
         tenantId: data.tenantId
       } as unknown as Record<string, unknown>);
       await this.invalidateCategoryCache(undefined, data.contestId);

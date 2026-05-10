@@ -454,6 +454,8 @@ describe('EventTemplateService', () => {
           eventId: 'event-1',
           name: 'Talent',
           description: 'Talent show',
+          commentaryMode: 'PER_CRITERION',
+          commentaryScope: 'CATEGORY',
           tenantId: TEST_TENANT_ID,
         },
       });
@@ -466,6 +468,8 @@ describe('EventTemplateService', () => {
           timeLimit: 300,
           contestantMin: 1,
           contestantMax: 20,
+          commentaryMode: 'PER_CRITERION',
+          commentaryScope: 'CATEGORY',
           tenantId: TEST_TENANT_ID,
         },
       });
@@ -559,6 +563,8 @@ describe('EventTemplateService', () => {
           eventId: 'event-1',
           name: 'Talent Finals',
           description: 'Final round',
+          commentaryMode: 'PER_CRITERION',
+          commentaryScope: 'CATEGORY',
           tenantId: TEST_TENANT_ID,
         },
       });
