@@ -57,19 +57,20 @@ export class BioController {
   getBioDirectory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       if (!req.user) {
-        return sendSuccess(res, { contests: [], contestants: [], judges: [], allUsers: [] });
+        return sendSuccess(res, { events: [], contests: [], contestants: [], judges: [], allUsers: [] });
       }
 
       const tenantId = resolveRequestTenantId(req);
       if (!tenantId) {
         return res.status(400).json({ success: false, message: 'Tenant context required' });
       }
-      const { contestId } = req.query;
+      const { contestId, eventId } = req.query;
       const directory = await this.bioService.getBioDirectory(
         req.user.id,
         req.user.role as any,
         tenantId,
-        contestId as string | undefined
+        contestId as string | undefined,
+        eventId as string | undefined
       );
 
       return sendSuccess(res, directory);

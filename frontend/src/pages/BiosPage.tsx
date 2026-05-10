@@ -14,7 +14,13 @@ import {
 interface DirectoryContest {
   id: string
   name: string
+  eventId: string
   eventName: string | null
+}
+
+interface DirectoryEvent {
+  id: string
+  name: string
 }
 
 interface DirectoryContestant {
@@ -42,6 +48,7 @@ interface DirectoryJudge {
 }
 
 interface BioDirectoryResponse {
+  events: DirectoryEvent[]
   contests: DirectoryContest[]
   contestants: DirectoryContestant[]
   judges: DirectoryJudge[]
@@ -180,6 +187,7 @@ const roleLabelMap: Record<string, string> = {
 const BiosPage: React.FC = () => {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState('')
   const [selectedContestId, setSelectedContestId] = useState('')
   const showJudgesTab = user?.role !== 'JUDGE'
   const canSeeAllRoles = ['EMCEE', 'ORGANIZER', 'BOARD', 'ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'AUDITOR'].includes(user?.role || '')
@@ -188,10 +196,16 @@ const BiosPage: React.FC = () => {
   const hasAccess = allowedRoles.includes(user?.role || '')
 
   const { data, isLoading, error } = useQuery<BioDirectoryResponse>(
-    ['bio-directory', selectedContestId, user?.id, user?.role],
+    ['bio-directory', selectedEventId, selectedContestId, user?.id, user?.role],
     async () => {
       const response = await api.get('/bios/directory', {
-        params: selectedContestId ? { contestId: selectedContestId } : undefined,
+        params:
+          selectedEventId || selectedContestId
+            ? {
+                eventId: selectedEventId || undefined,
+                contestId: selectedContestId || undefined,
+              }
+            : undefined,
       })
       return response.data?.data || response.data
     },
@@ -200,6 +214,22 @@ const BiosPage: React.FC = () => {
       refetchInterval: 30000,
     }
   )
+
+  const availableEvents = useMemo(() => data?.events || [], [data?.events])
+  const availableContests = useMemo(() => data?.contests || [], [data?.contests])
+
+  React.useEffect(() => {
+    if (selectedEventId && !availableEvents.some((event) => event.id === selectedEventId)) {
+      setSelectedEventId('')
+      setSelectedContestId('')
+    }
+  }, [availableEvents, selectedEventId])
+
+  React.useEffect(() => {
+    if (selectedContestId && !availableContests.some((contest) => contest.id === selectedContestId)) {
+      setSelectedContestId('')
+    }
+  }, [availableContests, selectedContestId])
 
   const filteredContestants = useMemo(() => {
     const contestants = data?.contestants || []
@@ -281,22 +311,47 @@ const BiosPage: React.FC = () => {
           subtitle={`View scoped contestant bios and photos${showJudgesTab ? ', plus judge profiles' : ''}.`}
           icon={UserCircleIcon}
         />
-        <div className="w-full sm:w-80">
-          <label htmlFor="pages-biospage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Filter by Contest
-          </label>
-          <select id="pages-biospage-1"
-            value={selectedContestId}
-            onChange={(e) => setSelectedContestId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
-          >
-            <option value="">All Contests</option>
-            {(data?.contests || []).map((contest) => (
-              <option key={contest.id} value={contest.id}>
-                {contest.name}{contest.eventName ? ` (${contest.eventName})` : ''}
-              </option>
-            ))}
-          </select>
+        <div className="grid w-full gap-3 sm:w-auto sm:min-w-[32rem] sm:grid-cols-2">
+          <div>
+            <label htmlFor="pages-biospage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Filter by Event
+            </label>
+            <select
+              id="pages-biospage-1"
+              value={selectedEventId}
+              onChange={(e) => {
+                setSelectedEventId(e.target.value)
+                setSelectedContestId('')
+              }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+            >
+              <option value="">All Events</option>
+              {availableEvents.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="pages-biospage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Filter by Contest
+            </label>
+            <select
+              id="pages-biospage-2"
+              value={selectedContestId}
+              onChange={(e) => setSelectedContestId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+              disabled={availableContests.length === 0}
+            >
+              <option value="">{selectedEventId ? 'All Contests in Event' : 'All Contests'}</option>
+              {availableContests.map((contest) => (
+                <option key={contest.id} value={contest.id}>
+                  {contest.name}{!selectedEventId && contest.eventName ? ` (${contest.eventName})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

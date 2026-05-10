@@ -447,6 +447,144 @@ describe('BioService', () => {
     });
   });
 
+  describe('getBioDirectory', () => {
+    it('should return event options and filter directory data by selected event for broader roles', async () => {
+      mockPrisma.contest.findMany
+        .mockResolvedValueOnce([
+          {
+            id: 'contest-1',
+            name: 'Contest One',
+            eventId: 'event-1',
+            event: { id: 'event-1', name: 'Event One' },
+          },
+          {
+            id: 'contest-2',
+            name: 'Contest Two',
+            eventId: 'event-2',
+            event: { id: 'event-2', name: 'Event Two' },
+          },
+        ] as any)
+        .mockResolvedValueOnce([
+          {
+            id: 'contest-1',
+            name: 'Contest One',
+            eventId: 'event-1',
+            event: { id: 'event-1', name: 'Event One' },
+          },
+        ] as any);
+      mockPrisma.contestant.findMany.mockResolvedValue([] as any);
+      mockPrisma.judge.findMany.mockResolvedValue([] as any);
+      mockPrisma.user.findMany.mockResolvedValue([] as any);
+
+      const result = await service.getBioDirectory(
+        'user-1',
+        'EMCEE' as any,
+        'tenant-1',
+        undefined,
+        'event-1'
+      );
+
+      expect(result.events).toEqual([
+        { id: 'event-1', name: 'Event One' },
+        { id: 'event-2', name: 'Event Two' },
+      ]);
+      expect(result.contests).toEqual([
+        { id: 'contest-1', name: 'Contest One', eventId: 'event-1', eventName: 'Event One' },
+      ]);
+      expect(mockPrisma.contest.findMany).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          where: { tenantId: 'tenant-1', deletedAt: null },
+        })
+      );
+      expect(mockPrisma.contest.findMany).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: { tenantId: 'tenant-1', deletedAt: null, eventId: 'event-1' },
+        })
+      );
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            contestContestants: {
+              some: {
+                tenantId: 'tenant-1',
+                contest: {
+                  eventId: 'event-1',
+                },
+              },
+            },
+          }),
+        })
+      );
+    });
+
+    it('should intersect judge-scoped contests with the selected event', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ judgeId: 'judge-1' } as any);
+      mockPrisma.assignment.findMany.mockResolvedValue([
+        { contestId: 'contest-1', categoryId: null },
+        { contestId: 'contest-2', categoryId: null },
+      ] as any);
+      mockPrisma.contest.findMany
+        .mockResolvedValueOnce([{ id: 'contest-2' }] as any)
+        .mockResolvedValueOnce([
+          {
+            id: 'contest-1',
+            name: 'Contest One',
+            eventId: 'event-1',
+            event: { id: 'event-1', name: 'Event One' },
+          },
+          {
+            id: 'contest-2',
+            name: 'Contest Two',
+            eventId: 'event-2',
+            event: { id: 'event-2', name: 'Event Two' },
+          },
+        ] as any)
+        .mockResolvedValueOnce([
+          {
+            id: 'contest-2',
+            name: 'Contest Two',
+            eventId: 'event-2',
+            event: { id: 'event-2', name: 'Event Two' },
+          },
+        ] as any);
+      mockPrisma.contestant.findMany.mockResolvedValue([] as any);
+
+      const result = await service.getBioDirectory(
+        'user-1',
+        'JUDGE' as any,
+        'tenant-1',
+        undefined,
+        'event-2'
+      );
+
+      expect(result.events).toEqual([
+        { id: 'event-1', name: 'Event One' },
+        { id: 'event-2', name: 'Event Two' },
+      ]);
+      expect(result.contests).toEqual([
+        { id: 'contest-2', name: 'Contest Two', eventId: 'event-2', eventName: 'Event Two' },
+      ]);
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              {
+                contestContestants: {
+                  some: {
+                    tenantId: 'tenant-1',
+                    contestId: { in: ['contest-2'] },
+                  },
+                },
+              },
+            ],
+          }),
+        })
+      );
+    });
+  });
+
   describe('updateJudgeBio', () => {
     const mockJudge = {
       id: 'judge1',
