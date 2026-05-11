@@ -1,10 +1,11 @@
 ---
 id: TASK-73
 title: Remediate deductions permission model and navigation alignment
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-11 04:30'
-updated_date: '2026-05-11 04:30'
+updated_date: '2026-05-11 20:59'
 labels:
   - permissions
   - deductions
@@ -40,6 +41,16 @@ This task should preserve Board and Auditor availability while tightening over-b
 - [ ] #5 Investigate and ensure appropriate navigation items are present or absent based on actual deductions access after the permission model is corrected.
 - [ ] #6 Add focused verification covering role access, nav visibility, and API enforcement for Board, Auditor, Judge, Tally Master, Organizer/Admin, and denied roles.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Introduce a first-class `deductions` permission resource in the default permission model so tenant permission rows and the Permissions UI can manage deductions independently of `scores`.
+2. Repoint the active `/deductions` frontend page policy and navigation behavior to the `deductions` resource, preserving the agreed fixed scope model for this task: Judge assignment-scoped, Tally Master assignment-scoped, Auditor assignment-scoped, Board event-wide, and Organizer/Admin/Super Admin tenant-wide.
+3. Align the active scoring-backed deductions API to the same action model by enforcing `deductions:read`, `deductions:create`, `deductions:approve`, and `deductions:reject` on the live endpoints while keeping scope logic in the service/query layer.
+4. Implement fixed deductions data scoping in the active flow so limited roles cannot browse tenant-wide records outside their allowed assignment or event boundary, while broad roles retain full access.
+5. Reconcile or retire the legacy standalone deductions routes so both frontend and backend follow a single authoritative deductions permission model, then run focused verification for page access, nav visibility, API enforcement, and scoped data results across the affected roles.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
