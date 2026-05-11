@@ -262,10 +262,11 @@ export const scoringAPI = {
   certifyScores: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify`, signature || {}),
   certifyTotals: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify-totals`, signature || {}),
   finalCertification: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/final-certification`, signature || {}),
-  getCategories: () => api.get('/scoring/categories'),
+  getCategories: (params?: { eventId?: string; contestId?: string }) => api.get('/scoring/categories', { params }),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
   requestDeduction: (data: any) => api.post('/scoring/deductions', data),
-  getDeductions: (categoryId?: string) => api.get(`/scoring/deductions${categoryId ? `?categoryId=${categoryId}` : ''}`),
+  getDeductions: (params?: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string; status?: string }) =>
+    api.get('/scoring/deductions', { params }),
   approveDeduction: (deductionId: string, signature: string) => api.post(`/scoring/deductions/${deductionId}/approve`, { signature }),
   rejectDeduction: (deductionId: string, reason: string) => api.post(`/scoring/deductions/${deductionId}/reject`, { reason }),
 }
@@ -625,13 +626,13 @@ export const tallyMasterAPI = {
 }
 
 export const scoreGovernanceAPI = {
-  getScoreReview: (params?: { contestId?: string; categoryId?: string; contestantId?: string }) =>
+  getScoreReview: (params?: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string }) =>
     api.get('/score-governance/review', { params }),
   getSettings: () => api.get('/score-governance/settings'),
   updateSettings: (data: { requiredAdditionalApprovals: number; approverRoles: string[] }) =>
     api.put('/score-governance/settings', data),
   createRequest: (data: any) => api.post('/score-governance/requests', data),
-  getRequests: (params?: { contestId?: string; categoryId?: string; contestantId?: string; status?: string; actionType?: string }) =>
+  getRequests: (params?: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string; status?: string; actionType?: string }) =>
     api.get('/score-governance/requests', { params }),
   approveRequest: (id: string, signature: any) => api.post(`/score-governance/requests/${id}/approve`, signature),
   rejectRequest: (id: string, reason: string) => api.post(`/score-governance/requests/${id}/reject`, { reason }),

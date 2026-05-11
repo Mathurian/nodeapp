@@ -60,6 +60,7 @@ interface CreateGovernanceRequestInput {
 }
 
 interface GovernanceFilter {
+  eventId?: string
   contestId?: string
   categoryId?: string
   contestantId?: string
@@ -88,6 +89,7 @@ interface GovernanceRequestRecord {
   actionType: GovernanceAction
   scopeType: GovernanceScope
   targetCertificationLevel?: CertificationLevel | null
+  eventId?: string | null
   contestId?: string | null
   categoryId?: string | null
   contestantId?: string | null
@@ -234,6 +236,7 @@ export class ScoreGovernanceService extends BaseService {
 
     params.set('action', request.actionType)
     params.set('scope', request.scopeType)
+    if (request.eventId) params.set('eventId', request.eventId)
     if (request.contestId) params.set('contestId', request.contestId)
     if (request.categoryId) params.set('categoryId', request.categoryId)
     if (request.contestantId) params.set('contestantId', request.contestantId)
@@ -790,6 +793,7 @@ export class ScoreGovernanceService extends BaseService {
 
   async getRequests(tenantId: string, filters: GovernanceFilter = {}, context?: { userId?: string; userRole?: UserRole }) {
     const conditions: Prisma.Sql[] = [Prisma.sql`r."tenantId" = ${tenantId}`]
+    if (filters.eventId) conditions.push(Prisma.sql`r."eventId" = ${filters.eventId}`)
     if (filters.contestId) conditions.push(Prisma.sql`r."contestId" = ${filters.contestId}`)
     if (filters.categoryId) conditions.push(Prisma.sql`r."categoryId" = ${filters.categoryId}`)
     if (filters.contestantId) conditions.push(Prisma.sql`r."contestantId" = ${filters.contestantId}`)
@@ -1367,7 +1371,7 @@ export class ScoreGovernanceService extends BaseService {
     tenantId: string,
     userId: string,
     userRole: UserRole,
-    filters: { contestId?: string; categoryId?: string; contestantId?: string }
+    filters: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string }
   ) {
     const scopedCategoryWhere = await this.buildScopedCategoryFilter(tenantId, userId, userRole)
     if (!scopedCategoryWhere) throw this.forbiddenError('Role not allowed to access score review')
@@ -1375,6 +1379,7 @@ export class ScoreGovernanceService extends BaseService {
     const categoryRows = await this.prisma.category.findMany({
       where: {
         ...scopedCategoryWhere,
+        ...(filters.eventId ? { contest: { eventId: filters.eventId } } : {}),
         ...(filters.contestId ? { contestId: filters.contestId } : {}),
         ...(filters.categoryId ? { id: filters.categoryId } : {})
       },

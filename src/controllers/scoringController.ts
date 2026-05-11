@@ -1018,6 +1018,7 @@ export class ScoringController {
         return;
       }
       const userRole = String(req.user.role || '').toUpperCase();
+      const eventId = req.query['eventId'] as string | undefined;
       const contestId = req.query['contestId'] as string | undefined;
 
       const where: Prisma.CategoryWhereInput = {
@@ -1081,8 +1082,11 @@ export class ScoringController {
       if (contestId) {
         where.contestId = contestId;
       }
-      // Don't set contestId at all if using eventId filter
-      // This allows Prisma to use the nested contest.eventId filter properly
+      if (eventId) {
+        where.contest = {
+          eventId
+        };
+      }
 
       const categories = (await this.prisma.category.findMany({
         where,
@@ -1619,6 +1623,8 @@ export class ScoringController {
   getDeductions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const status = req.query['status'] as string | undefined;
+      const eventId = req.query['eventId'] as string | undefined;
+      const contestId = req.query['contestId'] as string | undefined;
       const categoryId = req.query['categoryId'] as string | undefined;
       const contestantId = req.query['contestantId'] as string | undefined;
       const tenantId = (req as any).user?.tenantId || (req as any).tenantId;
@@ -1630,6 +1636,12 @@ export class ScoringController {
       if (status) where.status = status;
       if (categoryId) where.categoryId = categoryId;
       if (contestantId) where.contestantId = contestantId;
+      if (eventId || contestId) {
+        where.category = {
+          ...(contestId ? { contestId } : {}),
+          ...(eventId ? { contest: { eventId } } : {})
+        };
+      }
 
       // SECURITY FIX (2026-01-13): Add pagination to prevent DoS attacks
       const paginationOptions = parsePaginationQuery(req.query);

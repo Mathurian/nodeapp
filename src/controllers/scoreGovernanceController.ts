@@ -104,6 +104,7 @@ export class ScoreGovernanceController {
       if (!tenantId) return sendBadRequest(res, 'Tenant context is required')
 
       const data = await this.service.getScoreReview(tenantId, req.user.id, req.user.role, {
+        eventId: req.query['eventId'] as string | undefined,
         contestId: req.query['contestId'] as string | undefined,
         categoryId: req.query['categoryId'] as string | undefined,
         contestantId: req.query['contestantId'] as string | undefined
@@ -171,6 +172,7 @@ export class ScoreGovernanceController {
       const data = await this.service.getRequests(
         tenantId,
         {
+          eventId: req.query['eventId'] as string | undefined,
           contestId: req.query['contestId'] as string | undefined,
           categoryId: req.query['categoryId'] as string | undefined,
           contestantId: req.query['contestantId'] as string | undefined,

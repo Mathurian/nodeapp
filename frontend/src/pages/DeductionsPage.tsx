@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
@@ -55,12 +55,30 @@ interface ScoringCategory {
   id: string
   name: string
   contestId?: string
-  contest?: { id: string; name: string }
+  contest?: {
+    id: string
+    name: string
+    event?: {
+      id: string
+      name: string
+    }
+  }
   contestants?: Array<{
     id: string
     name: string
     contestantNumber: number | null
   }>
+}
+
+interface ScoringEvent {
+  id: string
+  name: string
+}
+
+interface ContestOption {
+  id: string
+  name: string
+  eventId?: string
 }
 
 const DeductionsPage: React.FC = () => {
@@ -71,6 +89,7 @@ const DeductionsPage: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState<Deduction | null>(null)
   const [signature, setSignature] = useState('')
   const [rejectionReason, setRejectionReason] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState('')
   const [selectedContestId, setSelectedContestId] = useState('')
   const [selectedContestantId, setSelectedContestantId] = useState('')
@@ -80,9 +99,11 @@ const DeductionsPage: React.FC = () => {
 
   // Fetch deductions using react-query
   const { data: deductions = [], isLoading, error } = useQuery<Deduction[]>(
-    'deductions',
+    ['deductions', selectedEventId],
     async () => {
-      const response = await scoringAPI.getDeductions()
+      const response = await scoringAPI.getDeductions({
+        eventId: selectedEventId || undefined,
+      })
       const unwrapped = response.data?.data || response.data
       const rows = Array.isArray(unwrapped?.data)
         ? unwrapped.data
@@ -110,12 +131,122 @@ const DeductionsPage: React.FC = () => {
     { retry: 1 }
   )
 
+  const availableEvents = useMemo<ScoringEvent[]>(() => {
+    const map = new Map<string, ScoringEvent>()
+    scoringCategories.forEach((category) => {
+      const event = category.contest?.event
+      if (event?.id) {
+        map.set(event.id, {
+          id: event.id,
+          name: event.name || 'Event',
+        })
+      }
+    })
+    return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [scoringCategories])
+
+  const scopedCategories = useMemo(() => {
+    return scoringCategories.filter((category) => {
+      const categoryEventId = category.contest?.event?.id || ''
+      if (selectedEventId && categoryEventId !== selectedEventId) return false
+      return true
+    })
+  }, [scoringCategories, selectedEventId])
+
+  const contestOptions = useMemo<ContestOption[]>(() => {
+    return Array.from(
+      new Map(
+        scopedCategories
+          .filter((category) => category.contestId)
+          .map((category) => [
+            category.contestId!,
+            {
+              id: category.contestId!,
+              name: category.contest?.name || `Contest ${category.contestId}`,
+              eventId: category.contest?.event?.id,
+            },
+          ])
+      ).values()
+    ).sort((left, right) => left.name.localeCompare(right.name))
+  }, [scopedCategories])
+
+  const selectedCategory = scopedCategories.find((category) => category.id === selectedCategoryId)
+
+  const availableContestants = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; contestantNumber: number | null }>()
+
+    if (requestScope === 'GENERAL') {
+      scopedCategories
+        .filter((category) => category.contestId === selectedContestId)
+        .forEach((category) => {
+          category.contestants?.forEach((contestant) => {
+            if (contestant.id) {
+              map.set(contestant.id, contestant)
+            }
+          })
+        })
+    } else if (selectedCategory?.contestants) {
+      selectedCategory.contestants.forEach((contestant) => {
+        if (contestant.id) {
+          map.set(contestant.id, contestant)
+        }
+      })
+    }
+
+    return Array.from(map.values()).sort((left, right) => {
+      const leftNumber = left.contestantNumber ?? Number.MAX_SAFE_INTEGER
+      const rightNumber = right.contestantNumber ?? Number.MAX_SAFE_INTEGER
+      if (leftNumber !== rightNumber) return leftNumber - rightNumber
+      return left.name.localeCompare(right.name)
+    })
+  }, [requestScope, scopedCategories, selectedContestId, selectedCategory])
+
+  const findContestantById = (contestantId: string) => {
+    return scopedCategories
+      .flatMap((category) => category.contestants || [])
+      .find((contestant) => contestant.id === contestantId)
+  }
+
+  useEffect(() => {
+    if (availableEvents.length === 1 && !selectedEventId) {
+      setSelectedEventId(availableEvents[0].id)
+      return
+    }
+
+    if (selectedEventId && !availableEvents.some((event) => event.id === selectedEventId)) {
+      setSelectedEventId(availableEvents.length === 1 ? availableEvents[0].id : '')
+      setSelectedContestId('')
+      setSelectedCategoryId('')
+      setSelectedContestantId('')
+    }
+  }, [availableEvents, selectedEventId])
+
+  useEffect(() => {
+    if (selectedCategoryId && !scopedCategories.some((category) => category.id === selectedCategoryId)) {
+      setSelectedCategoryId('')
+      setSelectedContestantId('')
+    }
+  }, [scopedCategories, selectedCategoryId])
+
+  useEffect(() => {
+    if (selectedContestId && !contestOptions.some((contest) => contest.id === selectedContestId)) {
+      setSelectedContestId('')
+      setSelectedContestantId('')
+    }
+  }, [contestOptions, selectedContestId])
+
+  useEffect(() => {
+    if (selectedContestantId && !availableContestants.some((contestant) => contestant.id === selectedContestantId)) {
+      setSelectedContestantId('')
+    }
+  }, [availableContestants, selectedContestantId])
+
   const createRequestMutation = useOptimisticMutation<
     unknown,
     { categoryId?: string; contestId?: string; contestantId: string; amount: number; reason: string; scope?: 'GENERAL' | 'CATEGORY' }
   >({
     mutationFn: async (data) => scoringAPI.requestDeduction(data),
-    queryKey: ['deductions'],
+    queryKey: ['deductions', selectedEventId],
     updateFn: (oldData, vars) => {
       const deds = oldData as Deduction[] | undefined
       if (!deds) return deds as any
@@ -132,16 +263,8 @@ const DeductionsPage: React.FC = () => {
           contestantId: vars.contestantId,
           contestant: {
             id: vars.contestantId,
-            name: (
-              scoringCategories
-                .find((c) => c.id === vars.categoryId || c.contestId === vars.contestId)
-                ?.contestants?.find((contestant) => contestant.id === vars.contestantId)?.name
-            ) || 'Contestant',
-            contestantNumber: (
-              scoringCategories
-                .find((c) => c.id === vars.categoryId || c.contestId === vars.contestId)
-                ?.contestants?.find((contestant) => contestant.id === vars.contestantId)?.contestantNumber ?? null
-            ),
+            name: findContestantById(vars.contestantId)?.name || 'Contestant',
+            contestantNumber: findContestantById(vars.contestantId)?.contestantNumber ?? null,
           },
           points: vars.amount,
           reason: vars.reason,
@@ -175,7 +298,7 @@ const DeductionsPage: React.FC = () => {
     mutationFn: async ({ id, signature }) => {
       return await scoringAPI.approveDeduction(id, signature)
     },
-    queryKey: ['deductions'],
+    queryKey: ['deductions', selectedEventId],
     updateFn: (oldData, { id }) => {
       const deds = oldData as Deduction[] | undefined
       if (!deds) return []
@@ -205,7 +328,7 @@ const DeductionsPage: React.FC = () => {
     mutationFn: async ({ id, reason }) => {
       return await scoringAPI.rejectDeduction(id, reason)
     },
-    queryKey: ['deductions'],
+    queryKey: ['deductions', selectedEventId],
     updateFn: (oldData, { id }) => {
       const deds = oldData as Deduction[] | undefined
       if (!deds) return []
@@ -269,17 +392,6 @@ const DeductionsPage: React.FC = () => {
 
   const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'BOARD'].includes(user?.role || '')
   const canInitiate = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'JUDGE'].includes(user?.role || '')
-  const selectedCategory = scoringCategories.find((c) => c.id === selectedCategoryId)
-  const contestOptions = Array.from(
-    new Map(
-      scoringCategories
-        .filter((c) => c.contestId)
-        .map((c) => [c.contestId!, { id: c.contestId!, name: c.contest?.name || `Contest ${c.contestId}` }])
-    ).values()
-  )
-  const availableContestants = requestScope === 'GENERAL'
-    ? scoringCategories.find((c) => c.contestId === selectedContestId)?.contestants || []
-    : selectedCategory?.contestants || []
 
   const submitRequest = () => {
     const amount = Number(requestAmount)
@@ -311,6 +423,36 @@ const DeductionsPage: React.FC = () => {
           title="Score Deductions"
           subtitle="Manage and approve score deduction requests"
         />
+
+        {availableEvents.length > 1 && (
+          <Card className="mb-6 rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Scope</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Narrow deductions, contests, categories, and contestants by event.
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => {
+                    setSelectedEventId(e.target.value)
+                    setSelectedContestId('')
+                    setSelectedCategoryId('')
+                    setSelectedContestantId('')
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                >
+                  <option value="">All events</option>
+                  {availableEvents.map((event) => (
+                    <option key={event.id} value={event.id}>{event.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {error && (
           <Card className="mb-6 p-4 bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg">
@@ -359,7 +501,7 @@ const DeductionsPage: React.FC = () => {
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               >
                 <option value="">Select category</option>
-                {scoringCategories.map((category) => (
+                {scopedCategories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useLocation } from 'react-router-dom'
-import { assignmentsAPI, categoriesAPI, contestsAPI, scoreGovernanceAPI } from '../services/api'
+import { scoreGovernanceAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useMobileWorkflowNavigation } from '../hooks'
 import { Button, Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
@@ -16,6 +16,7 @@ const ScoreGovernancePage: React.FC = () => {
   const location = useLocation()
   const queryClient = useQueryClient()
 
+  const [eventId, setEventId] = useState('')
   const [contestId, setContestId] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [contestantId, setContestantId] = useState('')
@@ -53,43 +54,34 @@ const ScoreGovernancePage: React.FC = () => {
     return possible != null ? `${row.score} / ${possible}` : String(row.score)
   }
 
-  const { data: contests = [] } = useQuery('governance-contests', async () => {
-    const response = await contestsAPI.getAll()
+  const extractRows = (response: any) => {
     const rows = response.data?.data || response.data || []
     return Array.isArray(rows) ? rows : []
+  }
+
+  const { data: allAccessibleReviewRows = [] } = useQuery('governance-review-scope', async () => {
+    const response = await scoreGovernanceAPI.getScoreReview()
+    return extractRows(response)
   })
 
-  const { data: categories = [] } = useQuery(['governance-categories', contestId], async () => {
-    const response = contestId ? await categoriesAPI.getByContest(contestId) : await categoriesAPI.getAll()
-    const rows = response.data?.data || response.data || []
-    return Array.isArray(rows) ? rows : []
-  })
-
-  const { data: reviewRows = [] } = useQuery(['governance-review', contestId, categoryId, contestantId], async () => {
+  const { data: reviewRows = [] } = useQuery(['governance-review', eventId, contestId, categoryId, contestantId], async () => {
     const response = await scoreGovernanceAPI.getScoreReview({
+      eventId: eventId || undefined,
       contestId: contestId || undefined,
       categoryId: categoryId || undefined,
       contestantId: contestantId || undefined
     })
-    const rows = response.data?.data || response.data || []
-    return Array.isArray(rows) ? rows : []
+    return extractRows(response)
   })
 
-  const { data: judgeUsers = [] } = useQuery('governance-judge-users', async () => {
-    const response = await assignmentsAPI.getJudges()
-    const payload = response.data?.data || response.data
-    const rows = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : [])
-    return rows
-  })
-
-  const { data: requests = [] } = useQuery(['governance-requests', contestId, categoryId, contestantId], async () => {
+  const { data: requests = [] } = useQuery(['governance-requests', eventId, contestId, categoryId, contestantId], async () => {
     const response = await scoreGovernanceAPI.getRequests({
+      eventId: eventId || undefined,
       contestId: contestId || undefined,
       categoryId: categoryId || undefined,
       contestantId: contestantId || undefined
     })
-    const rows = response.data?.data || response.data || []
-    return Array.isArray(rows) ? rows : []
+    return extractRows(response)
   })
 
   useQuery(
@@ -142,6 +134,7 @@ const ScoreGovernancePage: React.FC = () => {
     const params = new URLSearchParams(location.search)
     const queryAction = (params.get('action') || '').toUpperCase()
     const queryScope = (params.get('scope') || '').toUpperCase()
+    const queryEventId = params.get('eventId') || ''
     const queryContestId = params.get('contestId') || ''
     const queryCategoryId = params.get('categoryId') || ''
     const queryContestantId = params.get('contestantId') || ''
@@ -153,19 +146,94 @@ const ScoreGovernancePage: React.FC = () => {
     if (queryScope && ['CATEGORY_JUDGE', 'CONTEST_JUDGE', 'SCORE', 'CONTESTANT_CATEGORY', 'CATEGORY_LEVEL', 'CONTEST_LEVEL'].includes(queryScope)) {
       setScopeType(queryScope as GovernanceScope)
     }
+    if (queryEventId) setEventId(queryEventId)
     if (queryContestId) setContestId(queryContestId)
     if (queryCategoryId) setCategoryId(queryCategoryId)
     if (queryContestantId) setContestantId(queryContestantId)
     if (queryScoreId) setScoreId(queryScoreId)
   }, [location.search])
 
+  const availableEvents = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+    allAccessibleReviewRows.forEach((row: any) => {
+      const event = row.category?.contest?.event
+      if (event?.id) {
+        map.set(event.id, {
+          id: event.id,
+          name: event.name || 'Event'
+        })
+      }
+    })
+    return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [allAccessibleReviewRows])
+
+  const optionRows = useMemo(() => {
+    return allAccessibleReviewRows.filter((row: any) => {
+      const rowEventId = row.category?.contest?.event?.id || ''
+      const rowContestId = row.category?.contest?.id || ''
+      const rowCategoryId = row.category?.id || ''
+
+      if (eventId && rowEventId !== eventId) return false
+      if (contestId && rowContestId !== contestId) return false
+      if (categoryId && rowCategoryId !== categoryId) return false
+      return true
+    })
+  }, [allAccessibleReviewRows, eventId, contestId, categoryId])
+
+  const judgeOptionRows = useMemo(() => {
+    return optionRows.filter((row: any) => {
+      const rowContestantId = row.contestant?.id || ''
+      if (contestantId && rowContestantId !== contestantId) return false
+      return true
+    })
+  }, [optionRows, contestantId])
+
+  const availableContests = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; eventId?: string }>()
+    allAccessibleReviewRows.forEach((row: any) => {
+      const contest = row.category?.contest
+      const contestEventId = contest?.event?.id || ''
+      if (!contest?.id) return
+      if (eventId && contestEventId !== eventId) return
+      map.set(contest.id, {
+        id: contest.id,
+        name: contest.name || 'Contest',
+        eventId: contestEventId || undefined
+      })
+    })
+    return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [allAccessibleReviewRows, eventId])
+
+  const availableCategories = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; contestId?: string }>()
+    allAccessibleReviewRows.forEach((row: any) => {
+      const category = row.category
+      const rowEventId = category?.contest?.event?.id || ''
+      const rowContestId = category?.contest?.id || ''
+      if (!category?.id) return
+      if (eventId && rowEventId !== eventId) return
+      if (contestId && rowContestId !== contestId) return
+      map.set(category.id, {
+        id: category.id,
+        name: category.name || 'Category',
+        contestId: rowContestId || undefined
+      })
+    })
+    return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [allAccessibleReviewRows, eventId, contestId])
+
   const contestants = useMemo(() => {
     const map = new Map<string, { id: string; name: string; contestantNumber?: number | null }>()
-    reviewRows.forEach((row: any) => {
+    optionRows.forEach((row: any) => {
       if (row.contestant?.id) map.set(row.contestant.id, row.contestant)
     })
-    return Array.from(map.values())
-  }, [reviewRows])
+    return Array.from(map.values()).sort((left, right) => {
+      const leftNumber = left.contestantNumber ?? Number.MAX_SAFE_INTEGER
+      const rightNumber = right.contestantNumber ?? Number.MAX_SAFE_INTEGER
+      if (leftNumber !== rightNumber) return leftNumber - rightNumber
+      return left.name.localeCompare(right.name)
+    })
+  }, [optionRows])
 
   const requestStats = useMemo(() => {
     const total = requests.length
@@ -223,20 +291,60 @@ const ScoreGovernancePage: React.FC = () => {
 
   const judges = useMemo(() => {
     const map = new Map<string, { id: string; name: string; email?: string }>()
-    reviewRows.forEach((row: any) => {
+    judgeOptionRows.forEach((row: any) => {
       if (row.judge?.id) map.set(row.judge.id, row.judge)
     })
-    judgeUsers.forEach((judge: any) => {
-      if (judge.id) {
-        map.set(judge.id, {
-          id: judge.id,
-          name: judge.name || judge.email || 'Judge',
-          email: judge.email || undefined
-        })
-      }
-    })
-    return Array.from(map.values())
-  }, [reviewRows, judgeUsers])
+    return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [judgeOptionRows])
+
+  useEffect(() => {
+    if (availableEvents.length === 1 && !eventId) {
+      setEventId(availableEvents[0].id)
+      return
+    }
+
+    if (eventId && !availableEvents.some((event) => event.id === eventId)) {
+      setEventId(availableEvents.length === 1 ? availableEvents[0].id : '')
+      setContestId('')
+      setCategoryId('')
+      setContestantId('')
+      setJudgeId('')
+      setScoreId('')
+    }
+  }, [availableEvents, eventId])
+
+  useEffect(() => {
+    if (contestId && !availableContests.some((contest) => contest.id === contestId)) {
+      setContestId('')
+      setCategoryId('')
+      setContestantId('')
+      setJudgeId('')
+      setScoreId('')
+    }
+  }, [availableContests, contestId])
+
+  useEffect(() => {
+    if (categoryId && !availableCategories.some((category) => category.id === categoryId)) {
+      setCategoryId('')
+      setContestantId('')
+      setJudgeId('')
+      setScoreId('')
+    }
+  }, [availableCategories, categoryId])
+
+  useEffect(() => {
+    if (contestantId && !contestants.some((contestant) => contestant.id === contestantId)) {
+      setContestantId('')
+      setJudgeId('')
+      setScoreId('')
+    }
+  }, [contestants, contestantId])
+
+  useEffect(() => {
+    if (judgeId && !judges.some((judge) => judge.id === judgeId)) {
+      setJudgeId('')
+    }
+  }, [judgeId, judges])
 
   useEffect(() => {
     if (!typedSignature.trim() && user) {
@@ -264,6 +372,7 @@ const ScoreGovernancePage: React.FC = () => {
       setJudgeId('')
       await queryClient.invalidateQueries('governance-requests')
       await queryClient.invalidateQueries('governance-review')
+      await queryClient.invalidateQueries('governance-review-scope')
       scrollToRef(queueSectionRef, { delayMs: 150 })
     },
     onError: (error: any) => {
@@ -276,6 +385,7 @@ const ScoreGovernancePage: React.FC = () => {
       toast.success('Certification recorded')
       await queryClient.invalidateQueries('governance-requests')
       await queryClient.invalidateQueries('governance-review')
+      await queryClient.invalidateQueries('governance-review-scope')
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Approval failed')
@@ -382,6 +492,7 @@ const ScoreGovernancePage: React.FC = () => {
       actionType,
       scopeType,
       targetCertificationLevel: scopeType === 'CATEGORY_LEVEL' ? targetCertificationLevel : undefined,
+      eventId: eventId || undefined,
       contestId: contestId || undefined,
       categoryId: categoryId || undefined,
       contestantId: contestantId || undefined,
@@ -624,33 +735,60 @@ const ScoreGovernancePage: React.FC = () => {
 
       <div ref={filtersSectionRef}>
       <Card className="rounded-lg p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className={`grid grid-cols-1 gap-3 ${availableEvents.length > 1 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+          {availableEvents.length > 1 && (
+            <select
+              value={eventId}
+              onChange={(e) => {
+                setEventId(e.target.value)
+                setContestId('')
+                setCategoryId('')
+                setContestantId('')
+                setJudgeId('')
+                setScoreId('')
+                scrollToRef(reviewSectionRef, { delayMs: 140 })
+              }}
+              className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            >
+              <option value="">All Events</option>
+              {availableEvents.map((event) => <option key={event.id} value={event.id}>{event.name}</option>)}
+            </select>
+          )}
           <select
             value={contestId}
             onChange={(e) => {
               setContestId(e.target.value)
+              setCategoryId('')
+              setContestantId('')
+              setJudgeId('')
+              setScoreId('')
               scrollToRef(reviewSectionRef, { delayMs: 140 })
             }}
             className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           >
             <option value="">All Contests</option>
-            {contests.map((contest: any) => <option key={contest.id} value={contest.id}>{contest.name}</option>)}
+            {availableContests.map((contest) => <option key={contest.id} value={contest.id}>{contest.name}</option>)}
           </select>
           <select
             value={categoryId}
             onChange={(e) => {
               setCategoryId(e.target.value)
+              setContestantId('')
+              setJudgeId('')
+              setScoreId('')
               scrollToRef(reviewSectionRef, { delayMs: 140 })
             }}
             className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           >
             <option value="">All Categories</option>
-            {categories.map((category: any) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
           <select
             value={contestantId}
             onChange={(e) => {
               setContestantId(e.target.value)
+              setJudgeId('')
+              setScoreId('')
               scrollToRef(reviewSectionRef, { delayMs: 140 })
             }}
             className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
