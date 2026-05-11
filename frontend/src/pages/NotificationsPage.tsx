@@ -45,6 +45,7 @@ interface NotificationPreferences {
   eventUpdates: boolean
   scoreUpdates: boolean
   systemAlerts: boolean
+  hasActivePushSubscription: boolean
 }
 
 interface PushConfigResponse {
@@ -90,6 +91,7 @@ const toNotificationPreferences = (raw: any): NotificationPreferences => {
     eventUpdates: Boolean(raw?.eventUpdates ?? mergedTypes.has('EVENT')),
     scoreUpdates: Boolean(raw?.scoreUpdates ?? mergedTypes.has('SCORE')),
     systemAlerts: Boolean(raw?.systemAlerts ?? mergedTypes.has('SYSTEM')),
+    hasActivePushSubscription: Boolean(raw?.hasActivePushSubscription),
   }
 }
 
@@ -110,6 +112,41 @@ const PUSH_SERVICE_WORKER_SCOPE = '/'
 const PUSH_SERVICE_WORKER_VERSION = '2026-02-20-ios-push-fix-2'
 const PUSH_SERVICE_WORKER_URL = `${PUSH_SERVICE_WORKER_PATH}?v=${PUSH_SERVICE_WORKER_VERSION}`
 const NON_APP_NOTIFICATION_PREFIXES = new Set(['api', 'assets', 'uploads', 'socket.io', 'cdn-cgi'])
+
+const isStandalonePwaContext = (): boolean => {
+  if (typeof window === 'undefined') return false
+  const mediaStandalone = window.matchMedia?.('(display-mode: standalone)').matches === true
+  const navigatorStandalone = (window.navigator as any).standalone === true
+  return mediaStandalone || navigatorStandalone
+}
+
+const getNotificationPermissionState = (): NotificationPermission | 'unsupported' => {
+  if (typeof Notification === 'undefined') {
+    return 'unsupported'
+  }
+  return Notification.permission
+}
+
+const getBrowserPushSubscriptionState = async (): Promise<boolean | null> => {
+  if (
+    typeof window === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window)
+  ) {
+    return null
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration(PUSH_SERVICE_WORKER_SCOPE)
+    if (!registration) {
+      return false
+    }
+    const subscription = await registration.pushManager.getSubscription()
+    return Boolean(subscription)
+  } catch {
+    return null
+  }
+}
 
 const sanitizeNotificationDestination = (
   rawLink: string | null | undefined,
@@ -408,21 +445,36 @@ const NotificationsPage: React.FC = () => {
     eventUpdates: true,
     scoreUpdates: true,
     systemAlerts: true,
+    hasActivePushSubscription: false,
   })
 
   const [pushSupport, setPushSupport] = useState(() => getPushSupport())
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>(() => getNotificationPermissionState())
+  const [browserHasPushSubscription, setBrowserHasPushSubscription] = useState<boolean | null>(null)
+  const [isStandaloneInstall, setIsStandaloneInstall] = useState(() => isStandalonePwaContext())
 
   useEffect(() => {
-    const refreshPushSupport = () => {
+    const refreshPushEnvironment = async () => {
       setPushSupport(getPushSupport())
+      setPushPermission(getNotificationPermissionState())
+      setIsStandaloneInstall(isStandalonePwaContext())
+      setBrowserHasPushSubscription(await getBrowserPushSubscriptionState())
     }
 
-    refreshPushSupport()
-    window.addEventListener('focus', refreshPushSupport)
-    document.addEventListener('visibilitychange', refreshPushSupport)
+    const handleWindowFocus = () => {
+      void refreshPushEnvironment()
+    }
+
+    const handleVisibilityChange = () => {
+      void refreshPushEnvironment()
+    }
+
+    void refreshPushEnvironment()
+    window.addEventListener('focus', handleWindowFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
-      window.removeEventListener('focus', refreshPushSupport)
-      document.removeEventListener('visibilitychange', refreshPushSupport)
+      window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
@@ -581,6 +633,29 @@ const NotificationsPage: React.FC = () => {
     return types
   }
 
+  const persistPushSubscription = async (subscription: PushSubscription): Promise<boolean> => {
+    const payload = subscription.toJSON()
+    const endpoint = payload.endpoint
+    const p256dh = extractPushKey(subscription, payload.keys as Record<string, string> | undefined, 'p256dh')
+    const auth = extractPushKey(subscription, payload.keys as Record<string, string> | undefined, 'auth')
+
+    if (!endpoint || !p256dh || !auth) {
+      return false
+    }
+
+    await withTimeout(
+      notificationPreferencesAPI.upsertPushSubscription({
+        endpoint,
+        expirationTime: payload.expirationTime || null,
+        keys: { p256dh, auth },
+      }),
+      PUSH_OPERATION_TIMEOUT_MS,
+      'Timed out while saving push subscription.'
+    )
+
+    return true
+  }
+
   const updatePreferences = async (newPreferences: NotificationPreferences) => {
     setIsSavingPreferences(true)
     try {
@@ -607,10 +682,76 @@ const NotificationsPage: React.FC = () => {
     }
   }
 
+  useEffect(() => {
+    if (
+      !pushSupport.supported ||
+      pushPermission !== 'granted' ||
+      preferences?.hasActivePushSubscription !== false ||
+      browserHasPushSubscription !== true
+    ) {
+      return
+    }
+
+    let cancelled = false
+
+    const restoreServerSubscription = async () => {
+      try {
+        const registration = await resolvePushServiceWorkerRegistration()
+        const existingSubscription = await withTimeout(
+          registration.pushManager.getSubscription(),
+          PUSH_OPERATION_TIMEOUT_MS,
+          'Timed out while reading existing push subscription.'
+        )
+        if (!existingSubscription || cancelled) {
+          return
+        }
+
+        const persisted = await persistPushSubscription(existingSubscription)
+        if (!persisted || cancelled) {
+          return
+        }
+
+        queryClient.invalidateQueries('notification-preferences')
+      } catch {
+        // Best-effort repair only.
+      }
+    }
+
+    void restoreServerSubscription()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    browserHasPushSubscription,
+    preferences?.hasActivePushSubscription,
+    pushPermission,
+    pushSupport.supported,
+    queryClient,
+  ])
+
   const enablePushSubscription = async (): Promise<boolean> => {
     const support = getPushSupport()
     if (!support.supported) {
       setPushStatusMessage(support.reason || 'Push notifications are not supported on this device.')
+      return false
+    }
+
+    let permission = Notification.permission
+    if (permission === 'default') {
+      permission = await withTimeout(
+        Notification.requestPermission(),
+        PUSH_OPERATION_TIMEOUT_MS,
+        'Timed out while waiting for notification permission.'
+      )
+    }
+    if (permission !== 'granted') {
+      setPushPermission(permission)
+      setPushStatusMessage(
+        permission === 'denied'
+          ? 'Notifications are blocked for this app. Re-enable them in device/browser settings.'
+          : 'Notification permission was not granted.'
+      )
       return false
     }
 
@@ -628,23 +769,6 @@ const NotificationsPage: React.FC = () => {
       return false
     }
 
-    let permission = Notification.permission
-    if (permission === 'default') {
-      permission = await withTimeout(
-        Notification.requestPermission(),
-        PUSH_OPERATION_TIMEOUT_MS,
-        'Timed out while waiting for notification permission.'
-      )
-    }
-    if (permission !== 'granted') {
-      setPushStatusMessage(
-        permission === 'denied'
-          ? 'Notifications are blocked for this app. Re-enable them in device/browser settings.'
-          : 'Notification permission was not granted.'
-      )
-      return false
-    }
-
     const registration = await resolvePushServiceWorkerRegistration()
     await withTimeout(
       registration.update(),
@@ -659,24 +783,16 @@ const NotificationsPage: React.FC = () => {
     ).catch(() => null)
 
     if (subscription) {
+      const persisted = await persistPushSubscription(subscription)
+      if (persisted) {
+        setPushPermission(permission)
+        setBrowserHasPushSubscription(true)
+        setPushStatusMessage('Push notifications are enabled for this device.')
+        return true
+      }
+
       const existingPayload = subscription.toJSON()
       if (existingPayload.endpoint) {
-        const existingP256dh = extractPushKey(subscription, existingPayload.keys as Record<string, string> | undefined, 'p256dh')
-        const existingAuth = extractPushKey(subscription, existingPayload.keys as Record<string, string> | undefined, 'auth')
-        if (existingP256dh && existingAuth) {
-          await withTimeout(
-            notificationPreferencesAPI.upsertPushSubscription({
-              endpoint: existingPayload.endpoint,
-              expirationTime: existingPayload.expirationTime || null,
-              keys: { p256dh: existingP256dh, auth: existingAuth },
-            }),
-            PUSH_OPERATION_TIMEOUT_MS,
-            'Timed out while saving push subscription.'
-          )
-          setPushStatusMessage('Push notifications are enabled for this device.')
-          return true
-        }
-
         await withTimeout(
           subscription.unsubscribe(),
           PUSH_OPERATION_TIMEOUT_MS,
@@ -737,26 +853,14 @@ const NotificationsPage: React.FC = () => {
       return false
     }
 
-    const payload = subscription.toJSON()
-    const endpoint = payload.endpoint
-    const p256dh = extractPushKey(subscription, payload.keys as Record<string, string> | undefined, 'p256dh')
-    const auth = extractPushKey(subscription, payload.keys as Record<string, string> | undefined, 'auth')
-
-    if (!endpoint || !p256dh || !auth) {
+    const persisted = await persistPushSubscription(subscription)
+    if (!persisted) {
       setPushStatusMessage('Unable to read browser push subscription keys.')
       return false
     }
 
-    await withTimeout(
-      notificationPreferencesAPI.upsertPushSubscription({
-        endpoint,
-        expirationTime: payload.expirationTime || null,
-        keys: { p256dh, auth },
-      }),
-      PUSH_OPERATION_TIMEOUT_MS,
-      'Timed out while saving push subscription.'
-    )
-
+    setPushPermission(permission)
+    setBrowserHasPushSubscription(true)
     setPushStatusMessage('Push notifications are enabled for this device.')
     return true
   }
@@ -774,6 +878,7 @@ const NotificationsPage: React.FC = () => {
       'Timed out while reading push subscription.'
     )
     if (!existingSubscription) {
+      setBrowserHasPushSubscription(false)
       setPushStatusMessage('Push notifications are disabled for this device.')
       return
     }
@@ -789,6 +894,7 @@ const NotificationsPage: React.FC = () => {
       PUSH_OPERATION_TIMEOUT_MS,
       'Timed out while removing server push subscription.'
     )
+    setBrowserHasPushSubscription(false)
     setPushStatusMessage('Push notifications are disabled for this device.')
   }
 
@@ -858,10 +964,24 @@ const NotificationsPage: React.FC = () => {
       })
 
   const canSendNotifications = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const pushPermissionLabel =
+    pushPermission === 'granted'
+      ? 'Granted'
+      : pushPermission === 'denied'
+        ? 'Blocked'
+        : pushPermission === 'default'
+          ? 'Not granted yet'
+          : 'Unsupported'
+  const browserSubscriptionLabel =
+    browserHasPushSubscription === null
+      ? 'Unknown'
+      : browserHasPushSubscription
+        ? 'Present on this device'
+        : 'Not found on this device'
 
   if (notificationsError) {
     return (
-      <div className="cgr-page-container">
+      <div className="cgr-page-container overflow-x-hidden">
         <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg p-6">
           <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Notifications</h2>
           <p className="text-red-800 dark:text-red-200 mb-4">{String(notificationsError)}</p>
@@ -873,7 +993,7 @@ const NotificationsPage: React.FC = () => {
 
   if (preferencesError) {
     return (
-      <div className="cgr-page-container">
+      <div className="cgr-page-container overflow-x-hidden">
         <Card className="bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700 rounded-lg p-6">
           <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Error Loading Preferences</h2>
           <p className="text-red-800 dark:text-red-200 mb-4">{String(preferencesError)}</p>
@@ -885,14 +1005,14 @@ const NotificationsPage: React.FC = () => {
 
   if (notificationsLoading || preferencesLoading) {
     return (
-      <div className="cgr-page-container">
+      <div className="cgr-page-container overflow-x-hidden">
         <Card className="p-12 text-center text-gray-600 dark:text-gray-400">Loading notifications...</Card>
       </div>
     )
   }
 
   return (
-    <div className="cgr-page-container">
+    <div className="cgr-page-container overflow-x-hidden">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <PageHeader title="Notifications" />
@@ -965,6 +1085,21 @@ const NotificationsPage: React.FC = () => {
                 )}
               </div>
             </label>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
+              <p className="font-medium text-gray-900 dark:text-white">Push status</p>
+              <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                <p>Installed to home screen: {isStandaloneInstall ? 'Yes' : 'No'}</p>
+                <p>Notification permission: {pushPermissionLabel}</p>
+                <p>Server subscription: {preferences?.hasActivePushSubscription ? 'Active' : 'Missing'}</p>
+                <p>Browser subscription: {browserSubscriptionLabel}</p>
+              </div>
+              {!localPreferences.pushEnabled && (preferences?.hasActivePushSubscription || browserHasPushSubscription) && (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                  A device subscription exists, but push is currently disabled in preferences.
+                </p>
+              )}
+            </div>
 
             <label className="flex items-center gap-3">
               <input

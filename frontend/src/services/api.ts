@@ -696,9 +696,9 @@ export const notificationsAPI = {
   markAllAsRead: () => api.put('/notifications/read-all'),
   delete: (id: string) => api.delete(`/notifications/${id}`),
   deleteAllRead: (daysOld?: number) => api.delete(`/notifications/read-all${daysOld ? `?daysOld=${daysOld}` : ''}`),
-  sendNotification: (data: { userIds: string[], title: string, message: string, type?: string, link?: string, targetTenantId?: string | null }) =>
+  sendNotification: (data: { userIds: string[], title: string, message: string, type?: string, link?: string, targetTenantId?: string | null, forcePush?: boolean }) =>
     api.post('/notifications/send', data),
-  broadcastByRole: (data: { roles: string[], title: string, message: string, type?: string, link?: string, targetTenantId?: string | null }) =>
+  broadcastByRole: (data: { roles: string[], title: string, message: string, type?: string, link?: string, targetTenantId?: string | null, forcePush?: boolean }) =>
     api.post('/notifications/broadcast', data),
 }
 

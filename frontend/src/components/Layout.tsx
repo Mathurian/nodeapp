@@ -559,7 +559,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   }, [sidebarOpen])
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 prevent-pull-refresh">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900 prevent-pull-refresh overscroll-x-none">
       {/* Skip Navigation Link - Accessibility */}
       <a
         href="#main-content"
@@ -985,7 +985,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
       )}
 
       {/* Main Layout with Sidebar */}
-      <div className="flex">
+      <div className="flex overflow-x-hidden">
         {/* Desktop Sidebar */}
         <aside
           ref={desktopSidebarRef}
@@ -1002,7 +1002,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         {/* Main Content */}
         <main
           id="main-content"
-          className="flex-1 p-4 lg:p-6 max-w-[1920px] mx-auto min-w-0"
+          className="mx-auto min-w-0 max-w-[1920px] flex-1 overflow-x-hidden p-4 lg:p-6"
           tabIndex={-1}
         >
           {breadcrumbs.length > 0 && (

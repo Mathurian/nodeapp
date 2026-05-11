@@ -13,6 +13,10 @@ interface PushPayload {
   type?: string;
 }
 
+export interface PushDispatchOptions {
+  ignoreUserPreferences?: boolean;
+}
+
 export interface PushDispatchSummary {
   enabled: boolean;
   totalUsers: number;
@@ -86,7 +90,8 @@ export class PushNotificationService {
   public async dispatchToUsers(
     tenantId: string,
     userIds: string[],
-    payload: PushPayload
+    payload: PushPayload,
+    options: PushDispatchOptions = {}
   ): Promise<PushDispatchSummary> {
     if (!this.pushEnabled || userIds.length === 0) {
       return {
@@ -115,7 +120,9 @@ export class PushNotificationService {
     }
 
     const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
-    const pushEnabledUserIds = await this.resolvePushEnabledUserIds(tenantId, uniqueUserIds);
+    const pushEnabledUserIds = options.ignoreUserPreferences
+      ? uniqueUserIds
+      : await this.resolvePushEnabledUserIds(tenantId, uniqueUserIds);
     const subscriptions = await this.pushSubscriptionRepository.findActiveByUserIds(tenantId, pushEnabledUserIds);
 
     if (subscriptions.length === 0) {

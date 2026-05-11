@@ -191,9 +191,44 @@ describe('NotificationService', () => {
           message: 'System maintenance scheduled',
           link: '/notifications',
           type: 'SYSTEM',
-        }
+        },
+        {}
       );
       expect(mockRepository.markPushSentByIds).toHaveBeenCalledWith(['notif-1']);
+    });
+
+    it('can force push attempts without changing default preference behavior', async () => {
+      const notifications = [
+        buildNotification({ id: 'notif-1', userId: 'user-1' }),
+      ];
+      mockRepository.createManyAndReturn.mockResolvedValue(notifications);
+
+      await service.broadcastNotification(
+        ['user-1'],
+        {
+          tenantId: TEST_TENANT_ID,
+          type: 'INFO',
+          title: 'Urgent message',
+          message: 'Try push even if the recipient disabled it',
+        },
+        {
+          ignoreUserPreferences: true,
+        }
+      );
+
+      expect(mockPushNotificationService.dispatchToUsers).toHaveBeenCalledWith(
+        TEST_TENANT_ID,
+        ['user-1'],
+        {
+          title: 'Urgent message',
+          message: 'Try push even if the recipient disabled it',
+          link: undefined,
+          type: 'INFO',
+        },
+        {
+          ignoreUserPreferences: true,
+        }
+      );
     });
   });
 

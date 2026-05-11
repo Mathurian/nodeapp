@@ -7,7 +7,7 @@ import { injectable, inject } from 'tsyringe';
 import { Notification } from '@prisma/client';
 import { NotificationRepository, CreateNotificationDTO } from '../repositories/NotificationRepository';
 import { Server as SocketIOServer } from 'socket.io';
-import { PushNotificationService } from './PushNotificationService';
+import { PushDispatchOptions, PushNotificationService } from './PushNotificationService';
 
 @injectable()
 export class NotificationService {
@@ -66,7 +66,8 @@ export class NotificationService {
    */
   async broadcastNotification(
     userIds: string[],
-    notification: Omit<CreateNotificationDTO, 'userId'>
+    notification: Omit<CreateNotificationDTO, 'userId'>,
+    pushOptions: PushDispatchOptions = {}
   ): Promise<number> {
     const createdNotifications = await this.notificationRepository.createManyAndReturn(userIds, notification);
 
@@ -86,7 +87,8 @@ export class NotificationService {
           message: notification.message,
           link: notification.link,
           type: notification.type,
-        }
+        },
+        pushOptions
       );
 
       if (pushDispatch.deliveredUsers.length > 0) {

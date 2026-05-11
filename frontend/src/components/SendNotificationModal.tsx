@@ -27,6 +27,7 @@ interface SendNotificationFormData {
   message: string
   type: NotificationType
   link: string
+  forcePush: boolean
 }
 
 interface BroadcastFormData extends SendNotificationFormData {
@@ -93,6 +94,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
     message: '',
     type: 'INFO',
     link: '',
+    forcePush: false,
   })
 
   // Form state for "Broadcast by Role"
@@ -102,6 +104,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
     message: '',
     type: 'INFO',
     link: '',
+    forcePush: false,
   })
 
   // Fetch tenants for SUPER_ADMIN - only active tenants
@@ -161,6 +164,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         title: data.title,
         message: data.message,
         type: data.type,
+        forcePush: data.forcePush,
         ...(data.link && { link: data.link }),
       }
       // Add targetTenantId for SUPER_ADMIN
@@ -196,6 +200,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
         title: data.title,
         message: data.message,
         type: data.type,
+        forcePush: data.forcePush,
         ...(data.link && { link: data.link }),
       }
       // Add targetTenantId for SUPER_ADMIN
@@ -229,6 +234,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
       message: '',
       type: 'INFO',
       link: '',
+      forcePush: false,
     })
     setBroadcastFormData({
       roles: [],
@@ -236,6 +242,7 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
       message: '',
       type: 'INFO',
       link: '',
+      forcePush: false,
     })
   }
 
@@ -486,6 +493,20 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
               />
             </div>
 
+            <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
+              <input
+                type="checkbox"
+                checked={sendFormData.forcePush}
+                onChange={(e) => setSendFormData({ ...sendFormData, forcePush: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600"
+                disabled={isLoading}
+              />
+              <span>
+                Force push attempt for subscribed devices.
+                Recipients still need an active device subscription, but this bypasses their saved push preference for this send only.
+              </span>
+            </label>
+
             {/* Submit Button */}
             <div className="flex gap-3 justify-end pt-4">
               <button
@@ -651,6 +672,20 @@ export const SendNotificationModal: React.FC<SendNotificationModalProps> = ({
                 disabled={isLoading}
               />
             </div>
+
+            <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200">
+              <input
+                type="checkbox"
+                checked={broadcastFormData.forcePush}
+                onChange={(e) => setBroadcastFormData({ ...broadcastFormData, forcePush: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600"
+                disabled={isLoading}
+              />
+              <span>
+                Force push attempt for subscribed devices.
+                Recipients still need an active device subscription, but this bypasses their saved push preference for this broadcast only.
+              </span>
+            </label>
 
             {/* Submit Button */}
             <div className="flex gap-3 justify-end pt-4">

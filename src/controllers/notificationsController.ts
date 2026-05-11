@@ -177,7 +177,7 @@ export class NotificationsController {
         return;
       }
 
-      const { userIds, title, message, type, link, targetTenantId } = req.body;
+      const { userIds, title, message, type, link, targetTenantId, forcePush } = req.body;
       const senderRole = req.user.role;
       let tenantId = req.user.tenantId;
 
@@ -250,7 +250,11 @@ export class NotificationsController {
           sentBy: req.user.id, // Track who sent the notification
         };
 
-        const tenantCount = await this.notificationService.broadcastNotification(tenantUserIds, notificationData);
+        const tenantCount = await this.notificationService.broadcastNotification(
+          tenantUserIds,
+          notificationData,
+          { ignoreUserPreferences: Boolean(forcePush) }
+        );
         count += tenantCount;
       }
 
@@ -277,7 +281,7 @@ export class NotificationsController {
         return;
       }
 
-      const { roles, title, message, type, link, targetTenantId } = req.body;
+      const { roles, title, message, type, link, targetTenantId, forcePush } = req.body;
       const senderRole = req.user.role;
       let tenantId = req.user.tenantId;
 
@@ -334,6 +338,8 @@ export class NotificationsController {
             link: link || null,
             tenantId: user.tenantId,
             sentBy: req.user.id, // Track who sent the notification
+          }, {
+            ignoreUserPreferences: Boolean(forcePush),
           });
           count += userCount;
         }
@@ -347,6 +353,8 @@ export class NotificationsController {
           link: link || null,
           tenantId,
           sentBy: req.user.id, // Track who sent the notification
+        }, {
+          ignoreUserPreferences: Boolean(forcePush),
         });
       }
 

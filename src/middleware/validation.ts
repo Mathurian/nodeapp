@@ -432,7 +432,8 @@ export const createNotificationSchema = z.object({
   message: z.string().min(1, 'Message is required').max(5000),
   type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
   link: z.string().max(500).optional(),
-  targetTenantId: z.union([compatIdSchema, z.null()]).optional()
+  targetTenantId: z.union([compatIdSchema, z.null()]).optional(),
+  forcePush: z.boolean().optional(),
 });
 
 /**
@@ -444,7 +445,8 @@ export const broadcastNotificationSchema = z.object({
   message: z.string().min(1, 'Message is required').max(5000),
   type: z.enum(['info', 'success', 'warning', 'error', 'INFO', 'SUCCESS', 'WARNING', 'ERROR']).optional(),
   link: z.string().max(500).optional(),
-  targetTenantId: z.union([compatIdSchema, z.null()]).optional()
+  targetTenantId: z.union([compatIdSchema, z.null()]).optional(),
+  forcePush: z.boolean().optional(),
 });
 
 /**
