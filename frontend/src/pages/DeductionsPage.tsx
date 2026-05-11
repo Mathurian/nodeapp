@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from 'react-query'
+import { useQuery } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { scoringAPI } from '../services/api'
@@ -83,7 +83,6 @@ interface ContestOption {
 
 const DeductionsPage: React.FC = () => {
   const { user } = useAuth()
-  const queryClient = useQueryClient()
   const [filter, setFilter] = useState<string>('ALL')
   const [showApproveModal, setShowApproveModal] = useState<Deduction | null>(null)
   const [showRejectModal, setShowRejectModal] = useState<Deduction | null>(null)

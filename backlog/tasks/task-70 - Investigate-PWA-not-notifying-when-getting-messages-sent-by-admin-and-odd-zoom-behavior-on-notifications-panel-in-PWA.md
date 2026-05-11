@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-11 00:20'
-updated_date: '2026-05-11 00:20'
+updated_date: '2026-05-11 01:56'
 labels: []
 milestone: m-0
 dependencies: []
@@ -16,7 +16,7 @@ priority: medium
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Investigate PWA not notifying when getting messages sent by admin.
+Investigate PWA not notifying when getting messages sent by admin. Add option to allow admin/notification sender to force notificaions
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Definition of Done

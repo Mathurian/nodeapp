@@ -625,6 +625,23 @@ describe('ScoringController', () => {
   });
 
   describe('getCategories', () => {
+    it('should filter categories by eventId', async () => {
+      mockReq.query = { eventId: 'event-1' };
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue([]);
+
+      await controller.getCategories(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.category.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            deletedAt: null,
+            contest: { eventId: 'event-1' },
+          }),
+        })
+      );
+    });
+
     it('should return categories for contest', async () => {
       mockReq.query = { contestId: 'contest-1' };
       const categories = [
@@ -1047,6 +1064,26 @@ describe('ScoringController', () => {
             categoryId: 'cat-1',
             contestantId: 'contestant-1',
             tenantId: 'tenant-1',
+          }),
+        })
+      );
+    });
+
+    it('should filter deductions by eventId and contestId', async () => {
+      mockReq.query = { eventId: 'event-1', contestId: 'contest-1' };
+      (mockPrisma.deductionRequest.findMany as jest.Mock).mockResolvedValue([]);
+      (mockPrisma.deductionRequest.count as jest.Mock).mockResolvedValue(0);
+
+      await controller.getDeductions(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.deductionRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            category: {
+              contestId: 'contest-1',
+              contest: { eventId: 'event-1' },
+            },
           }),
         })
       );
