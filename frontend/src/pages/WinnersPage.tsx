@@ -97,10 +97,6 @@ const WinnersPage: React.FC = () => {
     [user?.role]
   )
   const isEmcee = user?.role === 'EMCEE'
-  const canCheckPublicationStatus = useMemo(
-    () => ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE'].includes(user?.role || ''),
-    [user?.role]
-  )
 
   const isOverviewMode = selectedContestId === 'ALL'
 
@@ -133,7 +129,11 @@ const WinnersPage: React.FC = () => {
     }
   }, [contests, selectedContestId])
 
-  const { data: publicationOverview } = useQuery<PublicationOverviewPayload | null>(
+  const {
+    data: publicationOverview,
+    isLoading: isPublicationOverviewLoading,
+    error: publicationOverviewError,
+  } = useQuery<PublicationOverviewPayload | null>(
     ['winners-publication-overview', selectedEventId],
     async () => {
       const response = await winnersAPI.getPublicationOverview(
@@ -141,17 +141,17 @@ const WinnersPage: React.FC = () => {
       )
       return response.data?.data || response.data
     },
-    { enabled: isOverviewMode && canCheckPublicationStatus, retry: 1 }
+    { enabled: isOverviewMode, retry: 1 }
   )
 
   const { data: publicationStatus, isLoading: isPublicationStatusLoading } = useQuery<PublicationStatus | null>(
     ['winners-publication-status', selectedContestId],
     async () => {
-      if (!selectedContestId || isOverviewMode || !canCheckPublicationStatus) return null
+      if (!selectedContestId || isOverviewMode) return null
       const response = await winnersAPI.getPublicationStatus(selectedContestId)
       return response.data?.data || response.data
     },
-    { enabled: !!selectedContestId && !isOverviewMode && canCheckPublicationStatus, retry: 1 }
+    { enabled: !!selectedContestId && !isOverviewMode, retry: 1 }
   )
 
   const shouldHideForUnpublishedEmcee =
@@ -259,6 +259,9 @@ const WinnersPage: React.FC = () => {
     }
     return map
   }, [events])
+  const selectedEventName = selectedEventId === 'ALL'
+    ? 'all events'
+    : eventsById.get(selectedEventId) || 'selected event'
 
   const eventFilterId = 'winners-event-filter'
   const contestFilterId = 'winners-contest-filter'
@@ -267,7 +270,7 @@ const WinnersPage: React.FC = () => {
     <div className="cgr-page-container">
         <PageHeader
           title="Winners"
-          subtitle="Contest-level winners publication and visibility"
+          subtitle="Event overview and contest winners publication visibility"
           icon={TrophyIcon}
         />
 
@@ -300,7 +303,7 @@ const WinnersPage: React.FC = () => {
                 onChange={(e) => setSelectedContestId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
               >
-                <option value="ALL">All contests (status overview)</option>
+                <option value="ALL">All contests (event overview)</option>
                 {contests.map((contest) => (
                   <option key={contest.id} value={contest.id}>
                     {selectedEventId === 'ALL'
@@ -335,8 +338,35 @@ const WinnersPage: React.FC = () => {
           )}
         </Card>
 
+        {isOverviewMode && isPublicationOverviewLoading && (
+          <Card className="rounded-lg p-6 mb-6">
+            <p className="text-gray-600 dark:text-gray-400">
+              Loading winners overview for {selectedEventName}...
+            </p>
+          </Card>
+        )}
+
+        {isOverviewMode && publicationOverviewError && (
+          <Card className="bg-yellow-50 border-yellow-200 rounded-lg p-6 mb-6 text-yellow-800">
+            Unable to load the winners overview for {selectedEventName}.
+          </Card>
+        )}
+
+        {isOverviewMode && !isPublicationOverviewLoading && !publicationOverviewError && !publicationOverview && (
+          <Card className="rounded-lg p-6 mb-6">
+            <p className="text-gray-600 dark:text-gray-400">
+              No winners overview is available for {selectedEventName}.
+            </p>
+          </Card>
+        )}
+
         {isOverviewMode && publicationOverview && (
           <Card className="rounded-lg p-6 mb-6">
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Viewing publication overview for all contests in {selectedEventName}.
+              </p>
+            </div>
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
                 Contests: {publicationOverview.totals.contests}

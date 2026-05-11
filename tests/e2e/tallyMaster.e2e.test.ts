@@ -338,6 +338,24 @@ test.describe('Comprehensive Tally Master E2E Tests', () => {
     await expect(winnersPage).toBeVisible({ timeout: 10000 });
   });
 
+  test('should show event overview when all contests is selected on winners page', async () => {
+    const { page } = authContext;
+    await navigateAndWait(page, '/winners');
+
+    const selects = page.locator('select');
+    const eventSelect = selects.nth(0);
+    const contestSelect = selects.nth(1);
+
+    await expect.poll(() => eventSelect.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+    await eventSelect.selectOption(testData.event.id);
+    await page.waitForTimeout(1000);
+    await contestSelect.selectOption('ALL');
+    await page.waitForTimeout(2000);
+
+    const overviewCard = page.getByText(/Viewing publication overview for all contests in/i).first();
+    await expect(overviewCard).toBeVisible({ timeout: 10000 });
+  });
+
   test('should verify final tallies', async () => {
     const { page } = authContext;
     await navigateAndWait(page, '/tally-master/verify-tallies');
