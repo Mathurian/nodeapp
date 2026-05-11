@@ -52,6 +52,7 @@ interface PendingPublicationOverview {
 }
 
 const SIDEBAR_STORAGE_KEY = 'event-manager-sidebar-open'
+const DESKTOP_BREAKPOINT_PX = 1024
 const PULL_REFRESH_TRIGGER_PX = 72
 const PULL_HARD_REFRESH_TRIGGER_PX = 120
 const PULL_REFRESH_MAX_PX = 160
@@ -133,8 +134,12 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   const [pullDistance, setPullDistance] = useState(0)
   const [isRefreshingByPull, setIsRefreshingByPull] = useState(false)
   const [isHardRefreshingByPull, setIsHardRefreshingByPull] = useState(false)
+  const [isStandalonePwa, setIsStandalonePwa] = useState(false)
   const desktopSidebarRef = useRef<HTMLElement | null>(null)
   const desktopToggleRef = useRef<HTMLButtonElement | null>(null)
+  const profileMenuRef = useRef<HTMLDivElement | null>(null)
+  const quickActionsRef = useRef<HTMLDivElement | null>(null)
+  const quickActionsButtonRef = useRef<HTMLButtonElement | null>(null)
   const pullTouchStartYRef = useRef<number | null>(null)
   const pullDistanceRef = useRef(0)
   const isPullGestureActiveRef = useRef(false)
@@ -225,17 +230,74 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     }
   }, [sidebarOpen])
 
+  useEffect(() => {
+    if (!profileMenuOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (profileMenuRef.current?.contains(target)) {
+        return
+      }
+
+      setProfileMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [profileMenuOpen])
+
+  useEffect(() => {
+    if (!quickActionsOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (quickActionsRef.current?.contains(target) || quickActionsButtonRef.current?.contains(target)) {
+        return
+      }
+
+      setQuickActionsOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [quickActionsOpen])
+
   // Lock body scroll when mobile menu is open
   useEffect(() => {
-    if (mobileMenuOpen) {
+    if (typeof window === 'undefined') return
+
+    const shouldLockBodyScroll = mobileMenuOpen && window.innerWidth < DESKTOP_BREAKPOINT_PX
+
+    if (shouldLockBodyScroll) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
     }
+
     return () => {
       document.body.style.overflow = ''
     }
   }, [mobileMenuOpen])
+
+  // Never keep mobile drawer state active after crossing into desktop layout.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleResize = () => {
+      if (window.innerWidth >= DESKTOP_BREAKPOINT_PX) {
+        setMobileMenuOpen(false)
+        document.body.style.overflow = ''
+      }
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      document.body.style.overflow = ''
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -243,7 +305,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
     const updateRuntimeContext = () => {
       const mediaStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches === true
       const iosStandalone = (window.navigator as any)?.standalone === true
-      isStandalonePwaRef.current = mediaStandalone || iosStandalone
+      const standalone = mediaStandalone || iosStandalone
+      isStandalonePwaRef.current = standalone
+      setIsStandalonePwa(standalone)
       isTouchCapableRef.current = 'ontouchstart' in window || navigator.maxTouchPoints > 0
     }
 
@@ -559,7 +623,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
   }, [sidebarOpen])
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900 prevent-pull-refresh overscroll-x-none">
+    <div
+      className={`min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900 overscroll-x-none ${
+        isStandalonePwa ? 'prevent-pull-refresh' : ''
+      }`}
+    >
       {/* Skip Navigation Link - Accessibility */}
       <a
         href="#main-content"
@@ -687,6 +755,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
 
             {/* Quick Actions Toggle */}
             <button
+              ref={quickActionsButtonRef}
               onClick={() => setQuickActionsOpen(!quickActionsOpen)}
               className="hidden sm:inline-flex relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Quick actions"
@@ -745,7 +814,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             )}
 
             {/* Profile Menu */}
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                 className="flex items-center space-x-2 pl-1 pr-1 sm:pr-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -776,12 +845,6 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               {/* Profile Dropdown */}
               {profileMenuOpen && (
                 <>
-                  <button
-                    type="button"
-                    className="fixed inset-0 z-10 cursor-default border-0 bg-transparent p-0"
-                    aria-label="Close profile menu"
-                    onClick={() => setProfileMenuOpen(false)}
-                  />
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
                     <div className="p-3 border-b border-gray-100 dark:border-gray-700">
                       <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -849,13 +912,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
         {/* Quick Actions Panel */}
         {quickActionsOpen && (
           <>
-            <button
-              type="button"
-              className="fixed inset-0 z-10 cursor-default border-0 bg-transparent p-0"
-              aria-label="Close quick actions"
-              onClick={() => setQuickActionsOpen(false)}
-            />
-            <div className="absolute right-4 lg:right-6 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
+            <div
+              ref={quickActionsRef}
+              className="absolute right-4 lg:right-6 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden"
+            >
               {/* Favorites Section */}
               {favoriteCommands.length > 0 && (
                 <div className="p-3 border-b border-gray-100 dark:border-gray-700">
