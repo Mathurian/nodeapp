@@ -19,7 +19,7 @@ import {
 } from '../utils/responseHelpers';
 import { ErrorCode } from '../types/errors';
 import { createRequestLogger } from '../utils/logger';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, DeductionStatus } from '@prisma/client';
 import { requireAuthAndTenant } from '../utils/requestValidation';
 import { parsePaginationQuery, getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { resolveBioFromCandidates } from '../utils/bioResolver';
@@ -30,6 +30,13 @@ import {
   matchOfflineWriteOwnershipRoute,
 } from '../config/offlineWriteOwnership.config';
 import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
+
+type DeductionAccessScope = {
+  tenantWide: boolean;
+  eventIds: string[];
+  contestIds: string[];
+  categoryIds: string[];
+};
 
 export class ScoringController {
   private scoringService: ScoringService;
@@ -44,6 +51,215 @@ export class ScoringController {
 
   private getEffectiveTenantId(req: Request): string | null {
     return resolveRequestTenantId(req, { allowSuperAdminQueryOverride: true });
+  }
+
+  private emptyDeductionAccessScope(): DeductionAccessScope {
+    return {
+      tenantWide: false,
+      eventIds: [],
+      contestIds: [],
+      categoryIds: [],
+    };
+  }
+
+  private hasDeductionScope(scope: DeductionAccessScope): boolean {
+    return scope.tenantWide ||
+      scope.eventIds.length > 0 ||
+      scope.contestIds.length > 0 ||
+      scope.categoryIds.length > 0;
+  }
+
+  private buildDeductionScopeWhere(scope: DeductionAccessScope): Prisma.DeductionRequestWhereInput | null {
+    if (scope.tenantWide) return {};
+
+    const clauses: Prisma.DeductionRequestWhereInput[] = [];
+    if (scope.categoryIds.length > 0) {
+      clauses.push({ categoryId: { in: scope.categoryIds } });
+    }
+    if (scope.contestIds.length > 0) {
+      clauses.push({ category: { contestId: { in: scope.contestIds } } });
+    }
+    if (scope.eventIds.length > 0) {
+      clauses.push({ category: { contest: { eventId: { in: scope.eventIds } } } });
+    }
+
+    return clauses.length > 0 ? { OR: clauses } : null;
+  }
+
+  private buildCategoryScopeWhere(scope: DeductionAccessScope): Prisma.CategoryWhereInput | null {
+    if (scope.tenantWide) return {};
+
+    const clauses: Prisma.CategoryWhereInput[] = [];
+    if (scope.categoryIds.length > 0) {
+      clauses.push({ id: { in: scope.categoryIds } });
+    }
+    if (scope.contestIds.length > 0) {
+      clauses.push({ contestId: { in: scope.contestIds } });
+    }
+    if (scope.eventIds.length > 0) {
+      clauses.push({ contest: { eventId: { in: scope.eventIds } } });
+    }
+
+    return clauses.length > 0 ? { OR: clauses } : null;
+  }
+
+  private canAccessCategoryInScope(
+    scope: DeductionAccessScope,
+    category: { id: string; contestId: string; contest: { eventId: string } | null }
+  ): boolean {
+    if (scope.tenantWide) return true;
+    if (scope.categoryIds.includes(category.id)) return true;
+    if (scope.contestIds.includes(category.contestId)) return true;
+    return Boolean(category.contest?.eventId && scope.eventIds.includes(category.contest.eventId));
+  }
+
+  private async getDeductionAccessScope(req: Request, tenantId: string): Promise<DeductionAccessScope> {
+    if (!req.user) return this.emptyDeductionAccessScope();
+
+    const userRole = String(req.user.role || '').trim().toUpperCase();
+    if (['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(userRole)) {
+      return {
+        tenantWide: true,
+        eventIds: [],
+        contestIds: [],
+        categoryIds: [],
+      };
+    }
+
+    if (userRole === 'BOARD') {
+      const assignments = await this.prisma.roleAssignment.findMany({
+        where: {
+          tenantId,
+          userId: req.user.id,
+          role: 'BOARD',
+          isActive: true,
+        },
+        select: {
+          eventId: true,
+          contest: {
+            select: {
+              eventId: true,
+            },
+          },
+          category: {
+            select: {
+              contest: {
+                select: {
+                  eventId: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const eventIds = new Set<string>();
+      assignments.forEach((assignment) => {
+        if (assignment.eventId) {
+          eventIds.add(assignment.eventId);
+        }
+        if (assignment.contest?.eventId) {
+          eventIds.add(assignment.contest.eventId);
+        }
+        if (assignment.category?.contest?.eventId) {
+          eventIds.add(assignment.category.contest.eventId);
+        }
+      });
+
+      return {
+        tenantWide: false,
+        eventIds: Array.from(eventIds),
+        contestIds: [],
+        categoryIds: [],
+      };
+    }
+
+    if (userRole === 'JUDGE') {
+      let judgeId = req.user.judgeId || req.user.judge?.id || null;
+      const scoringEligibleStatuses = ['PENDING', 'ACTIVE', 'COMPLETED'] as const;
+
+      if (!judgeId) {
+        const userRecord = await this.prisma.user.findFirst({
+          where: {
+            id: req.user.id,
+            tenantId,
+          },
+          select: {
+            judgeId: true,
+          },
+        });
+        judgeId = userRecord?.judgeId || null;
+      }
+
+      if (!judgeId) {
+        return this.emptyDeductionAccessScope();
+      }
+
+      const assignments = await this.prisma.assignment.findMany({
+        where: {
+          tenantId,
+          judgeId,
+          status: {
+            in: [...scoringEligibleStatuses],
+          },
+        },
+        select: {
+          contestId: true,
+          categoryId: true,
+        },
+      });
+
+      return {
+        tenantWide: false,
+        eventIds: [],
+        contestIds: Array.from(new Set(assignments.map((assignment) => assignment.contestId).filter(Boolean))),
+        categoryIds: Array.from(new Set(assignments.map((assignment) => assignment.categoryId).filter(Boolean))) as string[],
+      };
+    }
+
+    if (userRole === 'TALLY_MASTER') {
+      const assignments = await this.prisma.tallyMasterAssignment.findMany({
+        where: {
+          tenantId,
+          userId: req.user.id,
+          status: 'ACTIVE',
+        },
+        select: {
+          contestId: true,
+          categoryId: true,
+        },
+      });
+
+      return {
+        tenantWide: false,
+        eventIds: [],
+        contestIds: Array.from(new Set(assignments.map((assignment) => assignment.contestId).filter(Boolean))) as string[],
+        categoryIds: Array.from(new Set(assignments.map((assignment) => assignment.categoryId).filter(Boolean))) as string[],
+      };
+    }
+
+    if (userRole === 'AUDITOR') {
+      const assignments = await this.prisma.auditorAssignment.findMany({
+        where: {
+          tenantId,
+          userId: req.user.id,
+          status: 'ACTIVE',
+        },
+        select: {
+          contestId: true,
+          categoryId: true,
+        },
+      });
+
+      return {
+        tenantWide: false,
+        eventIds: [],
+        contestIds: Array.from(new Set(assignments.map((assignment) => assignment.contestId).filter(Boolean))) as string[],
+        categoryIds: Array.from(new Set(assignments.map((assignment) => assignment.categoryId).filter(Boolean))) as string[],
+      };
+    }
+
+    return this.emptyDeductionAccessScope();
   }
 
   private async getJudgeCategoryScoreCoverageStatus(
@@ -1020,73 +1236,34 @@ export class ScoringController {
       const userRole = String(req.user.role || '').toUpperCase();
       const eventId = req.query['eventId'] as string | undefined;
       const contestId = req.query['contestId'] as string | undefined;
+      const filters: Prisma.CategoryWhereInput[] = [
+        {
+          tenantId,
+          deletedAt: null, // Manual soft-delete filter (middleware skipped due to nested includes)
+        },
+      ];
 
-      const where: Prisma.CategoryWhereInput = {
-        tenantId,
-        deletedAt: null // Manual soft-delete filter (middleware skipped due to nested includes)
-      };
+      if (contestId) {
+        filters.push({ contestId });
+      }
+      if (eventId) {
+        filters.push({ contest: { eventId } });
+      }
 
-      // Judges should only see categories they are actively assigned to.
-      if (userRole === 'JUDGE') {
-        let judgeId = req.user.judgeId || req.user.judge?.id || null;
-        const scoringEligibleStatuses = ['PENDING', 'ACTIVE'] as const;
+      if (['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'].includes(userRole)) {
+        const scope = await this.getDeductionAccessScope(req, tenantId);
+        const scopeWhere = this.buildCategoryScopeWhere(scope);
 
-        if (!judgeId) {
-          const userRecord = await this.prisma.user.findFirst({
-            where: {
-              id: req.user.id,
-              tenantId
-            },
-            select: {
-              judgeId: true
-            }
-          });
-          judgeId = userRecord?.judgeId || null;
-        }
-
-        if (!judgeId) {
+        if (!scopeWhere || !this.hasDeductionScope(scope)) {
           return sendSuccess(res, []);
         }
 
-        where.OR = [
-          // Category-level assignment
-          {
-            assignments: {
-              some: {
-                tenantId,
-                judgeId,
-                status: {
-                  in: [...scoringEligibleStatuses]
-                }
-              }
-            }
-          },
-          // Contest-level assignment (categoryId is null) grants visibility to all categories in that contest
-          {
-            contest: {
-              assignments: {
-                some: {
-                  tenantId,
-                  judgeId,
-                  categoryId: null,
-                  status: {
-                    in: [...scoringEligibleStatuses]
-                  }
-                }
-              }
-            }
-          }
-        ];
+        if (!scope.tenantWide) {
+          filters.push(scopeWhere);
+        }
       }
 
-      if (contestId) {
-        where.contestId = contestId;
-      }
-      if (eventId) {
-        where.contest = {
-          eventId
-        };
-      }
+      const where: Prisma.CategoryWhereInput = filters.length === 1 ? filters[0]! : { AND: filters };
 
       const categories = (await this.prisma.category.findMany({
         where,
@@ -1357,6 +1534,10 @@ export class ScoringController {
       if (!req.user) {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       if (!contestantId || amount === undefined || !reason) {
         return errorResponse(res, 'contestantId, amount, and reason are required', ErrorCode.VALIDATION_ERROR, 400);
@@ -1378,7 +1559,7 @@ export class ScoringController {
       const contestant = await this.prisma.contestant.findFirst({
         where: {
           id: contestantId,
-          tenantId: req.user.tenantId
+          tenantId
         }
       });
 
@@ -1390,7 +1571,7 @@ export class ScoringController {
         const contestCategories = await this.prisma.category.findMany({
           where: {
             contestId,
-            tenantId: req.user.tenantId
+            tenantId
           },
           orderBy: { createdAt: 'asc' },
           select: { id: true }
@@ -1404,12 +1585,34 @@ export class ScoringController {
       const category = await this.prisma.category.findFirst({
         where: {
           id: resolvedCategoryId,
-          tenantId: req.user.tenantId
-        }
+          tenantId
+        },
+        select: {
+          id: true,
+          contestId: true,
+          contest: {
+            select: {
+              eventId: true,
+            },
+          },
+        },
       });
 
       if (!category) {
         return sendNotFound(res, 'Category not found');
+      }
+      if (contestId && category.contestId !== contestId) {
+        return sendBadRequest(res, 'Selected category does not belong to the selected contest');
+      }
+
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      if (!this.canAccessCategoryInScope(scopeAccess, category)) {
+        return errorResponse(
+          res,
+          'Access denied for the selected deduction scope',
+          ErrorCode.AUTHORIZATION_ERROR,
+          403
+        );
       }
       if (isGeneralScope && !normalizedReason.startsWith('[GENERAL]')) {
         normalizedReason = `[GENERAL] ${normalizedReason}`;
@@ -1425,7 +1628,7 @@ export class ScoringController {
             reason: normalizedReason,
             requestedById: req.user!.id,
             status: 'PENDING',
-            tenantId: req.user!.tenantId
+            tenantId
           },
         });
 
@@ -1436,7 +1639,7 @@ export class ScoringController {
             role: req.user!.role,
             boardRoleSnapshot: req.user!.role === 'BOARD' ? (req.user!.boardRole || null) : null,
             isHeadJudge: false,
-            tenantId: req.user!.tenantId
+            tenantId
           }
         });
 
@@ -1457,6 +1660,10 @@ export class ScoringController {
       if (!req.user) {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       // Additional certifiers must be high-trust roles only.
       const allowedRoles = ['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'];
@@ -1468,8 +1675,28 @@ export class ScoringController {
       const deduction = await this.prisma.deductionRequest.findFirst({
         where: {
           id: deductionId!,
-          tenantId: req.user.tenantId
-        }
+          tenantId
+        },
+        select: {
+          id: true,
+          status: true,
+          requestedById: true,
+          amount: true,
+          reason: true,
+          categoryId: true,
+          contestantId: true,
+          category: {
+            select: {
+              id: true,
+              contestId: true,
+              contest: {
+                select: {
+                  eventId: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!deduction) {
@@ -1478,6 +1705,16 @@ export class ScoringController {
 
       if (deduction.status !== 'PENDING') {
         return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
+      }
+
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      if (!deduction.category || !this.canAccessCategoryInScope(scopeAccess, deduction.category)) {
+        return errorResponse(
+          res,
+          'Access denied for this deduction request',
+          ErrorCode.AUTHORIZATION_ERROR,
+          403
+        );
       }
 
       // Initiator certifies at creation; this endpoint is for the 2 additional approvers.
@@ -1489,7 +1726,7 @@ export class ScoringController {
         await tx.deductionApproval.upsert({
           where: {
             tenantId_requestId_approvedById: {
-              tenantId: req.user!.tenantId,
+              tenantId,
               requestId: deductionId!,
               approvedById: req.user!.id
             }
@@ -1500,7 +1737,7 @@ export class ScoringController {
             role: req.user!.role,
             boardRoleSnapshot: req.user!.role === 'BOARD' ? (req.user!.boardRole || null) : null,
             isHeadJudge: !!isHeadJudge,
-            tenantId: req.user!.tenantId
+            tenantId
           },
           update: {
             role: req.user!.role,
@@ -1513,7 +1750,7 @@ export class ScoringController {
         const approvals = await tx.deductionApproval.findMany({
           where: {
             requestId: deductionId!,
-            tenantId: req.user!.tenantId
+            tenantId
           },
           select: {
             approvedById: true
@@ -1550,13 +1787,13 @@ export class ScoringController {
           await tx.overallDeduction.upsert({
             where: {
               tenantId_categoryId_contestantId: {
-                tenantId: req.user!.tenantId,
+                tenantId,
                 categoryId: deduction.categoryId,
                 contestantId: deduction.contestantId
               }
             },
             create: {
-              tenantId: req.user!.tenantId,
+              tenantId,
               categoryId: deduction.categoryId,
               contestantId: deduction.contestantId,
               deduction: Math.abs(Number(deduction.amount || 0)),
@@ -1589,13 +1826,32 @@ export class ScoringController {
       if (!req.user) {
         return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
       }
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
       // SECURITY FIX #12: Defense in depth - validate tenant ID
       const deduction = await this.prisma.deductionRequest.findFirst({
         where: {
           id: deductionId,
-          tenantId: req.user.tenantId
-        }
+          tenantId
+        },
+        select: {
+          id: true,
+          status: true,
+          category: {
+            select: {
+              id: true,
+              contestId: true,
+              contest: {
+                select: {
+                  eventId: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!deduction) {
@@ -1606,10 +1862,19 @@ export class ScoringController {
         return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
       }
 
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      if (!deduction.category || !this.canAccessCategoryInScope(scopeAccess, deduction.category)) {
+        return errorResponse(
+          res,
+          'Access denied for this deduction request',
+          ErrorCode.AUTHORIZATION_ERROR,
+          403
+        );
+      }
+
       const updated = await this.prisma.deductionRequest.update({
         where: {
-          id: deductionId,
-          tenantId: req.user.tenantId
+          id: deductionId
         },
         data: { status: 'REJECTED' }
       });
@@ -1622,30 +1887,53 @@ export class ScoringController {
 
   getDeductions = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
+      if (!req.user) {
+        return errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
+      }
       const status = req.query['status'] as string | undefined;
       const eventId = req.query['eventId'] as string | undefined;
       const contestId = req.query['contestId'] as string | undefined;
       const categoryId = req.query['categoryId'] as string | undefined;
       const contestantId = req.query['contestantId'] as string | undefined;
-      const tenantId = (req as any).user?.tenantId || (req as any).tenantId;
+      const tenantId = this.getEffectiveTenantId(req);
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
 
-      // SECURITY FIX (2026-01-13): Add tenant isolation to prevent cross-tenant data access
-      const where: any = {
-        tenantId  // Enforce tenant boundary - CRITICAL SECURITY FIX
-      };
-      if (status) where.status = status;
-      if (categoryId) where.categoryId = categoryId;
-      if (contestantId) where.contestantId = contestantId;
-      if (eventId || contestId) {
-        where.category = {
-          ...(contestId ? { contestId } : {}),
-          ...(eventId ? { contest: { eventId } } : {})
-        };
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      if (!this.hasDeductionScope(scopeAccess)) {
+        const paginationOptions = parsePaginationQuery(req.query);
+        return sendSuccess(res, createPaginatedResponse([], 0, paginationOptions));
       }
 
       // SECURITY FIX (2026-01-13): Add pagination to prevent DoS attacks
       const paginationOptions = parsePaginationQuery(req.query);
       const paginationParams = getPaginationParams(paginationOptions);
+      const filters: Prisma.DeductionRequestWhereInput[] = [{ tenantId }];
+      if (status) {
+        const normalizedStatus = String(status).trim().toUpperCase();
+        const allowedStatuses: DeductionStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
+        if (!allowedStatuses.includes(normalizedStatus as DeductionStatus)) {
+          return sendBadRequest(res, 'Invalid deduction status filter');
+        }
+        filters.push({ status: normalizedStatus as DeductionStatus });
+      }
+      if (categoryId) filters.push({ categoryId });
+      if (contestantId) filters.push({ contestantId });
+      if (contestId) {
+        filters.push({ category: { contestId } });
+      }
+      if (eventId) {
+        filters.push({ category: { contest: { eventId } } });
+      }
+
+      const scopeWhere = this.buildDeductionScopeWhere(scopeAccess);
+      if (scopeWhere && !scopeAccess.tenantWide) {
+        filters.push(scopeWhere);
+      }
+
+      const where: Prisma.DeductionRequestWhereInput =
+        filters.length === 1 ? filters[0]! : { AND: filters };
 
       const [deductions, total] = await Promise.all([
         this.prisma.deductionRequest.findMany({

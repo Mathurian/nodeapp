@@ -18,7 +18,6 @@ import usersRoutes from '../routes/usersRoutes'
 import scoringRoutes from '../routes/scoringRoutes'
 import resultsRoutes from '../routes/resultsRoutes'
 import commentaryRoutes from '../routes/commentaryRoutes'
-import deductionRoutes from '../routes/deductionRoutes'
 import adminRoutes from '../routes/adminRoutes'
 import uploadRoutes from '../routes/uploadRoutes'
 import settingsRoutes from '../routes/settingsRoutes'
@@ -151,7 +150,6 @@ export const registerRoutes = (app: Application): void => {
   registerRoute(app, '/score-files', scoreFileRoutes);
   registerRoute(app, '/results', resultsRoutes);
   registerRoute(app, '/winners', winnersRoutes);
-  registerRoute(app, '/deductions', deductionRoutes);
   registerRoute(app, '/commentary', commentaryRoutes);
 
   // Certification and verification

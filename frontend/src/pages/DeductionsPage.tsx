@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { scoringAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 import {
   MinusCircleIcon,
   CheckCircleIcon,
@@ -83,6 +85,7 @@ interface ContestOption {
 
 const DeductionsPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const [filter, setFilter] = useState<string>('ALL')
   const [showApproveModal, setShowApproveModal] = useState<Deduction | null>(null)
   const [showRejectModal, setShowRejectModal] = useState<Deduction | null>(null)
@@ -441,9 +444,13 @@ const DeductionsPage: React.FC = () => {
   }
 
   const filteredDeductions = deductions.filter(d => filter === 'ALL' || d.status === filter)
-
-  const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'AUDITOR', 'BOARD'].includes(user?.role || '')
-  const canInitiate = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'JUDGE'].includes(user?.role || '')
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
+  const canApprove = hasPermissionAction(permissionSet, 'deductions:approve')
+  const canReject = hasPermissionAction(permissionSet, 'deductions:reject')
+  const canInitiate = hasPermissionAction(permissionSet, 'deductions:create')
 
   const submitRequest = () => {
     const amount = Number(requestAmount)
@@ -731,7 +738,7 @@ const DeductionsPage: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                       Certifications
                     </th>
-                    {canApprove && (
+                    {(canApprove || canReject) && (
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                         Actions
                       </th>
@@ -777,26 +784,30 @@ const DeductionsPage: React.FC = () => {
                             ? `${deduction.approvalState.additionalApprovals}/${deduction.approvalState.requiredAdditionalApprovals} additional`
                             : '0/2 additional'}
                         </td>
-                        {canApprove && (
+                        {(canApprove || canReject) && (
                           <td className="px-6 py-4 whitespace-nowrap">
                             {deduction.status === 'PENDING' && !deduction._optimistic && (
                               <div className="flex gap-2">
-                                <button
-                                  onClick={() => setShowApproveModal(deduction)}
-                                  disabled={approveMutation.isLoading || rejectMutation.isLoading}
-                                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors disabled:opacity-50"
-                                  title="Approve"
-                                >
-                                  <CheckCircleIcon className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={() => setShowRejectModal(deduction)}
-                                  disabled={approveMutation.isLoading || rejectMutation.isLoading}
-                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors disabled:opacity-50"
-                                  title="Reject"
-                                >
-                                  <XCircleIcon className="h-5 w-5" />
-                                </button>
+                                {canApprove && (
+                                  <button
+                                    onClick={() => setShowApproveModal(deduction)}
+                                    disabled={approveMutation.isLoading || rejectMutation.isLoading}
+                                    className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Approve"
+                                  >
+                                    <CheckCircleIcon className="h-5 w-5" />
+                                  </button>
+                                )}
+                                {canReject && (
+                                  <button
+                                    onClick={() => setShowRejectModal(deduction)}
+                                    disabled={approveMutation.isLoading || rejectMutation.isLoading}
+                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Reject"
+                                  >
+                                    <XCircleIcon className="h-5 w-5" />
+                                  </button>
+                                )}
                               </div>
                             )}
                             {deduction._optimistic && (

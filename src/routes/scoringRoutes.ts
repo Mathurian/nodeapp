@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { getCategories, getScores, submitScore, updateScore, deleteScore, certifyScore, certifyScores, certifyTotals, finalCertification, requestDeduction, approveDeduction, rejectDeduction, getDeductions, unsignScore, uncertifyCategory } from '../controllers/scoringController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { validate, createScoreSchema, updateScoreSchema } from '../middleware/validation';
 import { idempotencyMiddleware } from '../middleware/idempotency';
@@ -100,10 +100,10 @@ router.post('/:scoreId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']),
 router.post('/:scoreId/unsign', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UNSIGN_SCORE', 'SCORE'), unsignScore)
 
 // Deduction endpoints
-router.post('/deductions', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('REQUEST_DEDUCTION', 'DEDUCTION'), requestDeduction)
-router.get('/deductions', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), getDeductions)
-router.post('/deductions/:deductionId/approve', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('APPROVE_DEDUCTION', 'DEDUCTION'), approveDeduction)
-router.post('/deductions/:deductionId/reject', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
+router.post('/deductions', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), requirePermission('deductions:create'), logActivity('REQUEST_DEDUCTION', 'DEDUCTION'), requestDeduction)
+router.get('/deductions', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), requirePermission('deductions:read'), getDeductions)
+router.post('/deductions/:deductionId/approve', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), requirePermission('deductions:approve'), logActivity('APPROVE_DEDUCTION', 'DEDUCTION'), approveDeduction)
+router.post('/deductions/:deductionId/reject', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), requirePermission('deductions:reject'), logActivity('REJECT_DEDUCTION', 'DEDUCTION'), rejectDeduction)
 
 export default router;
 

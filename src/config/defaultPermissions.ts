@@ -10,16 +10,17 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'events:*', 'contests:*', 'categories:*', 'users:*', 'reports:*',
     'templates:*', 'settings:*', 'backup:*', 'emcee:*', 'category-types:*',
     'assignments:*', 'results:*', 'contestants:*', 'criteria:*', 'approvals:*',
-    'tracker:*', 'scores:read', 'commentary:read', 'profile:read',
+    'tracker:*', 'scores:read', 'deductions:*', 'commentary:read', 'profile:read',
   ],
   BOARD: [
     'events:*', 'contests:*', 'categories:*', 'results:*', 'reports:*', 'approvals:*',
     'users:*', 'settings:*', 'emcee:*', 'category-types:*',
-    'assignments:*', 'scores:read', 'contestants:*', 'criteria:*', 'tracker:*',
+    'assignments:*', 'scores:read', 'deductions:read', 'deductions:create', 'deductions:approve',
+    'deductions:reject', 'contestants:*', 'criteria:*', 'tracker:*',
     'commentary:read', 'profile:read',
   ],
   JUDGE: [
-    'scores:write', 'scores:read', 'results:read', 'commentary:write',
+    'scores:write', 'scores:read', 'deductions:read', 'deductions:create', 'results:read', 'commentary:write',
     'events:read', 'contests:read', 'categories:read',
   ],
   CONTESTANT: [
@@ -32,12 +33,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   ],
   TALLY_MASTER: [
     'scores:*', 'results:*', 'events:read', 'contests:read', 'categories:read',
-    'reports:read', 'tracker:*', 'certifications:write',
+    'reports:read', 'tracker:*', 'certifications:write', 'deductions:read', 'deductions:create',
   ],
   AUDITOR: [
     'events:read', 'contests:read', 'categories:read', 'results:read',
     'scores:read', 'reports:read', 'activity-logs:read', 'audit-logs:read', 'tracker:*',
-    'approvals:write', 'certifications:write',
+    'approvals:write', 'certifications:write', 'deductions:read', 'deductions:create',
+    'deductions:approve', 'deductions:reject',
   ],
 };
-

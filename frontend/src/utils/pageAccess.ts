@@ -30,16 +30,26 @@ export const normalizeAppPath = (pathname: string): string => {
 export const permissionSetFromList = (permissions?: string[]): Set<string> =>
   new Set((permissions || []).map((p) => String(p || '').trim().toLowerCase()).filter(Boolean))
 
-const hasResourceReadPermission = (permissionSet: Set<string>, resource: string): boolean => {
-  const normalized = String(resource || '').trim().toLowerCase()
+export const hasPermissionAction = (
+  permissionSet: Set<string> | null | undefined,
+  action: string
+): boolean => {
+  if (!permissionSet) return false
+  const normalized = String(action || '').trim().toLowerCase()
   if (!normalized) return false
   return (
     permissionSet.has('*') ||
     permissionSet.has('*:*') ||
-    permissionSet.has(`${normalized}:*`) ||
-    permissionSet.has(`${normalized}:read`)
+    permissionSet.has(normalized) ||
+    (() => {
+      const [resource, operation] = normalized.split(':')
+      return Boolean(resource && operation && permissionSet.has(`${resource}:*`))
+    })()
   )
 }
+
+export const hasResourceReadPermission = (permissionSet: Set<string>, resource: string): boolean =>
+  hasPermissionAction(permissionSet, `${String(resource || '').trim().toLowerCase()}:read`)
 
 const candidateResources = (resource?: string): string[] => {
   if (!resource) return []
@@ -70,6 +80,12 @@ export const canAccessPageByPolicy = (
   const normalizedRole = normalizeRole(role)
   const hasBaseRole = policy.baseRoles.includes(normalizedRole)
   if (policy.hardProtected) return hasBaseRole
+
+  if (policy.requireResourcePermission && policy.resource) {
+    if (!hasBaseRole || !permissionSet) return false
+    return candidateResources(policy.resource)
+      .some((resource) => hasResourceReadPermission(permissionSet, resource))
+  }
 
   const hasPermissionContext = Boolean(permissionSet && permissionSet.size > 0)
   if (policy.allowCrudReadOverride && policy.resource && hasPermissionContext && isAdminPlaneRole(normalizedRole)) {
