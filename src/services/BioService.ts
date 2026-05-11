@@ -314,6 +314,7 @@ export class BioService extends BaseService {
     const judgeWhere: Prisma.JudgeWhereInput = {
       tenantId,
     };
+    let resolvedEventId = eventId;
 
     if (isJudge) {
       const scope = await this.getJudgeScope(userId, tenantId);
@@ -512,6 +513,20 @@ export class BioService extends BaseService {
       }
     }
 
+    if (contestId && !resolvedEventId) {
+      const contest = await this.prisma.contest.findFirst({
+        where: {
+          id: contestId,
+          tenantId,
+          deletedAt: null,
+        },
+        select: {
+          eventId: true,
+        },
+      });
+      resolvedEventId = contest?.eventId;
+    }
+
     const contestRelationWhere = contestId
       ? { contestId }
       : eventId
@@ -528,10 +543,64 @@ export class BioService extends BaseService {
       ...(eventId ? { eventId } : {}),
       status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
     };
-    const broadRoleFilter = {
-      role: { in: ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'] as UserRole[] },
+    const scopedRoleFilter = {
+      role: { in: ['BOARD', 'TALLY_MASTER', 'AUDITOR'] as UserRole[] },
     };
-    const allUsersScopeFilter = eventId
+    const scopedRoleAssignmentFilters = contestId
+      ? {
+          some: {
+            tenantId,
+            isActive: true,
+            role: { in: ['BOARD', 'TALLY_MASTER', 'AUDITOR'] },
+            OR: [
+              { contestId },
+              { category: { contestId } },
+              ...(resolvedEventId ? [{ eventId: resolvedEventId }] : []),
+            ],
+          },
+        }
+      : resolvedEventId
+        ? {
+            some: {
+              tenantId,
+              isActive: true,
+              role: { in: ['BOARD', 'TALLY_MASTER', 'AUDITOR'] },
+              OR: [
+                { eventId: resolvedEventId },
+                { contest: { eventId: resolvedEventId } },
+                { category: { contest: { eventId: resolvedEventId } } },
+              ],
+            },
+          }
+        : undefined;
+    const allUsersScopeFilter = contestId
+      ? {
+          OR: [
+            {
+              contestant: {
+                contestContestants: {
+                  some: { tenantId, contestId },
+                },
+              },
+            },
+            {
+              judge: {
+                assignments: {
+                  some: {
+                    tenantId,
+                    contestId,
+                    status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
+                  },
+                },
+              },
+            },
+            {
+              ...scopedRoleFilter,
+              roleAssignments: scopedRoleAssignmentFilters,
+            },
+          ],
+        }
+      : resolvedEventId
       ? {
           OR: [
             {
@@ -540,7 +609,7 @@ export class BioService extends BaseService {
                   some: {
                     tenantId,
                     contest: {
-                      eventId,
+                      eventId: resolvedEventId,
                     },
                   },
                 },
@@ -551,39 +620,18 @@ export class BioService extends BaseService {
                 assignments: {
                   some: {
                     tenantId,
-                    eventId,
+                    eventId: resolvedEventId,
                     status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
                   },
                 },
               },
             },
-            broadRoleFilter,
+            {
+              ...scopedRoleFilter,
+              roleAssignments: scopedRoleAssignmentFilters,
+            },
           ],
         }
-      : contestId
-        ? {
-            OR: [
-              {
-                contestant: {
-                  contestContestants: {
-                    some: { tenantId, contestId },
-                  },
-                },
-              },
-              {
-                judge: {
-                  assignments: {
-                    some: {
-                      tenantId,
-                      contestId,
-                      status: { in: [AssignmentStatus.PENDING, AssignmentStatus.ACTIVE, AssignmentStatus.COMPLETED] },
-                    },
-                  },
-                },
-              },
-              broadRoleFilter,
-            ],
-          }
         : {};
 
     const [availableContests, contests, contestants, judges, allUsers] = await Promise.all([

@@ -517,6 +517,128 @@ describe('BioService', () => {
           }),
         })
       );
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            isActive: true,
+            OR: expect.arrayContaining([
+              expect.objectContaining({
+                contestant: {
+                  contestContestants: {
+                    some: {
+                      tenantId: 'tenant-1',
+                      contest: {
+                        eventId: 'event-1',
+                      },
+                    },
+                  },
+                },
+              }),
+              expect.objectContaining({
+                judge: {
+                  assignments: {
+                    some: expect.objectContaining({
+                      tenantId: 'tenant-1',
+                      eventId: 'event-1',
+                    }),
+                  },
+                },
+              }),
+              expect.objectContaining({
+                role: { in: ['BOARD', 'TALLY_MASTER', 'AUDITOR'] },
+                roleAssignments: {
+                  some: expect.objectContaining({
+                    tenantId: 'tenant-1',
+                    isActive: true,
+                    OR: expect.arrayContaining([
+                      { eventId: 'event-1' },
+                      { contest: { eventId: 'event-1' } },
+                      { category: { contest: { eventId: 'event-1' } } },
+                    ]),
+                  }),
+                },
+              }),
+            ]),
+          }),
+        })
+      );
+    });
+
+    it('should prioritize contest scope over event scope for all-users directory filters', async () => {
+      mockPrisma.contest.findMany
+        .mockResolvedValueOnce([
+          {
+            id: 'contest-1',
+            name: 'Contest One',
+            eventId: 'event-1',
+            event: { id: 'event-1', name: 'Event One' },
+          },
+        ] as any)
+        .mockResolvedValueOnce([
+          {
+            id: 'contest-1',
+            name: 'Contest One',
+            eventId: 'event-1',
+            event: { id: 'event-1', name: 'Event One' },
+          },
+        ] as any);
+      mockPrisma.contestant.findMany.mockResolvedValue([] as any);
+      mockPrisma.judge.findMany.mockResolvedValue([] as any);
+      mockPrisma.user.findMany.mockResolvedValue([] as any);
+
+      await service.getBioDirectory(
+        'user-1',
+        'EMCEE' as any,
+        'tenant-1',
+        'contest-1',
+        'event-1'
+      );
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            isActive: true,
+            OR: expect.arrayContaining([
+              expect.objectContaining({
+                contestant: {
+                  contestContestants: {
+                    some: {
+                      tenantId: 'tenant-1',
+                      contestId: 'contest-1',
+                    },
+                  },
+                },
+              }),
+              expect.objectContaining({
+                judge: {
+                  assignments: {
+                    some: expect.objectContaining({
+                      tenantId: 'tenant-1',
+                      contestId: 'contest-1',
+                    }),
+                  },
+                },
+              }),
+              expect.objectContaining({
+                role: { in: ['BOARD', 'TALLY_MASTER', 'AUDITOR'] },
+                roleAssignments: {
+                  some: expect.objectContaining({
+                    tenantId: 'tenant-1',
+                    isActive: true,
+                    OR: expect.arrayContaining([
+                      { contestId: 'contest-1' },
+                      { category: { contestId: 'contest-1' } },
+                      { eventId: 'event-1' },
+                    ]),
+                  }),
+                },
+              }),
+            ]),
+          }),
+        })
+      );
     });
 
     it('should intersect judge-scoped contests with the selected event', async () => {

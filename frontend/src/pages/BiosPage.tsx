@@ -272,6 +272,7 @@ const BiosPage: React.FC = () => {
     }
     return byRole
   }, [data?.allUsers, searchQuery])
+  const hasScopedSelection = Boolean(selectedEventId || selectedContestId)
 
   const roleTabs = useMemo(() => {
     const tabs: Array<{ id: string; label: string; count: number }> = [{ id: 'contestants', label: 'Contestants', count: data?.contestants?.length || 0 }]
@@ -281,15 +282,26 @@ const BiosPage: React.FC = () => {
     if (canSeeAllRoles) {
       const supportedRoles = ['EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
       for (const role of supportedRoles) {
+        const count = filteredUsersByRole[role]?.length || 0
+        if (hasScopedSelection && count === 0) {
+          continue
+        }
         tabs.push({
           id: role,
           label: roleLabelMap[role] || role,
-          count: filteredUsersByRole[role]?.length || 0,
+          count,
         })
       }
     }
     return tabs
-  }, [canSeeAllRoles, data?.contestants?.length, data?.judges?.length, filteredUsersByRole, showJudgesTab])
+  }, [canSeeAllRoles, data?.contestants?.length, data?.judges?.length, filteredUsersByRole, hasScopedSelection, showJudgesTab])
+
+  React.useEffect(() => {
+    if (roleTabs.some((tab) => tab.id === activeTab)) {
+      return
+    }
+    setActiveTab(roleTabs[0]?.id || 'contestants')
+  }, [activeTab, roleTabs])
 
   if (!hasAccess) {
     return (
