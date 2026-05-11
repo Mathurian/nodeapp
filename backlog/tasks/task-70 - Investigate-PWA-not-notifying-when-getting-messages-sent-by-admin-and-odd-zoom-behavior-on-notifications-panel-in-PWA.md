@@ -3,10 +3,11 @@ id: TASK-70
 title: >-
   Investigate PWA not notifying when getting messages sent by admin and odd zoom
   behavior on notifications panel in PWA
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-11 00:20'
-updated_date: '2026-05-11 01:56'
+updated_date: '2026-05-11 02:57'
 labels: []
 milestone: m-0
 dependencies: []
