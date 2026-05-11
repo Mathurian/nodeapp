@@ -1057,10 +1057,10 @@ test.describe('Accordion Tests - Auditor Page', () => {
 
 test('should show auditor dashboard actions and overview workspace', async () => {
   const { page } = authContext;
-  await navigateAndWait(page, '/auditor');
+  await navigateAndWait(page, '/dashboard');
 
-  const hasQuickAction = await page.locator('a:has-text("Pending Audits"), a:has-text("Certification Status"), a:has-text("Full Certifications View")').first().isVisible({ timeout: 5000 }).catch(() => false);
-  const hasWorkspace = await page.getByText(/Auditor Dashboard|Certification pipeline overview/i).first().isVisible({ timeout: 5000 }).catch(() => false);
+  const hasQuickAction = await page.locator('a:has-text("Audit Queue"), a:has-text("Deductions"), a:has-text("Governance Queue"), a:has-text("Certifications")').first().isVisible({ timeout: 5000 }).catch(() => false);
+  const hasWorkspace = await page.getByText(/Auditor Dashboard|Audit and review score certifications/i).first().isVisible({ timeout: 5000 }).catch(() => false);
 
   expect(hasQuickAction || hasWorkspace).toBe(true);
   });

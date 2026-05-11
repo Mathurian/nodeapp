@@ -113,15 +113,14 @@ test.describe('Auditor E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/auditor');
 
-    const auditorPage = page.locator('h1:has-text("Auditor"), h2:has-text("Auditor"), [data-testid="auditor"]').first();
-    await expect(auditorPage).toBeVisible({ timeout: 10000 }).catch(() => {
-      expect(page.url()).toMatch(/auditor/i);
-    });
+    await expect.poll(() => page.url(), { timeout: 10000 }).toContain('/dashboard');
+    const auditorPage = page.locator('h1:has-text("Auditor"), h2:has-text("Auditor"), a:has-text("Audit Queue"), a:has-text("Deductions")').first();
+    await expect(auditorPage).toBeVisible({ timeout: 10000 });
   });
 
   test('should view auditor dashboard content', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/dashboard');
 
     const dashboardContent = page.locator('[data-testid="auditor-dashboard"], .dashboard, main').first();
     await expect(dashboardContent).toBeVisible({ timeout: 10000 });
@@ -195,15 +194,16 @@ test.describe('Auditor E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/auditor/score-verification');
 
-    const verificationPage = page.locator('h1, h2, [data-testid="score-verification"]').first();
+    await expect.poll(() => page.url(), { timeout: 10000 }).toContain('/certifications');
+    const verificationPage = page.locator('h1, h2, [data-testid="certifications"], button:has-text("Certify as Auditor")').first();
     await expect(verificationPage).toBeVisible({ timeout: 10000 });
   });
 
   test('should view scores for verification', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor/score-verification');
+    await navigateAndWait(page, '/certifications');
 
-    const scoresTable = page.locator('table, [data-testid="scores-list"], .scores-list, h1:has-text("Auditor Score Verification"), button:has-text("Certify as Auditor")').first();
+    const scoresTable = page.locator('table, [data-testid="scores-list"], .scores-list, h1:has-text("Certification"), button:has-text("Certify as Auditor")').first();
     const hasScores = await scoresTable.isVisible({ timeout: 5000 }).catch(() => false);
     const hasEmptyState = await page.locator('text=/No categories match|no.*score/i').count() > 0;
 
@@ -212,18 +212,18 @@ test.describe('Auditor E2E Tests', () => {
 
   test('should verify a score', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor/score-verification');
+    await navigateAndWait(page, '/certifications');
 
     const verifyButton = page.locator('button:has-text("Verify"), button:has-text("Approve"), button:has-text("Certify as Auditor")').first();
     const hasVerifyButton = await verifyButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasAuditorQueue = await page.getByText(/Auditor Score Verification|No categories match/i).first().isVisible({ timeout: 3000 }).catch(() => false);
+    const hasAuditorQueue = await page.getByText(/Certification|No categories match/i).first().isVisible({ timeout: 3000 }).catch(() => false);
 
     expect(hasVerifyButton || hasAuditorQueue).toBe(true);
   });
 
   test('should flag a score for review', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor/score-verification');
+    await navigateAndWait(page, '/certifications');
 
     const flagButton = page.locator('button:has-text("Flag"), button:has-text("Review")').first();
     if (await flagButton.isVisible({ timeout: 5000 })) {
@@ -246,7 +246,7 @@ test.describe('Auditor E2E Tests', () => {
 
   test('should add notes to score verification', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor/score-verification');
+    await navigateAndWait(page, '/certifications');
 
     const notesInput = page.locator('textarea[name="notes"], textarea[placeholder*="note" i]').first();
     if (await notesInput.isVisible({ timeout: 5000 })) {
@@ -264,7 +264,7 @@ test.describe('Auditor E2E Tests', () => {
 
   test('should view score verification history', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor/score-verification');
+    await navigateAndWait(page, '/certifications');
 
     const historyTab = page.locator('button:has-text("History"), [data-testid="history-tab"]').first();
     if (await historyTab.isVisible({ timeout: 5000 })) {
@@ -354,7 +354,8 @@ test.describe('Auditor E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/auditor/certification-status');
 
-    const statusSection = page.locator('[data-testid="certification-status"], .status, table').first();
+    await expect.poll(() => page.url(), { timeout: 10000 }).toContain('/certifications');
+    const statusSection = page.locator('[data-testid="certification-status"], .status, table, h1:has-text("Certification"), h2:has-text("Certification")').first();
     const hasStatus = await statusSection.isVisible({ timeout: 5000 }).catch(() => false);
     const hasPageContent = await page.locator('h1, h2, h3').count() > 0;
     expect(hasStatus || hasPageContent).toBe(true);

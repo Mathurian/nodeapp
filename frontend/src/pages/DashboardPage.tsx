@@ -205,6 +205,7 @@ const DashboardPage: React.FC = () => {
       AUDITOR: [
         { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'blue' },
         { label: 'Audit Queue', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green' },
+        { label: 'Deductions', href: '/deductions', icon: TrophyIcon, color: 'indigo' },
         { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
       BOARD: [

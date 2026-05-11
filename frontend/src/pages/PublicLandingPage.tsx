@@ -24,8 +24,6 @@ import {
 
 const getRoleHomePath = (role?: string): string => {
   switch (role) {
-    case 'AUDITOR':
-      return '/auditor'
     case 'TALLY_MASTER':
       return '/tally-master'
     case 'EMCEE':

@@ -239,8 +239,6 @@ const LoginPage: React.FC = () => {
 
   const getDefaultRouteForRole = (role?: string) => {
     switch (role) {
-      case 'AUDITOR':
-        return '/auditor'
       case 'TALLY_MASTER':
         return '/tally-master'
       case 'EMCEE':

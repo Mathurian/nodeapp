@@ -13,8 +13,8 @@ const AuditorReportsPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link to="/auditor" className="p-5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-            <h2 className="font-semibold text-gray-900 dark:text-white">Auditor Queue</h2>
+          <Link to="/auditor/pending-audits" className="p-5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+            <h2 className="font-semibold text-gray-900 dark:text-white">Audit Queue</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Categories waiting for auditor certification.</p>
           </Link>
           <Link to="/certifications" className="p-5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">

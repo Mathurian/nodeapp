@@ -65,34 +65,28 @@ test.describe('Comprehensive Auditor E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/auditor');
 
-    const dashboard = page.locator('h1, h2, [data-testid="auditor-dashboard"]').first();
+    await expect.poll(() => page.url(), { timeout: 10000 }).toContain('/dashboard');
+    const dashboard = page.locator('h1, h2, a:has-text("Audit Queue"), a:has-text("Deductions")').first();
     await expect(dashboard).toBeVisible({ timeout: 10000 });
   });
 
   test('should view pending audits', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/dashboard');
 
-    // Auditor page should load
     const auditorPage = page.locator('h1, h2, body').first();
     await expect(auditorPage).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/auditor');
+    expect(page.url()).toContain('/dashboard');
   });
 
-  test('should view completed audits', async () => {
+  test('should view pending audits queue', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/auditor/pending-audits');
 
-    const completedTab = page.locator('button:has-text("Completed"), [data-testid="completed-tab"]').first();
-    if (await completedTab.isVisible({ timeout: 5000 })) {
-      await completedTab.click();
-      await page.waitForTimeout(2000);
-
-      const completedList = page.locator('[data-testid="completed-audits"], table, .audit-list').first();
-      const hasCompleted = await completedList.isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEmptyState = await page.locator('text=/no.*completed|empty/i').count() > 0;
-      expect(hasCompleted || hasEmptyState).toBe(true);
-    }
+    const pendingList = page.locator('[data-testid="pending-audits"], table, .audit-list, button:has-text("Certify as Auditor")').first();
+    const hasPending = await pendingList.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasEmptyState = await page.locator('text=/no.*pending|empty|no.*audit/i').count() > 0;
+    expect(hasPending || hasEmptyState).toBe(true);
   });
 
   // ============================================================================
@@ -101,17 +95,16 @@ test.describe('Comprehensive Auditor E2E Tests', () => {
 
   test('should verify a score', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/certifications');
 
-    // Auditor page should load - simplified to just verify page access
     const auditorPage = page.locator('h1, h2, body').first();
     await expect(auditorPage).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/auditor');
+    expect(page.url()).toContain('/certifications');
   });
 
   test('should view score details for audit', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/certifications');
 
     const scoreRow = page.locator('tr, [data-testid="score-row"], .score-item').first();
     if (await scoreRow.isVisible({ timeout: 5000 })) {
@@ -126,9 +119,9 @@ test.describe('Comprehensive Auditor E2E Tests', () => {
 
   test('should add audit notes', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/certifications');
 
-    const verifyButton = page.locator('button:has-text("Verify")').first();
+    const verifyButton = page.locator('button:has-text("Verify"), button:has-text("Approve"), button:has-text("Certify as Auditor")').first();
     if (await verifyButton.isVisible({ timeout: 5000 })) {
       await verifyButton.click();
       await page.waitForTimeout(1000);
@@ -151,7 +144,7 @@ test.describe('Comprehensive Auditor E2E Tests', () => {
 
   test('should submit final certification', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/auditor/final-certification');
 
     const certifyButton = page.locator('button:has-text("Finalize"), button:has-text("Certify")').first();
     if (await certifyButton.isVisible({ timeout: 5000 })) {
@@ -184,7 +177,7 @@ test.describe('Comprehensive Auditor E2E Tests', () => {
 
   test('should view audit logs', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/auditor/audit-log');
 
     const logsTab = page.locator('button:has-text("Logs"), [data-testid="logs-tab"]').first();
     if (await logsTab.isVisible({ timeout: 5000 })) {
@@ -200,7 +193,7 @@ test.describe('Comprehensive Auditor E2E Tests', () => {
 
   test('should filter audit logs by date', async () => {
     const { page } = authContext;
-    await navigateAndWait(page, '/auditor');
+    await navigateAndWait(page, '/auditor/audit-log');
 
     const dateFilter = page.locator('input[type="date"], input[name="date"]').first();
     if (await dateFilter.isVisible({ timeout: 5000 })) {

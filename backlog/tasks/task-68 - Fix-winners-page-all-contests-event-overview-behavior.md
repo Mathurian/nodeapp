@@ -1,10 +1,11 @@
 ---
 id: TASK-68
 title: Fix winners page all-contests event overview behavior
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 23:00'
-updated_date: '2026-05-10 23:01'
+updated_date: '2026-05-11 02:19'
 labels:
   - winners
   - frontend

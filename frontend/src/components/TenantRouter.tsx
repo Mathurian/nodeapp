@@ -60,11 +60,8 @@ const ActivityLogPage = lazyWithRetry(() => import('../pages/ActivityLogPage'), 
 const LoginLocationsPage = lazyWithRetry(() => import('../pages/LoginLocationsPage'), 'LoginLocationsPage')
 const TestRunnerPage = lazyWithRetry(() => import('../pages/TestRunnerPage'), 'TestRunnerPage')
 const UatIdsPage = lazyWithRetry(() => import('../pages/UatIdsPage'), 'UatIdsPage')
-const AuditorPage = lazyWithRetry(() => import('../pages/AuditorPage'), 'AuditorPage')
 const AuditorPendingAuditsPage = lazyWithRetry(() => import('../pages/AuditorPendingAuditsPage'), 'AuditorPendingAuditsPage')
-const AuditorScoreVerificationPage = lazyWithRetry(() => import('../pages/AuditorScoreVerificationPage'), 'AuditorScoreVerificationPage')
 const AuditorFinalCertificationPage = lazyWithRetry(() => import('../pages/AuditorFinalCertificationPage'), 'AuditorFinalCertificationPage')
-const AuditorCertificationStatusPage = lazyWithRetry(() => import('../pages/AuditorCertificationStatusPage'), 'AuditorCertificationStatusPage')
 const AuditorReportsPage = lazyWithRetry(() => import('../pages/AuditorReportsPage'), 'AuditorReportsPage')
 const AuditorAuditLogPage = lazyWithRetry(() => import('../pages/AuditorAuditLogPage'), 'AuditorAuditLogPage')
 const TallyDashboardPage = lazyWithRetry(() => import('../pages/TallyDashboardPage'), 'TallyDashboardPage')
@@ -153,8 +150,6 @@ const TenantPublicOrAppRoute: React.FC<{ onOpenCommandPalette: () => void }> = (
 
 const getRoleHomePath = (role?: string): string => {
   switch (role) {
-    case 'AUDITOR':
-      return '/auditor'
     case 'TALLY_MASTER':
       return '/tally-master'
     case 'EMCEE':
@@ -175,7 +170,7 @@ const ADMIN_STANDARD_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
 const ADMIN_STRICT_ROLES = ['SUPER_ADMIN', 'ADMIN']
 const MONITORING_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
 const SUPER_ADMIN_ONLY = ['SUPER_ADMIN']
-const SCORING_ROLES = ['JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
+const SCORING_ROLES = ['JUDGE', 'TALLY_MASTER', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
 const EMCEE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']
 const DEDUCTION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']
 
@@ -272,11 +267,11 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/governance" element={<AliasRedirect targetPath="/score-governance" />} />
             <Route path="/score-removal" element={<AliasRedirect targetPath="/score-governance" />} />
             <Route path="/score-removal-requests" element={<AliasRedirect targetPath="/score-governance" />} />
-            <Route path="/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
+            <Route path="/auditor" element={<AliasRedirect targetPath="/dashboard" />} />
             <Route path="/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
-            <Route path="/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
+            <Route path="/auditor/score-verification" element={<AliasRedirect targetPath="/certifications" />} />
             <Route path="/auditor/final-certification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorFinalCertificationPage /></ProtectedRoute>} />
-            <Route path="/auditor/certification-status" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorCertificationStatusPage /></ProtectedRoute>} />
+            <Route path="/auditor/certification-status" element={<AliasRedirect targetPath="/certifications" />} />
             <Route path="/auditor/reports" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorReportsPage /></ProtectedRoute>} />
             <Route path="/auditor/audit-log" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorAuditLogPage /></ProtectedRoute>} />
             <Route path="/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
@@ -340,11 +335,11 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/governance" element={<AliasRedirect targetPath="/score-governance" />} />
             <Route path="/:slug/score-removal" element={<AliasRedirect targetPath="/score-governance" />} />
             <Route path="/:slug/score-removal-requests" element={<AliasRedirect targetPath="/score-governance" />} />
-            <Route path="/:slug/auditor" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor" element={<AliasRedirect targetPath="/dashboard" />} />
             <Route path="/:slug/auditor/pending-audits" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorPendingAuditsPage /></ProtectedRoute>} />
-            <Route path="/:slug/auditor/score-verification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorScoreVerificationPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/score-verification" element={<AliasRedirect targetPath="/certifications" />} />
             <Route path="/:slug/auditor/final-certification" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorFinalCertificationPage /></ProtectedRoute>} />
-            <Route path="/:slug/auditor/certification-status" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorCertificationStatusPage /></ProtectedRoute>} />
+            <Route path="/:slug/auditor/certification-status" element={<AliasRedirect targetPath="/certifications" />} />
             <Route path="/:slug/auditor/reports" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/auditor/audit-log" element={<ProtectedRoute requiredRole={['AUDITOR', 'ADMIN', 'SUPER_ADMIN']}><AuditorAuditLogPage /></ProtectedRoute>} />
             <Route path="/:slug/board" element={<ProtectedRoute requiredRole={['BOARD', 'ADMIN', 'SUPER_ADMIN']}><BoardPage /></ProtectedRoute>} />
