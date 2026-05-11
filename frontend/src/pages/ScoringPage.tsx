@@ -363,8 +363,8 @@ const ScoringPage: React.FC = () => {
     }
   }
 
-  // Check if user can access scoring page (judges, admins, board members, and tally masters for viewing)
-  const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'BOARD'].includes(user?.role || '')
+  // Judge Scoring is limited to roles that can directly enter or manage scoring on this page.
+  const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'BOARD'].includes(user?.role || '')
 
   // Fetch categories assigned to the judge
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>(
