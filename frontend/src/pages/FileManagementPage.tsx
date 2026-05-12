@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { uploadAPI, api } from '../services/api'
 import { openDocumentUrl } from '../utils/fileViewer'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 import {
   CloudArrowDownIcon,
   TrashIcon,
@@ -26,12 +28,15 @@ interface FileItem {
 
 const FileManagementPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
+  const permissionSet = permissionSetFromList(permissionsPayload?.permissions || [])
+  const canWriteFiles = hasPermissionAction(permissionSet, 'files:write')
 
   useEffect(() => {
     fetchFiles()
@@ -254,23 +259,24 @@ const FileManagementPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Upload Section */}
-        <Card className="mb-6 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
-            Upload File
-          </h2>
-          <div className="flex items-center gap-4">
-            <input
-              type="file"
-              onChange={handleFileUpload}
-              disabled={uploading}
-              className="flex-1 text-gray-900 dark:text-white dark:text-white"
-            />
-            {uploading && (
-              <span className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Uploading...</span>
-            )}
-          </div>
-        </Card>
+        {canWriteFiles && (
+          <Card className="mb-6 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white dark:text-white mb-4">
+              Upload File
+            </h2>
+            <div className="flex items-center gap-4">
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="flex-1 text-gray-900 dark:text-white dark:text-white"
+              />
+              {uploading && (
+                <span className="text-gray-600 dark:text-gray-400 dark:text-gray-400 dark:text-gray-500">Uploading...</span>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Search and Filter */}
         <Card className="mb-6 rounded-lg p-4">
@@ -372,14 +378,16 @@ const FileManagementPage: React.FC = () => {
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
-                          <button
-                            onClick={() => deleteFile(file.id)}
-                            disabled={file.source === 'derived'}
-                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
+                          {canWriteFiles && (
+                            <button
+                              onClick={() => deleteFile(file.id)}
+                              disabled={file.source === 'derived'}
+                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

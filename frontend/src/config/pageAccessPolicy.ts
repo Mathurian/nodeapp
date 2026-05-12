@@ -28,7 +28,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'scoring', path: '/scoring', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'JUDGE'], resource: 'scores' },
   { id: 'tally-master', path: '/tally-master', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'], resource: 'scores', allowCrudReadOverride: true },
   { id: 'auditor', path: '/auditor', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'scores', allowCrudReadOverride: true },
-  { id: 'certifications', path: '/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], resource: 'certifications', allowCrudReadOverride: true },
+  { id: 'certifications', path: '/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], resource: 'certifications', requireResourcePermission: true },
   { id: 'score-governance', path: '/score-governance', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'], resource: 'scores', allowCrudReadOverride: true },
   { id: 'governance', path: '/governance', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'], resource: 'scores', allowCrudReadOverride: true },
   { id: 'score-removal', path: '/score-removal', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'], resource: 'scores', allowCrudReadOverride: true },
@@ -38,7 +38,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
 
   { id: 'results', path: '/results', baseRoles: ALL_ROLES, resource: 'results', allowCrudReadOverride: true },
   { id: 'winners', path: '/winners', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'], resource: 'results', allowCrudReadOverride: true },
-  { id: 'reports', path: '/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER'], resource: 'reports', allowCrudReadOverride: true },
+  { id: 'reports', path: '/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER'], resource: 'reports', requireResourcePermission: true },
 
   { id: 'users', path: '/users', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
   { id: 'assignments', path: '/assignments', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'assignments', allowCrudReadOverride: true },
@@ -65,7 +65,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
 
   { id: 'workflows', path: '/workflows', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'tracker', allowCrudReadOverride: true },
   { id: 'custom-fields', path: '/custom-fields', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'settings', allowCrudReadOverride: true },
-  { id: 'files', path: '/files', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'files', allowCrudReadOverride: true },
+  { id: 'files', path: '/files', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'files', requireResourcePermission: true },
   { id: 'mfa', path: '/mfa', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'settings', allowCrudReadOverride: true },
   { id: 'tenants', path: '/tenants', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
 
@@ -73,10 +73,10 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'auditor-score-verification', path: '/auditor/score-verification', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'scores', allowCrudReadOverride: true },
   { id: 'auditor-final-certification', path: '/auditor/final-certification', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'certifications', allowCrudReadOverride: true },
   { id: 'auditor-certification-status', path: '/auditor/certification-status', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'certifications', allowCrudReadOverride: true },
-  { id: 'auditor-reports', path: '/auditor/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'reports', allowCrudReadOverride: true },
+  { id: 'auditor-reports', path: '/auditor/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'reports', requireResourcePermission: true },
   { id: 'auditor-audit-log', path: '/auditor/audit-log', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'audit-logs', allowCrudReadOverride: true },
   { id: 'board', path: '/board', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'approvals', allowCrudReadOverride: true },
-  { id: 'board-certifications', path: '/board/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'certifications' },
+  { id: 'board-certifications', path: '/board/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'certifications', requireResourcePermission: true },
   { id: 'board-score-removal', path: '/board/score-removal', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'], resource: 'scores', allowCrudReadOverride: true },
 
   { id: 'field-visibility', path: '/field-visibility', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },

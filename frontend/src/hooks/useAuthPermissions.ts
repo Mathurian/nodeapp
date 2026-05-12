@@ -5,6 +5,7 @@ export interface AuthPermissionPayload {
   role: string
   permissions: string[]
   hasAdminAccess?: boolean
+  resourceScopes: Record<string, string>
 }
 
 const isPublicPath = (pathname: string): boolean => {
@@ -25,7 +26,10 @@ export const useAuthPermissions = (options?: { enabled?: boolean }) => {
       return {
         role: String(payload?.role || ''),
         permissions: Array.isArray(payload?.permissions) ? payload.permissions : [],
-        hasAdminAccess: Boolean(payload?.hasAdminAccess)
+        hasAdminAccess: Boolean(payload?.hasAdminAccess),
+        resourceScopes: payload?.resourceScopes && typeof payload.resourceScopes === 'object'
+          ? payload.resourceScopes
+          : {}
       }
     },
     {

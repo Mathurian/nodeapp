@@ -17,6 +17,7 @@ import { EmailService } from './EmailService';
 import { ErrorLogService } from './ErrorLogService';
 import { MFAService } from './MFAService';
 import { SMSService } from './SMSService';
+import { DynamicPermissionService } from './DynamicPermissionService';
 import { env } from '../config/env';
 import { getRequestContext } from '../middleware/correlationId';
 import { createTenantPrismaClient } from '../middleware/tenantMiddleware';
@@ -111,6 +112,7 @@ interface UserPermissions {
   role: string;
   permissions: string[];
   hasAdminAccess: boolean;
+  resourceScopes: Record<string, string>;
   permissionsMatrix: typeof PERMISSIONS;
 }
 
@@ -999,11 +1001,16 @@ export class AuthService {
 
     const permissions = await getRolePermissions(user.role, user.tenantId);
     const hasAdminAccess = isAdmin(user.role);
+    const dynamicPermissionService = container.resolve(DynamicPermissionService);
+    const scopeDetails = await dynamicPermissionService.getScopeDetails(user.tenantId, user.role, true);
 
     return {
       role: user.role,
       permissions,
       hasAdminAccess,
+      resourceScopes: Object.fromEntries(
+        scopeDetails.map((detail) => [detail.resource, detail.scope])
+      ),
       permissionsMatrix: PERMISSIONS
     };
   }

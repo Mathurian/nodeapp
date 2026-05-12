@@ -202,6 +202,17 @@ export interface RolePermission {
   tenantId: string;
 }
 
+export type PermissionScopeLevel = 'ASSIGNMENT' | 'EVENT' | 'TENANT';
+
+export interface RoleResourceScope {
+  role: UserRole;
+  resource: string;
+  scope: PermissionScopeLevel;
+  source: 'DEFAULT' | 'OVERRIDE';
+  editable: boolean;
+  allowedOptions: PermissionScopeLevel[];
+}
+
 export interface PermissionAuditLog {
   id: string;
   role: UserRole;
@@ -224,6 +235,13 @@ export interface UpdatePermissionRequest {
   resource: string;
   operation: string;
   allowed: boolean;
+  reason?: string;
+}
+
+export interface UpdatePermissionScopeRequest {
+  role: UserRole;
+  resource: string;
+  scope: PermissionScopeLevel;
   reason?: string;
 }
 

@@ -2322,17 +2322,47 @@ model RolePermission {
   @@map("role_permissions")
 }
 
+enum PermissionScopeLevel {
+  ASSIGNMENT
+  EVENT
+  TENANT
+}
+
+enum PermissionAuditChangeType {
+  ACTION_PERMISSION
+  RESOURCE_SCOPE
+}
+
+model RolePermissionScope {
+  id         String               @id @default(cuid())
+  role       UserRole
+  resource   String
+  scope      PermissionScopeLevel
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  createdBy  String
+  tenantId   String
+
+  @@unique([tenantId, role, resource], name: "tenantId_role_resource")
+  @@index([tenantId, role])
+  @@index([resource])
+  @@map("role_permission_scopes")
+}
+
 model PermissionAuditLog {
-  id          String   @id @default(cuid())
-  role        UserRole
-  resource    String
-  operation   String
-  previousVal Boolean?
-  newVal      Boolean
-  changedBy   String
-  changedAt   DateTime @default(now())
-  reason      String?
-  tenantId    String
+  id            String                    @id @default(cuid())
+  role          UserRole
+  resource      String
+  operation     String
+  previousVal   Boolean?
+  newVal        Boolean
+  previousScope PermissionScopeLevel?
+  newScope      PermissionScopeLevel?
+  changeType    PermissionAuditChangeType @default(ACTION_PERMISSION)
+  changedBy     String
+  changedAt     DateTime                  @default(now())
+  reason        String?
+  tenantId      String
 
   @@index([tenantId, changedAt])
   @@map("permission_audit_logs")

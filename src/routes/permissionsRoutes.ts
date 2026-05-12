@@ -9,7 +9,9 @@ import {
   getAllPermissions,
   getPermissionAuditLogs,
   getPermissionStats,
+  getAllPermissionScopes,
   updatePermission,
+  updatePermissionScope,
   warmCache,
   exportPermissions
 } from '../controllers/permissionsController';
@@ -38,6 +40,7 @@ router.use(authenticateToken);
  *         description: List of permissions
  */
 router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getAllPermissions);
+router.get('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getAllPermissionScopes);
 router.get('/audit-logs', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPermissionAuditLogs);
 
 /**
@@ -84,6 +87,7 @@ router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPerm
  *         description: Permission updated successfully
  */
 router.put('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), updatePermission);
+router.put('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), updatePermissionScope);
 
 /**
  * @swagger

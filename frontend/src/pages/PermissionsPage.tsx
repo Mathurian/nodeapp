@@ -4,8 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { permissionsAPI } from '../services/api';
 import {
   RolePermission,
+  RoleResourceScope,
   UserRole,
   UpdatePermissionRequest,
+  UpdatePermissionScopeRequest,
   PermissionStats,
 } from '../types/api.types';
 import {
@@ -25,6 +27,12 @@ import { Button, Card, PageHeader, ResponsiveTable, StatsCard } from '../compone
 interface PermissionMatrix {
   [role: string]: {
     [resourceOperation: string]: RolePermission;
+  };
+}
+
+interface ScopeMatrix {
+  [role: string]: {
+    [resource: string]: RoleResourceScope;
   };
 }
 
@@ -56,6 +64,7 @@ const RESOURCE_DESCRIPTIONS: Record<string, string> = {
   workflows: 'Workflow templates and execution',
   deductions: 'Score deduction governance',
   certifications: 'Certification pipeline actions',
+  files: 'Uploaded file inventory and file operations',
   '*': 'Global wildcard permission',
 }
 
@@ -94,6 +103,7 @@ const PermissionsPage: React.FC = () => {
   const [updateReason, setUpdateReason] = useState('');
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<UpdatePermissionRequest | null>(null);
+  const [pendingScopeUpdate, setPendingScopeUpdate] = useState<UpdatePermissionScopeRequest | null>(null);
 
   // Check if user is admin
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER';
@@ -108,6 +118,17 @@ const PermissionsPage: React.FC = () => {
     'all-permissions',
     async () => {
       const response = await permissionsAPI.getAllPermissions();
+      return response.data.data || response.data;
+    },
+    {
+      enabled: isAdmin,
+    }
+  );
+
+  const { data: resourceScopes = [] } = useQuery<RoleResourceScope[]>(
+    'all-permission-scopes',
+    async () => {
+      const response = await permissionsAPI.getAllScopes();
       return response.data.data || response.data;
     },
     {
@@ -145,6 +166,23 @@ const PermissionsPage: React.FC = () => {
     }
   );
 
+  const updateScopeMutation = useMutation(
+    (data: UpdatePermissionScopeRequest) => permissionsAPI.updatePermissionScope(data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('all-permission-scopes');
+        toast.success('Permission scope updated successfully');
+        setShowReasonModal(false);
+        setPendingScopeUpdate(null);
+        setPendingUpdate(null);
+        setUpdateReason('');
+      },
+      onError: (error: any) => {
+        toast.error(error.response?.data?.message || 'Failed to update permission scope');
+      },
+    }
+  );
+
   // Build permission matrix
   const permissionMatrix = useMemo((): PermissionMatrix => {
     if (!permissions) return {};
@@ -159,6 +197,17 @@ const PermissionsPage: React.FC = () => {
     });
     return matrix;
   }, [permissions]);
+
+  const scopeMatrix = useMemo((): ScopeMatrix => {
+    const matrix: ScopeMatrix = {};
+    resourceScopes.forEach((scope) => {
+      if (!matrix[scope.role]) {
+        matrix[scope.role] = {};
+      }
+      matrix[scope.role][scope.resource] = scope;
+    });
+    return matrix;
+  }, [resourceScopes]);
 
   // Get unique resources and operations
   const { resources, operationsByResource } = useMemo(() => {
@@ -189,6 +238,14 @@ const PermissionsPage: React.FC = () => {
     );
   }, [resources, searchTerm]);
 
+  const filteredScopeResources = useMemo(() => {
+    const resourceList = Array.from(new Set(resourceScopes.map((scope) => scope.resource))).sort();
+    if (!searchTerm) return resourceList;
+    return resourceList.filter((resource) =>
+      resource.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [resourceScopes, searchTerm]);
+
   // Handle permission toggle
   const handleTogglePermission = (role: UserRole, resource: string, operation: string, currentValue: boolean) => {
     const updateData: UpdatePermissionRequest = {
@@ -205,10 +262,26 @@ const PermissionsPage: React.FC = () => {
 
   // Confirm update
   const confirmUpdate = () => {
+    if (pendingScopeUpdate) {
+      pendingScopeUpdate.reason = updateReason;
+      updateScopeMutation.mutate(pendingScopeUpdate);
+      return;
+    }
     if (pendingUpdate) {
       pendingUpdate.reason = updateReason;
       updatePermissionMutation.mutate(pendingUpdate);
     }
+  };
+
+  const handleScopeChange = (role: UserRole, resource: string, scope: string) => {
+    setPendingScopeUpdate({
+      role,
+      resource,
+      scope: scope as 'ASSIGNMENT' | 'EVENT' | 'TENANT',
+      reason: updateReason,
+    });
+    setPendingUpdate(null);
+    setShowReasonModal(true);
   };
 
   // Export permissions
@@ -365,6 +438,77 @@ const PermissionsPage: React.FC = () => {
         </Card>
 
         {/* Permission Matrix Table */}
+        <Card className="rounded-lg overflow-hidden p-0 mb-6">
+          <ResponsiveTable
+            caption="Resource scope matrix showing the record boundary applied to each role"
+            minWidth="900px"
+          >
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                  <th
+                    scope="col"
+                    className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  >
+                    Resource Scope
+                  </th>
+                  {rolesToDisplay.map((role) => (
+                    <th
+                      key={role}
+                      scope="col"
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                    >
+                      {role.replace('_', ' ')}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredScopeResources.map((resource, rowIndex) => (
+                  <tr
+                    key={`scope:${resource}`}
+                    className={rowIndex % 2 === 0 ? undefined : 'bg-gray-50 dark:bg-gray-900/50'}
+                  >
+                    <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                        {resource}
+                      </code>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-sm whitespace-normal">
+                        Data visibility boundary for the {resource} surface.
+                      </p>
+                    </td>
+                    {rolesToDisplay.map((role) => {
+                      const scope = scopeMatrix[role]?.[resource];
+                      const editable = Boolean(scope?.editable && canEditRole(role));
+                      return (
+                        <td key={`${role}:${resource}`} className="px-6 py-4 whitespace-nowrap text-center">
+                          {scope ? (
+                            <select
+                              value={scope.scope}
+                              disabled={!editable}
+                              onChange={(event) => handleScopeChange(role, resource, event.target.value)}
+                              className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60"
+                            >
+                              {scope.allowedOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-gray-400">N/A</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ResponsiveTable>
+        </Card>
+
+        {/* Permission Matrix Table */}
         <Card className="rounded-lg overflow-hidden p-0">
           <ResponsiveTable
             caption="Permission matrix showing access controls for each role"
@@ -466,14 +610,27 @@ const PermissionsPage: React.FC = () => {
               </p>
               <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Role: {pendingUpdate?.role}
+                  Role: {pendingUpdate?.role || pendingScopeUpdate?.role}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Permission: {pendingUpdate?.resource}:{pendingUpdate?.operation}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  New Value: {pendingUpdate?.allowed ? 'Allowed' : 'Denied'}
-                </p>
+                {pendingScopeUpdate ? (
+                  <>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Resource Scope: {pendingScopeUpdate.resource}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      New Scope: {pendingScopeUpdate.scope}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Permission: {pendingUpdate?.resource}:{pendingUpdate?.operation}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      New Value: {pendingUpdate?.allowed ? 'Allowed' : 'Denied'}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div className="mb-4">
@@ -493,6 +650,7 @@ const PermissionsPage: React.FC = () => {
                 onClick={() => {
                   setShowReasonModal(false);
                   setPendingUpdate(null);
+                  setPendingScopeUpdate(null);
                   setUpdateReason('');
                 }}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -501,10 +659,10 @@ const PermissionsPage: React.FC = () => {
               </button>
               <button
                 onClick={confirmUpdate}
-                disabled={updatePermissionMutation.isLoading}
+                disabled={updatePermissionMutation.isLoading || updateScopeMutation.isLoading}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
               >
-                {updatePermissionMutation.isLoading ? 'Updating...' : 'Confirm'}
+                {updatePermissionMutation.isLoading || updateScopeMutation.isLoading ? 'Updating...' : 'Confirm'}
               </button>
             </div>
           </div>

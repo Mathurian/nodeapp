@@ -2,8 +2,8 @@ import express, { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import { uploadFile, uploadImage, getFiles } from '../controllers/uploadController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { uploadFile, uploadImage, getFiles, deleteFile } from '../controllers/uploadController';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { maxFileSize } from '../utils/config';
 import { resolveRequestTenantId } from '../utils/tenantContext';
@@ -113,7 +113,8 @@ router.use(authenticateToken)
  *         description: File uploaded successfully
  */
 router.post('/',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
+  requirePermission('files:write'),
   upload.single('file'),
   logActivity('UPLOAD_FILE', 'FILE'),
   uploadFile
@@ -142,7 +143,8 @@ router.post('/',
  *         description: Image uploaded successfully
  */
 router.post('/image',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
+  requirePermission('files:write'),
   imageUpload.single('image'),
   logActivity('UPLOAD_IMAGE', 'FILE'),
   uploadImage
@@ -160,7 +162,17 @@ router.post('/image',
  *       200:
  *         description: Files retrieved successfully
  */
-router.get('/files', getFiles)
+router.get('/files',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
+  requirePermission('files:read'),
+  getFiles
+)
+router.delete('/:fileId',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
+  requirePermission('files:write'),
+  logActivity('DELETE_FILE', 'FILE'),
+  deleteFile
+)
 
 export default router;
 

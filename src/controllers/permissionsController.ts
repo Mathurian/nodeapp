@@ -10,6 +10,7 @@ import { UserRole } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { sendSuccess, sendError, sendForbidden } from '../utils/responseHelpers';
 import { PERMISSIONS } from '../middleware/permissions';
+import { PermissionScopeLevel } from '@prisma/client';
 
 const logger = createLogger('permissions');
 
@@ -58,6 +59,31 @@ const buildFallbackPermissions = (
   }
 
   return rows;
+};
+
+const buildFallbackScopes = (
+  tenantId: string,
+  roleFilter: UserRole | undefined,
+  excludeSuperAdmin: boolean,
+  service: DynamicPermissionService
+) => {
+  const roles = ([
+    'SUPER_ADMIN',
+    'ADMIN',
+    'ORGANIZER',
+    'BOARD',
+    'TALLY_MASTER',
+    'AUDITOR',
+    'JUDGE',
+    'EMCEE',
+    'CONTESTANT',
+  ] satisfies UserRole[])
+    .filter((role) => !excludeSuperAdmin || role !== 'SUPER_ADMIN')
+    .filter((role) => !roleFilter || role === roleFilter);
+
+  return service
+    .getScopeDetails(tenantId, undefined, !excludeSuperAdmin)
+    .then((scopes) => scopes.filter((scope) => roles.includes(scope.role)));
 };
 
 /**
@@ -260,6 +286,68 @@ export const getPermissionStats = async (
     }
   } catch (error) {
     logger.error('Error fetching permission stats', { error });
+    return next(error);
+  }
+};
+
+export const getAllPermissionScopes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> => {
+  try {
+    const isSuperAdmin = (req as any).isSuperAdmin;
+    const tenantId = (req as any).tenantId;
+    const effectiveTenantId = tenantId || req.user?.tenantId;
+
+    if (!req.user) {
+      return sendForbidden(res, 'Authentication required');
+    }
+
+    if (!effectiveTenantId) {
+      return sendError(res, 'Tenant context is required', 400);
+    }
+
+    const roleFilter = req.query['role'] as UserRole | undefined;
+    if (!isSuperAdmin && roleFilter === 'SUPER_ADMIN') {
+      return sendForbidden(res, 'Access to SUPER_ADMIN permission scopes is restricted');
+    }
+
+    const service = container.resolve(DynamicPermissionService);
+    if (req.user.id) {
+      await service.initializeDefaultsForTenant(effectiveTenantId, req.user.id);
+    }
+
+    let scopes = await service.getScopeDetails(
+      effectiveTenantId,
+      roleFilter,
+      isSuperAdmin
+    );
+
+    if (!isSuperAdmin) {
+      scopes = scopes.filter((scope) => scope.role !== 'SUPER_ADMIN');
+    }
+
+    if (scopes.length === 0) {
+      scopes = await buildFallbackScopes(
+        effectiveTenantId,
+        roleFilter,
+        !isSuperAdmin,
+        service
+      );
+    }
+
+    logger.info('Fetched permission scopes', {
+      userId: req.user.id,
+      role: req.user.role,
+      tenantId: effectiveTenantId,
+      count: scopes.length,
+      roleFilter,
+    });
+
+    return sendSuccess(res, scopes, 'Permission scopes retrieved successfully');
+  } catch (error) {
+    logger.error('Error fetching permission scopes', { error });
     return next(error);
   }
 };
@@ -490,6 +578,57 @@ export const updatePermission = async (
     return sendSuccess(res, null, 'Permission updated successfully');
   } catch (error) {
     logger.error('Error updating permission', { error });
+    return next(error);
+  }
+};
+
+export const updatePermissionScope = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<Response | void> => {
+  try {
+    const { role, resource, scope, reason } = req.body;
+    const tenantId = (req as any).tenantId;
+
+    if (!req.user) {
+      return sendForbidden(res, 'Authentication required');
+    }
+
+    if (!tenantId) {
+      return sendError(res, 'Tenant context is required', 400);
+    }
+
+    if (!role || !resource || !scope) {
+      return sendError(res, 'Missing required fields: role, resource, scope', 400);
+    }
+
+    if (!Object.values(PermissionScopeLevel).includes(scope as PermissionScopeLevel)) {
+      return sendError(res, 'Invalid scope value', 400);
+    }
+
+    const service = container.resolve(DynamicPermissionService);
+    await service.updateResourceScope({
+      role,
+      resource,
+      scope,
+      userId: req.user.id,
+      userRole: req.user.role,
+      tenantId,
+      reason,
+    });
+
+    logger.info('Permission scope updated', {
+      role,
+      resource,
+      scope,
+      userId: req.user.id,
+      tenantId,
+    });
+
+    return sendSuccess(res, null, 'Permission scope updated successfully');
+  } catch (error) {
+    logger.error('Error updating permission scope', { error });
     return next(error);
   }
 };

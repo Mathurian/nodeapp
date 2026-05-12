@@ -3,7 +3,7 @@ import {
   getAllFiles,
   getFileStats
 } from '../controllers/fileController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 
 // Multer configuration available for future use
 // const storage = multer.diskStorage({
@@ -41,7 +41,7 @@ const fileInventoryRoles = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'];
  *       200:
  *         description: Files retrieved successfully
  */
-router.get('/', requireRole(fileInventoryRoles), getAllFiles)
+router.get('/', requireRole(fileInventoryRoles), requirePermission('files:read'), getAllFiles)
 
 /**
  * @swagger
@@ -55,7 +55,7 @@ router.get('/', requireRole(fileInventoryRoles), getAllFiles)
  *       200:
  *         description: File statistics retrieved successfully
  */
-router.get('/stats', requireRole(fileInventoryRoles), getFileStats)
+router.get('/stats', requireRole(fileInventoryRoles), requirePermission('files:read'), getFileStats)
 
 export default router;
 

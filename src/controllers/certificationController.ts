@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { sendSuccess, sendNotFound, sendBadRequest, sendConflict } from '../utils/responseHelpers';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import {
   applyCertificationStage,
   calculateCategoryScoreCoverage,
@@ -9,12 +9,99 @@ import {
   refreshRoleStages,
   upsertCategoryRoleCertification
 } from '../utils/certificationPipeline';
+import { PermissionScopeService } from '../services/PermissionScopeService';
+
+type CertificationAccessScope = {
+  tenantWide: boolean;
+  eventIds: string[];
+  contestIds: string[];
+  categoryIds: string[];
+};
 
 export class CertificationController {
   private prisma: PrismaClient;
+  private permissionScopeService: PermissionScopeService;
 
   constructor() {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
+    this.permissionScopeService = container.resolve(PermissionScopeService);
+  }
+
+  private emptyCertificationScope(): CertificationAccessScope {
+    return {
+      tenantWide: false,
+      eventIds: [],
+      contestIds: [],
+      categoryIds: [],
+    };
+  }
+
+  private buildCertificationScopeWhere(scope: CertificationAccessScope): Prisma.CertificationWhereInput | null {
+    if (scope.tenantWide) return {};
+
+    const clauses: Prisma.CertificationWhereInput[] = [];
+    if (scope.categoryIds.length > 0) {
+      clauses.push({ categoryId: { in: scope.categoryIds } });
+    }
+    if (scope.contestIds.length > 0) {
+      clauses.push({ contestId: { in: scope.contestIds } });
+    }
+    if (scope.eventIds.length > 0) {
+      clauses.push({ eventId: { in: scope.eventIds } });
+    }
+
+    return clauses.length > 0 ? { OR: clauses } : null;
+  }
+
+  private buildCertificationCategoryScopeWhere(scope: CertificationAccessScope): Prisma.CategoryWhereInput | null {
+    if (scope.tenantWide) return {};
+
+    const clauses: Prisma.CategoryWhereInput[] = [];
+    if (scope.categoryIds.length > 0) {
+      clauses.push({ id: { in: scope.categoryIds } });
+    }
+    if (scope.contestIds.length > 0) {
+      clauses.push({ contestId: { in: scope.contestIds } });
+    }
+    if (scope.eventIds.length > 0) {
+      clauses.push({ contest: { eventId: { in: scope.eventIds } } });
+    }
+
+    return clauses.length > 0 ? { OR: clauses } : null;
+  }
+
+  private canAccessCertificationInScope(
+    scope: CertificationAccessScope,
+    certification: { categoryId: string; contestId: string; eventId: string }
+  ): boolean {
+    if (scope.tenantWide) return true;
+    if (scope.categoryIds.includes(certification.categoryId)) return true;
+    if (scope.contestIds.includes(certification.contestId)) return true;
+    return scope.eventIds.includes(certification.eventId);
+  }
+
+  private canAccessCategoryInScope(
+    scope: CertificationAccessScope,
+    category: { id: string; contestId: string; contest: { eventId: string } | null }
+  ): boolean {
+    if (scope.tenantWide) return true;
+    if (scope.categoryIds.includes(category.id)) return true;
+    if (scope.contestIds.includes(category.contestId)) return true;
+    return Boolean(category.contest?.eventId && scope.eventIds.includes(category.contest.eventId));
+  }
+
+  private async getCertificationAccessScope(
+    req: Request,
+    tenantId: string
+  ): Promise<CertificationAccessScope> {
+    if (!req.user) return this.emptyCertificationScope();
+
+    return this.permissionScopeService.resolveUserScope(
+      req.user.role,
+      'certifications',
+      tenantId,
+      req.user
+    );
   }
 
   getAllCertifications = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
@@ -29,12 +116,29 @@ export class CertificationController {
       const skip = (page - 1) * limit;
       const tenantId = (req as any).tenantId || req.user?.tenantId;
       const where: any = { tenantId };
+      const scope = tenantId
+        ? await this.getCertificationAccessScope(req, tenantId)
+        : this.emptyCertificationScope();
+      const scopeWhere = this.buildCertificationScopeWhere(scope);
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          certifications: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false,
+          }
+        });
+      }
 
       if (status) where.status = status;
       if (eventId) where.eventId = eventId;
       if (contestId) where.contestId = contestId;
       if (categoryId) where.categoryId = categoryId;
       if (req.user?.role === 'JUDGE') where.userId = req.user.id;
+      Object.assign(where, scopeWhere);
 
       const [certifications, total] = await Promise.all([
         this.prisma.certification.findMany({
@@ -94,6 +198,8 @@ export class CertificationController {
   createCertification = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { categoryId, contestId, eventId, comments } = req.body;
+      const tenantId = (req as any).tenantId!;
+      const scope = await this.getCertificationAccessScope(req, tenantId);
 
       if (!categoryId || !contestId || !eventId) {
         return sendBadRequest(res, 'categoryId, contestId, and eventId are required');
@@ -103,7 +209,7 @@ export class CertificationController {
       const existing = await this.prisma.certification.findUnique({
         where: {
           tenantId_categoryId_contestId_eventId: {
-            tenantId: (req as any).tenantId!,
+            tenantId,
             categoryId,
             contestId,
             eventId
@@ -116,9 +222,19 @@ export class CertificationController {
       }
 
       // SECURITY FIX #12: Defense in depth - validate tenant ownership
-      const tenantId = (req as any).tenantId!;
       const [category, contest, event] = await Promise.all([
-        this.prisma.category.findFirst({ where: { id: categoryId, tenantId } }),
+        this.prisma.category.findFirst({
+          where: { id: categoryId, tenantId },
+          select: {
+            id: true,
+            contestId: true,
+            contest: {
+              select: {
+                eventId: true,
+              },
+            },
+          },
+        }),
         this.prisma.contest.findFirst({ where: { id: contestId, tenantId } }),
         this.prisma.event.findFirst({ where: { id: eventId, tenantId } })
       ]);
@@ -132,10 +248,13 @@ export class CertificationController {
       if (!event) {
         return sendNotFound(res, 'Event not found or access denied');
       }
+      if (!this.canAccessCategoryInScope(scope, category)) {
+        return sendNotFound(res, 'Category not found or access denied');
+      }
 
       const certification = await this.prisma.certification.create({
         data: {
-          tenantId: (req as any).tenantId!,
+          tenantId,
           categoryId,
           contestId,
           eventId,
@@ -162,7 +281,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!existing) {
+      const scope = await this.getCertificationAccessScope(req, existing?.tenantId || (req as any).tenantId || req.user!.tenantId);
+      if (!existing || !this.canAccessCertificationInScope(scope, existing)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -190,7 +310,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!certification) {
+      const scope = await this.getCertificationAccessScope(req, certification?.tenantId || (req as any).tenantId || req.user!.tenantId);
+      if (!certification || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -213,7 +334,10 @@ export class CertificationController {
         where: { id },
       });
 
-      if (!certification || certification.tenantId !== tenantId) {
+      const scope = tenantId
+        ? await this.getCertificationAccessScope(req, tenantId)
+        : this.emptyCertificationScope();
+      if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -239,7 +363,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!certification || certification.tenantId !== tenantId) {
+      const scope = await this.getCertificationAccessScope(req, tenantId);
+      if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -301,7 +426,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!certification || certification.tenantId !== tenantId) {
+      const scope = await this.getCertificationAccessScope(req, tenantId);
+      if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -358,7 +484,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!certification || certification.tenantId !== tenantId) {
+      const scope = await this.getCertificationAccessScope(req, tenantId);
+      if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -415,7 +542,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!certification || certification.tenantId !== tenantId) {
+      const scope = await this.getCertificationAccessScope(req, tenantId);
+      if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -469,7 +597,8 @@ export class CertificationController {
         where: { id }
       });
 
-      if (!certification) {
+      const scope = await this.getCertificationAccessScope(req, certification?.tenantId || (req as any).tenantId || req.user!.tenantId);
+      if (!certification || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
 
@@ -497,8 +626,33 @@ export class CertificationController {
       const eventId = req.query['eventId'] as string | undefined;
       const contestId = req.query['contestId'] as string | undefined;
       const tenantId = (req as any).tenantId || req.user?.tenantId;
+      const scope = tenantId
+        ? await this.getCertificationAccessScope(req, tenantId)
+        : this.emptyCertificationScope();
+      const scopeWhere = this.buildCertificationScopeWhere(scope);
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          total: 0,
+          byStatus: {
+            pending: 0,
+            inProgress: 0,
+            certified: 0,
+            rejected: 0,
+          },
+          byStage: {
+            judgeCertified: 0,
+            tallyCertified: 0,
+            auditorCertified: 0,
+            boardApproved: 0,
+          },
+          completionRate: '0%',
+          rejectionRate: '0%',
+          averageStep: '0',
+        });
+      }
 
       const where: any = { tenantId };
+      Object.assign(where, scopeWhere);
       if (eventId) where.eventId = eventId;
       if (contestId) where.contestId = contestId;
 
@@ -567,44 +721,12 @@ export class CertificationController {
         tenantId,
         deletedAt: null
       };
-
-      if (userRole === 'TALLY_MASTER') {
-        const assignments = await this.prisma.tallyMasterAssignment.findMany({
-          where: { tenantId, userId, status: 'ACTIVE' },
-          select: { categoryId: true, contestId: true, eventId: true }
-        });
-        if (assignments.length === 0) {
-          return sendSuccess(res, { contests: [] });
-        }
-
-        const categoryIds = assignments.map((a) => a.categoryId).filter((id): id is string => !!id);
-        const contestIds = assignments.map((a) => a.contestId).filter((id): id is string => !!id);
-        const eventIds = assignments.map((a) => a.eventId).filter((id): id is string => !!id);
-
-        categoryWhere.OR = [
-          ...(categoryIds.length > 0 ? [{ id: { in: categoryIds } }] : []),
-          ...(contestIds.length > 0 ? [{ contestId: { in: contestIds } }] : []),
-          ...(eventIds.length > 0 ? [{ contest: { eventId: { in: eventIds } } }] : [])
-        ];
-      } else if (userRole === 'AUDITOR') {
-        const assignments = await this.prisma.auditorAssignment.findMany({
-          where: { tenantId, userId, status: 'ACTIVE' },
-          select: { categoryId: true, contestId: true, eventId: true }
-        });
-        if (assignments.length === 0) {
-          return sendSuccess(res, { contests: [] });
-        }
-
-        const categoryIds = assignments.map((a) => a.categoryId).filter((id): id is string => !!id);
-        const contestIds = assignments.map((a) => a.contestId).filter((id): id is string => !!id);
-        const eventIds = assignments.map((a) => a.eventId).filter((id): id is string => !!id);
-
-        categoryWhere.OR = [
-          ...(categoryIds.length > 0 ? [{ id: { in: categoryIds } }] : []),
-          ...(contestIds.length > 0 ? [{ contestId: { in: contestIds } }] : []),
-          ...(eventIds.length > 0 ? [{ contest: { eventId: { in: eventIds } } }] : [])
-        ];
+      const scope = await this.getCertificationAccessScope(req, tenantId);
+      const categoryScopeWhere = this.buildCertificationCategoryScopeWhere(scope);
+      if (!categoryScopeWhere) {
+        return sendSuccess(res, { contests: [] });
       }
+      Object.assign(categoryWhere, categoryScopeWhere);
 
       const categories = await this.prisma.category.findMany({
         where: categoryWhere,

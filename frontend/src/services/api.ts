@@ -758,6 +758,9 @@ export const permissionsAPI = {
   getAllPermissions: (tenantId?: string) =>
     api.get('/permissions', { params: { tenantId } }),
 
+  getAllScopes: (tenantId?: string) =>
+    api.get('/permissions/scopes', { params: { tenantId } }),
+
   // Update a single permission
   updatePermission: (data: {
     role: string;
@@ -766,6 +769,13 @@ export const permissionsAPI = {
     allowed: boolean;
     reason?: string;
   }) => api.put('/permissions', data),
+
+  updatePermissionScope: (data: {
+    role: string;
+    resource: string;
+    scope: 'ASSIGNMENT' | 'EVENT' | 'TENANT';
+    reason?: string;
+  }) => api.put('/permissions/scopes', data),
 
   // Bulk update permissions
   bulkUpdatePermissions: (data: {

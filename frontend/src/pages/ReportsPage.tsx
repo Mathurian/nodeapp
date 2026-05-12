@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { reportsAPI, api } from '../services/api'
+import useAuthPermissions from '../hooks/useAuthPermissions'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 import {
   DEFAULT_EMAIL_STYLE,
   EMAIL_STYLE_PRESETS,
@@ -58,6 +60,7 @@ const parseCsvRows = (value: string): string[][] => {
 }
 
 const ReportsPage: React.FC = () => {
+  const { data: permissionsPayload } = useAuthPermissions()
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
   const [contestId, setContestId] = useState('')
@@ -86,6 +89,8 @@ const ReportsPage: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null)
   const csvRows = previewText ? parseCsvRows(previewText) : []
   const styleContrast = getEmailContrastStatus(emailStyle)
+  const permissionSet = permissionSetFromList(permissionsPayload?.permissions || [])
+  const canWriteReports = hasPermissionAction(permissionSet, 'reports:write')
 
   const loadOptions = async () => {
     const [eventResponse, contestResponse] = await Promise.all([
@@ -392,13 +397,15 @@ const ReportsPage: React.FC = () => {
             )}
           </div>
 
-          <Button
-            onClick={handleGenerateReport}
-            disabled={isGenerating}
-          >
-            <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-            {isGenerating ? 'Generating...' : 'Generate Report'}
-          </Button>
+          {canWriteReports && (
+            <Button
+              onClick={handleGenerateReport}
+              disabled={isGenerating}
+            >
+              <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+              {isGenerating ? 'Generating...' : 'Generate Report'}
+            </Button>
+          )}
         </Card>
 
         <Card className="rounded-lg p-6">
@@ -425,21 +432,25 @@ const ReportsPage: React.FC = () => {
                       <button onClick={() => handleExport(instance.id, 'pdf')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">PDF</button>
                       <button onClick={() => handleExport(instance.id, 'excel')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">Excel</button>
                       <button onClick={() => handleExport(instance.id, 'csv')} className="px-3 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">CSV</button>
-                      <button
-                        onClick={() => setSendingReportId(instance.id)}
-                        className="px-3 py-1 text-xs rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center"
-                      >
-                        <EnvelopeIcon className="h-4 w-4 mr-1" />
-                        Email
-                      </button>
-                      <button
-                        onClick={() => handleDeleteReport(instance.id)}
-                        disabled={deletingReportId === instance.id}
-                        className="px-3 py-1 text-xs rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60 flex items-center"
-                      >
-                        <TrashIcon className="h-4 w-4 mr-1" />
-                        {deletingReportId === instance.id ? 'Deleting...' : 'Delete'}
-                      </button>
+                      {canWriteReports && (
+                        <>
+                          <button
+                            onClick={() => setSendingReportId(instance.id)}
+                            className="px-3 py-1 text-xs rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center"
+                          >
+                            <EnvelopeIcon className="h-4 w-4 mr-1" />
+                            Email
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReport(instance.id)}
+                            disabled={deletingReportId === instance.id}
+                            className="px-3 py-1 text-xs rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60 flex items-center"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-1" />
+                            {deletingReportId === instance.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -448,7 +459,7 @@ const ReportsPage: React.FC = () => {
           )}
         </Card>
 
-        {sendingReportId && (
+        {sendingReportId && canWriteReports && (
           <div className="cgr-modal-overlay">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Report</h3>

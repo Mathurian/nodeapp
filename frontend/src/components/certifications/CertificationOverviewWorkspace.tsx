@@ -6,6 +6,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { useMobileWorkflowNavigation } from '../../hooks'
 import { MobileWorkflowNav } from '../ui'
+import useAuthPermissions from '../../hooks/useAuthPermissions'
+import { hasPermissionAction, permissionSetFromList } from '../../utils/pageAccess'
 
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'CERTIFIED' | 'REJECTED'
 
@@ -293,22 +295,31 @@ interface CertificationAction {
   label: string
 }
 
-const roleCanCertify = (role: string | undefined, type: CertificationActionType): boolean => {
+const roleCanCertify = (
+  role: string | undefined,
+  type: CertificationActionType,
+  canWriteCertifications: boolean
+): boolean => {
+  if (!canWriteCertifications) return false
   const normalizedRole = role || ''
   if (type === 'TALLY_MASTER') return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'TALLY_MASTER'].includes(normalizedRole)
   if (type === 'AUDITOR') return ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'].includes(normalizedRole)
   return ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(normalizedRole)
 }
 
-const resolveDefaultCertificationAction = (category: CategoryOverview, role: string | undefined): CertificationAction | null => {
+const resolveDefaultCertificationAction = (
+  category: CategoryOverview,
+  role: string | undefined,
+  canWriteCertifications: boolean
+): CertificationAction | null => {
   const judgeReady = isJudgeStageComplete(category)
-  if (judgeReady && !category.tallyCertified && roleCanCertify(role, 'TALLY_MASTER')) {
+  if (judgeReady && !category.tallyCertified && roleCanCertify(role, 'TALLY_MASTER', canWriteCertifications)) {
     return { type: 'TALLY_MASTER', label: 'Certify Totals' }
   }
-  if (category.tallyCertified && !category.auditorCertified && roleCanCertify(role, 'AUDITOR')) {
+  if (category.tallyCertified && !category.auditorCertified && roleCanCertify(role, 'AUDITOR', canWriteCertifications)) {
     return { type: 'AUDITOR', label: 'Certify Audit' }
   }
-  if (category.auditorCertified && !category.boardApproved && roleCanCertify(role, 'BOARD')) {
+  if (category.auditorCertified && !category.boardApproved && roleCanCertify(role, 'BOARD', canWriteCertifications)) {
     return { type: 'BOARD', label: 'Final Approve' }
   }
   return null
@@ -334,6 +345,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
   canCertifyCategory
 }) => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [actingCategoryId, setActingCategoryId] = useState<string | null>(null)
@@ -367,6 +379,8 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
   const categoriesSectionRef = React.useRef<HTMLDivElement | null>(null)
   const contestantSectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
   const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
+  const permissionSet = permissionSetFromList(permissionsPayload?.permissions || [])
+  const canWriteCertifications = hasPermissionAction(permissionSet, 'certifications:write')
 
   const loadOverview = async () => {
     try {
@@ -480,7 +494,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
     })
   }
 
-  const canRequestUncertify = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER', 'JUDGE'].includes(user?.role || '')
+  const canRequestUncertify = canWriteCertifications && ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER', 'JUDGE'].includes(user?.role || '')
 
   const suggestUncertifyLevel = (category: CategoryOverview): 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD' => {
     if (category.boardApproved) return 'BOARD'
@@ -782,7 +796,7 @@ const CertificationOverviewWorkspace: React.FC<CertificationOverviewWorkspacePro
                   const scoresExpanded = expandedScoreCategories.has(cat.categoryId)
                   const judgeStageComplete = isJudgeStageComplete(cat)
                   const compact = density === 'compact'
-                  const defaultAction = resolveDefaultCertificationAction(cat, user?.role)
+                  const defaultAction = resolveDefaultCertificationAction(cat, user?.role, canWriteCertifications)
                   const scoreReviewGroup = categoryScoreReviewGroups[cat.categoryId]
                   const showCustomCertify = allowCertify && Boolean(onCertifyCategory) && (!canCertifyCategory || canCertifyCategory(cat))
                   const showDefaultCertify = allowCertify && !onCertifyCategory && Boolean(defaultAction) && Boolean(cat.certificationId)

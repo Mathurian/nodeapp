@@ -6,11 +6,12 @@
  * Replaces hardcoded permissions with GUI-configurable permissions
  */
 
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PermissionScopeLevel, PrismaClient, UserRole } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { CacheService } from './CacheService';
 import { DEFAULT_ROLE_PERMISSIONS } from '../config/defaultPermissions';
+import { PermissionScopeService, type ResourceScopeDetail } from './PermissionScopeService';
 
 export interface UpdatePermissionDTO {
   role: UserRole;
@@ -36,11 +37,22 @@ export interface BulkUpdatePermissionDTO {
   reason: string;
 }
 
+export interface ResourceScopeDTO {
+  role: UserRole;
+  resource: string;
+  scope: PermissionScopeLevel;
+  userId: string;
+  userRole: UserRole;
+  tenantId: string;
+  reason?: string;
+}
+
 @injectable()
 export class DynamicPermissionService extends BaseService {
   constructor(
     @inject('PrismaClient') private prisma: PrismaClient,
-    @inject('CacheService') private cacheService: CacheService
+    @inject('CacheService') private cacheService: CacheService,
+    private permissionScopeService: PermissionScopeService
   ) {
     super();
   }
@@ -258,6 +270,30 @@ export class DynamicPermissionService extends BaseService {
     });
 
     return permissions;
+  }
+
+  async getScopeDetails(
+    tenantId: string,
+    roleFilter?: UserRole,
+    includeSuperAdmin = true
+  ): Promise<ResourceScopeDetail[]> {
+    return this.permissionScopeService.getScopeDetailsForTenant(
+      tenantId,
+      roleFilter,
+      includeSuperAdmin
+    );
+  }
+
+  async getResourceScope(
+    role: UserRole,
+    resource: string,
+    tenantId: string
+  ): Promise<PermissionScopeLevel> {
+    return this.permissionScopeService.getResourceScope(role, resource, tenantId);
+  }
+
+  async updateResourceScope(dto: ResourceScopeDTO): Promise<void> {
+    await this.permissionScopeService.updateResourceScope(dto);
   }
 
   /**
@@ -541,11 +577,6 @@ export class DynamicPermissionService extends BaseService {
    * This enables GUI permission management without requiring manual bootstrap.
    */
   async initializeDefaultsForTenant(tenantId: string, createdBy: string): Promise<number> {
-    const existingCount = await this.prisma.rolePermission.count({ where: { tenantId } });
-    if (existingCount > 0) {
-      return 0;
-    }
-
     const records: Array<{
       tenantId: string;
       role: UserRole;
@@ -584,14 +615,19 @@ export class DynamicPermissionService extends BaseService {
       }
     }
 
-    if (records.length === 0) return 0;
+    const created = records.length === 0
+      ? { count: 0 }
+      : await this.prisma.rolePermission.createMany({
+          data: records,
+          skipDuplicates: true,
+        });
 
-    const created = await this.prisma.rolePermission.createMany({
-      data: records,
-      skipDuplicates: true,
-    });
+    const createdScopes = await this.permissionScopeService.initializeDefaultsForTenant(
+      tenantId,
+      createdBy
+    );
 
     await this.invalidateAllCaches(tenantId);
-    return created.count;
+    return created.count + createdScopes;
   }
 }

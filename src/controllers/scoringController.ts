@@ -8,6 +8,7 @@ import { container } from 'tsyringe';
 import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/ScoringService';
 import { ContestantScoreFilterService } from '../services/ContestantScoreFilterService';
 import { AuditLogService } from '../services/AuditLogService';
+import { PermissionScopeService } from '../services/PermissionScopeService';
 import {
   sendSuccess,
   sendNotFound,
@@ -42,11 +43,13 @@ export class ScoringController {
   private scoringService: ScoringService;
   private contestantFilterService: ContestantScoreFilterService;
   private prisma: PrismaClient;
+  private permissionScopeService: PermissionScopeService;
 
   constructor() {
     this.scoringService = container.resolve(ScoringService);
     this.contestantFilterService = container.resolve(ContestantScoreFilterService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
+    this.permissionScopeService = container.resolve(PermissionScopeService);
   }
 
   private getEffectiveTenantId(req: Request): string | null {
@@ -115,151 +118,12 @@ export class ScoringController {
 
   private async getDeductionAccessScope(req: Request, tenantId: string): Promise<DeductionAccessScope> {
     if (!req.user) return this.emptyDeductionAccessScope();
-
-    const userRole = String(req.user.role || '').trim().toUpperCase();
-    if (['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(userRole)) {
-      return {
-        tenantWide: true,
-        eventIds: [],
-        contestIds: [],
-        categoryIds: [],
-      };
-    }
-
-    if (userRole === 'BOARD') {
-      const assignments = await this.prisma.roleAssignment.findMany({
-        where: {
-          tenantId,
-          userId: req.user.id,
-          role: 'BOARD',
-          isActive: true,
-        },
-        select: {
-          eventId: true,
-          contest: {
-            select: {
-              eventId: true,
-            },
-          },
-          category: {
-            select: {
-              contest: {
-                select: {
-                  eventId: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      const eventIds = new Set<string>();
-      assignments.forEach((assignment) => {
-        if (assignment.eventId) {
-          eventIds.add(assignment.eventId);
-        }
-        if (assignment.contest?.eventId) {
-          eventIds.add(assignment.contest.eventId);
-        }
-        if (assignment.category?.contest?.eventId) {
-          eventIds.add(assignment.category.contest.eventId);
-        }
-      });
-
-      return {
-        tenantWide: false,
-        eventIds: Array.from(eventIds),
-        contestIds: [],
-        categoryIds: [],
-      };
-    }
-
-    if (userRole === 'JUDGE') {
-      let judgeId = req.user.judgeId || req.user.judge?.id || null;
-      const scoringEligibleStatuses = ['PENDING', 'ACTIVE', 'COMPLETED'] as const;
-
-      if (!judgeId) {
-        const userRecord = await this.prisma.user.findFirst({
-          where: {
-            id: req.user.id,
-            tenantId,
-          },
-          select: {
-            judgeId: true,
-          },
-        });
-        judgeId = userRecord?.judgeId || null;
-      }
-
-      if (!judgeId) {
-        return this.emptyDeductionAccessScope();
-      }
-
-      const assignments = await this.prisma.assignment.findMany({
-        where: {
-          tenantId,
-          judgeId,
-          status: {
-            in: [...scoringEligibleStatuses],
-          },
-        },
-        select: {
-          contestId: true,
-          categoryId: true,
-        },
-      });
-
-      return {
-        tenantWide: false,
-        eventIds: [],
-        contestIds: Array.from(new Set(assignments.map((assignment) => assignment.contestId).filter(Boolean))),
-        categoryIds: Array.from(new Set(assignments.map((assignment) => assignment.categoryId).filter(Boolean))) as string[],
-      };
-    }
-
-    if (userRole === 'TALLY_MASTER') {
-      const assignments = await this.prisma.tallyMasterAssignment.findMany({
-        where: {
-          tenantId,
-          userId: req.user.id,
-          status: 'ACTIVE',
-        },
-        select: {
-          contestId: true,
-          categoryId: true,
-        },
-      });
-
-      return {
-        tenantWide: false,
-        eventIds: [],
-        contestIds: Array.from(new Set(assignments.map((assignment) => assignment.contestId).filter(Boolean))) as string[],
-        categoryIds: Array.from(new Set(assignments.map((assignment) => assignment.categoryId).filter(Boolean))) as string[],
-      };
-    }
-
-    if (userRole === 'AUDITOR') {
-      const assignments = await this.prisma.auditorAssignment.findMany({
-        where: {
-          tenantId,
-          userId: req.user.id,
-          status: 'ACTIVE',
-        },
-        select: {
-          contestId: true,
-          categoryId: true,
-        },
-      });
-
-      return {
-        tenantWide: false,
-        eventIds: [],
-        contestIds: Array.from(new Set(assignments.map((assignment) => assignment.contestId).filter(Boolean))) as string[],
-        categoryIds: Array.from(new Set(assignments.map((assignment) => assignment.categoryId).filter(Boolean))) as string[],
-      };
-    }
-
-    return this.emptyDeductionAccessScope();
+    return this.permissionScopeService.resolveUserScope(
+      req.user.role,
+      'deductions',
+      tenantId,
+      req.user
+    );
   }
 
   private async getJudgeCategoryScoreCoverageStatus(

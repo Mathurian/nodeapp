@@ -2,8 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileService } from '../services/FileService';
 import { AuditLogService } from '../services/AuditLogService';
+import { PermissionScopeService } from '../services/PermissionScopeService';
 import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized} from '../utils/responseHelpers';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { resolveRequestTenantId } from '../utils/tenantContext';
 
@@ -12,10 +13,62 @@ const logger = createLogger('FileController');
 export class FileController {
   private fileService: FileService;
   private prisma: PrismaClient;
+  private permissionScopeService: PermissionScopeService;
 
   constructor() {
     this.fileService = container.resolve(FileService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
+    this.permissionScopeService = container.resolve(PermissionScopeService);
+  }
+
+  private async buildFileScopeWhere(req: Request, tenantId: string): Promise<Prisma.FileWhereInput | null> {
+    if (!req.user) return null;
+
+    const scope = await this.permissionScopeService.resolveUserScope(
+      req.user.role,
+      'files',
+      tenantId,
+      req.user
+    );
+
+    if (scope.tenantWide) return {};
+
+    const eventIds = new Set(scope.eventIds);
+    const contestIds = new Set(scope.contestIds);
+    const categoryIds = new Set(scope.categoryIds);
+
+    if (eventIds.size > 0) {
+      const [contests, categories] = await Promise.all([
+        this.prisma.contest.findMany({
+          where: {
+            tenantId,
+            eventId: { in: Array.from(eventIds) },
+          },
+          select: { id: true },
+        }),
+        this.prisma.category.findMany({
+          where: {
+            tenantId,
+            contest: {
+              eventId: { in: Array.from(eventIds) },
+            },
+          },
+          select: { id: true, contestId: true },
+        }),
+      ]);
+
+      contests.forEach((contest) => contestIds.add(contest.id));
+      categories.forEach((category) => {
+        categoryIds.add(category.id);
+        contestIds.add(category.contestId);
+      });
+    }
+
+    const clauses: Prisma.FileWhereInput[] = [];
+    if (categoryIds.size > 0) clauses.push({ categoryId: { in: Array.from(categoryIds) } });
+    if (contestIds.size > 0) clauses.push({ contestId: { in: Array.from(contestIds) } });
+    if (eventIds.size > 0) clauses.push({ eventId: { in: Array.from(eventIds) } });
+    return clauses.length > 0 ? { OR: clauses } : null;
   }
 
   listFiles = async (req: Request, res: Response, next: NextFunction) => {
@@ -115,9 +168,22 @@ export class FileController {
       const category = req.query['category'] as string | undefined;
       const eventId = req.query['eventId'] as string | undefined;
       const tenantId = req.tenantId || req.user.tenantId;
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          files: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false
+          }
+        });
+      }
 
       const skip = (page - 1) * limit;
-      const where: any = { tenantId };
+      const where: any = { tenantId, ...scopeWhere };
 
       if (category) where.category = category;
       if (eventId) where.eventId = eventId;
@@ -279,6 +345,16 @@ export class FileController {
         return;
       }
       const tenantId = req.tenantId || req.user.tenantId;
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          totalFiles: 0,
+          totalSize: 0,
+          totalSizeMB: '0.00',
+          byCategory: [],
+          recentUploads: [],
+        });
+      }
 
       const [
         totalFiles,
@@ -286,19 +362,19 @@ export class FileController {
         byCategory,
         recentUploads
       ] = await Promise.all([
-        this.prisma.file.count({ where: { tenantId } }),
+        this.prisma.file.count({ where: { tenantId, ...scopeWhere } }),
         this.prisma.file.aggregate({
-          where: { tenantId },
+          where: { tenantId, ...scopeWhere },
           _sum: { size: true }
         }),
         this.prisma.file.groupBy({
-          where: { tenantId },
+          where: { tenantId, ...scopeWhere },
           by: ['category'],
           _count: { id: true },
           _sum: { size: true }
         }),
         this.prisma.file.findMany({
-          where: { tenantId },
+          where: { tenantId, ...scopeWhere },
           take: 10,
           orderBy: { uploadedAt: 'desc' },
           select: {
