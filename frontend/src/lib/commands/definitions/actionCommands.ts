@@ -99,7 +99,7 @@ export const createActionCommands = (options: {
         group: 'Create',
         priority: 30,
         shortcut: 'Cmd+Shift+R',
-        roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
+        roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
       }
     );
   }

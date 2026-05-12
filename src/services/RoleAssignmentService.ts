@@ -55,6 +55,26 @@ export class RoleAssignmentService extends BaseService {
             email: true,
           },
         },
+        event: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            eventId: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            contestId: true,
+          },
+        },
       },
       orderBy: [{ assignedAt: 'desc' }]
     });

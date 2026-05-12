@@ -101,7 +101,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     items: [
       { id: 'results', name: 'View Results', href: '/results', icon: ChartBarIcon, roles: ALL_ROLES, description: 'View contest results', keywords: ['winner', 'standings'], priority: 75 },
       { id: 'winners', name: 'Winners', href: '/winners', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'] },
-      { id: 'reports', name: 'Reports', href: '/reports', icon: DocumentTextIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD'] },
+      { id: 'reports', name: 'Reports', href: '/reports', icon: DocumentTextIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'] },
     ],
   },
   {

@@ -38,7 +38,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
 
   { id: 'results', path: '/results', baseRoles: ALL_ROLES, resource: 'results', allowCrudReadOverride: true },
   { id: 'winners', path: '/winners', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'], resource: 'results', allowCrudReadOverride: true },
-  { id: 'reports', path: '/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER'], resource: 'reports', requireResourcePermission: true },
+  { id: 'reports', path: '/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'reports', requireResourcePermission: true },
 
   { id: 'users', path: '/users', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
   { id: 'assignments', path: '/assignments', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'assignments', allowCrudReadOverride: true },

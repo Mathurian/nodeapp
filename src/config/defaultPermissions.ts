@@ -35,7 +35,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   ],
   TALLY_MASTER: [
     'scores:*', 'results:*', 'events:read', 'contests:read', 'categories:read',
-    'reports:read', 'reports:write', 'tracker:*', 'certifications:read', 'certifications:write',
+    'tracker:*', 'certifications:read', 'certifications:write',
     'deductions:read', 'deductions:create',
   ],
   AUDITOR: [

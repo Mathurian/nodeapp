@@ -451,6 +451,7 @@ const DeductionsPage: React.FC = () => {
   const canApprove = hasPermissionAction(permissionSet, 'deductions:approve')
   const canReject = hasPermissionAction(permissionSet, 'deductions:reject')
   const canInitiate = hasPermissionAction(permissionSet, 'deductions:create')
+  const isScopedWorkflowRole = ['BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE'].includes(user?.role || '')
 
   const submitRequest = () => {
     const amount = Number(requestAmount)
@@ -709,7 +710,9 @@ const DeductionsPage: React.FC = () => {
             <div className="p-12 text-center">
               <MinusCircleIcon className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400">
-                No deductions {filter !== 'ALL' && filter.toLowerCase()}
+                {deductions.length === 0 && isScopedWorkflowRole
+                  ? 'No deductions are available in your current scope. This usually means you do not have active event, contest, or category assignments.'
+                  : `No deductions ${filter !== 'ALL' ? filter.toLowerCase() : ''}`.trim()}
               </p>
             </div>
           ) : (

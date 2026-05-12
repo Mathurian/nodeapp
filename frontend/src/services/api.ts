@@ -573,12 +573,12 @@ export const judgeSchedulesAPI = {
 }
 
 export const roleAssignmentsAPI = {
-  getAll: (params?: { role?: string; contestId?: string; eventId?: string; categoryId?: string }) =>
+  getAll: (params?: { role?: string; contestId?: string; eventId?: string; categoryId?: string; tenantId?: string }) =>
     api.get('/role-assignments', { params }),
-  create: (data: { userId: string; role: string; contestId?: string; eventId?: string; categoryId?: string; notes?: string }) =>
+  create: (data: { userId: string; role: string; contestId?: string; eventId?: string; categoryId?: string; notes?: string; tenantId?: string }) =>
     api.post('/role-assignments', data),
   update: (id: string, data: { notes?: string; isActive?: boolean }) => api.put(`/role-assignments/${id}`, data),
-  delete: (id: string) => api.delete(`/role-assignments/${id}`),
+  delete: (id: string, tenantId?: string) => api.delete(`/role-assignments/${id}`, { params: tenantId ? { tenantId } : undefined }),
 }
 
 export const auditorAPI = {

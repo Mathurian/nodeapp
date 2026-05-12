@@ -226,7 +226,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
             <Route path="/emcee-scripts" element={<AliasRedirect targetPath="/emcee?tab=scripts" />} />
             <Route path="/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />
@@ -297,7 +297,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/emcee" element={<ProtectedRoute requiredRole={EMCEE_ROLES}><EmceePage /></ProtectedRoute>} />
             <Route path="/:slug/emcee-scripts" element={<AliasRedirect targetPath="/emcee?tab=scripts" />} />
             <Route path="/:slug/templates" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><TemplatesPage /></ProtectedRoute>} />
-            <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
+            <Route path="/:slug/reports" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><ReportsPage /></ProtectedRoute>} />
             <Route path="/:slug/notifications" element={<NotificationsPage />} />
             <Route path="/:slug/backups" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><BackupManagementPage /></ProtectedRoute>} />
             <Route path="/:slug/disaster-recovery" element={<ProtectedRoute requiredRole={ADMIN_STRICT_ROLES}><DisasterRecoveryPage /></ProtectedRoute>} />

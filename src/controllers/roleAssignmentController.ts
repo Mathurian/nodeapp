@@ -10,14 +10,26 @@ export class RoleAssignmentController {
     this.roleAssignmentService = container.resolve(RoleAssignmentService);
   }
 
+  private resolveTenantId(req: Request): string | null {
+    if (!req.user?.tenantId) return null;
+    if (req.user.role === 'SUPER_ADMIN') {
+      const requestedTenantId =
+        (req.body?.['tenantId'] as string | undefined) ||
+        (req.query?.['tenantId'] as string | undefined);
+      return requestedTenantId || req.user.tenantId;
+    }
+    return req.user.tenantId;
+  }
+
   getAllRoleAssignments = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.user?.tenantId) {
+      const tenantId = this.resolveTenantId(req);
+      if (!tenantId) {
         return sendUnauthorized(res);
       }
       const { role, contestId, eventId, categoryId } = req.query;
       const assignments = await this.roleAssignmentService.getAll({
-        tenantId: req.user.tenantId,
+        tenantId,
         role: role as string | undefined,
         contestId: contestId as string | undefined,
         eventId: eventId as string | undefined,
@@ -31,13 +43,14 @@ export class RoleAssignmentController {
 
   createRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.user) {
+      const tenantId = this.resolveTenantId(req);
+      if (!req.user || !tenantId) {
         return sendUnauthorized(res);
       }
 
       const { userId, role, contestId, eventId, categoryId, notes } = req.body;
       const assignment = await this.roleAssignmentService.create({
-        tenantId: req.user.tenantId,
+        tenantId,
         userId,
         role,
         contestId,
@@ -54,13 +67,14 @@ export class RoleAssignmentController {
 
   updateRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.user?.tenantId) {
+      const tenantId = this.resolveTenantId(req);
+      if (!tenantId) {
         return sendUnauthorized(res);
       }
       const { id } = req.params;
       const { notes, isActive } = req.body;
       const assignment = await this.roleAssignmentService.update(id!, {
-        tenantId: req.user.tenantId,
+        tenantId,
         notes,
         isActive,
       });
@@ -72,11 +86,12 @@ export class RoleAssignmentController {
 
   deleteRoleAssignment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.user?.tenantId) {
+      const tenantId = this.resolveTenantId(req);
+      if (!tenantId) {
         return sendUnauthorized(res);
       }
       const { id } = req.params;
-      await this.roleAssignmentService.delete(id!, req.user.tenantId);
+      await this.roleAssignmentService.delete(id!, tenantId);
       return sendSuccess(res, null, 'Role assignment deleted');
     } catch (error) {
       return next(error);

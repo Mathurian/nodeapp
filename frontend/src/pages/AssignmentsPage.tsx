@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { api, assignmentsAPI, tenantsAPI } from '../services/api'
+import { api, assignmentsAPI, roleAssignmentsAPI, tenantsAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
 import {
@@ -116,6 +116,24 @@ interface AuditorAssignment {
   _deleting?: boolean
 }
 
+interface BoardAssignment {
+  id: string
+  userId?: string
+  role: 'BOARD'
+  eventId?: string
+  contestId?: string
+  categoryId?: string
+  user: User
+  event?: Event
+  contest?: Contest
+  category?: Category
+  assignedAt?: string
+  createdAt: string
+  notes?: string | null
+  _optimistic?: boolean
+  _deleting?: boolean
+}
+
 interface BulkDeleteAssignmentItem {
   id?: string
   categoryId?: string
@@ -169,7 +187,7 @@ interface JudgeContestLimitPolicy {
   eventOverrideLimit: number | null
 }
 
-type TabType = 'judges' | 'contestants' | 'tally-masters' | 'auditors'
+type TabType = 'judges' | 'contestants' | 'boards' | 'tally-masters' | 'auditors'
 
 const getAssignmentLevel = (a: { eventId?: string; contestId?: string; categoryId?: string; _derivedLevel?: string }): string => {
   if (a._derivedLevel) return a._derivedLevel
@@ -194,7 +212,7 @@ const AssignmentsPage: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const [editingAssignment, setEditingAssignment] = useState<JudgeAssignment | ContestantAssignment | TallyMasterAssignment | AuditorAssignment | null>(null)
+  const [editingAssignment, setEditingAssignment] = useState<JudgeAssignment | ContestantAssignment | BoardAssignment | TallyMasterAssignment | AuditorAssignment | null>(null)
   const [editEventId, setEditEventId] = useState('')
   const [editContestId, setEditContestId] = useState('')
   const [editCategoryId, setEditCategoryId] = useState('')
@@ -210,6 +228,7 @@ const AssignmentsPage: React.FC = () => {
   const invalidateAssignmentQueries = (tab: TabType) => {
     if (tab === 'judges') queryClient.invalidateQueries('judge-assignments')
     else if (tab === 'contestants') queryClient.invalidateQueries('contestant-assignments')
+    else if (tab === 'boards') queryClient.invalidateQueries('board-assignments')
     else if (tab === 'tally-masters') queryClient.invalidateQueries('tally-master-assignments')
     else if (tab === 'auditors') queryClient.invalidateQueries('auditor-assignments')
   }
@@ -272,7 +291,7 @@ const AssignmentsPage: React.FC = () => {
     const categoryId = params.get('categoryId') || ''
     const tab = params.get('tab') as TabType | null
 
-    if (tab && ['judges', 'contestants', 'tally-masters', 'auditors'].includes(tab)) {
+    if (tab && ['judges', 'contestants', 'boards', 'tally-masters', 'auditors'].includes(tab)) {
       setActiveTab(tab)
     }
 
@@ -394,6 +413,19 @@ const AssignmentsPage: React.FC = () => {
     { enabled: activeTab === 'tally-masters' }
   )
 
+  const { data: boardAssignments = [], isLoading: isLoadingBoards } = useQuery<BoardAssignment[]>(
+    ['board-assignments', assignmentScopeParams],
+    async () => {
+      const response = await roleAssignmentsAPI.getAll({
+        ...assignmentScopeParams,
+        role: 'BOARD',
+      })
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    { enabled: activeTab === 'boards' }
+  )
+
   const { data: auditorAssignments = [], isLoading: isLoadingAuditors } = useQuery<AuditorAssignment[]>(
     ['auditor-assignments', assignmentScopeParams],
     async () => {
@@ -449,6 +481,17 @@ const AssignmentsPage: React.FC = () => {
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     { enabled: activeTab === 'auditors' }
+  )
+
+  const { data: boardUsers = [] } = useQuery<User[]>(
+    ['board-users-list', selectedTenantId],
+    async () => {
+      const params = selectedTenantId ? { tenantId: selectedTenantId } : {}
+      const response = await api.get('/users/role/BOARD', { params })
+      const unwrapped = response.data?.data || response.data
+      return Array.isArray(unwrapped) ? unwrapped : []
+    },
+    { enabled: activeTab === 'boards' }
   )
 
   const { data: events = [], isLoading: isLoadingEvents } = useQuery<Event[]>(
@@ -628,6 +671,33 @@ const AssignmentsPage: React.FC = () => {
     }
   )
 
+  const assignBoardMutation = useMutation(
+    async (data: { userIds: string[]; eventId?: string; contestId?: string; categoryId?: string }) => {
+      await Promise.all(
+        data.userIds.map((userId) =>
+          roleAssignmentsAPI.create({
+            ...(selectedTenantId ? { tenantId: selectedTenantId } : {}),
+            userId,
+            role: 'BOARD',
+            eventId: data.eventId,
+            contestId: data.contestId,
+            categoryId: data.categoryId,
+          })
+        )
+      )
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('board-assignments')
+        resetForm()
+        toast.success('Board assignment(s) created successfully!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to assign board user'}`)
+      },
+    }
+  )
+
   // Auditor assignment — supports event/contest/category levels
   const assignAuditorMutation = useMutation(
     async (data: { userIds: string[]; eventId?: string; contestId?: string; categoryId?: string }) => {
@@ -712,6 +782,21 @@ const AssignmentsPage: React.FC = () => {
     }
   )
 
+  const removeBoardAssignmentMutation = useMutation(
+    async (id: string) => {
+      await roleAssignmentsAPI.delete(id, selectedTenantId || undefined)
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('board-assignments')
+        toast.success('Board assignment removed!')
+      },
+      onError: (error: any) => {
+        toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignment'}`)
+      },
+    }
+  )
+
   // Remove auditor (single)
   const removeAuditorMutation = useMutation(
     async (id: string) => {
@@ -787,6 +872,17 @@ const AssignmentsPage: React.FC = () => {
         if (editContestId) body.contestId = editContestId
         if (editCategoryId) body.categoryId = editCategoryId
         await api.post('/assignments/tally-masters', body)
+      } else if (activeTab === 'boards') {
+        const a = editingAssignment as BoardAssignment
+        await roleAssignmentsAPI.delete(a.id, selectedTenantId || undefined)
+        await roleAssignmentsAPI.create({
+          ...(selectedTenantId ? { tenantId: selectedTenantId } : {}),
+          userId: a.userId || a.user.id,
+          role: 'BOARD',
+          eventId: editEventId || undefined,
+          contestId: editContestId || undefined,
+          categoryId: editCategoryId || undefined,
+        })
       } else if (activeTab === 'auditors') {
         const a = editingAssignment as AuditorAssignment
         await api.delete(`/assignments/auditors/${a.id}`)
@@ -801,6 +897,7 @@ const AssignmentsPage: React.FC = () => {
       onSuccess: () => {
         if (activeTab === 'judges') queryClient.invalidateQueries('judge-assignments')
         else if (activeTab === 'contestants') queryClient.invalidateQueries('contestant-assignments')
+        else if (activeTab === 'boards') queryClient.invalidateQueries('board-assignments')
         else if (activeTab === 'tally-masters') queryClient.invalidateQueries('tally-master-assignments')
         else if (activeTab === 'auditors') queryClient.invalidateQueries('auditor-assignments')
         closeEditModal()
@@ -856,6 +953,14 @@ const AssignmentsPage: React.FC = () => {
     } else if (activeTab === 'tally-masters') {
       if (!eventId) { toast.error('Please select an event'); return }
       assignTallyMasterMutation.mutate({
+        userIds: personIds,
+        eventId,
+        contestId: (assignmentLevel === 'contest' || assignmentLevel === 'category') ? contestId : undefined,
+        categoryId: assignmentLevel === 'category' ? categoryId : undefined,
+      })
+    } else if (activeTab === 'boards') {
+      if (!eventId) { toast.error('Please select an event'); return }
+      assignBoardMutation.mutate({
         userIds: personIds,
         eventId,
         contestId: (assignmentLevel === 'contest' || assignmentLevel === 'category') ? contestId : undefined,
@@ -917,6 +1022,8 @@ const AssignmentsPage: React.FC = () => {
       } else if (activeTab === 'contestants') {
         const sourceAssignment = contestantAssignments.find(a => a.id === effectiveSingleId) || assignment
         removeContestantAssignmentMutation.mutate({ assignment: sourceAssignment })
+      } else if (activeTab === 'boards') {
+        removeBoardAssignmentMutation.mutate(effectiveSingleId)
       } else if (activeTab === 'tally-masters') {
         removeTallyMasterMutation.mutate(effectiveSingleId)
       } else if (activeTab === 'auditors') {
@@ -926,6 +1033,13 @@ const AssignmentsPage: React.FC = () => {
     }
 
     try {
+      if (activeTab === 'boards') {
+        await Promise.all(ids.map((id) => roleAssignmentsAPI.delete(id, selectedTenantId || undefined)))
+        invalidateAssignmentQueries(activeTab)
+        toast.success(`Removed ${ids.length} assignment(s)!`)
+        return
+      }
+
       const response = await assignmentsAPI.bulkDelete(buildBulkDeleteRequest(activeTab, [assignment]))
       invalidateAssignmentQueries(activeTab)
 
@@ -950,6 +1064,18 @@ const AssignmentsPage: React.FC = () => {
   const handleBulkRemove = () => {
     if (selectedIds.size === 0) return
     if (confirm(`Are you sure you want to remove ${selectedIds.size} assignment(s)?`)) {
+      if (activeTab === 'boards') {
+        Promise.all(Array.from(selectedIds).map((id) => roleAssignmentsAPI.delete(id, selectedTenantId || undefined)))
+          .then(() => {
+            queryClient.invalidateQueries('board-assignments')
+            setSelectedIds(new Set())
+            toast.success(`Removed ${selectedIds.size} assignment(s)`)
+          })
+          .catch((error: any) => {
+            toast.error(`Error: ${error.response?.data?.message || error.message || 'Failed to remove assignments'}`)
+          })
+        return
+      }
       bulkRemoveMutation.mutate()
     }
   }
@@ -992,7 +1118,7 @@ const AssignmentsPage: React.FC = () => {
   }
 
   const resetForm = () => {
-    const defaultLevel = (activeTab === 'tally-masters' || activeTab === 'auditors') ? 'event' : 'contest'
+    const defaultLevel = (activeTab === 'boards' || activeTab === 'tally-masters' || activeTab === 'auditors') ? 'event' : 'contest'
     setFormData({ personIds: [], assignmentLevel: defaultLevel, eventId: '', contestId: '', categoryId: '' })
     setIsFormOpen(false)
   }
@@ -1048,6 +1174,7 @@ const AssignmentsPage: React.FC = () => {
     switch (activeTab) {
       case 'judges': return judgeAssignments
       case 'contestants': return contestantAssignments
+      case 'boards': return boardAssignments
       case 'tally-masters': return tallyMasterAssignments
       case 'auditors': return auditorAssignments
       default: return []
@@ -1130,6 +1257,7 @@ const AssignmentsPage: React.FC = () => {
     switch (activeTab) {
       case 'judges': return isLoadingJudges
       case 'contestants': return isLoadingContestants
+      case 'boards': return isLoadingBoards
       case 'tally-masters': return isLoadingTallyMasters
       case 'auditors': return isLoadingAuditors
       default: return false
@@ -1137,7 +1265,7 @@ const AssignmentsPage: React.FC = () => {
   }
 
   const getTabLabel = (tab: TabType): string => {
-    const labels = { judges: 'Judge', contestants: 'Contestant', 'tally-masters': 'Tally Master', auditors: 'Auditor' }
+    const labels = { judges: 'Judge', contestants: 'Contestant', boards: 'Board', 'tally-masters': 'Tally Master', auditors: 'Auditor' }
     return labels[tab]
   }
 
@@ -1145,6 +1273,7 @@ const AssignmentsPage: React.FC = () => {
     switch (activeTab) {
       case 'judges': return stableSort(judges, compareUsersByName)
       case 'contestants': return stableSort(contestants, compareContestants)
+      case 'boards': return stableSort(boardUsers, compareUsersByName)
       case 'tally-masters': return stableSort(tallyMasters, compareUsersByName)
       case 'auditors': return stableSort(auditors, compareUsersByName)
       default: return []
@@ -1184,7 +1313,7 @@ const AssignmentsPage: React.FC = () => {
       { value: 'contest', label: 'Contest Level' },
       { value: 'category', label: 'Category Level' },
     ]
-    // tally-masters and auditors support all three
+    // boards, tally-masters and auditors support all three
     return [
       { value: 'event', label: 'Event Level' },
       { value: 'contest', label: 'Contest Level' },
@@ -1193,7 +1322,7 @@ const AssignmentsPage: React.FC = () => {
   }
 
   const isAnyMutationLoading = assignJudgeMutation.isLoading || assignContestantMutation.isLoading ||
-    assignTallyMasterMutation.isLoading || assignAuditorMutation.isLoading
+    assignBoardMutation.isLoading || assignTallyMasterMutation.isLoading || assignAuditorMutation.isLoading
 
   const judgeContestLevelCountsByJudgeEvent = useMemo(() => {
     const map = new Map<string, { count: number; judgeName: string; eventName: string; contestNames: Set<string> }>()
@@ -1291,7 +1420,7 @@ const AssignmentsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeader
           title="Assignments Management"
-          subtitle="Manage judge, contestant, tally master, and auditor assignments"
+          subtitle="Manage judge, contestant, board, tally master, and auditor assignments"
           icon={UserGroupIcon}
         />
         <Button onClick={() => setIsFormOpen(true)}>
@@ -1304,7 +1433,7 @@ const AssignmentsPage: React.FC = () => {
       <Card className="rounded-lg p-0 border-0 shadow-none">
       <div className="border-b border-gray-200 dark:border-gray-700 px-4">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
-          {(['judges', 'contestants', 'tally-masters', 'auditors'] as TabType[]).map((tab) => (
+          {(['judges', 'contestants', 'boards', 'tally-masters', 'auditors'] as TabType[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1317,6 +1446,7 @@ const AssignmentsPage: React.FC = () => {
               {getTabLabel(tab)}s ({
                 tab === 'judges' ? judgeAssignments.length :
                 tab === 'contestants' ? contestantAssignments.length :
+                tab === 'boards' ? boardAssignments.length :
                 tab === 'tally-masters' ? tallyMasterAssignments.length :
                 auditorAssignments.length
               })
@@ -1862,7 +1992,7 @@ const AssignmentsPage: React.FC = () => {
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {activeTab === 'judges' ? (editingAssignment as JudgeAssignment).judge?.name :
                    activeTab === 'contestants' ? (editingAssignment as ContestantAssignment).contestant?.name :
-                   (editingAssignment as TallyMasterAssignment).user?.name}
+                   (editingAssignment as BoardAssignment | TallyMasterAssignment | AuditorAssignment).user?.name}
                 </p>
               </div>
 
@@ -1888,14 +2018,14 @@ const AssignmentsPage: React.FC = () => {
                 {editEventId && (
                   <div>
                     <label htmlFor="pages-assignmentspage-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Contest {(activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for event-level)' : '*'}
+                      Contest {(activeTab === 'boards' || activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for event-level)' : '*'}
                     </label>
                     <select id="pages-assignmentspage-8"
                       value={editContestId}
                       onChange={(e) => { setEditContestId(e.target.value); setEditCategoryId('') }}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
-                      <option value="">{editContests.length === 0 ? 'No contests in this event' : (activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Event level —' : 'Select a contest...'}</option>
+                      <option value="">{editContests.length === 0 ? 'No contests in this event' : (activeTab === 'boards' || activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Event level —' : 'Select a contest...'}</option>
                       {sortedEditContests.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -1904,14 +2034,14 @@ const AssignmentsPage: React.FC = () => {
                 {editContestId && (
                   <div>
                     <label htmlFor="pages-assignmentspage-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Category {(activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for contest-level)' : '*'}
+                      Category {(activeTab === 'boards' || activeTab === 'tally-masters' || activeTab === 'auditors') ? '(or leave blank for contest-level)' : '*'}
                     </label>
                     <select id="pages-assignmentspage-9"
                       value={editCategoryId}
                       onChange={(e) => setEditCategoryId(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
-                      <option value="">{editCategories.length === 0 ? 'No categories' : (activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Contest level —' : 'Select a category...'}</option>
+                      <option value="">{editCategories.length === 0 ? 'No categories' : (activeTab === 'boards' || activeTab === 'tally-masters' || activeTab === 'auditors') ? '— Contest level —' : 'Select a category...'}</option>
                       {sortedEditCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>

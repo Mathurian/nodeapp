@@ -218,7 +218,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Reports',
       priority: 40,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'quick-generate-placements',
@@ -231,7 +231,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Reports',
       priority: 35,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'quick-generate-certificates',
@@ -244,7 +244,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Reports',
       priority: 30,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     },
     {
       id: 'quick-judge-assignments',
@@ -257,7 +257,7 @@ export const createQuickActionCommands = (options: {
       category: 'quick',
       group: 'Reports',
       priority: 25,
-      roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER', 'ORGANIZER', 'BOARD']
+      roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
     }
   );
 
