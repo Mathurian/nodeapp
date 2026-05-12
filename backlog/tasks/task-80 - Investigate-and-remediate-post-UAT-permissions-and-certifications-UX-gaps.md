@@ -1,11 +1,11 @@
 ---
 id: TASK-80
 title: Investigate and remediate post-UAT permissions and certifications UX gaps
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-12 02:02'
-updated_date: '2026-05-12 03:43'
+updated_date: '2026-05-12 03:47'
 labels: []
 milestone: m-0
 dependencies: []
@@ -20,10 +20,10 @@ Review the post-UAT findings from the recent permissions-scope overhaul and dete
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Document intended-vs-bug status for each reported UAT finding: Tally certifications nav visibility, Tally reports access, results scoping posture, Board empty-state behavior on deductions/certifications, and certifications event-filter availability.
-- [ ] #2 Remediate confirmed permission or scope regressions in the affected frontend/backend layers so nav, page access, and data visibility align.
-- [ ] #3 If certifications page UX enhancements are approved in scope, implement the agreed improvements for judge-oriented score breakdown and improved long-page navigation.
-- [ ] #4 Provide focused verification notes for the affected roles: TALLY_MASTER, AUDITOR, BOARD, and ORGANIZER.
+- [x] #1 Document intended-vs-bug status for each reported UAT finding: Tally certifications nav visibility, Tally reports access, results scoping posture, Board empty-state behavior on deductions/certifications, and certifications event-filter availability.
+- [x] #2 Remediate confirmed permission or scope regressions in the affected frontend/backend layers so nav, page access, and data visibility align.
+- [x] #3 If certifications page UX enhancements are approved in scope, implement the agreed improvements for judge-oriented score breakdown and improved long-page navigation.
+- [x] #4 Provide focused verification notes for the affected roles: TALLY_MASTER, AUDITOR, BOARD, and ORGANIZER.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -80,9 +80,30 @@ Review the post-UAT findings from the recent permissions-scope overhaul and dete
 - Verification: `cd frontend && npm run build` passed.
 <!-- SECTION:NOTES:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Resolved the post-UAT permissions and certifications UX gaps from the scope-overhaul rollout.
+
+What changed:
+- Confirmed intended vs regression behavior for the reported Tally, Board, certifications, and results findings.
+- Removed default Tally access to Reports across permissions, nav, route, page-policy, API, and command surfaces.
+- Reworked Board assignment handling into a first-class `Board` tab on `/assignments`, including create/edit/remove flows and backend role-assignment support for event/contest/category context.
+- Verified that assigned Board users now see expected data on `/deductions` and `/certifications`.
+- Added certifications UX improvements: organizer event filter, judge-oriented score breakdown mode, sticky in-section navigation controls, and tile-level navigation controls on top-level contestant/judge score review summaries.
+
+Follow-up:
+- `/results` scope and permissions alignment was split into TASK-81 rather than expanded into this task.
+
+Verification:
+- Focused frontend type-check, eslint, and production build passes on touched surfaces.
+- Backend build pass after Board assignment API/controller updates.
+- UAT confirmed Board visibility, Tally Reports removal, organizer event filter behavior, judge-view breakdown presence, and final tile-level certifications controls.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->
