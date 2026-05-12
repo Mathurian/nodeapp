@@ -63,3 +63,5 @@ export {
   getOptimisticRowClass
 } from './OptimisticIndicator'
 export type { OptimisticIndicatorProps, OptimisticStatus } from './OptimisticIndicator'
+
+export { default as OfflineOutboxStatus } from './OfflineOutboxStatus'

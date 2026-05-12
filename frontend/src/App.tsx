@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { SocketProvider } from './contexts/SocketContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { SystemSettingsProvider } from './contexts/SystemSettingsContext'
+import { OfflineOutboxStatus } from './components/ui'
 import ErrorBoundary from './components/ErrorBoundary'
 import CommandPaletteOnboardingWrapper from './components/CommandPaletteOnboardingWrapper'
 import TenantRouter from './components/TenantRouter'
@@ -152,6 +153,7 @@ function App() {
             <SystemSettingsProvider>
               <AuthProvider>
                 <SocketProvider>
+                  <OfflineOutboxStatus />
                   {updateNotice && (
                     <div className="pwa-update-recovery-notice">
                       <span>{updateNotice}</span>

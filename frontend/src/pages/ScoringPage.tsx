@@ -351,6 +351,9 @@ const ScoringPage: React.FC = () => {
           headers,
           idempotencyKey,
           entityKey,
+          ownerUserId: user?.id || null,
+          ownerTenantId: user?.tenantId || user?.tenant?.id || null,
+          summary: actionLabel,
         })
         void recordOfflineSyncTelemetryEvent(method, endpoint, 'enqueued', 'app', classification)
         setSaveStatus('queued')

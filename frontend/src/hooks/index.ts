@@ -21,6 +21,7 @@ export {
   generateOptimisticId
 } from './useOptimisticMutation'
 export { useResultsScopeOptions } from './useResultsScopeOptions'
+export { default as useOfflineOutbox } from './useOfflineOutbox'
 export type {
   UseOptimisticMutationOptions,
   UseOptimisticMutationResult,

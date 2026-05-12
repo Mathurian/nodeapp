@@ -1,9 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
-import { clearOfflineMutationQueue } from '../services/offlineMutationQueue'
 import { clearOfflineSyncTelemetry } from '../services/offlineSyncTelemetry'
+import {
+  discardOfflineWorkflowDataForOwner,
+  getOfflineWorkSummary,
+  type OfflineWorkSummary,
+} from '../services/offlineWorkflowStore'
+import { setActiveOfflineOwner } from '../services/offlineSessionScope'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
+import ConfirmModal from '../components/ui/ConfirmModal'
 
 interface TenantInfo {
   id: string
@@ -71,6 +77,9 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showLogoutGuard, setShowLogoutGuard] = useState(false)
+  const [pendingOfflineSummary, setPendingOfflineSummary] = useState<OfflineWorkSummary | null>(null)
+  const [isLogoutGuardLoading, setIsLogoutGuardLoading] = useState(false)
   const navigate = useNavigate()
   const previousSessionKeyRef = useRef<string | null | undefined>(undefined)
 
@@ -129,19 +138,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const tenantId = user?.tenantId || user?.tenant?.id || null
     const sessionKey = user ? `${user.id}:${tenantId || 'no-tenant'}` : null
+    setActiveOfflineOwner(
+      user
+        ? {
+            ownerUserId: user.id,
+            ownerTenantId: tenantId,
+          }
+        : null,
+    )
 
     if (previousSessionKeyRef.current === undefined) {
       previousSessionKeyRef.current = sessionKey
       return
     }
 
-    if (previousSessionKeyRef.current !== sessionKey) {
-      void clearOfflineMutationQueue()
+    previousSessionKeyRef.current = sessionKey
+  }, [isLoading, user?.id, user?.tenantId, user?.tenant?.id])
+
+  const getCurrentOfflineOwner = () => ({
+    ownerUserId: user?.id || null,
+    ownerTenantId: user?.tenantId || user?.tenant?.id || null,
+  })
+
+  const performLogout = async (clearOfflineData: boolean) => {
+    const logoutLoginPath = buildTenantAwareLoginPath(
+      typeof window !== 'undefined' ? window.location.pathname : '',
+      user?.tenant?.slug || null
+    )
+
+    if (clearOfflineData) {
+      await discardOfflineWorkflowDataForOwner(getCurrentOfflineOwner())
       clearOfflineSyncTelemetry()
     }
 
-    previousSessionKeyRef.current = sessionKey
-  }, [isLoading, user?.id, user?.tenantId, user?.tenant?.id])
+    try {
+      await api.post('/auth/logout')
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+
+    setShowLogoutGuard(false)
+    setPendingOfflineSummary(null)
+    setUser(null)
+    navigate(logoutLoginPath, { replace: true })
+  }
 
   const login = async (email: string, password: string, tenantSlug?: string) => {
     try {
@@ -229,20 +269,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const logout = async () => {
-    const logoutLoginPath = buildTenantAwareLoginPath(
-      typeof window !== 'undefined' ? window.location.pathname : '',
-      user?.tenant?.slug || null
-    )
-
-    try {
-      // Call logout endpoint to clear httpOnly cookie on server
-      await api.post('/auth/logout')
-    } catch (error) {
-      console.error('Logout error:', error)
+    if (!user) {
+      await performLogout(false)
+      return
     }
-    // Cookie is cleared by server, just update local state
-    setUser(null)
-    navigate(logoutLoginPath, { replace: true })
+
+    const summary = await getOfflineWorkSummary(getCurrentOfflineOwner())
+    if (summary.hasPendingWork) {
+      setPendingOfflineSummary(summary)
+      setShowLogoutGuard(true)
+      return
+    }
+
+    await performLogout(false)
   }
 
   const refreshUser = async () => {
@@ -270,6 +309,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <ConfirmModal
+        isOpen={showLogoutGuard}
+        onClose={() => {
+          if (isLogoutGuardLoading) return
+          setShowLogoutGuard(false)
+          setPendingOfflineSummary(null)
+        }}
+        onConfirm={() => {
+          setIsLogoutGuardLoading(true)
+          void performLogout(true).finally(() => {
+            setIsLogoutGuardLoading(false)
+          })
+        }}
+        title="Unsynced Offline Work"
+        message={`You still have unsynced offline work on this device${
+          pendingOfflineSummary
+            ? ` (${pendingOfflineSummary.draftCount} draft, ${pendingOfflineSummary.pendingCount} queued, ${pendingOfflineSummary.conflictCount + pendingOfflineSummary.terminalFailureCount} needing attention).`
+            : '.'
+        } Stay signed in to keep syncing, or discard that local work and sign out.`}
+        confirmText="Discard and Sign Out"
+        cancelText="Stay Signed In"
+        variant="warning"
+        loading={isLogoutGuardLoading}
+      />
     </AuthContext.Provider>
   )
 }
