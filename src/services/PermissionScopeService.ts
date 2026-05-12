@@ -40,6 +40,12 @@ export interface ResolvedResourceScope {
   categoryIds: string[];
 }
 
+type AssignmentScopeRow = {
+  eventId: string | null;
+  contestId: string | null;
+  categoryId: string | null;
+};
+
 @injectable()
 export class PermissionScopeService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
@@ -301,18 +307,23 @@ export class PermissionScopeService extends BaseService {
         },
       });
 
+      const eventIds =
+        level === PermissionScopeLevel.EVENT
+          ? assignments.flatMap((assignment) => [
+              assignment.eventId,
+              assignment.contest?.eventId,
+              assignment.category?.contest?.eventId,
+            ])
+          : assignments
+              .filter((assignment) => !assignment.contestId && !assignment.categoryId)
+              .map((assignment) => assignment.eventId);
+
       return {
         level,
         tenantWide: false,
         eventIds: Array.from(
           new Set(
-            assignments
-              .flatMap((assignment) => [
-                assignment.eventId,
-                assignment.contest?.eventId,
-                assignment.category?.contest?.eventId,
-              ])
-              .filter((value): value is string => Boolean(value))
+            eventIds.filter((value): value is string => Boolean(value))
           )
         ),
         contestIds:
@@ -424,17 +435,20 @@ export class PermissionScopeService extends BaseService {
 
   private scopeFromAssignmentRows(
     level: PermissionScopeLevel,
-    rows: Array<{
-      eventId: string | null;
-      contestId: string | null;
-      categoryId: string | null;
-    }>
+    rows: AssignmentScopeRow[]
   ): ResolvedResourceScope {
+    const eventIds =
+      level === PermissionScopeLevel.EVENT
+        ? rows.map((row) => row.eventId)
+        : rows
+            .filter((row) => !row.contestId && !row.categoryId)
+            .map((row) => row.eventId);
+
     return {
       level,
       tenantWide: false,
       eventIds: Array.from(
-        new Set(rows.map((row) => row.eventId).filter((value): value is string => Boolean(value)))
+        new Set(eventIds.filter((value): value is string => Boolean(value)))
       ),
       contestIds:
         level === PermissionScopeLevel.ASSIGNMENT
