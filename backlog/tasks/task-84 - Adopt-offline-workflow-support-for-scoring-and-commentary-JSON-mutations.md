@@ -1,13 +1,11 @@
 ---
 id: TASK-84
-title: >-
-  Adopt offline workflow support for scoring, commentary, and deductions JSON
-  mutations
-status: In Progress
+title: Adopt offline workflow support for scoring and commentary JSON mutations
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-12 16:43'
-updated_date: '2026-05-13 04:48'
+updated_date: '2026-05-13 21:39'
 labels: []
 milestone: m-0
 dependencies: []
@@ -16,16 +14,15 @@ dependencies: []
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Adopt the shared offline framework for JSON-based scoring workflows so score entry, commentary, and deduction requests can be drafted locally, queued under interruption, restored after restart, and synced automatically when connectivity returns.
+Adopt the shared offline framework for JSON-based scoring workflows so score entry and commentary can be drafted locally, queued under interruption, restored after restart, and synced automatically when connectivity returns. Deductions follow-up work was split into TASK-89 after production UAT confirmed scoring/commentary stability while deductions remained untested.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Score entry supports durable local draft restore and queued offline submission with clear pending-sync UI states.
-- [ ] #2 Commentary updates support durable local draft restore and queued offline submission with clear pending-sync UI states.
-- [ ] #3 Deduction request creation supports offline draft persistence, queued submission, and scoped restore after refresh/restart.
-- [ ] #4 Queued score/commentary/deduction operations replay in causal order and do not falsely present server confirmation before acknowledgement.
-- [ ] #5 Focused verification covers interruption, restart recovery, reconnect sync, and partial-success behavior for these JSON workflows.
+- [x] #1 Score entry supports durable local draft restore and queued offline submission with clear pending-sync UI states.
+- [x] #2 Commentary updates support durable local draft restore and queued offline submission with clear pending-sync UI states.
+- [x] #3 Queued score and commentary operations replay in causal order and do not falsely present server confirmation before acknowledgement.
+- [x] #4 Focused verification covers interruption, restart recovery, reconnect sync, and partial-success behavior for scoring and commentary workflows.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -107,11 +104,38 @@ Adopt the shared offline framework for JSON-based scoring workflows so score ent
 - Updated OfflineOutboxStatus to format route-based fallback details for synced/queued items instead of exposing raw API paths, and updated scoring resume navigation to target /scoring#score-sheet. Reinforced ScoringPage resume behavior by scrolling the score sheet anchor while retrying input focus, so the resume flow no longer depends solely on an early-mounted first score input.
 - Verification: cd frontend && npx eslint src/components/ui/OfflineOutboxStatus.tsx src/pages/ScoringPage.tsx src/services/api.ts; cd frontend && npm run type-check; cd frontend && npm run build; npm run build.
 - Deployed production release 20260512234707 and verified event-manager.service active plus /health status OK with offline manifest and invariants valid.
+
+2026-05-13 production follow-up: removed the last raw criterion-id fallback from OfflineOutboxStatus so queued/synced scoring rows no longer expose criterion IDs in the mini-modal. Deployed in release 20260513000212 after frontend eslint, type-check, and build passed. User also noted that in-page refresh/navigation within /scoring can still leave the resume UX at top-of-page context; treating that as a UX limitation for now rather than a TASK-84 blocker.
+
+2026-05-13 UAT update: scoring/judge scoring flow is currently stable in production based on the user's completed passes. Commentary offline queue/reconnect testing also largely passed, but the modal still surfaced a raw commentary scope key (category-comment-update:category:cmn6r0en81o7710veltpzjb9e:cmoyv78c21eoqhoisy6kd4xru) alongside Queued • category commentary, so commentary still has a remaining human-readability bug in its recovery/outbox UX. Deductions was not tested in this pass; per user direction it should be split into a separate follow-up effort rather than continuing to block the validated scoring/commentary portion of TASK-84.
+
+2026-05-13 production commentary-label hardening: removed the offline queue\'s raw entityKey summary fallback, added explicit human-readable summaries for queued category and criterion commentary writes, and hardened OfflineOutboxStatus to ignore machine-generated labels/scope keys in favor of route/payload-based descriptions. Also removed raw draft scope keys from the draft panel status line. Deployed in release 20260513153118 after frontend eslint, type-check, and build passed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Completed the scoring/commentary portion of the offline JSON workflow effort and moved deductions into a separate follow-up.
+
+Changes:
+- Hardened scoring offline draft restore, queued submission, reconnect replay, and server-state rehydration across the production judge scoring flow.
+- Hardened commentary offline queueing and recovery UX, including human-readable mini-modal labels and defensive fallback handling for malformed or machine-generated outbox summaries.
+- Stabilized resume behavior, outbox status presentation, sync replay behavior, and contestant-scoped certification interactions discovered during live production UAT.
+- Split deductions-specific offline UAT and hardening into TASK-89 so TASK-84 accurately reflects the validated shipped scope.
+
+Validation:
+- Repeated live production UAT with real offline/reconnect scenarios across judge scoring and commentary.
+- Frontend verification on follow-up patches with npx eslint, npm run type-check, and npm run build before deploys.
+- Production release validation with service health checks and offline manifest/invariant health responses.
+
+Follow-ups:
+- TASK-88 covers surfacing saved-but-uncertified scoring work in recovery UX.
+- TASK-89 covers deductions offline UAT and any related hardening.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->

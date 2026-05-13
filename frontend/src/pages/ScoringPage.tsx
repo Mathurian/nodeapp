@@ -1708,6 +1708,12 @@ const ScoringPage: React.FC = () => {
       return 'unchanged'
     }
 
+    const contestantLabel = selectedContestant.name
+      || (selectedContestant.contestantNumber ? `#${selectedContestant.contestantNumber}` : 'contestant')
+    const categoryCommentSummary = selectedCategory.name
+      ? `Category commentary for ${contestantLabel} in ${selectedCategory.name}`
+      : `Category commentary for ${contestantLabel}`
+
     return await executeMutationWithReliability(
       `category-comment-update:${sharedCommentaryScopeKey}:${selectedContestant.id}`,
       `/commentary/category/${selectedCategory.id}/contestant/${selectedContestant.id}`,
@@ -1722,7 +1728,7 @@ const ScoringPage: React.FC = () => {
           { headers },
         )
       },
-      { notifyOnQueued: false },
+      { notifyOnQueued: false, summary: categoryCommentSummary },
     )
   }
 
@@ -1731,6 +1737,8 @@ const ScoringPage: React.FC = () => {
 
     setUpdatingCommentary(true)
     try {
+      const contestantLabel = selectedContestant.name
+        || (selectedContestant.contestantNumber ? `#${selectedContestant.contestantNumber}` : 'contestant')
       const existingByCriterion = new Map<string, Score>()
       normalizedExistingScores.forEach((score) => {
         const key = score.criterionId || '__category_total__'
@@ -1742,6 +1750,10 @@ const ScoringPage: React.FC = () => {
           const nextComment = scoreFormData[criterionKey]?.comment ?? ''
           const currentComment = score.comment ?? ''
           if (nextComment === currentComment) return null
+          const criterionName = effectiveCriteria.find((entry) => entry.id === criterionKey)?.name
+          const commentSummary = criterionName
+            ? `Commentary for ${contestantLabel} • ${criterionName}`
+            : `Commentary for ${contestantLabel}`
           return await executeMutationWithReliability(
             `comment-update:${score.id}`,
             `/scoring/${score.id}`,
@@ -1751,7 +1763,7 @@ const ScoringPage: React.FC = () => {
             async (headers) => {
               await scoringAPI.updateScore(score.id, { comments: nextComment }, { headers })
             },
-            { notifyOnQueued: false },
+            { notifyOnQueued: false, summary: commentSummary },
           )
         })
         : []

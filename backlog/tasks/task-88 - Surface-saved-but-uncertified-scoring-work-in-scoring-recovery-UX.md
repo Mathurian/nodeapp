@@ -4,8 +4,11 @@ title: Surface saved but uncertified scoring work in scoring recovery UX
 status: To Do
 assignee: []
 created_date: '2026-05-13 04:38'
+updated_date: '2026-05-13 21:58'
 labels: []
+milestone: m-2
 dependencies: []
+priority: low
 ---
 
 ## Description

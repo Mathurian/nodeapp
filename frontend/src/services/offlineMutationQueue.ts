@@ -118,7 +118,7 @@ export const enqueueMutation = async (record: EnqueueOfflineMutationInput) => {
     idempotencyKey: record.idempotencyKey,
     ownerUserId: record.ownerUserId,
     ownerTenantId: record.ownerTenantId,
-    summary: record.summary || record.entityKey,
+    summary: record.summary || null,
     sensitivity,
   })
 }

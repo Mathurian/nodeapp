@@ -69,41 +69,126 @@ const formatDraftTitle = (workflowType: string) => {
   return workflowType
 }
 
-const formatOutboxTitle = (item: {
+const isMachineGeneratedLabel = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return true
+  }
+
+  if (trimmed.startsWith('/')) {
+    return true
+  }
+
+  if (
+    /^(category-comment-update|category-comment|comment-update|comment|score-submit|score-update|score|deduction):/i.test(
+      trimmed,
+    )
+  ) {
+    return true
+  }
+
+  if (/^criterion\s+[a-z0-9_-]{8,}$/i.test(trimmed)) {
+    return true
+  }
+
+  return /^[a-z0-9_-]+(?::[a-z0-9_-]+){2,}$/i.test(trimmed) && !/\s/.test(trimmed)
+}
+
+const describeOutboxItem = (item: {
   method: string
   endpoint: string
   summary: string | null
+  entityKey?: string | null
   payload: unknown
 }) => {
-  if (typeof item.summary === 'string' && item.summary.trim()) {
-    return item.summary
-  }
-
   const route = matchOfflineWriteOwnership(item.method, item.endpoint)
   const payload = (item.payload || {}) as Record<string, unknown>
+  const entityKey = typeof item.entityKey === 'string' ? item.entityKey.trim() : ''
+  const sourceLabel = typeof item.summary === 'string' ? item.summary.trim() : ''
+  const preferredTitle = sourceLabel && !isMachineGeneratedLabel(sourceLabel) ? sourceLabel : null
+  const hasScoreValue = Object.prototype.hasOwnProperty.call(payload, 'score')
+  const hasCommentValue = Object.prototype.hasOwnProperty.call(payload, 'comments')
+  const commentsOnly = hasCommentValue && !hasScoreValue
+
+  if (route?.id === 'commentary-category-update' || item.endpoint.startsWith('/commentary/category/')) {
+    return {
+      title: preferredTitle || 'Category commentary',
+      detail: 'category commentary',
+    }
+  }
+
+  if (
+    route?.id === 'commentary-update' ||
+    route?.id === 'commentary-score-create' ||
+    route?.id === 'commentary-create' ||
+    commentsOnly ||
+    sourceLabel.startsWith('comment-update:') ||
+    entityKey.startsWith('comment:')
+  ) {
+    return {
+      title: preferredTitle || 'Commentary update',
+      detail: 'commentary update',
+    }
+  }
+
+  if (
+    sourceLabel.startsWith('category-comment-update:') ||
+    entityKey.startsWith('category-comment:')
+  ) {
+    return {
+      title: preferredTitle || 'Category commentary',
+      detail: 'category commentary',
+    }
+  }
 
   switch (route?.id) {
     case 'scoring-submit':
-      return 'Queued score submission'
+      return {
+        title: preferredTitle || 'Score submission',
+        detail: 'score entry',
+      }
     case 'scoring-update':
-      return 'Queued score update'
-    case 'commentary-category-update':
-      return 'Queued category commentary'
-    case 'commentary-update':
-    case 'commentary-score-create':
-    case 'commentary-create':
-      return 'Queued commentary update'
+      return {
+        title: preferredTitle || (commentsOnly ? 'Commentary update' : 'Score update'),
+        detail: commentsOnly ? 'commentary update' : 'score entry',
+      }
     case 'deductions-create':
-      return 'Queued deduction request'
+      return {
+        title: preferredTitle || 'Deduction request',
+        detail: 'deduction request',
+      }
     default:
       break
   }
 
-  if (typeof payload.criteriaId === 'string' && payload.criteriaId) {
-    return item.method === 'PUT' ? 'Queued score update' : 'Queued score submission'
+  if (entityKey.startsWith('deduction:')) {
+    return {
+      title: preferredTitle || 'Deduction request',
+      detail: 'deduction request',
+    }
   }
 
-  return 'Queued offline write'
+  if (entityKey.startsWith('score:') || typeof payload.criteriaId === 'string' || hasScoreValue) {
+    return {
+      title: preferredTitle || (item.method === 'PUT' ? 'Score update' : 'Score submission'),
+      detail: 'score entry',
+    }
+  }
+
+  return {
+    title: preferredTitle || 'Offline submission',
+    detail: 'saved work item',
+  }
+}
+
+const formatOutboxTitle = (item: {
+  method: string
+  endpoint: string
+  summary: string | null
+  entityKey?: string | null
+  payload: unknown
+}) => {
+  return describeOutboxItem(item).title
 }
 
 const formatOutboxStatus = (status: string) => {
@@ -131,11 +216,10 @@ const formatOutboxDetail = (item: {
   conflictMessage?: string | null
   endpoint: string
   summary: string | null
+  entityKey?: string | null
   method: string
   payload: unknown
 }) => {
-  const route = matchOfflineWriteOwnership(item.method, item.endpoint)
-  const payload = (item.payload || {}) as Record<string, unknown>
   const parts = [formatOutboxStatus(item.status)]
 
   if (item.conflictMessage) {
@@ -145,29 +229,22 @@ const formatOutboxDetail = (item: {
   }
 
   if (parts.length === 1) {
-    switch (route?.id) {
-      case 'scoring-submit':
-      case 'scoring-update':
-        parts.push('score entry')
-        break
-      case 'commentary-category-update':
-        parts.push('category commentary')
-        break
-      case 'commentary-update':
-      case 'commentary-score-create':
-      case 'commentary-create':
-        parts.push('commentary update')
-        break
-      case 'deductions-create':
-        parts.push('deduction request')
-        break
-      default:
-        parts.push('saved work item')
-        break
-    }
+    parts.push(describeOutboxItem(item).detail)
   }
 
   return parts.join(' • ')
+}
+
+const formatDraftStatus = (status: string) => {
+  if (status === 'locked_pending_sync') {
+    return 'Pending sync'
+  }
+
+  if (status === 'draft') {
+    return 'Saved locally'
+  }
+
+  return status.replace(/_/g, ' ')
 }
 
 const statusTone = (variant: 'default' | 'warning' | 'danger' | 'success') => {
@@ -494,7 +571,7 @@ const OfflineOutboxStatus: React.FC = () => {
                           </div>
                         )}
                         <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {draft.scopeKey} • {draft.status.replace(/_/g, ' ')}
+                          {formatDraftStatus(draft.status)}
                         </div>
                       </div>
                       {(draft.workflowType === 'scoring-workspace' ||
