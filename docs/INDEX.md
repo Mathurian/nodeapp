@@ -65,6 +65,7 @@ Event Manager is a comprehensive, enterprise-grade contest management system des
 ## Scope Notes
 
 - The in-app Help UI publishes the curated root guides defined by the application help access policy.
+- Public `/help` access is limited to end-user guidance such as getting started, feature overviews, and troubleshooting. Technical reference and security/developer guides require an authorized admin account.
 - `docs/operations/`, `docs/testing/`, `docs/adr/`, and `docs/operations/internal/` remain in-repo operational/reference material and are not part of the public Help UI surface unless explicitly promoted.
 - `docs/outdated/` remains in-repo for historical reference only.
 - For current test operations, use the guides in `docs/testing/`.

@@ -125,7 +125,7 @@ Capabilities:
 - View event schedule
 - Access emcee scripts
 - View contestant bios for announcements
-- View real-time results
+- View only published winners/progress views intended for announcement
 - Manage script templates
 - Print announcements
 
@@ -138,7 +138,7 @@ Capabilities:
 - View results (when released)
 - Update bio information
 - Upload profile picture
-- View scores (when released)
+- View score detail only when the event visibility policy exposes it
 
 ## Event Management
 
@@ -384,7 +384,7 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 - Review all entered scores
 - Verify accuracy
 - Add final comments
-- Sign/certify scores
+- Sign/certify the currently selected contestant from within scoring
 
 **Per-Contestant Certification**:
 - Certify each contestant individually
@@ -485,6 +485,11 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 - Event-level rankings
 - Filtered views
 - Print-friendly formats
+
+**Visibility Notes**:
+- Judge and contestant access to `/results` is conditional and can be blocked entirely when no accessible published scope exists.
+- Contestant result visibility depends on event/contest release settings plus contestant visibility controls.
+- Emcee result access is limited to published presentation views rather than unrestricted detailed results.
 
 ## Reporting & Analytics
 

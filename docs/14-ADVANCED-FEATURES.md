@@ -56,12 +56,13 @@ Implemented with tenant-scoped management and audit logs.
 Implemented and integrated with scoring flow.
 
 ### UI Routes
-- `/certifications`
+- `/certifications` (shared certification workspace for admin/organizer/board/tally/auditor roles)
 - `/score-governance`
 - `/deductions`
+- `/scoring` (judge-stage certification/sign-off happens here)
 
 ### Highlights
-- Multi-stage certification pipeline (Judge -> Tally -> Auditor -> Board/Organizer).
+- Multi-stage certification pipeline (Judge in scoring -> Tally -> Auditor -> Board/Organizer).
 - Request-based un-certification and score throw-out workflows.
 - Governance approvals required; no immediate destructive action.
 - Deductions support category and general contexts.
@@ -262,4 +263,3 @@ This file intentionally avoids plan-tier matrices and aspirational claims. For a
 - `docs/testing/Acceptance-Test-Guide.md`
 - `docs/04-API-REFERENCE.md`
 - `docs/13-ADMIN-GUIDE.md`
-

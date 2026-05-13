@@ -44,6 +44,7 @@ Welcome to the complete documentation for Event Manager Contest System!
 ## Documentation Scope
 
 - The in-app Help UI publishes the curated root guides defined by the application help access policy.
+- Public `/help` access is limited to end-user guidance such as getting started, feature overviews, and troubleshooting. Technical reference and security/developer guides require an authorized admin account.
 - `docs/operations/`, `docs/testing/`, `docs/adr/`, and `docs/operations/internal/` remain operator/developer reference material and are not published in the in-app Help UI unless explicitly promoted.
 - Archived material is retained in `docs/outdated/` and is not published in the in-app Help UI.
 - If code and docs diverge, treat code as source of truth and update docs in the same change set.
@@ -212,7 +213,7 @@ This documentation is generated from the actual codebase and should be updated w
 
 - **Documentation Version**: rolling
 - **Application Version**: see `package.json`
-- **Last Updated**: February 17, 2026
+- **Last Updated**: May 13, 2026
 
 ---
 

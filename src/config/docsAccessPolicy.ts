@@ -66,6 +66,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     10,
     'System Architecture',
     'Overview of the application architecture',
+    ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '02-GETTING-STARTED.md',
@@ -87,6 +88,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     10,
     'API Reference',
     'Complete API documentation',
+    ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '05-DATABASE.md',
@@ -94,6 +96,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     20,
     'Database Schema',
     'Database structure and relationships',
+    ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '06-FRONTEND.md',
@@ -101,6 +104,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     30,
     'Frontend Guide',
     'Frontend architecture and development',
+    ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '07-SECURITY.md',
@@ -108,6 +112,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     10,
     'Security Guide',
     'Security features and best practices',
+    ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '08-DEPLOYMENT.md',

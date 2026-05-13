@@ -180,14 +180,14 @@ const HelpPage: React.FC = () => {
       .trim()
   }
 
-  // Load app name from settings
+  // Load public branding for tenant-aware help surfaces
   useEffect(() => {
     const loadAppName = async () => {
       try {
-        const response = await settingsAPI.getThemeSettings()
+        const response = await settingsAPI.getPublicSettings(tenantSlug || undefined)
         const data = response.data?.data || response.data
-        if (data && (data.app_name || data.appName)) {
-          setAppName(data.app_name || data.appName)
+        if (data && data.appName) {
+          setAppName(data.appName)
         }
       } catch (err) {
         console.error('Failed to load app name:', err)
@@ -195,7 +195,7 @@ const HelpPage: React.FC = () => {
       }
     }
     loadAppName()
-  }, [])
+  }, [tenantSlug])
 
   useEffect(() => {
     let cancelled = false

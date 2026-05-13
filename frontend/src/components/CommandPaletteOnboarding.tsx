@@ -143,17 +143,17 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     summary: 'You score assigned contestants and certify completion for your scoring stage.',
     primaryFeatures: [
       { name: 'Scoring', description: 'Enter and update scores for assigned categories.' },
-      { name: 'Certifications', description: 'Submit certification at the correct stage.' },
+      { name: 'Scoring Sign-Off', description: 'Certify the currently selected contestant from within scoring when your entries are complete.' },
       { name: 'Governance', description: 'Request uncertify/remediation when needed.' },
     ],
     workflow: [
       'Select assigned contest and category before entering scores.',
-      'Complete score entry and verify values prior to certification.',
+      'Complete score entry and verify values before signing the selected contestant in scoring.',
       'Use uncertify/governance only when correction is required.',
     ],
     roleTips: [
       'Validate contestant/context selection to avoid cross-assignment confusion.',
-      'Review certification status after each submission.',
+      'Certification for judges happens in the scoring workflow, not in the shared certifications workspace.',
     ],
   },
   TALLY_MASTER: {
@@ -178,9 +178,9 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     roleLabel: 'Auditor',
     summary: 'You validate score integrity and certify audit-stage completion.',
     primaryFeatures: [
-      { name: 'Auditor Dashboard', description: 'Access pending audits and verification tools.' },
-      { name: 'Score Verification', description: 'Review calculations and integrity checks.' },
-      { name: 'Final Certification', description: 'Complete audit-stage certifications.' },
+      { name: 'Pending Audits', description: 'Review categories awaiting auditor action.' },
+      { name: 'Certifications', description: 'Inspect certification state and complete audit-stage review.' },
+      { name: 'Final Certification', description: 'Complete final auditor sign-off when a category is ready.' },
       { name: 'Audit Log', description: 'Track prior audit actions and outcomes.' },
     ],
     workflow: [
@@ -215,12 +215,12 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     roleLabel: 'Contestant',
     summary: 'You can view allowed result information and manage your profile details.',
     primaryFeatures: [
-      { name: 'Results', description: 'View results based on event visibility policy.' },
+      { name: 'Results', description: 'View only the result scopes released by the event visibility policy.' },
       { name: 'Profile', description: 'Review and manage your own user details.' },
       { name: 'Notifications', description: 'Track announcements relevant to your tenant/event.' },
     ],
     workflow: [
-      'Check results visibility for available event/contest views.',
+      'Check whether your event currently exposes event, contest, or category results.',
       'Review profile information and contact details.',
       'Monitor notifications for event updates.',
     ],
