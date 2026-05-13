@@ -5,6 +5,18 @@ import { useAuth } from '../contexts/AuthContext'
 import useAuthPermissions from '../hooks/useAuthPermissions'
 import { scoringAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
+import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from '../services/idempotency'
+import { executeWithRetry } from '../services/retryExecutor'
+import { classifyNetworkError } from '../services/networkErrorClassifier'
+import { enqueueMutation } from '../services/offlineMutationQueue'
+import {
+  deleteOfflineWorkflowDraft,
+  createOfflineDraftId,
+  getOfflineWorkflowDraft,
+  saveOfflineWorkflowDraft,
+} from '../services/offlineWorkflowStore'
+import { matchOfflineWriteOwnership } from '../config/offlineWriteOwnership.manifest'
+import { recordOfflineSyncTelemetryEvent } from '../services/offlineSyncTelemetry'
 import { getOptimisticRowClass } from '../components/ui'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
@@ -83,6 +95,63 @@ interface ContestOption {
   eventId?: string
 }
 
+interface DeductionsRequestDraft {
+  selectedEventId: string
+  selectedEventName?: string | null
+  selectedRequestContestId: string
+  selectedRequestContestName?: string | null
+  selectedRequestCategoryId: string
+  selectedRequestCategoryName?: string | null
+  selectedContestantId: string
+  selectedContestantName?: string | null
+  selectedContestantNumber?: number | null
+  requestAmount: string
+  requestReason: string
+  requestScope: 'CATEGORY' | 'GENERAL'
+  updatedAt: string
+}
+
+const deductionsDraftPayloadSignature = (
+  draft: Partial<DeductionsRequestDraft> | null | undefined,
+): string | null => {
+  if (!draft) {
+    return null
+  }
+
+  return JSON.stringify({
+    selectedEventId: draft.selectedEventId || '',
+    selectedEventName: draft.selectedEventName || '',
+    selectedRequestContestId: draft.selectedRequestContestId || '',
+    selectedRequestContestName: draft.selectedRequestContestName || '',
+    selectedRequestCategoryId: draft.selectedRequestCategoryId || '',
+    selectedRequestCategoryName: draft.selectedRequestCategoryName || '',
+    selectedContestantId: draft.selectedContestantId || '',
+    selectedContestantName: draft.selectedContestantName || '',
+    selectedContestantNumber: draft.selectedContestantNumber ?? null,
+    requestAmount: draft.requestAmount || '',
+    requestReason: draft.requestReason || '',
+    requestScope: draft.requestScope || 'CATEGORY',
+  })
+}
+
+type DeductionRequestReliabilityResult = {
+  queued: boolean
+}
+
+type DeductionRequestPayload = {
+  categoryId?: string
+  contestId?: string
+  contestantId: string
+  amount: number
+  reason: string
+  scope?: 'GENERAL' | 'CATEGORY'
+}
+
+const DEDUCTIONS_DRAFT_WORKFLOW = 'deductions-request'
+const DEDUCTIONS_DRAFT_SCOPE = 'active-request'
+const OFFLINE_MUTATION_QUEUE_ENABLED =
+  import.meta.env.VITE_OFFLINE_MUTATION_QUEUE_ENABLED !== 'false'
+
 const DeductionsPage: React.FC = () => {
   const { user } = useAuth()
   const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
@@ -100,7 +169,49 @@ const DeductionsPage: React.FC = () => {
   const [requestAmount, setRequestAmount] = useState('')
   const [requestReason, setRequestReason] = useState('')
   const [requestScope, setRequestScope] = useState<'CATEGORY' | 'GENERAL'>('CATEGORY')
+  const [restoredDraft, setRestoredDraft] = useState<DeductionsRequestDraft | null>(null)
+  const [draftLoaded, setDraftLoaded] = useState(false)
   const deductionsQueryKey = ['deductions', selectedEventId, selectedFilterContestId, selectedFilterCategoryId]
+  const offlineOwner = useMemo(
+    () => ({
+      ownerUserId: user?.id || null,
+      ownerTenantId: user?.tenantId || user?.tenant?.id || null,
+    }),
+    [user?.id, user?.tenantId, user?.tenant?.id],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadDraft = async () => {
+      if (!offlineOwner.ownerUserId) {
+        if (!cancelled) {
+          setRestoredDraft(null)
+          setDraftLoaded(true)
+        }
+        return
+      }
+
+      const draft = await getOfflineWorkflowDraft(
+        DEDUCTIONS_DRAFT_WORKFLOW,
+        DEDUCTIONS_DRAFT_SCOPE,
+        offlineOwner,
+      )
+
+      if (cancelled) return
+
+      const payload = draft?.data as DeductionsRequestDraft | undefined
+      setRestoredDraft(payload || null)
+      setDraftLoaded(true)
+    }
+
+    setDraftLoaded(false)
+    void loadDraft()
+
+    return () => {
+      cancelled = true
+    }
+  }, [offlineOwner])
 
   // Fetch deductions using react-query
   const { data: deductions = [], isLoading, error } = useQuery<Deduction[]>(
@@ -245,6 +356,29 @@ const DeductionsPage: React.FC = () => {
   }, [availableEvents, selectedEventId])
 
   useEffect(() => {
+    if (!draftLoaded || selectedEventId || !restoredDraft?.selectedEventId) {
+      return
+    }
+
+    if (availableEvents.some((event) => event.id === restoredDraft.selectedEventId)) {
+      setSelectedEventId(restoredDraft.selectedEventId)
+    }
+  }, [availableEvents, draftLoaded, restoredDraft?.selectedEventId, selectedEventId])
+
+  useEffect(() => {
+    if (!draftLoaded || !restoredDraft) {
+      return
+    }
+
+    setRequestScope(restoredDraft.requestScope || 'CATEGORY')
+    setSelectedRequestContestId(restoredDraft.selectedRequestContestId || '')
+    setSelectedRequestCategoryId(restoredDraft.selectedRequestCategoryId || '')
+    setSelectedContestantId(restoredDraft.selectedContestantId || '')
+    setRequestAmount(restoredDraft.requestAmount || '')
+    setRequestReason(restoredDraft.requestReason || '')
+  }, [draftLoaded, restoredDraft])
+
+  useEffect(() => {
     if (
       selectedRequestCategoryId &&
       !requestCategoryOptions.some((category) => category.id === selectedRequestCategoryId)
@@ -290,11 +424,160 @@ const DeductionsPage: React.FC = () => {
     }
   }, [availableContestants, selectedContestantId])
 
+  useEffect(() => {
+    if (!draftLoaded || !offlineOwner.ownerUserId) return
+
+    const hasMeaningfulDraftState = Boolean(
+      selectedEventId ||
+        selectedRequestContestId ||
+        selectedRequestCategoryId ||
+        selectedContestantId ||
+        requestAmount ||
+        requestReason.trim(),
+    )
+
+    const persistDraft = async () => {
+      if (!hasMeaningfulDraftState) {
+        await deleteOfflineWorkflowDraft(
+          createOfflineDraftId(DEDUCTIONS_DRAFT_WORKFLOW, DEDUCTIONS_DRAFT_SCOPE),
+        )
+        setRestoredDraft(null)
+        return
+      }
+
+      const nextDraft: DeductionsRequestDraft = {
+        selectedEventId,
+        selectedEventName: availableEvents.find((event) => event.id === selectedEventId)?.name || null,
+        selectedRequestContestId,
+        selectedRequestContestName: contestOptions.find((contest) => contest.id === selectedRequestContestId)?.name || null,
+        selectedRequestCategoryId,
+        selectedRequestCategoryName: selectedCategory?.name || null,
+        selectedContestantId,
+        selectedContestantName: availableContestants.find((contestant) => contestant.id === selectedContestantId)?.name || null,
+        selectedContestantNumber:
+          availableContestants.find((contestant) => contestant.id === selectedContestantId)?.contestantNumber ?? null,
+        requestAmount,
+        requestReason,
+        requestScope,
+        updatedAt: new Date().toISOString(),
+      }
+
+      if (deductionsDraftPayloadSignature(restoredDraft) === deductionsDraftPayloadSignature(nextDraft)) {
+        return
+      }
+
+      await saveOfflineWorkflowDraft({
+        workflowType: DEDUCTIONS_DRAFT_WORKFLOW,
+        scopeKey: DEDUCTIONS_DRAFT_SCOPE,
+        ownerUserId: offlineOwner.ownerUserId,
+        ownerTenantId: offlineOwner.ownerTenantId,
+        data: nextDraft,
+      })
+      setRestoredDraft(nextDraft)
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void persistDraft()
+    }, 150)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    draftLoaded,
+    offlineOwner.ownerTenantId,
+    offlineOwner.ownerUserId,
+    availableContestants,
+    availableEvents,
+    contestOptions,
+    requestAmount,
+    requestReason,
+    requestScope,
+    selectedCategory?.name,
+    selectedContestantId,
+    selectedEventId,
+    selectedRequestCategoryId,
+    selectedRequestContestId,
+  ])
+
+  const clearRequestDraftState = async () => {
+    const nextDraft: DeductionsRequestDraft = {
+      selectedEventId,
+      selectedEventName: availableEvents.find((event) => event.id === selectedEventId)?.name || null,
+      selectedRequestContestId: '',
+      selectedRequestContestName: null,
+      selectedRequestCategoryId: '',
+      selectedRequestCategoryName: null,
+      selectedContestantId: '',
+      selectedContestantName: null,
+      selectedContestantNumber: null,
+      requestAmount: '',
+      requestReason: '',
+      requestScope,
+      updatedAt: new Date().toISOString(),
+    }
+
+    if (!offlineOwner.ownerUserId) {
+      setRestoredDraft(nextDraft)
+      return
+    }
+
+    await saveOfflineWorkflowDraft({
+      workflowType: DEDUCTIONS_DRAFT_WORKFLOW,
+      scopeKey: DEDUCTIONS_DRAFT_SCOPE,
+      ownerUserId: offlineOwner.ownerUserId,
+      ownerTenantId: offlineOwner.ownerTenantId,
+      data: nextDraft,
+    })
+    setRestoredDraft(nextDraft)
+  }
+
   const createRequestMutation = useOptimisticMutation<
-    unknown,
-    { categoryId?: string; contestId?: string; contestantId: string; amount: number; reason: string; scope?: 'GENERAL' | 'CATEGORY' }
+    DeductionRequestReliabilityResult,
+    DeductionRequestPayload
   >({
-    mutationFn: async (data) => scoringAPI.requestDeduction(data),
+    mutationFn: async (data) => {
+      const endpoint = '/scoring/deductions'
+      const method = 'POST'
+      const idempotencyKey = createMutationIdempotencyKey(
+        `deduction-request:${data.contestId}:${data.contestantId}:${data.categoryId || 'general'}`,
+      )
+      const headers = { [IDEMPOTENCY_HEADER]: idempotencyKey }
+
+      try {
+        await executeWithRetry(async () => {
+          await scoringAPI.requestDeduction(data, { headers })
+        })
+        return { queued: false }
+      } catch (error) {
+        const classification = classifyNetworkError(error)
+        const ownership = matchOfflineWriteOwnership(method, endpoint)
+        if (
+          classification.retryable &&
+          ownership?.queueOwner === 'app' &&
+          OFFLINE_MUTATION_QUEUE_ENABLED
+        ) {
+          const queueId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+          await enqueueMutation({
+            id: queueId,
+            endpoint,
+            method,
+            payload: data,
+            headers,
+            idempotencyKey,
+            entityKey: `deduction:${data.contestId}:${data.contestantId}:${data.categoryId || 'general'}`,
+            ownerUserId: user?.id || null,
+            ownerTenantId: user?.tenantId || user?.tenant?.id || null,
+            summary: `Deduction request for contestant ${data.contestantId}`,
+          })
+          void recordOfflineSyncTelemetryEvent(method, endpoint, 'enqueued', 'app', classification)
+          return { queued: true }
+        }
+
+        throw error
+      }
+    },
     queryKey: deductionsQueryKey,
     updateFn: (oldData, vars) => {
       const deds = oldData as Deduction[] | undefined
@@ -331,13 +614,18 @@ const DeductionsPage: React.FC = () => {
         ...deds,
       ]
     },
-    onSuccess: () => {
-      toast.success('Deduction request submitted')
+    onSuccess: (result) => {
       setSelectedRequestCategoryId('')
       setSelectedRequestContestId('')
       setSelectedContestantId('')
       setRequestAmount('')
       setRequestReason('')
+      void clearRequestDraftState()
+      toast.success(
+        result.queued
+          ? 'Deduction request saved offline. It will sync automatically.'
+          : 'Deduction request submitted',
+      )
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || 'Failed to submit deduction request')

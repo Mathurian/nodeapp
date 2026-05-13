@@ -517,7 +517,7 @@ export class ScoringService extends BaseService {
     categoryId: string,
     certifiedBy: string,
     tenantId: string,
-    options?: { userRole?: string; judgeId?: string | null }
+    options?: { userRole?: string; judgeId?: string | null; contestantId?: string | null }
   ): Promise<CertifyScoresResult> {
     try {
       const where: Prisma.ScoreWhereInput = {
@@ -529,6 +529,9 @@ export class ScoringService extends BaseService {
       const userRole = String(options?.userRole || '').toUpperCase();
       if (userRole === 'JUDGE' && options?.judgeId) {
         where.judgeId = options.judgeId;
+      }
+      if (options?.contestantId) {
+        where.contestantId = options.contestantId;
       }
 
       const result = await this.prisma.score.updateMany({
@@ -545,12 +548,13 @@ export class ScoringService extends BaseService {
 
       this.logInfo('Scores certified for category', {
         categoryId,
+        contestantId: options?.contestantId || null,
         certifiedCount: result.count,
         certifiedBy
       });
 
       // P2-3: Invalidate score caches for the category
-      await this.invalidateScoreCaches(categoryId);
+      await this.invalidateScoreCaches(categoryId, options?.judgeId || undefined, options?.contestantId || undefined);
 
       return { certified: result.count > 0, certifiedCount: result.count };
     } catch (error) {

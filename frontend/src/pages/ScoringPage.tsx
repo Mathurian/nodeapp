@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { commentaryAPI, scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
 import { useMobileWorkflowNavigation, useOptimisticMutation } from '../hooks'
@@ -11,6 +11,12 @@ import { executeWithRetry } from '../services/retryExecutor'
 import { classifyNetworkError } from '../services/networkErrorClassifier'
 import { enqueueMutation } from '../services/offlineMutationQueue'
 import { startOfflineSyncOrchestrator } from '../services/offlineSyncOrchestrator'
+import {
+  createOfflineDraftId,
+  deleteOfflineWorkflowDraft,
+  getOfflineWorkflowDraft,
+  saveOfflineWorkflowDraft,
+} from '../services/offlineWorkflowStore'
 import { matchOfflineWriteOwnership } from '../config/offlineWriteOwnership.manifest'
 import { recordOfflineSyncTelemetryEvent } from '../services/offlineSyncTelemetry'
 import { appendDocxPreviewQuery, inferFileNameFromPath, isDocxFile, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
@@ -96,6 +102,10 @@ interface ScoreFormData {
 
 type ScoreWriteReliabilityOutcome = 'persisted' | 'queued'
 type CategoryCommentPersistOutcome = ScoreWriteReliabilityOutcome | 'unchanged'
+type ReliabilityOptions = {
+  notifyOnQueued?: boolean
+  summary?: string | null
+}
 
 interface ScoreAttachment {
   id: string
@@ -138,7 +148,83 @@ interface ContestantPrivateProfile {
   privateDocuments: ContestantPrivateDocument[]
 }
 
-const OFFLINE_MUTATION_QUEUE_ENABLED = import.meta.env.VITE_OFFLINE_MUTATION_QUEUE_ENABLED === 'true'
+interface ScoringWorkspaceDraft {
+  selectedContestId: string
+  selectedContestName?: string | null
+  selectedCategoryId: string | null
+  selectedCategoryName?: string | null
+  selectedContestantId: string | null
+  selectedContestantName?: string | null
+  selectedContestantNumber?: number | null
+  scoreFormData: Record<string, ScoreFormData>
+  categoryComment: string
+  isSignOffChecked: boolean
+  hasPendingLocalChanges: boolean
+  updatedAt: string
+}
+
+const normalizeScoreDraftFormData = (scoreFormData: Record<string, ScoreFormData>) => (
+  Object.keys(scoreFormData)
+    .sort()
+    .reduce<Record<string, ScoreFormData>>((acc, criterionId) => {
+      const entry = scoreFormData[criterionId]
+      acc[criterionId] = {
+        criterionId: entry.criterionId,
+        score: entry.score,
+        comment: entry.comment,
+      }
+      return acc
+    }, {})
+)
+
+const buildScoreFormDataFromExistingScores = (
+  criteria: Criterion[],
+  scores: Score[],
+): Record<string, ScoreFormData> => {
+  const initialFormData: Record<string, ScoreFormData> = {}
+
+  criteria.forEach((criterion) => {
+    const existingScore = criterion.id === '__category_total__'
+      ? scores.find((score) => !score.criterionId)
+      : scores.find((score) => score.criterionId === criterion.id)
+
+    initialFormData[criterion.id] = {
+      criterionId: criterion.id,
+      score: existingScore?.score ?? '',
+      comment: existingScore?.comment || '',
+    }
+  })
+
+  return initialFormData
+}
+
+const scoringDraftPayloadSignature = (draft: Partial<ScoringWorkspaceDraft> | null | undefined): string | null => {
+  if (!draft) {
+    return null
+  }
+
+  return JSON.stringify({
+    selectedContestId: draft.selectedContestId || '',
+    selectedContestName: draft.selectedContestName || '',
+    selectedCategoryId: draft.selectedCategoryId || '',
+    selectedCategoryName: draft.selectedCategoryName || '',
+    selectedContestantId: draft.selectedContestantId || '',
+    selectedContestantName: draft.selectedContestantName || '',
+    selectedContestantNumber: draft.selectedContestantNumber ?? null,
+    scoreFormData: normalizeScoreDraftFormData(draft.scoreFormData || {}),
+    categoryComment: draft.categoryComment || '',
+    isSignOffChecked: Boolean(draft.isSignOffChecked),
+    hasPendingLocalChanges: draft.hasPendingLocalChanges !== false,
+  })
+}
+
+const isOptimisticScoreRecord = (score: Pick<Score, 'id' | '_optimistic'>): boolean => (
+  Boolean(score._optimistic) || String(score.id || '').startsWith('optimistic-')
+)
+
+const OFFLINE_MUTATION_QUEUE_ENABLED = import.meta.env.VITE_OFFLINE_MUTATION_QUEUE_ENABLED !== 'false'
+const SCORING_DRAFT_WORKFLOW = 'scoring-workspace'
+const SCORING_DRAFT_SCOPE = 'active'
 
 const getImageUrl = (path?: string | null): string | null => {
   if (!path) return null
@@ -243,6 +329,8 @@ const openBioFile = async (path?: string | null) => {
 
 const ScoringPage: React.FC = () => {
   const { user } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const canViewPrivateContestantProfile = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'].includes(user?.role || '')
 
@@ -262,6 +350,9 @@ const ScoringPage: React.FC = () => {
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
   const [isDrawingSignature, setIsDrawingSignature] = useState(false)
   const [queueMetrics, setQueueMetrics] = useState({ queuedCount: 0, failedCount: 0, syncingCount: 0 })
+  const [restoredDraft, setRestoredDraft] = useState<ScoringWorkspaceDraft | null>(null)
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  const [draftRestoreResolved, setDraftRestoreResolved] = useState(false)
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/scoring'
   const basePath = currentPath.replace(/\/scoring\/?$/, '')
@@ -271,6 +362,12 @@ const ScoringPage: React.FC = () => {
   const scoreSheetSectionRef = React.useRef<HTMLDivElement | null>(null)
   const criteriaSectionRef = React.useRef<HTMLDivElement | null>(null)
   const scoringActionsRef = React.useRef<HTMLDivElement | null>(null)
+  const initializedSelectionRef = React.useRef<string | null>(null)
+  const restoredSelectionDraftKeyRef = React.useRef<string | null>(null)
+  const announcedRestoredDraftKeyRef = React.useRef<string | null>(null)
+  const handledResumeRequestRef = React.useRef<number | null>(null)
+  const pendingSyncDrainRef = React.useRef(false)
+  const localEditSelectionKeyRef = React.useRef<string | null>(null)
   const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
   const requiresSignOff = user?.role === 'JUDGE'
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
@@ -299,6 +396,14 @@ const ScoringPage: React.FC = () => {
     value !== '' && Number.isFinite(Number(value))
   )
 
+  const offlineOwner = useMemo(
+    () => ({
+      ownerUserId: user?.id || null,
+      ownerTenantId: user?.tenantId || user?.tenant?.id || null,
+    }),
+    [user?.id, user?.tenantId, user?.tenant?.id],
+  )
+
   useEffect(() => {
     if (!OFFLINE_MUTATION_QUEUE_ENABLED) return
     return startOfflineSyncOrchestrator((metrics) => {
@@ -311,6 +416,64 @@ const ScoringPage: React.FC = () => {
     })
   }, [saveStatus])
 
+  useEffect(() => {
+    if (!OFFLINE_MUTATION_QUEUE_ENABLED) {
+      pendingSyncDrainRef.current = false
+      return
+    }
+
+    const hasPendingOfflineWrites =
+      queueMetrics.queuedCount > 0 || queueMetrics.failedCount > 0 || queueMetrics.syncingCount > 0
+
+    if (pendingSyncDrainRef.current && !hasPendingOfflineWrites) {
+      void queryClient.invalidateQueries(['contestant-scores'])
+      void queryClient.invalidateQueries(['category-comment'])
+      void queryClient.invalidateQueries(['score-attachments'])
+      void queryClient.invalidateQueries(['scoring-categories'])
+    }
+
+    pendingSyncDrainRef.current = hasPendingOfflineWrites
+  }, [
+    queryClient,
+    queueMetrics.failedCount,
+    queueMetrics.queuedCount,
+    queueMetrics.syncingCount,
+  ])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadDraft = async () => {
+      if (!offlineOwner.ownerUserId) {
+        if (!cancelled) {
+          setRestoredDraft(null)
+          setDraftLoaded(true)
+        }
+        return
+      }
+
+      const draft = await getOfflineWorkflowDraft(
+        SCORING_DRAFT_WORKFLOW,
+        SCORING_DRAFT_SCOPE,
+        offlineOwner,
+      )
+
+      if (cancelled) return
+
+      const payload = draft?.data as ScoringWorkspaceDraft | undefined
+      setRestoredDraft(payload || null)
+      setDraftLoaded(true)
+    }
+
+    setDraftLoaded(false)
+    setDraftRestoreResolved(false)
+    void loadDraft()
+
+    return () => {
+      cancelled = true
+    }
+  }, [offlineOwner])
+
   const executeMutationWithReliability = async (
     actionLabel: string,
     endpoint: string,
@@ -318,9 +481,12 @@ const ScoringPage: React.FC = () => {
     payload: unknown,
     entityKey: string,
     runner: (headers: Record<string, string>) => Promise<void>,
+    options: ReliabilityOptions = {},
   ): Promise<ScoreWriteReliabilityOutcome> => {
     const idempotencyKey = createMutationIdempotencyKey(actionLabel)
     const headers = { [IDEMPOTENCY_HEADER]: idempotencyKey }
+    const notifyOnQueued = options.notifyOnQueued !== false
+    const summary = options.summary || actionLabel
 
     try {
       setSaveStatus('saving')
@@ -353,11 +519,13 @@ const ScoringPage: React.FC = () => {
           entityKey,
           ownerUserId: user?.id || null,
           ownerTenantId: user?.tenantId || user?.tenant?.id || null,
-          summary: actionLabel,
+          summary,
         })
         void recordOfflineSyncTelemetryEvent(method, endpoint, 'enqueued', 'app', classification)
         setSaveStatus('queued')
-        toast('Saved offline. Will sync automatically.')
+        if (notifyOnQueued) {
+          toast('Saved offline. Will sync automatically.')
+        }
         return 'queued'
       }
 
@@ -446,7 +614,7 @@ const ScoringPage: React.FC = () => {
   )
 
   // Fetch existing scores for selected contestant
-  const { data: existingScores, error: existingScoresError } = useQuery<Score[]>(
+  const { data: existingScores, error: existingScoresError, isLoading: existingScoresLoading } = useQuery<Score[]>(
     ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
     async () => {
       if (!selectedCategory || !selectedContestant) return []
@@ -548,49 +716,400 @@ const ScoringPage: React.FC = () => {
     () => normalizedExistingScores.some((score) => Boolean(score.isCertified || score.isLocked || score.certifiedAt)),
     [normalizedExistingScores]
   )
+  const authoritativeScoreFormData = useMemo(
+    () => buildScoreFormDataFromExistingScores(effectiveCriteria, normalizedExistingScores),
+    [effectiveCriteria, normalizedExistingScores],
+  )
 
-  // Initialize form data when contestant or scores change
+  const activeSelectionKey = selectedCategory?.id && selectedContestant?.id
+    ? `${selectedCategory.id}:${selectedContestant.id}`
+    : null
+  const hasLocalEditsForSelection = Boolean(
+    activeSelectionKey && localEditSelectionKeyRef.current === activeSelectionKey,
+  )
+  const restoredDraftMatchesSelection = Boolean(
+    activeSelectionKey &&
+      restoredDraft?.selectedCategoryId === selectedCategory?.id &&
+      restoredDraft?.selectedContestantId === selectedContestant?.id,
+  )
+  const draftInitializationKey = activeSelectionKey
+    ? `${activeSelectionKey}:${restoredDraftMatchesSelection ? restoredDraft?.updatedAt || 'no-draft' : 'no-draft'}`
+    : 'no-selection'
+  const restoredDraftKey = restoredDraft
+    ? [
+        restoredDraft.updatedAt,
+        restoredDraft.selectedContestId,
+        restoredDraft.selectedCategoryId || '',
+        restoredDraft.selectedContestantId || '',
+      ].join(':')
+    : null
+  const restoredDraftSelectionKey = restoredDraft
+    ? [
+        restoredDraft.selectedContestId || '',
+        restoredDraft.selectedCategoryId || '',
+        restoredDraft.selectedContestantId || '',
+      ].join(':')
+    : null
+  const resumeRequestedAt = (
+    location.state as { resumeDraft?: boolean; resumeRequestedAt?: number } | null
+  )?.resumeRequestedAt
+  const scoreDraftHasMeaningfulChanges = useMemo(() => {
+    if (!selectedContestant || effectiveCriteria.length === 0) {
+      return false
+    }
+
+    return effectiveCriteria.some((criterion) => {
+      const current = scoreFormData[criterion.id]
+      if (!current) {
+        return false
+      }
+
+      const existing = criterion.id === '__category_total__'
+        ? normalizedExistingScores.find((score) => !score.criterionId)
+        : normalizedExistingScores.find((score) => score.criterionId === criterion.id)
+
+      const currentScore = hasExplicitScoreValue(current.score) ? Number(current.score) : null
+      const existingScore = existing && Number.isFinite(Number(existing.score)) ? Number(existing.score) : null
+      const currentComment = (current.comment || '').trim()
+      const existingComment = (existing?.comment || '').trim()
+
+      return currentScore !== existingScore || currentComment !== existingComment
+    })
+  }, [effectiveCriteria, normalizedExistingScores, scoreFormData, selectedContestant])
+  const categoryCommentHasMeaningfulChanges = useMemo(() => {
+    if (!supportsCategoryCommentary) {
+      return false
+    }
+
+    return categoryComment.trim() !== existingCategoryComment.trim()
+  }, [categoryComment, existingCategoryComment, supportsCategoryCommentary])
+
   useEffect(() => {
-    if (selectedContestant && effectiveCriteria.length > 0) {
-      const initialFormData: Record<string, ScoreFormData> = {}
-      effectiveCriteria.forEach(criterion => {
-        const existingScore = criterion.id === '__category_total__'
-          ? normalizedExistingScores.find(s => !s.criterionId)
-          : normalizedExistingScores.find(s => s.criterionId === criterion.id)
-        initialFormData[criterion.id] = {
-          criterionId: criterion.id,
-          score: existingScore?.score ?? '',
-          comment: existingScore?.comment || '',
+    localEditSelectionKeyRef.current = null
+  }, [activeSelectionKey])
+
+  // Initialize form state only when the selected scoring scope changes or when a matching draft loads.
+  useEffect(() => {
+    if (!activeSelectionKey || !selectedContestant || effectiveCriteria.length === 0) {
+      initializedSelectionRef.current = null
+      setCategoryComment('')
+      setIsSignOffChecked(false)
+      return
+    }
+
+    if (!restoredDraftMatchesSelection && existingScoresLoading) {
+      return
+    }
+
+    if (initializedSelectionRef.current === draftInitializationKey) {
+      return
+    }
+
+    const initialFormData = buildScoreFormDataFromExistingScores(
+      effectiveCriteria,
+      normalizedExistingScores,
+    )
+
+    if (restoredDraftMatchesSelection && restoredDraft?.scoreFormData) {
+      Object.entries(restoredDraft.scoreFormData).forEach(([criterionId, draftValue]) => {
+        if (initialFormData[criterionId]) {
+          initialFormData[criterionId] = draftValue
         }
       })
-      setScoreFormData(initialFormData)
     }
-  }, [effectiveCriteria, selectedContestant, normalizedExistingScores])
+
+    setScoreFormData(initialFormData)
+    setCategoryComment(
+      !supportsCategoryCommentary
+        ? ''
+        : restoredDraftMatchesSelection
+          ? restoredDraft?.categoryComment || ''
+          : existingCategoryComment || '',
+    )
+    setIsSignOffChecked(restoredDraftMatchesSelection ? restoredDraft?.isSignOffChecked || false : false)
+    initializedSelectionRef.current = draftInitializationKey
+  }, [
+    activeSelectionKey,
+    draftInitializationKey,
+    effectiveCriteria,
+    existingScoresLoading,
+    existingCategoryComment,
+    normalizedExistingScores,
+    restoredDraft,
+    restoredDraftMatchesSelection,
+    selectedContestant,
+    supportsCategoryCommentary,
+  ])
 
   useEffect(() => {
-    if (!selectedCategory || !selectedContestant || !supportsCategoryCommentary) {
-      setCategoryComment('')
+    if (!activeSelectionKey || !selectedContestant || effectiveCriteria.length === 0) {
       return
     }
-    setCategoryComment(existingCategoryComment || '')
-  }, [existingCategoryComment, selectedCategory, selectedContestant, supportsCategoryCommentary])
+
+    if (restoredDraftMatchesSelection) {
+      return
+    }
+
+    if (existingScoresLoading || hasLocalEditsForSelection) {
+      return
+    }
+
+    const currentScoreSignature = JSON.stringify(normalizeScoreDraftFormData(scoreFormData))
+    const authoritativeScoreSignature = JSON.stringify(normalizeScoreDraftFormData(authoritativeScoreFormData))
+    const nextCategoryComment = supportsCategoryCommentary ? existingCategoryComment || '' : ''
+
+    if (
+      currentScoreSignature === authoritativeScoreSignature &&
+      categoryComment === nextCategoryComment
+    ) {
+      return
+    }
+
+    setScoreFormData(authoritativeScoreFormData)
+    if (categoryComment !== nextCategoryComment) {
+      setCategoryComment(nextCategoryComment)
+    }
+  }, [
+    activeSelectionKey,
+    authoritativeScoreFormData,
+    categoryComment,
+    existingScoresLoading,
+    effectiveCriteria.length,
+    existingCategoryComment,
+    hasLocalEditsForSelection,
+    isSignOffChecked,
+    restoredDraftMatchesSelection,
+    scoreFormData,
+    selectedContestant,
+    supportsCategoryCommentary,
+  ])
 
   useEffect(() => {
-    setIsSignOffChecked(false)
-  }, [selectedCategory?.id, selectedContestant?.id])
+    if (!selectedCategory || !selectedContestant) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      scrollToRef(criteriaSectionRef, { delayMs: 20, behavior: 'smooth' })
+    }, 80)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [scrollToRef, selectedCategory?.id, selectedContestant?.id])
 
   useEffect(() => {
+    if (!draftLoaded) {
+      return
+    }
+
     if (assignedContests.length === 0) {
       setSelectedContestId('')
+      setDraftRestoreResolved(true)
       return
     }
-    setSelectedContestId((current) => {
-      if (current && assignedContests.some((contest) => contest.id === current)) {
-        return current
+
+    if (!restoredDraft || !restoredDraftKey) {
+      restoredSelectionDraftKeyRef.current = null
+      setSelectedContestId((current) => {
+        if (current && assignedContests.some((contest) => contest.id === current)) {
+          return current
+        }
+        return assignedContests[0]?.id || ''
+      })
+      setDraftRestoreResolved(true)
+      return
+    }
+
+    if (restoredSelectionDraftKeyRef.current === restoredDraftKey) {
+      return
+    }
+
+    const desiredContestId =
+      restoredDraft.selectedContestId &&
+      assignedContests.some((contest) => contest.id === restoredDraft.selectedContestId)
+        ? restoredDraft.selectedContestId
+        : assignedContests[0]?.id || ''
+
+    if (selectedContestId !== desiredContestId) {
+      setSelectedContestId(desiredContestId)
+      return
+    }
+
+    const restoredCategory =
+      restoredDraft.selectedCategoryId
+        ? filteredCategories.find((category) => category.id === restoredDraft.selectedCategoryId) || null
+        : null
+    if (restoredCategory && selectedCategory?.id !== restoredCategory.id) {
+      setSelectedCategory(restoredCategory)
+      return
+    }
+
+    const restoredContestant =
+      restoredDraft.selectedContestantId
+        ? sortedContestants.find((contestant) => contestant.id === restoredDraft.selectedContestantId) || null
+        : null
+    if (restoredContestant && selectedContestant?.id !== restoredContestant.id) {
+      setSelectedContestant(restoredContestant)
+      return
+    }
+
+    restoredSelectionDraftKeyRef.current = restoredDraftKey
+    setDraftRestoreResolved(true)
+  }, [
+    assignedContests,
+    draftLoaded,
+    filteredCategories,
+    restoredDraft,
+    restoredDraftKey,
+    selectedCategory?.id,
+    selectedContestId,
+    selectedContestant?.id,
+    sortedContestants,
+  ])
+
+  useEffect(() => {
+    if (!draftLoaded) {
+      return
+    }
+
+    if (!restoredDraft) {
+      setDraftRestoreResolved(true)
+      return
+    }
+
+    if (
+      restoredSelectionDraftKeyRef.current === restoredDraftKey ||
+      restoredSelectionDraftKeyRef.current === null
+    ) {
+      setDraftRestoreResolved(true)
+    }
+  }, [
+    draftLoaded,
+    restoredDraft,
+    restoredDraftKey,
+    selectedCategory?.id,
+    selectedContestId,
+    selectedContestant?.id,
+  ])
+
+  useEffect(() => {
+    if (!draftRestoreResolved || !restoredDraft || !restoredDraftSelectionKey) {
+      return
+    }
+
+    const restoredSelectionMatches =
+      selectedContestId === restoredDraft.selectedContestId &&
+      selectedCategory?.id === restoredDraft.selectedCategoryId &&
+      selectedContestant?.id === restoredDraft.selectedContestantId
+
+    if (!restoredSelectionMatches || announcedRestoredDraftKeyRef.current === restoredDraftSelectionKey) {
+      return
+    }
+
+    announcedRestoredDraftKeyRef.current = restoredDraftSelectionKey
+    const contestantLabel =
+      restoredDraft.selectedContestantName ||
+      (restoredDraft.selectedContestantNumber
+        ? `Contestant #${restoredDraft.selectedContestantNumber}`
+        : 'saved contestant')
+    const categoryLabel = restoredDraft.selectedCategoryName || 'saved category'
+    toast(`Resumed offline draft for ${contestantLabel} in ${categoryLabel}.`)
+  }, [
+    draftRestoreResolved,
+    restoredDraft,
+    restoredDraftSelectionKey,
+    selectedCategory?.id,
+    selectedContestId,
+    selectedContestant?.id,
+  ])
+
+  useEffect(() => {
+    if (!resumeRequestedAt || handledResumeRequestRef.current === resumeRequestedAt) {
+      return
+    }
+
+    if (!draftRestoreResolved || !selectedCategory || !selectedContestant) {
+      return
+    }
+
+    const scrollSheetIntoView = () => {
+      scoreSheetSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    const scrollToResumeTarget = () => {
+      const firstScoreInput = scoreSheetSectionRef.current?.querySelector('input[type="number"]') as HTMLInputElement | null
+      if (firstScoreInput) {
+        scrollSheetIntoView()
+        firstScoreInput.focus({ preventScroll: true })
+        firstScoreInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return true
       }
-      return assignedContests[0]?.id || ''
-    })
-  }, [assignedContests])
+      return false
+    }
+
+    const clearResumeState = () => {
+      if (typeof window === 'undefined') {
+        return
+      }
+
+      const historyState = window.history.state
+      if (historyState && typeof historyState === 'object') {
+        window.history.replaceState(
+          {
+            ...historyState,
+            usr: null,
+          },
+          document.title,
+          `${location.pathname}${location.search}${location.hash}`,
+        )
+      }
+    }
+
+    let cancelled = false
+
+    const attemptResumeScroll = (attempt = 0) => {
+      if (cancelled) {
+        return
+      }
+
+      if (scrollToResumeTarget()) {
+        handledResumeRequestRef.current = resumeRequestedAt
+        return
+      }
+
+      if (attempt >= 15) {
+        const targetRef = scoreSheetSectionRef.current ? scoreSheetSectionRef : contestantSectionRef
+        targetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        scrollToRef(targetRef, { delayMs: 20, behavior: 'smooth' })
+        handledResumeRequestRef.current = resumeRequestedAt
+        return
+      }
+
+      scrollSheetIntoView()
+      window.setTimeout(() => {
+        attemptResumeScroll(attempt + 1)
+      }, 120)
+    }
+
+    const initialAttempt = window.setTimeout(() => {
+      attemptResumeScroll()
+    }, 80)
+
+    clearResumeState()
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(initialAttempt)
+    }
+  }, [
+    draftRestoreResolved,
+    location.hash,
+    location.pathname,
+    location.search,
+    resumeRequestedAt,
+    scrollToRef,
+    selectedCategory,
+    selectedContestant,
+  ])
 
   useEffect(() => {
     if (!selectedCategory) return
@@ -625,15 +1144,137 @@ const ScoringPage: React.FC = () => {
     }
   }, [selectedContestant, sortedContestants])
 
+  useEffect(() => {
+    if (!draftLoaded || !draftRestoreResolved || !offlineOwner.ownerUserId) return
+
+    const restoredDraftHasContent = Boolean(
+      restoredDraft?.hasPendingLocalChanges &&
+        (Object.keys(restoredDraft.scoreFormData || {}).length > 0 ||
+          restoredDraft.categoryComment ||
+          restoredDraft.isSignOffChecked)
+    )
+    const awaitingDraftContentHydration = Boolean(
+      restoredDraftMatchesSelection &&
+        restoredDraftHasContent &&
+        initializedSelectionRef.current !== draftInitializationKey,
+    )
+
+    if (awaitingDraftContentHydration) {
+      return
+    }
+
+    if (!restoredDraftMatchesSelection && existingScoresLoading) {
+      return
+    }
+
+    const hasMeaningfulDraftState = Boolean(
+      activeSelectionKey &&
+        (scoreDraftHasMeaningfulChanges || categoryCommentHasMeaningfulChanges || isSignOffChecked),
+    )
+    const hasDraftContent = Boolean(
+      scoreDraftHasMeaningfulChanges || categoryCommentHasMeaningfulChanges || isSignOffChecked,
+    )
+
+    const persistDraft = async () => {
+      if (!activeSelectionKey && hasDraftContent) {
+        return
+      }
+
+      if (!activeSelectionKey && restoredDraftHasContent) {
+        return
+      }
+
+      if (!hasMeaningfulDraftState) {
+        await deleteOfflineWorkflowDraft(createOfflineDraftId(SCORING_DRAFT_WORKFLOW, SCORING_DRAFT_SCOPE))
+        setRestoredDraft(null)
+        return
+      }
+
+      const selectedContest = assignedContests.find((contest) => contest.id === selectedContestId)
+      const nextDraft: ScoringWorkspaceDraft = {
+        selectedContestId,
+        selectedContestName: selectedContest?.name || null,
+        selectedCategoryId: selectedCategory?.id || null,
+        selectedCategoryName: selectedCategory?.name || null,
+        selectedContestantId: selectedContestant?.id || null,
+        selectedContestantName: selectedContestant?.name || null,
+        selectedContestantNumber: selectedContestant?.contestantNumber ?? null,
+        scoreFormData,
+        categoryComment,
+        isSignOffChecked,
+        hasPendingLocalChanges: true,
+        updatedAt: new Date().toISOString(),
+      }
+
+      if (scoringDraftPayloadSignature(restoredDraft) === scoringDraftPayloadSignature(nextDraft)) {
+        return
+      }
+
+      await saveOfflineWorkflowDraft({
+        workflowType: SCORING_DRAFT_WORKFLOW,
+        scopeKey: SCORING_DRAFT_SCOPE,
+        ownerUserId: offlineOwner.ownerUserId,
+        ownerTenantId: offlineOwner.ownerTenantId,
+        data: nextDraft,
+      })
+      setRestoredDraft(nextDraft)
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void persistDraft()
+    }, 150)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    categoryComment,
+    draftLoaded,
+    draftRestoreResolved,
+    activeSelectionKey,
+    assignedContests,
+    categoryCommentHasMeaningfulChanges,
+    restoredDraft,
+    isSignOffChecked,
+    offlineOwner.ownerTenantId,
+    offlineOwner.ownerUserId,
+    existingScoresLoading,
+    scoreDraftHasMeaningfulChanges,
+    scoreFormData,
+    selectedCategory?.id,
+    selectedContestId,
+    selectedContestant?.id,
+  ])
+
   // Submit score mutation with optimistic updates
   const submitScoreMutation = useOptimisticMutation<
     { success: true; hasQueuedWrites: boolean },
     { categoryId: string; contestantId: string; scores: ScoreFormData[] }
   >({
     mutationFn: async (data) => {
-      const latestResponse = await scoringAPI.getScores(data.categoryId, data.contestantId)
-      const latestRaw = latestResponse.data?.data ?? latestResponse.data
-      const latestScores: Score[] = Array.isArray(latestRaw) ? latestRaw : []
+      const getNormalizedScores = (value: Score[] | { scores?: Score[] } | undefined): Score[] => (
+        (Array.isArray(value) ? value : value?.scores || []).filter((score) => !isOptimisticScoreRecord(score))
+      )
+      const cachedScores = queryClient.getQueryData<Score[] | { scores?: Score[] }>([
+        'contestant-scores',
+        data.categoryId,
+        data.contestantId,
+      ])
+      let latestScores: Score[] = getNormalizedScores(
+        cachedScores ?? normalizedExistingScores,
+      )
+
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        try {
+          const response = await scoringAPI.getScores(data.categoryId, data.contestantId)
+          const authoritativeScores = getNormalizedScores(response.data?.data ?? response.data)
+          latestScores = authoritativeScores
+          queryClient.setQueryData(
+            ['contestant-scores', data.categoryId, data.contestantId],
+            authoritativeScores,
+          )
+        } catch (error) {
+          console.error('Authoritative score refresh failed before submit:', error)
+        }
+      }
 
       const writeOutcomes = await Promise.all(data.scores.map(async (scoreData) => {
         if (!hasExplicitScoreValue(scoreData.score)) {
@@ -648,6 +1289,12 @@ const ScoringPage: React.FC = () => {
           score: Number(scoreData.score),
           comments: scoreData.comment || '',
         }
+        const criterion = effectiveCriteria.find((entry) => entry.id === scoreData.criterionId)
+        const contestantLabel = selectedContestant?.name
+          || (selectedContestant?.contestantNumber ? `#${selectedContestant.contestantNumber}` : 'contestant')
+        const scoreSummary = criterion?.name
+          ? `Score for ${contestantLabel} • ${criterion.name}`
+          : `Score for ${contestantLabel}`
 
         if (existing?.id) {
           return await executeMutationWithReliability(
@@ -659,6 +1306,7 @@ const ScoringPage: React.FC = () => {
             async (headers) => {
               await scoringAPI.updateScore(existing.id, payload, { headers })
             },
+            { notifyOnQueued: false, summary: scoreSummary },
           )
         } else {
           const body = {
@@ -674,6 +1322,7 @@ const ScoringPage: React.FC = () => {
             async (headers) => {
               await scoringAPI.submitScore(data.categoryId, data.contestantId, body, { headers })
             },
+            { notifyOnQueued: false, summary: scoreSummary },
           )
         }
       }))
@@ -724,6 +1373,9 @@ const ScoringPage: React.FC = () => {
   })
 
   const handleScoreChange = (criterionId: string, field: keyof ScoreFormData, value: any) => {
+    if (activeSelectionKey) {
+      localEditSelectionKeyRef.current = activeSelectionKey
+    }
     const criterion = effectiveCriteria.find((c) => c.id === criterionId)
     const maxScore = criterion?.maxScore ?? selectedCategory?.scoreCap ?? 100
 
@@ -768,6 +1420,13 @@ const ScoringPage: React.FC = () => {
         },
       }
     })
+  }
+
+  const clearPersistedWorkspaceDraft = async () => {
+    if (!offlineOwner.ownerUserId) return
+    await deleteOfflineWorkflowDraft(createOfflineDraftId(SCORING_DRAFT_WORKFLOW, SCORING_DRAFT_SCOPE))
+    setRestoredDraft(null)
+    localEditSelectionKeyRef.current = null
   }
 
   const handleSubmitScores = async () => {
@@ -815,7 +1474,7 @@ const ScoringPage: React.FC = () => {
       if (requiresSignOff) {
         if (hasQueuedWrites || hasPendingScoreSync) {
           setSaveStatus('queued')
-          toast.error('Scores are still pending sync. Certification is unavailable until syncing finishes.')
+          toast('Scores saved offline. Reconnect and wait for sync before certifying.')
           return
         }
         setShowSignatureModal(true)
@@ -823,8 +1482,10 @@ const ScoringPage: React.FC = () => {
       }
       if (hasQueuedWrites) {
         setSaveStatus('queued')
+        toast.success('Scores saved offline. They will sync automatically.')
         return
       }
+      await clearPersistedWorkspaceDraft()
       setSaveStatus('saved')
       toast.success('Scores submitted successfully!')
       scrollToRef(contestantSectionRef, { delayMs: 150 })
@@ -906,6 +1567,7 @@ const ScoringPage: React.FC = () => {
     }
     try {
       await scoringAPI.certifyScores(selectedCategory.id, {
+        contestantId: selectedContestant?.id,
         typedSignature: typedSignature.trim() || undefined,
         drawnSignatureData: drawnSignatureData || undefined
       })
@@ -916,11 +1578,13 @@ const ScoringPage: React.FC = () => {
       setShowSignatureModal(false)
       setTypedSignature('')
       setDrawnSignatureData('')
+      await clearPersistedWorkspaceDraft()
       setSaveStatus('saved')
       toast.success('Scores submitted and certified successfully!')
       scrollToRef(contestantSectionRef, { delayMs: 150 })
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to certify scores')
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to certify scores'
+      toast.error(message)
       setSaveStatus('error')
     } finally {
       setIsSubmitting(false)
@@ -1058,6 +1722,7 @@ const ScoringPage: React.FC = () => {
           { headers },
         )
       },
+      { notifyOnQueued: false },
     )
   }
 
@@ -1086,6 +1751,7 @@ const ScoringPage: React.FC = () => {
             async (headers) => {
               await scoringAPI.updateScore(score.id, { comments: nextComment }, { headers })
             },
+            { notifyOnQueued: false },
           )
         })
         : []
@@ -1094,6 +1760,12 @@ const ScoringPage: React.FC = () => {
       if (commentResults.some(Boolean) || categoryCommentOutcome !== 'unchanged') {
         const queuedCommentaryWrites = commentResults.includes('queued') || categoryCommentOutcome === 'queued'
         setSaveStatus(queuedCommentaryWrites ? 'queued' : 'saved')
+        if (!queuedCommentaryWrites) {
+          await clearPersistedWorkspaceDraft()
+        }
+        if (queuedCommentaryWrites) {
+          toast('Commentary saved offline. It will sync automatically.')
+        }
       }
 
       if (pendingCommentaryFiles.length > 0) {
@@ -1109,7 +1781,9 @@ const ScoringPage: React.FC = () => {
       ])
 
       setPendingCommentaryFiles([])
-      toast.success('Commentary Updated')
+      if (!commentResults.includes('queued') && categoryCommentOutcome !== 'queued') {
+        toast.success('Commentary Updated')
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to update commentary')
     } finally {
@@ -1280,7 +1954,6 @@ const ScoringPage: React.FC = () => {
                         key={contestant.id}
                         onClick={() => {
                           setSelectedContestant(contestant)
-                          scrollToRef(criteriaSectionRef, { delayMs: 180 })
                         }}
                         className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                           selectedContestant?.id === contestant.id
@@ -1329,7 +2002,7 @@ const ScoringPage: React.FC = () => {
           </div>
 
           {/* Right Column: Scoring Form */}
-          <div ref={scoreSheetSectionRef} className="lg:col-span-1">
+          <div id="score-sheet" ref={scoreSheetSectionRef} className="lg:col-span-1">
             <Card className="rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Score Sheet
@@ -1462,7 +2135,12 @@ const ScoringPage: React.FC = () => {
                             id="pages-scoringpage-category-comment"
                             placeholder={`${sharedCommentaryLabel} note`}
                             value={categoryComment}
-                            onChange={(e) => setCategoryComment(e.target.value)}
+                            onChange={(e) => {
+                              if (activeSelectionKey) {
+                                localEditSelectionKeyRef.current = activeSelectionKey
+                              }
+                              setCategoryComment(e.target.value)
+                            }}
                             rows={3}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
@@ -1669,7 +2347,12 @@ const ScoringPage: React.FC = () => {
                             <input
                               type="checkbox"
                               checked={isSignOffChecked}
-                              onChange={(e) => setIsSignOffChecked(e.target.checked)}
+                              onChange={(e) => {
+                                if (activeSelectionKey) {
+                                  localEditSelectionKeyRef.current = activeSelectionKey
+                                }
+                                setIsSignOffChecked(e.target.checked)
+                              }}
                             />
                             I certify these scores are final and accurate.
                           </label>

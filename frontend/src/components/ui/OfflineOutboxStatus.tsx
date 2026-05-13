@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -7,8 +9,166 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
 import useOfflineOutbox from '../../hooks/useOfflineOutbox'
+import { extractTenantSlugFromPath } from '../../utils/routeSegments'
 import { Modal } from '../Modal'
 import Button from './Button'
+import { matchOfflineWriteOwnership } from '../../config/offlineWriteOwnership.manifest'
+
+const formatContestantLabel = (data: Record<string, unknown>) => {
+  const contestantName = typeof data.selectedContestantName === 'string' ? data.selectedContestantName : null
+  const contestantNumber =
+    typeof data.selectedContestantNumber === 'number' ? data.selectedContestantNumber : null
+
+  if (contestantName && contestantNumber !== null) {
+    return `#${contestantNumber} ${contestantName}`
+  }
+
+  if (contestantName) {
+    return contestantName
+  }
+
+  if (contestantNumber !== null) {
+    return `Contestant #${contestantNumber}`
+  }
+
+  return null
+}
+
+const formatDraftSummary = (workflowType: string, data: Record<string, unknown>) => {
+  if (workflowType === 'scoring-workspace') {
+    const contestantLabel = formatContestantLabel(data)
+    const categoryName = typeof data.selectedCategoryName === 'string' ? data.selectedCategoryName : null
+    if (contestantLabel && categoryName) {
+      return `${contestantLabel} in ${categoryName}`
+    }
+    return contestantLabel || categoryName || 'Scoring draft ready to resume'
+  }
+
+  if (workflowType === 'deductions-request') {
+    const contestantLabel = formatContestantLabel(data)
+    const categoryName = typeof data.selectedRequestCategoryName === 'string' ? data.selectedRequestCategoryName : null
+    const contestName = typeof data.selectedRequestContestName === 'string' ? data.selectedRequestContestName : null
+    if (contestantLabel && categoryName) {
+      return `${contestantLabel} in ${categoryName}`
+    }
+    return contestantLabel || categoryName || contestName || 'Deduction request draft ready to resume'
+  }
+
+  return null
+}
+
+const formatDraftTitle = (workflowType: string) => {
+  if (workflowType === 'scoring-workspace') {
+    return 'Scoring Draft'
+  }
+
+  if (workflowType === 'deductions-request') {
+    return 'Deduction Draft'
+  }
+
+  return workflowType
+}
+
+const formatOutboxTitle = (item: {
+  method: string
+  endpoint: string
+  summary: string | null
+  payload: unknown
+}) => {
+  if (typeof item.summary === 'string' && item.summary.trim()) {
+    return item.summary
+  }
+
+  const route = matchOfflineWriteOwnership(item.method, item.endpoint)
+  const payload = (item.payload || {}) as Record<string, unknown>
+
+  switch (route?.id) {
+    case 'scoring-submit':
+      return 'Queued score submission'
+    case 'scoring-update':
+      return 'Queued score update'
+    case 'commentary-category-update':
+      return 'Queued category commentary'
+    case 'commentary-update':
+    case 'commentary-score-create':
+    case 'commentary-create':
+      return 'Queued commentary update'
+    case 'deductions-create':
+      return 'Queued deduction request'
+    default:
+      break
+  }
+
+  if (typeof payload.criteriaId === 'string' && payload.criteriaId) {
+    return item.method === 'PUT' ? 'Queued score update' : 'Queued score submission'
+  }
+
+  return 'Queued offline write'
+}
+
+const formatOutboxStatus = (status: string) => {
+  switch (status) {
+    case 'queued':
+      return 'Queued'
+    case 'syncing':
+      return 'Syncing'
+    case 'synced':
+      return 'Synced'
+    case 'retryable_failure':
+      return 'Retrying'
+    case 'terminal_failure':
+      return 'Failed'
+    case 'conflict':
+      return 'Conflict'
+    default:
+      return status.replace(/_/g, ' ')
+  }
+}
+
+const formatOutboxDetail = (item: {
+  status: string
+  lastError: string | null
+  conflictMessage?: string | null
+  endpoint: string
+  summary: string | null
+  method: string
+  payload: unknown
+}) => {
+  const route = matchOfflineWriteOwnership(item.method, item.endpoint)
+  const payload = (item.payload || {}) as Record<string, unknown>
+  const parts = [formatOutboxStatus(item.status)]
+
+  if (item.conflictMessage) {
+    parts.push(item.conflictMessage)
+  } else if (item.lastError) {
+    parts.push(item.lastError)
+  }
+
+  if (parts.length === 1) {
+    switch (route?.id) {
+      case 'scoring-submit':
+      case 'scoring-update':
+        parts.push('score entry')
+        break
+      case 'commentary-category-update':
+        parts.push('category commentary')
+        break
+      case 'commentary-update':
+      case 'commentary-score-create':
+      case 'commentary-create':
+        parts.push('commentary update')
+        break
+      case 'deductions-create':
+        parts.push('deduction request')
+        break
+      default:
+        parts.push('saved work item')
+        break
+    }
+  }
+
+  return parts.join(' • ')
+}
 
 const statusTone = (variant: 'default' | 'warning' | 'danger' | 'success') => {
   switch (variant) {
@@ -25,6 +185,7 @@ const statusTone = (variant: 'default' | 'warning' | 'danger' | 'success') => {
 
 const OfflineOutboxStatus: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const owner = user
     ? {
@@ -37,10 +198,50 @@ const OfflineOutboxStatus: React.FC = () => {
     owner,
     Boolean(user),
   )
+  const pendingItems = useMemo(
+    () =>
+      items.filter((item) =>
+        ['queued', 'syncing', 'retryable_failure', 'terminal_failure', 'conflict'].includes(item.status),
+      ),
+    [items],
+  )
+  const recentSyncedItems = useMemo(
+    () => items.filter((item) => item.status === 'synced'),
+    [items],
+  )
+  const hasSyncableItems = useMemo(
+    () => pendingItems.some((item) => ['queued', 'retryable_failure', 'conflict'].includes(item.status)),
+    [pendingItems],
+  )
+  const actionableDrafts = useMemo(
+    () =>
+      drafts.filter((draft) => {
+        const data = (draft.data || {}) as Record<string, unknown>
+        if (draft.workflowType === 'scoring-workspace') {
+          return Boolean(
+            data.selectedCategoryId &&
+              data.selectedContestantId &&
+              data.hasPendingLocalChanges !== false,
+          )
+        }
+        if (draft.workflowType === 'deductions-request') {
+          return Boolean(
+            data.selectedRequestContestId &&
+              data.selectedContestantId &&
+              (data.requestAmount || data.requestReason),
+          )
+        }
+        return true
+      }),
+    [drafts],
+  )
+  const tenantSlug =
+    typeof window !== 'undefined' ? extractTenantSlugFromPath(window.location.pathname) : null
 
   const visible = Boolean(
     user &&
-      (summary.hasPendingWork ||
+      (summary.pendingCount > 0 ||
+        actionableDrafts.length > 0 ||
         summary.syncedCount > 0 ||
         metrics.syncingCount > 0),
   )
@@ -73,12 +274,28 @@ const OfflineOutboxStatus: React.FC = () => {
       }
     }
 
+    if (summary.pendingCount === 0 && actionableDrafts.length > 0) {
+      const draftSummary =
+        actionableDrafts.length === 1
+          ? formatDraftSummary(
+              actionableDrafts[0].workflowType,
+              (actionableDrafts[0].data || {}) as Record<string, unknown>,
+            )
+          : null
+      return {
+        variant: 'default' as const,
+        icon: CheckCircleIcon,
+        label: 'Offline draft saved locally',
+        detail: draftSummary || `${actionableDrafts.length} draft ready to resume`,
+      }
+    }
+
     if (summary.pendingCount > 0 || summary.draftCount > 0) {
       return {
         variant: 'warning' as const,
         icon: CloudArrowUpIcon,
         label: 'Offline work pending sync',
-        detail: `${summary.pendingCount} queued, ${summary.draftCount} draft`,
+        detail: `${summary.pendingCount} queued, ${actionableDrafts.length} draft`,
       }
     }
 
@@ -91,13 +308,38 @@ const OfflineOutboxStatus: React.FC = () => {
   }, [
     metrics.syncingCount,
     summary.conflictCount,
-    summary.draftCount,
     summary.pendingCount,
     summary.retryableFailureCount,
     summary.syncedCount,
     summary.syncingCount,
     summary.terminalFailureCount,
+    actionableDrafts.length,
   ])
+
+  const resumeDraft = (workflowType: string) => {
+    const tenantPrefix = tenantSlug ? `/${tenantSlug}` : ''
+    if (workflowType === 'scoring-workspace') {
+      setIsOpen(false)
+      navigate(`${tenantPrefix}/scoring#score-sheet`, {
+        state: {
+          resumeDraft: true,
+          resumeWorkflowType: workflowType,
+          resumeRequestedAt: Date.now(),
+        },
+      })
+      return
+    }
+    if (workflowType === 'deductions-request') {
+      setIsOpen(false)
+      navigate(`${tenantPrefix}/deductions`, {
+        state: {
+          resumeDraft: true,
+          resumeWorkflowType: workflowType,
+          resumeRequestedAt: Date.now(),
+        },
+      })
+    }
+  }
 
   if (!visible) return null
 
@@ -128,12 +370,13 @@ const OfflineOutboxStatus: React.FC = () => {
         onClose={() => setIsOpen(false)}
         title="Offline Work"
         size="lg"
+        className="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
               <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Drafts</div>
-              <div className="mt-1 text-xl font-semibold">{summary.draftCount}</div>
+              <div className="mt-1 text-xl font-semibold">{actionableDrafts.length}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
               <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Queued</div>
@@ -158,12 +401,12 @@ const OfflineOutboxStatus: React.FC = () => {
             <div className="max-h-80 overflow-y-auto">
               {isLoading ? (
                 <div className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">Loading offline work…</div>
-              ) : items.length === 0 ? (
+              ) : pendingItems.length === 0 ? (
                 <div className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
                   No queued outbox items for this session.
                 </div>
               ) : (
-                items.map((item) => (
+                pendingItems.map((item) => (
                   <div
                     key={item.id}
                     className="border-b border-slate-200 px-4 py-3 last:border-b-0 dark:border-slate-700"
@@ -171,15 +414,16 @@ const OfflineOutboxStatus: React.FC = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">
-                          {item.summary || `${item.method} ${item.endpoint}`}
+                          {formatOutboxTitle(item)}
                         </div>
                         <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {item.status.replace(/_/g, ' ')}
-                          {item.lastError ? ` • ${item.lastError}` : ''}
+                          {formatOutboxDetail(item)}
                         </div>
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400">
-                        {item.attemptCount > 0 ? `Attempt ${item.attemptCount}` : 'Queued'}
+                        {item.status === 'retryable_failure' && item.attemptCount > 0
+                          ? `Retry ${item.attemptCount}`
+                          : formatOutboxStatus(item.status)}
                       </div>
                     </div>
                   </div>
@@ -188,24 +432,80 @@ const OfflineOutboxStatus: React.FC = () => {
             </div>
           </div>
 
+          {recentSyncedItems.length > 0 && (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold dark:border-slate-700">
+                Recently Synced
+              </div>
+              <div className="max-h-52 overflow-y-auto">
+                {recentSyncedItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border-b border-slate-200 px-4 py-3 last:border-b-0 dark:border-slate-700"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {formatOutboxTitle(item)}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {formatOutboxDetail(item)}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatOutboxStatus(item.status)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold dark:border-slate-700">
               Workspace Drafts
             </div>
             <div className="max-h-52 overflow-y-auto">
-              {drafts.length === 0 ? (
+              {actionableDrafts.length === 0 ? (
                 <div className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
                   No saved offline drafts for this session.
                 </div>
               ) : (
-                drafts.map((draft) => (
+                actionableDrafts.map((draft) => (
                   <div
                     key={draft.id}
                     className="border-b border-slate-200 px-4 py-3 last:border-b-0 dark:border-slate-700"
                   >
-                    <div className="text-sm font-medium">{draft.workflowType}</div>
-                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      {draft.scopeKey} • {draft.status.replace(/_/g, ' ')}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium">
+                          {formatDraftTitle(draft.workflowType)}
+                        </div>
+                        {formatDraftSummary(
+                          draft.workflowType,
+                          (draft.data || {}) as Record<string, unknown>,
+                        ) && (
+                          <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                            {formatDraftSummary(
+                              draft.workflowType,
+                              (draft.data || {}) as Record<string, unknown>,
+                            )}
+                          </div>
+                        )}
+                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {draft.scopeKey} • {draft.status.replace(/_/g, ' ')}
+                        </div>
+                      </div>
+                      {(draft.workflowType === 'scoring-workspace' ||
+                        draft.workflowType === 'deductions-request') && (
+                        <Button
+                          variant="primary"
+                          onClick={() => resumeDraft(draft.workflowType)}
+                        >
+                          {draft.workflowType === 'scoring-workspace' ? 'Resume Scoring' : 'Resume Draft'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -220,10 +520,30 @@ const OfflineOutboxStatus: React.FC = () => {
             <Button
               variant="primary"
               onClick={() => {
-                void syncNow()
+                if (!hasSyncableItems) {
+                  toast('No queued submissions yet. Drafts sync only after you submit them.')
+                  return
+                }
+                if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                  toast.error('You are offline. Reconnect before syncing queued work.')
+                  return
+                }
+                void (async () => {
+                  const result = await syncNow({ force: true })
+                  if (result.queuedCount === 0) {
+                    toast('No queued submissions were eligible to sync.')
+                    return
+                  }
+                  if (result.attemptedCount === 0) {
+                    toast('Queued work is still waiting on retry conditions.')
+                    return
+                  }
+                  toast.success(`Offline sync started for ${result.attemptedCount} queued item(s).`)
+                })()
               }}
+              disabled={!hasSyncableItems}
             >
-              Sync Now
+              {hasSyncableItems ? 'Sync Now' : 'Nothing Queued'}
             </Button>
           </div>
         </div>

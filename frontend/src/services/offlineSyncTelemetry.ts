@@ -9,6 +9,7 @@ type OfflineSyncTelemetryOperation =
   | 'create_comment'
   | 'update_comment'
   | 'delete_comment'
+  | 'create_deduction'
   | 'upload_score_file'
   | 'update_score_file'
 
@@ -134,9 +135,12 @@ const mapRouteToOperation = (method: string, endpoint: string): OfflineSyncTelem
     case 'commentary-score-create':
       return 'create_comment'
     case 'commentary-update':
+    case 'commentary-category-update':
       return 'update_comment'
     case 'commentary-delete':
       return 'delete_comment'
+    case 'deductions-create':
+      return 'create_deduction'
     case 'score-files-upload':
       return 'upload_score_file'
     case 'score-files-update':

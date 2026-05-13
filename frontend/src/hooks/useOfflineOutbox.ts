@@ -20,7 +20,7 @@ type OfflineOutboxState = {
   metrics: OfflineSyncMetrics
   isLoading: boolean
   refresh: () => Promise<void>
-  syncNow: () => Promise<void>
+  syncNow: (options?: { force?: boolean }) => Promise<{ attemptedCount: number; queuedCount: number }>
   discardAll: () => Promise<void>
   discardItem: (id: string) => Promise<void>
 }
@@ -123,9 +123,10 @@ export const useOfflineOutbox = (
     metrics,
     isLoading,
     refresh,
-    syncNow: async () => {
-      await runOfflineSyncOnce()
+    syncNow: async (options = {}) => {
+      const result = await runOfflineSyncOnce(options) || { attemptedCount: 0, queuedCount: 0 }
       await refresh()
+      return result
     },
     discardAll: async () => {
       if (!normalizedOwner) return

@@ -3,7 +3,7 @@
   "provider": "local",
   "algorithm": "ed25519",
   "keyId": "prod-local-manifest-key",
-  "manifestHash": "c39c0a409bc232dcba411d4239e795b9a36c06ec0e05aeaad0e0a60ffd6128be",
-  "signature": "B7G0WnZyCc3H5p2JrvfwE/ChXBVp4cIVdCrKTD8nMKqkEWT7alypSOeQjfxIkIjFQBjxajKQWsdqn1dkc+ESAw==",
-  "signedAt": "2026-03-27T22:48:41.586Z"
+  "manifestHash": "14f2296466d2fc9aa0fe84794c25375d45224d862e45adac3cc8c0e6308cbc0b",
+  "signature": "Sp340sbRYj7bMbuS3CHaV/Dcuf5pKvIynWmnMgJ9srhxFG2XM2S4CpkHJDyAFy9mH+iMlSdqRJfOWflt7cezBA==",
+  "signedAt": "2026-05-12T20:24:40.604Z"
 }

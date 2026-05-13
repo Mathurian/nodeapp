@@ -259,12 +259,20 @@ export const scoringAPI = {
   },
   updateScore: (scoreId: string, data: any, config?: any) => api.put(`/scoring/${scoreId}`, data, config),
   deleteScore: (scoreId: string) => api.delete(`/scoring/${scoreId}`),
-  certifyScores: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify`, signature || {}),
+  certifyScores: (
+    categoryId: string,
+    signature?: {
+      contestantId?: string
+      typedSignature?: string
+      drawnSignatureData?: string
+      signatureFilePath?: string
+    },
+  ) => api.post(`/scoring/category/${categoryId}/certify`, signature || {}),
   certifyTotals: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify-totals`, signature || {}),
   finalCertification: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/final-certification`, signature || {}),
   getCategories: (params?: { eventId?: string; contestId?: string }) => api.get('/scoring/categories', { params }),
   getCriteria: (categoryId: string) => api.get(`/categories/${categoryId}/criteria`),
-  requestDeduction: (data: any) => api.post('/scoring/deductions', data),
+  requestDeduction: (data: any, config?: any) => api.post('/scoring/deductions', data, config),
   getDeductions: (params?: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string; status?: string }) =>
     api.get('/scoring/deductions', { params }),
   approveDeduction: (deductionId: string, signature: string) => api.post(`/scoring/deductions/${deductionId}/approve`, { signature }),

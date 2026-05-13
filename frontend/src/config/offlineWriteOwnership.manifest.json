@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "routes": [
     {
       "id": "scoring-submit",
@@ -62,6 +62,16 @@
       "matchExpression": "^/commentary/[^/]+$"
     },
     {
+      "id": "commentary-category-update",
+      "method": "PUT",
+      "pattern": "/commentary/category/:categoryId/contestant/:contestantId",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation",
+      "matchExpression": "^/commentary/category/[^/]+/contestant/[^/]+$"
+    },
+    {
       "id": "commentary-delete",
       "method": "DELETE",
       "pattern": "/commentary/:id",
@@ -70,6 +80,16 @@
       "idempotencyPhase": "enforced",
       "timeoutProfile": "mutation",
       "matchExpression": "^/commentary/[^/]+$"
+    },
+    {
+      "id": "deductions-create",
+      "method": "POST",
+      "pattern": "/scoring/deductions",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation",
+      "matchExpression": "^/scoring/deductions$"
     },
     {
       "id": "score-files-upload",

@@ -130,10 +130,12 @@ export class ScoringController {
     categoryId: string,
     tenantId: string,
     judgeId: string,
+    contestantId?: string,
   ): Promise<{ expected: number; submitted: number; isComplete: boolean }> {
+    const contestantWhere = contestantId ? { contestantId } : {};
     const [categoryContestants, criteria, scores] = await Promise.all([
       this.prisma.categoryContestant.findMany({
-        where: { tenantId, categoryId },
+        where: { tenantId, categoryId, ...contestantWhere },
         select: { contestantId: true },
       }),
       this.prisma.criterion.findMany({
@@ -141,7 +143,7 @@ export class ScoringController {
         select: { id: true },
       }),
       this.prisma.score.findMany({
-        where: { tenantId, categoryId, judgeId },
+        where: { tenantId, categoryId, judgeId, ...contestantWhere },
         select: { contestantId: true, criterionId: true, score: true },
       }),
     ]);
@@ -768,7 +770,7 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const categoryId = req.params['categoryId']!;
-      const { typedSignature, drawnSignatureData, signatureFilePath } = req.body || {};
+      const { contestantId, typedSignature, drawnSignatureData, signatureFilePath } = req.body || {};
 
       if (!req.user) {
         errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
@@ -780,7 +782,7 @@ export class ScoringController {
         return;
       }
 
-      log.info('Category scores certification requested', { categoryId, certifiedBy: req.user.id });
+      log.info('Category scores certification requested', { categoryId, contestantId, certifiedBy: req.user.id });
       const tenantId = this.getEffectiveTenantId(req);
       if (!tenantId) {
         sendBadRequest(res, 'Tenant context is required');
@@ -789,9 +791,14 @@ export class ScoringController {
       const judgeId = req.user.judgeId || req.user.judge?.id || null;
 
       if (judgeId) {
-        const coverage = await this.getJudgeCategoryScoreCoverageStatus(categoryId, tenantId, judgeId);
+        const coverage = await this.getJudgeCategoryScoreCoverageStatus(categoryId, tenantId, judgeId, contestantId);
         if (!coverage.isComplete) {
-          sendBadRequest(res, 'All assigned contestants and criteria must have explicit scores before certification');
+          sendBadRequest(
+            res,
+            contestantId
+              ? 'All criteria for this contestant must have explicit scores before certification'
+              : 'All assigned contestants and criteria must have explicit scores before certification',
+          );
           return;
         }
       }
@@ -801,6 +808,7 @@ export class ScoringController {
         req.user.id,
         tenantId,
         {
+          contestantId: contestantId || null,
           userRole: req.user.role,
           judgeId
         }
@@ -812,27 +820,38 @@ export class ScoringController {
       }
 
       if (judgeId) {
-        await this.prisma.judgeCertification.upsert({
+        const remainingJudgeScores = await this.prisma.score.count({
           where: {
-            tenantId_categoryId_judgeId: {
-              tenantId,
-              categoryId,
-              judgeId
-            }
-          },
-          create: {
             tenantId,
             categoryId,
             judgeId,
-            signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
+            certifiedAt: null,
           },
-          update: {
-            certifiedAt: new Date(),
-            signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
-          }
         });
-        await refreshJudgeStage(this.prisma, tenantId, categoryId, req.user.id);
-      } else if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
+
+        if (remainingJudgeScores === 0) {
+          await this.prisma.judgeCertification.upsert({
+            where: {
+              tenantId_categoryId_judgeId: {
+                tenantId,
+                categoryId,
+                judgeId
+              }
+            },
+            create: {
+              tenantId,
+              categoryId,
+              judgeId,
+              signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
+            },
+            update: {
+              certifiedAt: new Date(),
+              signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
+            }
+          });
+          await refreshJudgeStage(this.prisma, tenantId, categoryId, req.user.id);
+        }
+      } else if (!contestantId && (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN')) {
         await applyCertificationStage({
           prisma: this.prisma,
           tenantId,
@@ -1149,7 +1168,7 @@ export class ScoringController {
           _count: {
             select: {
               scores: true,
-              categoryContestants: true
+              categoryContestants: true,
             }
           },
           categoryContestants: {

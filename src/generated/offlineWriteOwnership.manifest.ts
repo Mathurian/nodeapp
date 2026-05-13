@@ -24,7 +24,7 @@ export interface OfflineWriteOwnershipManifest {
 }
 
 export const offlineWriteOwnershipManifest: OfflineWriteOwnershipManifest = {
-  "version": 1,
+  "version": 3,
   "routes": [
     {
       "id": "scoring-submit",
@@ -87,6 +87,16 @@ export const offlineWriteOwnershipManifest: OfflineWriteOwnershipManifest = {
       "matchExpression": "^/commentary/[^/]+$"
     },
     {
+      "id": "commentary-category-update",
+      "method": "PUT",
+      "pattern": "/commentary/category/:categoryId/contestant/:contestantId",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation",
+      "matchExpression": "^/commentary/category/[^/]+/contestant/[^/]+$"
+    },
+    {
       "id": "commentary-delete",
       "method": "DELETE",
       "pattern": "/commentary/:id",
@@ -95,6 +105,16 @@ export const offlineWriteOwnershipManifest: OfflineWriteOwnershipManifest = {
       "idempotencyPhase": "enforced",
       "timeoutProfile": "mutation",
       "matchExpression": "^/commentary/[^/]+$"
+    },
+    {
+      "id": "deductions-create",
+      "method": "POST",
+      "pattern": "/scoring/deductions",
+      "queueOwner": "app",
+      "idempotencyRequired": true,
+      "idempotencyPhase": "enforced",
+      "timeoutProfile": "mutation",
+      "matchExpression": "^/scoring/deductions$"
     },
     {
       "id": "score-files-upload",
