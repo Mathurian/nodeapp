@@ -220,6 +220,12 @@ interface ResultsScopeOptions {
   categories: ResultsScopeCategory[];
 }
 
+interface ContestantResultsVisibility {
+  canViewWinners: boolean;
+  canViewOverallResults: boolean;
+  canViewMinimumWinningScore: boolean;
+}
+
 // Complex return type interfaces
 interface ResultWithTotals extends ScoreWithRelations {
   certificationStatus: 'CERTIFIED' | 'PENDING';
@@ -286,7 +292,7 @@ export class ResultsService extends BaseService {
     return globalSetting?.value ?? null;
   }
 
-  private async getContestantVisibility(tenantId: string): Promise<{ canViewWinners: boolean; canViewOverallResults: boolean; canViewMinimumWinningScore: boolean }> {
+  private async getContestantVisibility(tenantId: string): Promise<ContestantResultsVisibility> {
     const [winnersRaw, overallRaw, minimumWinningScoreRaw] = await Promise.all([
       this.getSettingWithTenantFallback('contestant_visibility_canViewWinners', tenantId),
       this.getSettingWithTenantFallback('contestant_visibility_canViewOverallResults', tenantId),
@@ -329,6 +335,125 @@ export class ResultsService extends BaseService {
         progressRaw,
         DEFAULT_PUBLISHED_RESULTS_VISIBILITY.progressRoles
       ),
+    };
+  }
+
+  private buildResultsScopeOptions(
+    categories: CategoryWithContest[],
+    options: { includeCategories?: boolean } = {},
+  ): ResultsScopeOptions {
+    const includeCategories = options.includeCategories !== false;
+    const eventMap = new Map<string, ResultsScopeEvent>();
+    const contestMap = new Map<string, ResultsScopeContest>();
+
+    const normalizedCategories: ResultsScopeCategory[] = includeCategories
+      ? categories.map((category) => {
+          const event = {
+            id: category.contest.event.id,
+            name: category.contest.event.name,
+            startDate: category.contest.event.startDate,
+            endDate: category.contest.event.endDate,
+          };
+
+          eventMap.set(event.id, event);
+
+          const contest = {
+            id: category.contest.id,
+            name: category.contest.name,
+            eventId: category.contest.eventId,
+            event,
+          };
+
+          contestMap.set(contest.id, contest);
+
+          return {
+            id: category.id,
+            name: category.name,
+            contestId: category.contestId,
+            scoreCap: category.scoreCap ?? null,
+            boardApproved: Boolean(category.boardApproved),
+            totalsCertified: Boolean(category.totalsCertified),
+            contest,
+          };
+        })
+      : [];
+
+    if (!includeCategories) {
+      categories.forEach((category) => {
+        const event = {
+          id: category.contest.event.id,
+          name: category.contest.event.name,
+          startDate: category.contest.event.startDate,
+          endDate: category.contest.event.endDate,
+        };
+
+        eventMap.set(event.id, event);
+        contestMap.set(category.contest.id, {
+          id: category.contest.id,
+          name: category.contest.name,
+          eventId: category.contest.eventId,
+          event,
+        });
+      });
+    }
+
+    return {
+      events: Array.from(eventMap.values()),
+      contests: Array.from(contestMap.values()),
+      categories: normalizedCategories,
+    };
+  }
+
+  private async getContestantAccessibleCategoriesAndVisibility(
+    userId: string,
+  ): Promise<{
+    categories: CategoryWithContest[];
+    visibility: ContestantResultsVisibility | null;
+  }> {
+    const contestantUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { contestantId: true, tenantId: true },
+    }) as UserWithContestantId | null;
+
+    if (!contestantUser?.contestantId || !contestantUser.tenantId) {
+      return { categories: [], visibility: null };
+    }
+
+    const visibility = await this.getContestantVisibility(contestantUser.tenantId);
+    const categories = await this.prisma.category.findMany({
+      where: {
+        OR: [
+          {
+            categoryContestants: {
+              some: {
+                contestantId: contestantUser.contestantId,
+              },
+            },
+          },
+          {
+            contest: {
+              contestContestants: {
+                some: {
+                  contestantId: contestantUser.contestantId,
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        contest: {
+          include: {
+            event: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    }) as CategoryWithContest[];
+
+    return {
+      categories: categories.filter((category) => this.isContestVisibleToContestant(category.contest as any)),
+      visibility,
     };
   }
 
@@ -586,6 +711,7 @@ export class ResultsService extends BaseService {
         }
 
         whereClause = {
+          contestantId: user.contestantId,
           categoryId: { in: certifiedCategoryIds },
         };
         break;
@@ -749,33 +875,11 @@ export class ResultsService extends BaseService {
         winnersPublished: true,
       };
     } else if (userRole === 'CONTESTANT') {
-      const contestantUser = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { contestantId: true, tenantId: true },
-      }) as UserWithContestantId | null;
-
-      if (!contestantUser?.contestantId) {
+      const { categories, visibility } = await this.getContestantAccessibleCategoriesAndVisibility(userId);
+      if (!visibility?.canViewWinners) {
         return [];
       }
-
-      where.OR = [
-        {
-          categoryContestants: {
-            some: {
-              contestantId: contestantUser.contestantId,
-            },
-          },
-        },
-        {
-          contest: {
-            contestContestants: {
-              some: {
-                contestantId: contestantUser.contestantId,
-              },
-            },
-          },
-        },
-      ];
+      return categories;
     } else if (!['ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'SUPER_ADMIN'].includes(userRole)) {
       throw new Error('Insufficient permissions');
     }
@@ -791,10 +895,6 @@ export class ResultsService extends BaseService {
       },
       orderBy: { name: 'asc' },
     }) as CategoryWithContest[];
-
-    if (userRole === 'CONTESTANT') {
-      return categories.filter((category) => this.isContestVisibleToContestant(category.contest as any));
-    }
 
     if (userRole === 'JUDGE' || userRole === 'EMCEE') {
       const user = await this.prisma.user.findUnique({
@@ -825,45 +925,23 @@ export class ResultsService extends BaseService {
   }
 
   async getScopeOptions(filter: CategoriesFilter): Promise<ResultsScopeOptions> {
+    if (filter.userRole === 'CONTESTANT') {
+      const { categories, visibility } = await this.getContestantAccessibleCategoriesAndVisibility(filter.userId);
+      if (!visibility || (!visibility.canViewWinners && !visibility.canViewOverallResults)) {
+        return {
+          events: [],
+          contests: [],
+          categories: [],
+        };
+      }
+
+      return this.buildResultsScopeOptions(categories, {
+        includeCategories: visibility.canViewWinners,
+      });
+    }
+
     const categories = await this.getCategories(filter);
-    const eventMap = new Map<string, ResultsScopeEvent>();
-    const contestMap = new Map<string, ResultsScopeContest>();
-
-    const normalizedCategories: ResultsScopeCategory[] = categories.map((category) => {
-      const event = {
-        id: category.contest.event.id,
-        name: category.contest.event.name,
-        startDate: category.contest.event.startDate,
-        endDate: category.contest.event.endDate,
-      };
-
-      eventMap.set(event.id, event);
-
-      const contest = {
-        id: category.contest.id,
-        name: category.contest.name,
-        eventId: category.contest.eventId,
-        event,
-      };
-
-      contestMap.set(contest.id, contest);
-
-      return {
-        id: category.id,
-        name: category.name,
-        contestId: category.contestId,
-        scoreCap: category.scoreCap ?? null,
-        boardApproved: Boolean(category.boardApproved),
-        totalsCertified: Boolean(category.totalsCertified),
-        contest,
-      };
-    });
-
-    return {
-      events: Array.from(eventMap.values()),
-      contests: Array.from(contestMap.values()),
-      categories: normalizedCategories,
-    };
+    return this.buildResultsScopeOptions(categories);
   }
 
   /**

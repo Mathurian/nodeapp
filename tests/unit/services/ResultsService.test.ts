@@ -99,6 +99,34 @@ describe('ResultsService', () => {
       expect(result.total).toBe(1);
     });
 
+    it('should return all results for BOARD with full access', async () => {
+      (mockPrisma.score.findMany as jest.Mock).mockResolvedValue([mockScore]);
+      (mockPrisma.score.count as jest.Mock).mockResolvedValue(1);
+      (mockPrisma.score.groupBy as jest.Mock).mockResolvedValue([
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          _sum: { score: 85 },
+          _count: 1
+        }
+      ]);
+
+      const result = await service.getAllResults({
+        userRole: 'BOARD' as UserRole,
+        userId: 'board-1',
+        offset: 0,
+        limit: 50
+      });
+
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {},
+        })
+      );
+      expect(result.results).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
     it('should filter results for JUDGE role', async () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
@@ -128,12 +156,13 @@ describe('ResultsService', () => {
     it('should filter results for CONTESTANT role', async () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
-        contestantId: 'contestant-1'
+        contestantId: 'contestant-1',
+        tenantId: 'tenant-1',
       });
-      (mockPrisma.systemSetting.findFirst as jest.Mock).mockResolvedValue({
-        key: 'contestant_can_view_overall_results',
-        value: 'true'
-      });
+      (mockPrisma.systemSetting.findFirst as jest.Mock)
+        .mockResolvedValueOnce({ value: 'true' })
+        .mockResolvedValueOnce({ value: 'true' })
+        .mockResolvedValueOnce({ value: 'false' });
       (mockPrisma.category.findMany as jest.Mock).mockResolvedValue([
         { id: 'category-1' }
       ]);
@@ -156,6 +185,14 @@ describe('ResultsService', () => {
       });
 
       expect(result.results).toBeDefined();
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            contestantId: 'contestant-1',
+            categoryId: { in: ['category-1'] },
+          }),
+        })
+      );
     });
 
     it('should return empty results when CONTESTANT has no certified categories', async () => {
@@ -420,6 +457,64 @@ describe('ResultsService', () => {
           totalsCertified: true,
         })
       );
+    });
+
+    it('should withhold contestant category scope when winner visibility is disabled but keep contest/event scope', async () => {
+      const mockCategories = [
+        {
+          id: 'category-1',
+          name: 'Talent',
+          contestId: 'contest-1',
+          scoreCap: 100,
+          boardApproved: true,
+          totalsCertified: true,
+          contest: {
+            id: 'contest-1',
+            name: 'Contest 1',
+            eventId: 'event-1',
+            contestantViewRestricted: false,
+            contestantViewReleaseDate: null,
+            event: {
+              id: 'event-1',
+              name: 'Event 1',
+              startDate: new Date('2026-05-01T00:00:00.000Z'),
+              endDate: new Date('2026-05-03T00:00:00.000Z'),
+              contestantViewRestricted: false,
+              contestantViewReleaseDate: null,
+            },
+          },
+        },
+      ];
+
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'contestant-user-1',
+        contestantId: 'contestant-1',
+        tenantId: 'tenant-1',
+      });
+      (mockPrisma.systemSetting.findFirst as jest.Mock)
+        .mockResolvedValueOnce({ value: 'false' })
+        .mockResolvedValueOnce({ value: 'true' })
+        .mockResolvedValueOnce({ value: 'false' });
+      (mockPrisma.category.findMany as jest.Mock).mockResolvedValue(mockCategories);
+
+      const result = await service.getScopeOptions({
+        userRole: 'CONTESTANT' as UserRole,
+        userId: 'contestant-user-1',
+      });
+
+      expect(result.events).toEqual([
+        expect.objectContaining({
+          id: 'event-1',
+          name: 'Event 1',
+        }),
+      ]);
+      expect(result.contests).toEqual([
+        expect.objectContaining({
+          id: 'contest-1',
+          name: 'Contest 1',
+        }),
+      ]);
+      expect(result.categories).toEqual([]);
     });
   });
 

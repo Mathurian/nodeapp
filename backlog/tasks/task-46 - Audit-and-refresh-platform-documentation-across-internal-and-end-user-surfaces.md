@@ -1,10 +1,11 @@
 ---
 id: TASK-46
 title: Audit and refresh platform documentation across internal and end-user surfaces
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-10 04:32'
-updated_date: '2026-05-10 06:41'
+updated_date: '2026-05-13 23:38'
 labels:
   - documentation
 milestone: m-0
@@ -27,6 +28,12 @@ Audit and refresh platform documentation across internal and end-user surfaces, 
 - [ ] #5 Review first-login modal and pop-up guidance across user types for validity, coherence, and accuracy against the actual workflow each role experiences.
 - [ ] #6 The audit includes the API/HTTP calls made by help/documentation page views and notes any rate-limiting impact, unnecessary request volume, or mitigation/follow-up recommendations.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inventory all current documentation surfaces: repository docs, operational/runbook docs, in-app help content, onboarding/first-login guidance, and any explanatory UI copy tied to role workflows.\n2. Trace the help/documentation page request paths and supporting APIs to document what network calls are made per page load, where redundant volume exists, and any rate-limiting or caching implications.\n3. Audit the documented behavior against the current shipped product for major role workflows, permissions, and operational processes; identify stale, conflicting, or misleading content and classify what can be fixed now versus what needs follow-up tasks.\n4. Implement the documentation and in-app guidance updates that fit within one pass, then record remaining gaps and recommendations in TASK-46 with explicit follow-up notes.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

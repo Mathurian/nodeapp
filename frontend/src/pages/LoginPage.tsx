@@ -135,7 +135,6 @@ const LoginPage: React.FC = () => {
               ...prev,
               appName: tenant.branding.appName || tenant.name || DEFAULT_APP_BASELINE.appName,
               appSubtitle: tenant.branding.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle,
-              logoPath: tenant.branding.logoPath || null
             }))
           }
         } else if (response.status === 404 && slug) {
@@ -176,7 +175,6 @@ const LoginPage: React.FC = () => {
           ...prev,
           appName: data.app_name || data.appName || DEFAULT_APP_BASELINE.appName,
           appSubtitle: data.app_subtitle || data.appSubtitle || DEFAULT_APP_BASELINE.appSubtitle,
-          logoPath: data.theme_logoPath || data.logoPath || null,
           faviconPath: data.theme_faviconPath || data.faviconPath || null
         }))
       } catch (err) {
@@ -206,7 +204,7 @@ const LoginPage: React.FC = () => {
           appSubtitle: payload.appSubtitle || prev.appSubtitle,
           appDescription: payload.appDescription || DEFAULT_APP_BASELINE.appDescription,
           showForgotPassword: payload.showForgotPassword !== false,
-          logoPath: payload.logoPath || prev.logoPath,
+          logoPath: payload.logoPath || null,
           faviconPath: payload.faviconPath || prev.faviconPath,
           contactEmail: payload.contactEmail || DEFAULT_APP_BASELINE.contactEmail,
         }))

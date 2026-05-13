@@ -165,6 +165,7 @@ const ResultsPage: React.FC = () => {
   const canViewMinimumWinningScore = isContestant
     ? contestantVisibility?.canViewMinimumWinningScore === true
     : staffCanViewMinimumWinningScore
+  const canViewContestantCategoryResults = !isContestant || contestantVisibility?.canViewWinners === true
 
   const {
     data: scopeOptions,
@@ -257,7 +258,7 @@ const ResultsPage: React.FC = () => {
       return payload as CategoryResults
     },
     {
-      enabled: !!selectedCategoryId,
+      enabled: !!selectedCategoryId && canViewContestantCategoryResults,
       retry: 1,
       onError: (err) => console.error('Fetch category results failed:', err),
     }
@@ -349,10 +350,16 @@ const ResultsPage: React.FC = () => {
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
-      enabled: !!selectedCategoryId,
+      enabled: !!selectedCategoryId && canViewContestantCategoryResults,
       retry: 1,
     }
   )
+
+  React.useEffect(() => {
+    if (!canViewContestantCategoryResults && selectedCategoryId) {
+      setSelectedCategoryId('')
+    }
+  }, [canViewContestantCategoryResults, selectedCategoryId])
 
   const contestLevelResults = useMemo(() => {
     if (!selectedContestId || selectedCategoryId || contestScores.length === 0) return []
@@ -610,7 +617,7 @@ const ResultsPage: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Results</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 gap-4 ${canViewContestantCategoryResults ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             {/* Event Selector */}
             <div>
               <label htmlFor="pages-resultspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -661,29 +668,37 @@ const ResultsPage: React.FC = () => {
             </div>
 
             {/* Category Selector */}
-            <div>
-              <label htmlFor="pages-resultspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Category
-              </label>
-              <select id="pages-resultspage-3"
-                value={selectedCategoryId}
-                onChange={(e) => {
-                  setSelectedCategoryId(e.target.value)
-                  scrollToRef(resultsSectionRef, { delayMs: 140 })
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!selectedContestId || scopeLoading}
-              >
-                <option value="">Select a category...</option>
-                {sortedCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                    {category.totalsCertified && ' ✓'}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {canViewContestantCategoryResults && (
+              <div>
+                <label htmlFor="pages-resultspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Category
+                </label>
+                <select id="pages-resultspage-3"
+                  value={selectedCategoryId}
+                  onChange={(e) => {
+                    setSelectedCategoryId(e.target.value)
+                    scrollToRef(resultsSectionRef, { delayMs: 140 })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={!selectedContestId || scopeLoading}
+                >
+                  <option value="">Select a category...</option>
+                  {sortedCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                      {category.totalsCertified && ' ✓'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
+
+          {isContestant && !canViewContestantCategoryResults && (
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              Category winner views are disabled for contestants. Contest and event scope remains available where overall results are allowed.
+            </p>
+          )}
 
           {/* Action Buttons */}
           {(hasCategoryResults || hasContestResults) && (
