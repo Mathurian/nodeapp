@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-04-30 19:54'
-updated_date: '2026-05-01 01:01'
+updated_date: '2026-05-14 04:47'
 labels:
   - tests
   - jest
@@ -14,6 +14,7 @@ labels:
 dependencies: []
 parent_task_id: TASK-19
 priority: high
+ordinal: 37013
 ---
 
 ## Description

@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-02 17:52'
-updated_date: '2026-05-02 18:01'
+updated_date: '2026-05-14 04:47'
 labels:
   - tests
   - integration
@@ -13,6 +13,7 @@ labels:
 dependencies: []
 parent_task_id: TASK-19
 priority: high
+ordinal: 17013
 ---
 
 ## Description

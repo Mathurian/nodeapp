@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-02 21:41'
-updated_date: '2026-05-02 22:25'
+updated_date: '2026-05-14 04:47'
 labels:
   - tests
   - e2e
@@ -14,6 +14,7 @@ labels:
 dependencies: []
 parent_task_id: TASK-19
 priority: high
+ordinal: 14013
 ---
 
 ## Description

@@ -4,13 +4,14 @@ title: Investigate cross-event contest cloning support
 status: Done
 assignee: []
 created_date: '2026-05-09 20:45'
-updated_date: '2026-05-09 20:55'
+updated_date: '2026-05-14 04:47'
 labels:
   - cloning
   - events
   - investigation
 dependencies: []
 priority: high
+ordinal: 11013
 ---
 
 ## Description
