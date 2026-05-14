@@ -1989,7 +1989,7 @@ const SettingsPage: React.FC = () => {
                     <div className="py-3">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">Registration Model</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Registration is invite-only. Users are onboarded via organizer/admin invitations and complete setup from emailed links.
+                        Registration is invite-only. Organizers and admins create or import accounts, then users finish setup from emailed invitation links. The public landing page can point visitors to sign in or contact support, but it does not enable self-service registration.
                       </p>
                     </div>
 
@@ -1997,7 +1997,7 @@ const SettingsPage: React.FC = () => {
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Send Welcome Emails</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Send a tenant-branded onboarding email after admins create or import active user accounts
+                          Send a tenant-branded invitation and onboarding email after admins create or import active user accounts
                         </p>
                       </div>
                       <input
@@ -3437,6 +3437,9 @@ const SettingsPage: React.FC = () => {
                           Tenant-aware public content
                         </p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          Use this page to explain your event, branding, help paths, and contact instructions for public visitors. It supports discovery and sign-in routing, but actual account access is still controlled by invitations, role assignment, and tenant-specific login flows.
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                           Relative URLs such as <code>/login</code> are automatically prefixed for slug-based
                           tenant pages. External links should use <code>https://</code>, <code>mailto:</code>,
                           or <code>tel:</code>.
@@ -4519,11 +4522,14 @@ const SettingsPage: React.FC = () => {
 
               {expandedSections.includes('contestant-visibility') && (
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                  <div className="mb-6 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+                    These controls only affect what contestants can see after they already have access to an event or contest. Event-level release restrictions can still hide an event entirely until its release date, and published results role settings do not replace these contestant-specific rules.
+                  </div>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between py-3">
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Can View Winners</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to view contest winners</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to view published winner placements where winners have been released</p>
                       </div>
                       <input
                         type="checkbox"
@@ -4536,7 +4542,7 @@ const SettingsPage: React.FC = () => {
                     <div className="flex items-center justify-between py-3">
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Can View Overall Results</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to view overall contest results</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to open overall contest or event standings in results views once those standings are released</p>
                       </div>
                       <input
                         type="checkbox"
@@ -4549,7 +4555,7 @@ const SettingsPage: React.FC = () => {
                     <div className="flex items-center justify-between py-3">
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Can View Minimum Winning Score</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to see the contest minimum winning score threshold in results views</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Allow contestants to see the published minimum winning score threshold where that threshold appears in results views</p>
                       </div>
                       <input
                         type="checkbox"
@@ -4602,24 +4608,24 @@ const SettingsPage: React.FC = () => {
               {expandedSections.includes('published-results-visibility') && (
                 <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-6">
                   <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-                    Tenant defaults control which roles can view published detailed results, winners, and publication progress. Event-level overrides can narrow or broaden these defaults for a single event.
+                    Tenant defaults control which staff and role-based accounts can view published detailed results, winners, and publication progress. These defaults do not grant contestant visibility by themselves, and contest publication plus event-level release rules can still hide results until release conditions are met. Event-level overrides can narrow or broaden these defaults for a single event.
                   </div>
 
                   {[
                     {
                       key: 'detailedResultsRoles' as const,
                       title: 'Detailed Results Roles',
-                      description: 'Roles allowed to open the detailed results explorer after contest publication.',
+                      description: 'Roles allowed to open detailed /results views after contest publication and any event-level release gating.',
                     },
                     {
                       key: 'winnersRoles' as const,
                       title: 'Winners Roles',
-                      description: 'Roles allowed to view published winners for an event or contest.',
+                      description: 'Roles allowed to view published /winners views for an event or contest.',
                     },
                     {
                       key: 'progressRoles' as const,
                       title: 'Publication Progress Roles',
-                      description: 'Roles allowed to see winners publication progress before event-level release conditions are satisfied.',
+                      description: 'Roles allowed to see winners publication progress before full event-level release conditions are satisfied for other configured roles.',
                     },
                   ].map((group) => (
                     <div key={group.key} className="space-y-3">

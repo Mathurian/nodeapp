@@ -163,7 +163,7 @@ Capabilities:
 - Archive old events
 - Clone events from templates
 - Lock events after completion
-- Set view restrictions with release dates
+- Set contestant event release dates and per-event published-results visibility overrides
 
 ### Event Templates
 
@@ -488,7 +488,9 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 
 **Visibility Notes**:
 - Judge and contestant access to `/results` is conditional and can be blocked entirely when no accessible published scope exists.
-- Contestant result visibility depends on event/contest release settings plus contestant visibility controls.
+- Contestant result visibility depends on event and contest release settings plus contestant visibility controls configured in Settings.
+- Published results role visibility controls staff and role-based access to `/results`, `/winners`, and publication-progress views, but it does not replace contestant-specific visibility settings.
+- Event-level published-results overrides can narrow or broaden tenant defaults for one event, and may still hold results until every active contest in that event is published.
 - Emcee result access is limited to published presentation views rather than unrestricted detailed results.
 
 ## Reporting & Analytics
@@ -537,7 +539,7 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 **Methods**:
 1. Manual creation by admin
 2. Bulk CSV import
-3. Self-registration (if enabled)
+3. Invite-only registration completion from emailed links
 4. SSO integration (if configured)
 
 ### Role Assignment
@@ -575,10 +577,11 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 **System Settings**:
 1. **Email Settings** - SMTP configuration, sender name/address, optional reply-to routing, and tenant-specific overrides
 2. **Security Settings** - Password policies, MFA
-3. **Backup Settings** - Automated backups
-4. **Theme Settings** - Branding and colors
-5. **Logging Settings** - Log levels and retention
-6. **Notification Settings** - Email/push preferences
+3. **Visibility & Release Controls** - Public landing content, invite-only onboarding, contestant visibility, published results defaults, and event release behavior
+4. **Backup Settings** - Automated backups
+5. **Theme Settings** - Branding and colors
+6. **Logging Settings** - Log levels and retention
+7. **Notification Settings** - Email/push preferences
 
 ### Backup & Recovery
 

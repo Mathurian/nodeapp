@@ -951,11 +951,11 @@ const EventsPage: React.FC = () => {
                     Restrict contestant access to this event
                   </label>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Contestants only see this event once release date/time is reached.
+                    This hides the event from contestants until the release date/time is reached. Contestant visibility settings still determine what they can see after the event becomes available.
                   </p>
                   <div className="mt-2">
                     <label htmlFor="pages-eventspage-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Contestant Access Release Date
+                      Contestant Event Release Date
                     </label>
                     <input id="pages-eventspage-6"
                       type="date"
@@ -1027,31 +1027,34 @@ const EventsPage: React.FC = () => {
                     Override tenant published-results visibility for this event
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Leave this off to inherit tenant-wide role visibility for detailed results, winners, and winners publication progress.
+                    Leave this off to inherit tenant-wide role visibility for detailed results, winners, and publication progress. Contestant-specific visibility is still controlled separately in Settings.
                   </p>
 
                   {overrideResultsVisibility && (
                     <div className="space-y-4 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                      <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+                        These overrides affect published results surfaces for the selected event. They do not automatically release the event to contestants; contestant release dates and contestant visibility settings still apply separately.
+                      </div>
                       <label htmlFor="pages-eventspage-11" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                         <input id="pages-eventspage-11" type="checkbox" {...register('hideResultsUntilEventPublished')} />
-                        Hide winners, results, and publication progress from configured non-admin roles until every active contest in this event is published
+                        Hide published winners, detailed results, and publication progress from configured non-admin roles until every active contest in this event is published
                       </label>
 
                       {[
                         {
                           key: 'resultsVisibleRolesOverride',
                           title: 'Detailed Results Roles',
-                          description: 'Roles allowed to access the detailed results explorer for this event.',
+                          description: 'Roles allowed to access the detailed /results explorer for this event after publication and any event-level release gating.',
                         },
                         {
                           key: 'winnersVisibleRolesOverride',
                           title: 'Winners Roles',
-                          description: 'Roles allowed to view published winners for this event.',
+                          description: 'Roles allowed to view published /winners views for this event.',
                         },
                         {
                           key: 'progressVisibleRolesOverride',
                           title: 'Publication Progress Roles',
-                          description: 'Roles allowed to see winners publication progress for this event.',
+                          description: 'Roles allowed to see winners publication progress for this event before full release conditions are met for other configured roles.',
                         },
                       ].map((group) => (
                         <div key={group.key} className="space-y-2">
