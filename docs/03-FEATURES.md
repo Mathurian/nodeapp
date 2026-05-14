@@ -46,14 +46,12 @@ Capabilities:
 - All ORGANIZER capabilities within tenant
 - System configuration and settings
 - User management within tenant
-- Database browser access
-- Cache management
-- Log file access
-- Backup management
-- Security settings
-- Theme customization
-- Bulk operations
-- Data wipe capabilities
+- Permissions and tenant-scoped policy management
+- Cache, backup, activity-log, and operational tooling within tenant scope
+- Bulk operations and event-support workflows
+- Selected infrastructure-style tools within tenant scope
+
+**Important:** Database browser and cross-tenant tools remain `SUPER_ADMIN` only.
 
 ### 3. ORGANIZER
 **Event Management**
@@ -75,10 +73,9 @@ Capabilities:
 
 Capabilities:
 - View all events and contests
-- Final approval in certification workflow
-- Sign off on winners
-- View comprehensive reports
-- Access audit logs
+- Review board-stage certifications and publication readiness
+- Sign off on winners and final results publication
+- View reports and governance queues
 - Approve deductions
 - Request score uncertifications
 
@@ -88,57 +85,48 @@ Capabilities:
 Capabilities:
 - View assigned categories
 - Enter scores for contestants
-- Add scoring comments
+- Add commentary and supporting attachments where enabled
 - Certify own scores
 - View contestant bios
-- Access emcee scripts (if also EMCEE)
-- Request score edits
+- View judge schedules
+- Check released results only when visibility settings allow it
 
 ### 6. TALLY_MASTER
 **Score Verification**
 
 Capabilities:
-- View all scores
-- Verify calculations
-- Certify tallied results
-- Approve score totals
-- Generate tally reports
-- Flag discrepancies
-- Review judge certifications
+- Review scoring completeness and judge-stage progress
+- Certify tally-stage categories
+- Use the shared certification workspace and governance queue
+- Review published results only when visibility settings allow it
 
 ### 7. AUDITOR
 **Independent Audit**
 
 Capabilities:
-- Audit certified scores
-- Review certification workflow
-- Access detailed audit logs
-- Flag issues for review
-- Generate audit reports
-- Approve final tallies
-- Request uncertifications
+- Review auditor-stage certifications in the shared certification workspace
+- Open pending auditor certification queues and status views
+- Access auditor-specific reports and audit-log surfaces
+- Validate score integrity and governance outcomes
+- Request follow-up action when issues are found
 
 ### 8. EMCEE
 **Event Presentation**
 
 Capabilities:
-- View event schedule
-- Access emcee scripts
+- Access emcee scripts and event flow views
 - View contestant bios for announcements
-- View only published winners/progress views intended for announcement
-- Manage script templates
-- Print announcements
+- View published winners and progress views intended for announcement
+- Read script content in a scoped, read-only view unless the user also holds an elevated role such as `ADMIN`, `ORGANIZER`, or `BOARD`
 
 ### 9. CONTESTANT
 **Participant View**
 
 Capabilities:
-- View assigned events/contests
+- View released event and contest information assigned to them
 - View own profile
-- View results (when released)
-- Update bio information
-- Upload profile picture
-- View score detail only when the event visibility policy exposes it
+- View bios and released results only when visibility settings expose them
+- Access overall standings, winners, or minimum winning score only when the relevant release and contestant-visibility settings allow it
 
 ## Event Management
 
@@ -152,11 +140,11 @@ Capabilities:
    - Description
    - Start/end dates
    - Location
-   - Max contestants (optional)
 4. Configure settings:
-   - Contestant numbering mode (Manual/Auto/Optional)
-   - View restrictions
-   - Lock settings
+   - Contestant event release date (optional)
+   - Scoring type override (optional)
+   - Tally/auditor certification requirement overrides
+   - Published-results visibility overrides (optional)
 
 **Features**:
 - Multiple contests per event
@@ -311,8 +299,8 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 - View assigned categories
 - Score entry interface
 - Contestant bio viewer
-- Real-time score tracking
-- Certification workflow
+- Commentary and attachment support where enabled
+- Per-contestant certification within scoring
 
 ## Scoring System
 
@@ -327,9 +315,9 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 
 **Features**:
 - Auto-save functionality
-- Bulk score entry
-- Score templates
-- Calculator integration
+- Draft restore
+- Offline queueing for score and commentary changes
+- Per-criterion and category commentary modes based on category setup
 
 ### Score Validation
 
@@ -345,9 +333,9 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 **Commentary System**:
 - Per-contestant comments
 - Per-criterion comments
-- Private judge notes
-- Public feedback
-- Rich text support
+- Category-level commentary
+- Commentary attachments
+- Shared event- or contest-scoped commentary when configured by category settings
 
 ### Deductions
 
@@ -368,11 +356,9 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 
 **Admin Features**:
 - View all scores
-- Edit scores (with audit trail)
-- Delete scores (with approval workflow)
-- Lock scores
-- Uncertify scores
-- Score history tracking
+- Enter or correct scores in shared scoring workspaces where the role is allowed
+- Review certification state and governance status
+- Request uncertification or score-removal follow-up through governance workflows
 
 ## Certification Workflow
 
@@ -388,8 +374,8 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 
 **Per-Contestant Certification**:
 - Certify each contestant individually
-- Score values lock immediately when submitted/certified
-- Commentary remains editable after certification
+- Scores are submitted before signature/certification and remain subject to later stage review
+- Commentary behavior depends on the current scoring and certification state
 - Digital signature capture
 - Timestamp recorded
 
@@ -410,10 +396,10 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 ### Stage 3: Auditor Review
 
 **Auditor Responsibilities**:
-- Independent score audit
+- Independent audit-stage review
 - Verify previous certifications
 - Check for irregularities
-- Final score validation
+- Certify auditor-stage completion
 
 **Audit Process**:
 - Review all scores
@@ -474,7 +460,6 @@ See [Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md) for the full workflow a
 - Digital signatures
 - Multiple approver support
 - Timestamp tracking
-- Certificate generation
 - Public announcement preparation
 
 ### Results Display

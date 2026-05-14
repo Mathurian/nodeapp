@@ -50,7 +50,6 @@ App routes are available in both forms:
 When authenticated and visiting non-slug app routes, `TenantRouter` canonicalizes to `/{userTenantSlug}/...`.
 
 ### Role default landing
-- `AUDITOR` -> `/auditor`
 - `TALLY_MASTER` -> `/tally-master`
 - `EMCEE` -> `/emcee`
 - `BOARD` -> `/board`
@@ -62,7 +61,7 @@ When authenticated and visiting non-slug app routes, `TenantRouter` canonicalize
 ## 4. Key Frontend Pages
 
 Core shared pages:
-- `dashboard`, `profile`, `notifications`, `search`, `bios`, `results`
+- `dashboard`, `profile`, `notifications`, `bios`, `results`
 
 Event/admin management pages:
 - `events`, `contests`, `categories`, `users`, `assignments`, `settings`, `permissions`
@@ -109,13 +108,18 @@ Characteristics:
 - Socket context connects authenticated sessions to server events.
 - Frontend listens for updates (notifications, certification/status signals, etc.) and refreshes views as needed.
 
-## 10. Styling and Accessibility
+## 10. Search and discovery
+
+- There is no dedicated global `/search` page in the shipped router.
+- Discovery is primarily handled through the command palette (`Ctrl/Cmd + K`) plus page-level filters and scoped search inputs.
+
+## 11. Styling and Accessibility
 
 - Tailwind utility styling with theme support.
 - Responsive layout with desktop/mobile navigation behavior.
 - Accessibility includes semantic controls, keyboard interaction, and error/focus states.
 
-## 11. Frontend Source of Truth
+## 12. Frontend Source of Truth
 
 For route/role parity checks, use:
 - `frontend/src/components/TenantRouter.tsx`
@@ -123,4 +127,3 @@ For route/role parity checks, use:
 - `frontend/src/components/Layout.tsx`
 - `frontend/src/components/ProtectedRoute.tsx`
 - `frontend/src/services/api.ts`
-

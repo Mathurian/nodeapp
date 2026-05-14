@@ -117,15 +117,17 @@ Implemented.
 ### Status
 Implemented (templates + sending endpoints).
 
-### UI Route
+### UI Routes
 - `/email-templates`
+- `/bulk-operations` (`/send-email` redirects here)
 
 ### API Routes
 - `/api/email-templates/*`
 - `/api/email/*`
 
 ### Notes
-- Preview and send are available via API and UI.
+- Template management, bulk/direct sending, and personal notifications are separate surfaces.
+- Preview and send flows exist, but direct send operations live with bulk operations rather than a standalone `/send-email` page.
 
 ## Workflow Templates and Instances
 
@@ -172,16 +174,14 @@ Implemented (with role-scoped visibility).
 - Includes judge commentary file uploads and scoped retrieval.
 - Static upload serving requires correct web server mapping for `/uploads/*`.
 
-## Search
+## Search and Command Palette
 
 ### Status
-Implemented (global search page + command palette integration).
-
-### UI Route
-- `/search`
+Implemented as command-palette navigation/discovery plus page-level filters.
 
 ### Notes
-- Visibility of results is permission-filtered.
+- There is no dedicated shipped `/search` route in the current frontend router.
+- Discovery is handled through `Ctrl/Cmd + K` and page-specific search/filter controls.
 
 ## Emcee Scripts and Bios
 
@@ -224,7 +224,7 @@ Implemented with tenant-aware fetch/apply behavior.
 
 ### Notes
 - Theme/logo/favicon values can be tenant-specific.
-- Public landing page uses default tenant branding baseline.
+- Public landing, login, help, and related unauthenticated surfaces load tenant-aware public branding when available.
 
 ## MFA (Tenant Policy + Providers)
 
