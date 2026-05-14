@@ -285,6 +285,12 @@ const PublicLandingPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-4">
               <Link
+                to={`${basePath}/help`}
+                className="inline-flex h-9 items-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Help
+              </Link>
+              <Link
                 to={`${basePath}/login`}
                 className="inline-flex h-9 items-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
@@ -506,6 +512,12 @@ const PublicLandingPage: React.FC = () => {
               © {new Date().getFullYear()} {appName}. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
+              <Link
+                to={`${basePath}/help`}
+                className="inline-flex h-9 items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Help
+              </Link>
               <Link
                 to={`${basePath}/login`}
                 className="inline-flex h-9 items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"

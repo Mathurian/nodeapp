@@ -20,6 +20,12 @@ This guide is for general users, contestants, judges, auditors, emcees, tally st
 
 If you cannot sign in, go to [Troubleshooting](10-TROUBLESHOOTING.md).
 
+## Recover Access or Finish an Invitation
+
+- Use the `Forgot password` link from the correct tenant login page if you need a reset link.
+- Use the invitation link from your email if your organization requires invite-only registration.
+- If you are not sure which tenant to use, contact your event organizer or support contact before resetting your password or completing registration.
+
 ## What Happens After Sign-In
 
 Your landing page and navigation depend on your role and what your organization has enabled.
