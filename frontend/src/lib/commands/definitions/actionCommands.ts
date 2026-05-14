@@ -19,6 +19,16 @@ import {
   PrinterIcon,
   ShareIcon
 } from '@heroicons/react/24/outline';
+import { extractTenantSlugFromPath } from '../../../utils/routeSegments';
+
+const getTenantAwareHelpPath = (): string => {
+  if (typeof window === 'undefined') {
+    return '/help';
+  }
+
+  const tenantSlug = extractTenantSlugFromPath(window.location.pathname);
+  return tenantSlug ? `/${tenantSlug}/help` : '/help';
+};
 
 export const createActionCommands = (options: {
   logout?: () => void | Promise<void>;
@@ -263,7 +273,7 @@ export const createActionCommands = (options: {
       description: 'View help and documentation',
       icon: ShareIcon,
       action: () => {
-        window.open('/help', '_blank')
+        window.open(getTenantAwareHelpPath(), '_blank')
       },
       keywords: ['help', 'docs', 'documentation', 'support'],
       category: 'action',

@@ -275,59 +275,54 @@ const HelpPage: React.FC = () => {
     if (docPath) {
       loadDoc(docPath)
     } else {
-      setContent(`# Welcome to ${appName} Documentation
+      setContent(`# Welcome to ${appName} Help
 
 ## Getting Help
 
-This documentation provides comprehensive information about the ${appName} event management system. Select a topic from the sidebar to learn more.
+Use this help center for practical guidance on signing in, using the app on desktop or mobile, understanding why some information may be hidden, and handling common issues before you need support.
 
 ${!user ? `
-### Public Documentation
+### Public Help
 
-The sidebar shows every document currently published for public access.
+The sidebar shows the help articles that are intentionally published for public or general event-user access.
 
-### Administrator Documentation
+### Need More Than Public Help?
 
-Additional operational and administration guides become available after signing in with an authorized account.
-` : ''}
+Sign in with your event account to view any additional help that is available for your role.
+` : `
+### Signed-In Help
 
-## Quick Troubleshooting
+Your current Help view includes the public guides plus any additional documents published for your signed-in role.
+`}
 
-### Common Issues
+## Start Here
 
-**Cannot log in**
-- Verify your email and password are correct
-- Check that your account is active
-- Contact your system administrator if you continue to have issues
+- [Getting Started](${helpBasePath}/02-GETTING-STARTED)
+- [Troubleshooting](${helpBasePath}/10-TROUBLESHOOTING)
 
-**Scores not appearing**
-- Ensure you've selected the correct event
-- Verify scores have been submitted (not just saved)
-- Check that you have permission to view the scores
+## What You Can Find Here
 
-**Page not loading**
-- Try refreshing the page (Ctrl+R or Cmd+R)
-- Clear your browser cache
-- Try a different browser
+- How to sign in and return to the right tenant
+- What different roles usually do in the app
+- Why results, scores, or certifications may not appear for every user
+- How to install the mobile app experience
+- What to try before contacting support
 
-**Print/Export not working**
-- Ensure pop-ups are not blocked
-- Check your printer settings
-- Try exporting to PDF first
+## Before You Contact Support
+
+- Confirm you are in the correct tenant or event
+- Refresh the page and try again
+- Check whether the item you expect is controlled by role, publication, or certification status
+- If the issue persists, contact your event organizer, administrator, or support contact with screenshots and the exact time of the problem
 
 ### Need More Help?
 
-- **Search Documentation**: Use the search bar above to find specific topics
-- **Contact Support**: Reach out to your system administrator
-- **Report Issues**: Contact technical support if you encounter bugs
-
-${user ? `
-### Signed in as ${user.email}
-
-The sidebar now reflects the documentation available for your role (${user.role}).
-` : ''}`)
+- Use the search bar to find the topic closest to your issue
+- Review the published guides in the sidebar before opening a support request
+- If you are signed in, the sidebar reflects the documents available for your role
+`)
     }
-  }, [docPath, user, appName])
+  }, [docPath, user, appName, helpBasePath])
 
   return (
     <div className="cgr-page-container min-h-screen bg-gray-50 dark:bg-gray-900 flex">
@@ -422,7 +417,7 @@ The sidebar now reflects the documentation available for your role (${user.role}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <BookOpenIcon className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-2" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Documentation</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Help Center</h2>
               </div>
               <button
                 onClick={() => setSidebarOpen(false)}
@@ -439,7 +434,7 @@ The sidebar now reflects the documentation available for your role (${user.role}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search documentation..."
+                placeholder="Search help..."
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -518,10 +513,10 @@ The sidebar now reflects the documentation available for your role (${user.role}
           {!user && (
             <div className="p-4 m-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-sm text-blue-900 dark:text-blue-300 mb-2 font-medium">
-                Administrator Documentation
+                Need more help?
               </p>
               <p className="text-xs text-blue-800 dark:text-blue-400 mb-3">
-                Sign in to view operational and administration guides that are not published publicly.
+                Sign in to see any additional guides that are available for your role.
               </p>
             </div>
           )}

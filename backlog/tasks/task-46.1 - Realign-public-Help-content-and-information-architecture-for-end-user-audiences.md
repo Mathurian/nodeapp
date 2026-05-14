@@ -3,11 +3,11 @@ id: TASK-46.1
 title: >-
   Realign public Help content and information architecture for end-user
   audiences
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-14 00:03'
-updated_date: '2026-05-14 15:57'
+updated_date: '2026-05-14 17:40'
 labels: []
 milestone: m-0
 dependencies: []
@@ -23,10 +23,10 @@ Rework the public-facing Help surface so it is actually suitable for public and 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The public Help surface is limited to documentation that is appropriate for unauthenticated or general end-user audiences and no longer relies on install/admin/developer-oriented guides as its primary public content.
-- [ ] #2 Published public guides are rewritten or restructured so a non-technical user can understand how to sign in, find role-relevant help, understand results visibility limits, and get support without encountering developer or infrastructure instructions.
-- [ ] #3 Any docs that should remain available in-repo but not in public Help are explicitly identified and their publication status is documented.
-- [ ] #4 Help home/default guidance and cross-links from login or other public pages align with the new public Help information architecture.
+- [x] #1 The public Help surface is limited to documentation that is appropriate for unauthenticated or general end-user audiences and no longer relies on install/admin/developer-oriented guides as its primary public content.
+- [x] #2 Published public guides are rewritten or restructured so a non-technical user can understand how to sign in, find role-relevant help, understand results visibility limits, and get support without encountering developer or infrastructure instructions.
+- [x] #3 Any docs that should remain available in-repo but not in public Help are explicitly identified and their publication status is documented.
+- [x] #4 Help home/default guidance and cross-links from login or other public pages align with the new public Help information architecture.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -65,11 +65,39 @@ Public Help IA findings are now more exact: HelpPage still introduces the surfac
 Line-level public-help findings from remaining root docs: docs/02-GETTING-STARTED.md is still fundamentally an installation/deployment/developer setup guide, including repository cloning, .env secrets, PostgreSQL setup, Prisma generation, and production build guidance. It is not a true end-user/operator quick start despite its public-help positioning. docs/10-TROUBLESHOOTING.md is similarly technical-first, covering npm cache cleanup, Prisma generation, PostgreSQL operations, bearer-token debugging, and permission-matrix references. These are not narrow public-help materials in their current form.
 
 Additional public/help-scope leak: docs/README.md and docs/INDEX.md still surface CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md as if it were part of normal user/operator navigation. That document reads as an implementation spec, not user-facing guidance, and should not remain prominently surfaced in help/discovery paths even if the underlying shipped operator workflow is documented separately in 15-STRUCTURE-REUSE-GUIDE.md.
+
+- Reworked the public Help surface around a narrow public guide set instead of the old broad documentation-library posture.
+- Moved 03-FEATURES.md out of public access by making it admin-restricted in the docs access policy, leaving public Help focused on end-user/operator-safe guidance while broader capability docs stay for later rewrite under TASK-46.5.
+- Rewrote docs/02-GETTING-STARTED.md into a true end-user guide covering sign-in, role-based visibility, results timing, mobile install, and escalation paths.
+- Rewrote docs/10-TROUBLESHOOTING.md into an end-user/operator issue guide and removed installation, database, JWT, Prisma, and infrastructure-debug content from the public-facing article.
+- Rewrote docs/README.md and docs/INDEX.md to clearly separate published public Help from repo-only or restricted references, explicitly calling out implementation-plan material like CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md as repo-only.
+- Updated frontend/src/pages/HelpPage.tsx home copy and sidebar/support language so public visitors see a Help-center framing instead of a comprehensive documentation-library framing.
+- Updated frontend/src/components/Layout.tsx and frontend/src/lib/commands/definitions/actionCommands.ts so Help entry points open tenant-aware Help routes rather than a hardcoded /help URL.
+- Verification passed: npx eslint frontend/src/pages/HelpPage.tsx frontend/src/components/Layout.tsx frontend/src/lib/commands/definitions/actionCommands.ts; cd frontend && npm run type-check; cd frontend && npm run build; npm run build.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Realigned the public Help surface around a small, end-user-safe guide set instead of the old comprehensive documentation library model.
+
+What changed:
+- Restricted public Help publication to the rewritten public guides by making 03-FEATURES.md admin-only in the docs access policy until the broader capability guide is corrected in TASK-46.5.
+- Rewrote the public-facing Getting Started and Troubleshooting guides so they explain sign-in, role-based visibility, results timing, mobile installation, common app issues, and when to escalate without exposing install/deployment/developer instructions.
+- Reworked docs/README.md and docs/INDEX.md so they clearly distinguish public Help from repo-only or restricted references, including implementation-plan material that should no longer read like normal Help navigation.
+- Updated the HelpPage home state and support copy to present the surface as a Help center, not a comprehensive technical documentation library.
+- Fixed authenticated Help entry points in the app shell and command palette to use tenant-aware Help routes instead of hardcoded /help links.
+
+Verification:
+- npx eslint frontend/src/pages/HelpPage.tsx frontend/src/components/Layout.tsx frontend/src/lib/commands/definitions/actionCommands.ts
+- cd frontend && npm run type-check
+- cd frontend && npm run build
+- npm run build
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 No regressions introduced
-- [ ] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #1 No regressions introduced
+- [x] #2 All functions behave properly
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->

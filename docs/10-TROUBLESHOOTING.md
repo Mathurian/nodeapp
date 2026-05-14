@@ -1,548 +1,128 @@
-# Troubleshooting Guide
+# Troubleshooting
 
-Common issues and solutions for Event Manager.
+Use this guide for common end-user and operator issues before escalating to support. This article intentionally focuses on app usage, access, and browser behavior rather than infrastructure or server administration.
 
-## Table of Contents
+## Start With These Checks
 
-- [Installation Issues](#installation-issues)
-- [Database Issues](#database-issues)
-- [Authentication Issues](#authentication-issues)
-- [Real-Time Connection Issues](#real-time-connection-issues)
-- [File Upload Issues](#file-upload-issues)
-- [Performance Issues](#performance-issues)
-- [Build & Deployment Issues](#build--deployment-issues)
-- [Common Error Codes](#common-error-codes)
-- [Getting Support](#getting-support)
+Before you report a problem:
 
-## Installation Issues
+1. Confirm you are in the correct tenant.
+2. Refresh the page once.
+3. Sign out and back in if your session looks stale.
+4. Check whether the feature depends on role, certification, or published results.
+5. Try the same action in another supported browser if the page looks broken.
 
-### Node Version Mismatch
+## I Cannot Sign In
 
-**Problem**: `Error: The engine "node" is incompatible with this module`
+Check the basics first:
 
-**Solution**:
-```bash
-# Check Node version
-node --version  # Should be 18.0.0 or higher
+- confirm your email and password
+- confirm you are using the correct tenant login page
+- complete MFA if your organization requires it
+- if you belong to multiple tenants, make sure you selected the correct one
 
-# Install correct version
-nvm install 18
-nvm use 18
-```
+If you still cannot sign in:
 
-### Dependencies Installation Fails
+- use the password reset flow if your tenant supports it
+- contact your organizer or administrator if you think your account is inactive or assigned to the wrong tenant
 
-**Problem**: `npm install` fails with errors
+## I Signed In but the Page or Action I Need Is Missing
 
-**Solution**:
-```bash
-# Clear npm cache
-npm cache clean --force
+This is often expected behavior rather than a bug.
 
-# Delete node_modules and lockfile
-rm -rf node_modules package-lock.json
+Possible reasons:
 
-# Reinstall
-npm install
-```
+- your role does not include that area
+- the workflow has not reached the stage where that action becomes available
+- your organization has not published that information yet
+- you are in the wrong tenant or event
 
-### Prisma Generation Fails
+Examples:
 
-**Problem**: `Error generating Prisma Client`
+- contestants may not see results until they are published
+- judges may see score entry but not admin configuration
+- board, auditor, tally, and emcee workflows are narrower than administrator views
 
-**Solution**:
-```bash
-# Clean Prisma cache
-npx prisma generate --force
+If you believe access is wrong, capture the exact page and missing action before contacting support.
 
-# If still failing, check DATABASE_URL
-echo $DATABASE_URL
+## Results Are Not Visible
 
-# Ensure PostgreSQL is running
-sudo systemctl status postgresql
-```
+Results visibility can be limited on purpose.
 
-## Database Issues
+Check whether:
 
-### Cannot Connect to Database
+- winners or overall results have actually been published
+- the event has release restrictions or overrides
+- certification is still in progress
+- your role is allowed to see that result type
 
-**Problem**: `Error: Can't reach database server`
+If another user can see the results and you cannot, include both roles when reporting the issue.
 
-**Solution**:
-```bash
-# Check if PostgreSQL is running
-sudo systemctl status postgresql
+## Scores or Commentary Are Not Appearing
 
-# Start PostgreSQL
-sudo systemctl start postgresql
+Try these checks:
 
-# Test connection
-psql -U event_manager -d event_manager -h localhost
+- confirm you are looking at the correct event, contest, category, and contestant
+- confirm the scores were submitted or synced, not just left as local draft work
+- refresh after reconnecting if you were recently offline
+- if certification is still pending, remember that saved scores and certified scores are different states
 
-# Check DATABASE_URL format
-# Should be: postgresql://user:password@host:port/database
-```
+If you recently worked offline, wait for sync to finish before assuming the data is lost.
 
-### Migration Fails
+## The Page Looks Broken or Will Not Load
 
-**Problem**: Migration errors during `prisma migrate`
+Try the standard browser steps:
 
-**Solution**:
-```bash
-# Check migration status
-npx prisma migrate status
+1. Refresh the page.
+2. Close and reopen the browser tab.
+3. Clear cached site data if the page looks stuck on an older version.
+4. Try another supported browser.
+5. Disable aggressive content blockers for the tenant site if they interfere with login or popups.
 
-# Reset database (CAUTION: Deletes all data)
-npx prisma migrate reset
+If you use the installed mobile app experience, fully close and reopen it before escalating.
 
-# Or apply specific migration
-npx prisma migrate deploy
+## Printing or Export Is Not Working
 
-# Check for migration conflicts
-npx prisma migrate resolve
-```
+Check whether:
 
-### Connection Pool Exhausted
+- popups are blocked
+- your browser download settings are blocking the file
+- you can export to PDF even if a printer is unavailable
+- the action is available for your role
 
-**Problem**: `Error: Prepared statement already exists`
+If the action does nothing, note the exact page and button name when reporting it.
 
-**Solution**:
-```bash
-# Increase connection pool limit in DATABASE_URL
-# Add: ?connection_limit=20&pool_timeout=20
+## Realtime or Connectivity Warnings
 
-# Example:
-DATABASE_URL="postgresql://user:pass@localhost:5432/db?connection_limit=20"
+Brief connection warnings can happen when:
 
-# Restart application
-sudo systemctl restart event-manager
-```
+- your network drops or changes
+- the app is recovering after sleep
+- you went offline intentionally
 
-### Slow Queries
+If the warning clears on its own and your data appears after refresh or sync, that usually does not indicate a permanent problem.
 
-**Problem**: Database queries are slow
+## When to Escalate
 
-**Solution**:
-```bash
-# Enable query logging
-# In postgresql.conf:
-log_min_duration_statement = 1000
+Contact your organizer, administrator, or support contact when:
 
-# Check for missing indexes
-# Run EXPLAIN ANALYZE on slow queries
+- you cannot sign in after confirming the correct tenant and credentials
+- your role appears wrong
+- a workflow step remains blocked after refresh and reconnect
+- published results are missing for the users who should see them
+- a page repeatedly fails in more than one browser
 
-# Update statistics
-VACUUM ANALYZE;
-```
+Include:
 
-## Authentication Issues
+- the tenant name or slug
+- your role
+- the page you were on
+- the exact button or action you used
+- the approximate time of the issue
+- screenshots if possible
 
-### JWT Token Expired
+## Need Technical or Server-Side Troubleshooting?
 
-**Problem**: `Token expired` error when authenticated
+This guide is intentionally not the place for deployment, database, JWT, Prisma, or infrastructure debugging.
 
-**Solution**:
-- This is expected behavior after 1 hour (default)
-- User needs to log in again
-- Increase JWT_EXPIRES_IN in .env if needed
-
-### Session Version Mismatch
-
-**Problem**: `SESSION_VERSION_MISMATCH` error
-
-**Solution**:
-```bash
-# This happens after:
-# - Password change
-# - MFA enable/disable
-# - Manual session invalidation
-
-# User must log in again to get new token
-# This is a security feature, not a bug
-```
-
-### CSRF Token Invalid
-
-**Problem**: `Invalid CSRF token` on form submission
-
-**Solution**:
-```typescript
-// Frontend: Ensure token is fetched and included
-const csrfToken = await fetchCsrfToken();
-
-// Include in headers
-headers: {
-  'X-CSRF-Token': csrfToken
-}
-```
-
-### 401 Unauthorized
-
-**Problem**: API returns 401 even with valid token
-
-**Solution**:
-```bash
-# Check if token is included in headers
-Authorization: Bearer <your_token>
-
-# Verify JWT_SECRET matches between .env and token
-
-# Check token expiration
-# Decode JWT at jwt.io to inspect claims
-
-# Ensure authenticateToken middleware is applied
-```
-
-### 403 Forbidden
-
-**Problem**: User cannot access endpoint despite being authenticated
-
-**Solution**:
-```bash
-# Check user role
-# Verify role matches required roles in route
-
-# Example: Route requires ADMIN, user has JUDGE role
-# User needs role upgrade
-
-# Check permissions matrix in documentation
-```
-
-## Real-Time Connection Issues
-
-### WebSocket Connection Failed
-
-**Problem**: Socket.IO cannot connect
-
-**Solution**:
-```bash
-# Check WebSocket URL
-# Should match backend URL
-
-# Ensure token is passed in auth
-socket = io(WS_URL, {
-  auth: { token: authToken }
-});
-
-# Check for proxy/firewall blocking WebSocket
-# Nginx should have Upgrade headers configured
-
-# Check CORS configuration
-# ALLOWED_ORIGINS should include frontend URL
-```
-
-### Events Not Received
-
-**Problem**: Not receiving real-time updates
-
-**Solution**:
-```typescript
-// Ensure room is joined
-socket.emit('join-room', roomName);
-
-// Check event listener spelling
-socket.on('score:updated', handler);  // Must match server event name
-
-// Verify socket is connected
-socket.connected === true
-
-// Check server-side emission
-// Verify io.to(room).emit() is called
-```
-
-## Rate Limiting and Client IP Issues
-
-### All Users Appear to Share the Same IP
-
-**Problem**: Logs and rate limiting show a proxy/load balancer IP instead of real client IPs.
-
-**Solution**:
-```bash
-# 1) Verify reverse proxy real IP settings
-#    - real_ip_header X-Forwarded-For;
-#    - real_ip_recursive on;
-#    - set_real_ip_from <trusted-proxy-ip-or-cidr>; (explicit upstream hops only)
-
-# 2) Ensure proxy forwards IP headers
-#    proxy_set_header X-Real-IP $realip_remote_addr;
-#    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#    proxy_set_header X-Forwarded-Proto $scheme;
-
-# 3) Ensure app trust matches proxy trust
-#    In .env:
-#    TRUST_PROXY=127.0.0.1,::1,<trusted-proxy-ip-or-cidr>
-
-# 4) Restart services and retest
-sudo systemctl reload nginx
-sudo systemctl restart event-manager.service
-```
-
-### Frequent 429 Errors Across Many Users
-
-**Problem**: Many users get 429 at the same time.
-
-**Likely Cause**: Client IP resolution is collapsing to one shared proxy IP.
-
-**Solution**:
-```bash
-# Confirm request logs show diverse client IPs after fixes
-tail -f /opt/event-manager/current/logs/general/app-request-$(date +%F).log
-
-# If IPs are still proxy addresses, check upstream forwarding behavior:
-# - Upstream must append X-Forwarded-For, not replace it
-# - All proxy hops should preserve the header chain
-```
-
-## File Upload Issues
-
-### File Upload Fails
-
-**Problem**: Cannot upload files
-
-**Solution**:
-```bash
-# Check file size limit
-# Default: 10MB (MAX_FILE_SIZE in .env)
-
-# Verify MIME type is allowed
-# See allowedMimeTypes in fileFilter
-
-# Check upload directory permissions
-mkdir -p uploads
-chmod 755 uploads
-
-# Nginx: Check client_max_body_size
-client_max_body_size 10M;
-```
-
-### Virus Scan Fails
-
-**Problem**: ClamAV virus scan errors
-
-**Solution**:
-```bash
-# Check if ClamAV is running
-sudo systemctl status clamav-daemon
-
-# Start ClamAV
-sudo systemctl start clamav-daemon
-
-# Or disable virus scanning
-CLAMAV_ENABLED=false
-
-# Set fallback behavior
-CLAMAV_FALLBACK_BEHAVIOR=allow
-```
-
-### File Not Found After Upload
-
-**Problem**: File uploaded but cannot be accessed
-
-**Solution**:
-```bash
-# Check file path stored in database
-# Should be relative to uploads directory
-
-# Verify static file serving
-# Nginx should serve /uploads
-
-# Check file permissions
-ls -la uploads/
-
-# Ensure www-data can read files
-sudo chown -R www-data:www-data uploads/
-```
-
-## Performance Issues
-
-### Slow Page Load
-
-**Problem**: Frontend loads slowly
-
-**Solution**:
-```bash
-# Build frontend with optimizations
-cd frontend
-npm run build
-
-# Check bundle size
-# Analyze with: npm run build -- --analyze
-
-# Implement code splitting
-# Use React.lazy() for large components
-
-# Enable caching in production
-# Check Cache-Control headers
-```
-
-### Slow API Responses
-
-**Problem**: API endpoints are slow
-
-**Solution**:
-```bash
-# Check database query performance
-# Enable slow query logging
-
-# Add missing indexes
-# Run EXPLAIN on slow queries
-
-# Enable Redis caching
-REDIS_ENABLE=true
-
-# Check connection pool settings
-# Increase if needed: connection_limit=20
-```
-
-### High Memory Usage
-
-**Problem**: Application uses too much memory
-
-**Solution**:
-```bash
-# Increase Node.js memory limit
-NODE_OPTIONS="--max-old-space-size=4096"
-
-# Check for memory leaks
-# Use Node.js profiling tools
-
-# Reduce connection pool size
-# Lower connection_limit in DATABASE_URL
-
-# Restart application periodically
-# Use PM2 or systemd timer
-```
-
-## Build & Deployment Issues
-
-### TypeScript Build Fails
-
-**Problem**: `tsc` compilation errors
-
-**Solution**:
-```bash
-# Check TypeScript errors
-npm run type-check
-
-# Fix type errors in code
-# Add missing type definitions
-
-# Update tsconfig.json if needed
-# Ensure all source files are included
-```
-
-### Frontend Build Fails
-
-**Problem**: Vite build fails
-
-**Solution**:
-```bash
-# Clear Vite cache
-rm -rf frontend/node_modules/.vite
-
-# Rebuild
-cd frontend
-npm run build
-
-# Check for import errors
-# Verify all dependencies are installed
-
-# Check for environment variable issues
-# Ensure VITE_* variables are set
-```
-
-### Systemd Service Won't Start
-
-**Problem**: Service fails to start
-
-**Solution**:
-```bash
-# Check service status
-sudo systemctl status event-manager
-
-# View logs
-sudo journalctl -u event-manager -n 50
-
-# Check .env file exists and is readable
-ls -la /opt/event-manager/current/.env
-
-# Verify Node.js path in service file
-which node
-
-# Check file permissions
-sudo chown -R www-data:www-data /opt/event-manager/current
-```
-
-## Common Error Codes
-
-### Backend Error Codes
-
-| Code | Meaning | Solution |
-|------|---------|----------|
-| `AUTH_ERROR` | Authentication failed | Check credentials, verify token |
-| `TOKEN_EXPIRED` | JWT expired | Login again |
-| `INVALID_TOKEN` | Malformed JWT | Clear token, login again |
-| `SESSION_VERSION_MISMATCH` | Session invalidated | Login again |
-| `INSUFFICIENT_PERMISSIONS` | Role not allowed | Check user role |
-| `VALIDATION_ERROR` | Invalid input | Check request data format |
-| `RESOURCE_NOT_FOUND` | Not found | Verify ID exists |
-| `DUPLICATE_ENTRY` | Already exists | Use different unique value |
-| `RATE_LIMIT_EXCEEDED` | Too many requests | Wait before retrying |
-
-### HTTP Status Codes
-
-- **400**: Bad request - Check request format
-- **401**: Unauthorized - Need authentication
-- **403**: Forbidden - Insufficient permissions
-- **404**: Not found - Resource doesn't exist
-- **409**: Conflict - Duplicate resource
-- **422**: Validation failed - Invalid input
-- **429**: Rate limited - Too many requests
-- **500**: Server error - Check logs
-- **503**: Service unavailable - Service down
-
-## Getting Support
-
-### Before Asking for Help
-
-1. Check this troubleshooting guide
-2. Search existing issues on GitHub
-3. Check application logs
-4. Review documentation
-
-### Gathering Information
-
-When reporting issues, provide:
-
-1. **Error Message**: Exact error text
-2. **Steps to Reproduce**: How to trigger the issue
-3. **Environment**: OS, Node version, database version
-4. **Logs**: Relevant log excerpts
-5. **Configuration**: Relevant .env settings (redact secrets)
-
-### Log Locations
-
-```bash
-# Application logs
-/opt/event-manager/current/logs/event-manager.log
-
-# Systemd logs
-sudo journalctl -u event-manager
-
-# Nginx logs
-/var/log/nginx/event-manager-*.log
-
-# PostgreSQL logs
-/var/log/postgresql/postgresql-*-main.log
-```
-
-### Support Channels
-
-- **Documentation**: This documentation set
-- **API Docs**: `/api-docs` in application
-- **GitHub Issues**: For bug reports
-- **Discussions**: For questions
-
----
-
-**Documentation Complete!** Return to [Documentation Index](INDEX.md)
+Use the repo-only technical references from [INDEX.md](INDEX.md) if you are part of the internal engineering or operator team.

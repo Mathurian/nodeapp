@@ -768,8 +768,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
             </button>
 
             {/* Help */}
-            <a
-              href="/help"
+            <Link
+              to={buildPath('/help')}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -777,7 +777,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onOpenCommandPalette }) => {
               aria-label="Open help documentation in a new tab"
             >
               <QuestionMarkCircleIcon className="h-5 w-5" />
-            </a>
+            </Link>
 
             {/* Notifications */}
             <Link

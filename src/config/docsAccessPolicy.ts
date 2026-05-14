@@ -73,14 +73,15 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     'getting-started',
     20,
     'Getting Started',
-    'Quick start guide for new users',
+    'Sign in, understand your role, install the app on mobile, and find the right help',
   ),
   buildPolicy(
     '03-FEATURES.md',
     'getting-started',
     30,
     'Features Overview',
-    'Comprehensive overview of all features',
+    'Comprehensive overview of platform features and capabilities',
+    ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '04-API-REFERENCE.md',
@@ -135,7 +136,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     'operations',
     10,
     'Troubleshooting',
-    'Common issues and solutions',
+    'Common sign-in, scoring, results, browser, and support questions',
   ),
   buildPolicy(
     '11-DISASTER-RECOVERY.md',
