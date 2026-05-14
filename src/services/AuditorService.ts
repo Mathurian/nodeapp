@@ -587,7 +587,7 @@ export class AuditorService extends BaseService {
       eventName: category.contest.event.name,
       steps: [
         {
-          name: 'Judge Scoring',
+          name: 'Scoring',
           status: category.scores.length > 0 ? 'COMPLETED' : 'PENDING',
           completedAt: category.scores.length > 0 ? category.scores[0]?.createdAt : null,
           details: `${category.scores.length} scores submitted`,
@@ -599,10 +599,10 @@ export class AuditorService extends BaseService {
           details: tallyMasterCert ? 'Totals certified' : 'Pending tally review',
         },
         {
-          name: 'Auditor Verification',
+          name: 'Auditor Certification',
           status: auditorCert ? 'COMPLETED' : 'PENDING',
           completedAt: auditorCert?.certifiedAt || null,
-          details: auditorCert ? 'Final certification completed' : 'Pending auditor review',
+          details: auditorCert ? 'Auditor certification completed' : 'Pending auditor review',
         },
         {
           name: 'Board Approval',

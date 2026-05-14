@@ -160,7 +160,7 @@ const getNavigationItems = (userRole: string): any[] => {
       },
       {
         id: 'score-verification',
-        label: 'Score Verification',
+        label: 'Certification Overview',
         path: '/score-verification',
         icon: 'CheckCircleIcon',
         roles: ['AUDITOR', 'ORGANIZER', 'BOARD']
@@ -174,7 +174,7 @@ const getNavigationItems = (userRole: string): any[] => {
       },
       {
         id: 'final-certification',
-        label: 'Final Certification',
+        label: 'Auditor Certification',
         path: '/final-certification',
         icon: 'ShieldCheckIcon',
         roles: ['AUDITOR', 'ORGANIZER', 'BOARD']

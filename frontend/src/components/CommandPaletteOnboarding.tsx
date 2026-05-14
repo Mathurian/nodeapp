@@ -190,7 +190,7 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     ],
     roleTips: [
       'Use audit logs to verify prior adjustments before sign-off.',
-      'Some screens may still use older labels such as Pending Audits or Final Certification for the same auditor certification flow.',
+      'Older bookmarks or imported links may still reference legacy auditor route names such as Pending Audits or Final Certification.',
       'Confirm governance actions are resolved before audit-stage sign-off.',
     ],
   },

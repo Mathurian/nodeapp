@@ -84,7 +84,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     icon: TrophyIcon,
     roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'ORGANIZER', 'BOARD'],
     items: [
-      { id: 'scoring', name: 'Judge Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'BOARD'], description: 'Enter and manage scores', keywords: ['score', 'judge', 'points'], priority: 80 },
+      { id: 'scoring', name: 'Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'BOARD'], description: 'Enter scores and certify contestants', keywords: ['score', 'judge', 'judge scoring', 'points', 'certify'], priority: 80 },
       { id: 'judge-schedules', name: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'], description: 'Upload or view judge schedules', keywords: ['schedule', 'calendar', 'judge'], priority: 79 },
       { id: 'tally-master', name: 'Tally Dashboard', href: '/tally-master', icon: CalculatorIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'] },
       { id: 'board-certifications', name: 'Board Certifications', href: '/board/certifications', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'] },
@@ -99,7 +99,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     icon: ChartBarIcon,
     roles: ALL_ROLES,
     items: [
-      { id: 'results', name: 'View Results', href: '/results', icon: ChartBarIcon, roles: ALL_ROLES, description: 'View contest results', keywords: ['winner', 'standings'], priority: 75 },
+      { id: 'results', name: 'Results', href: '/results', icon: ChartBarIcon, roles: ALL_ROLES, description: 'Check available results and standings', keywords: ['view results', 'winner', 'standings', 'published'], priority: 75 },
       { id: 'winners', name: 'Winners', href: '/winners', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'] },
       { id: 'reports', name: 'Reports', href: '/reports', icon: DocumentTextIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'] },
     ],

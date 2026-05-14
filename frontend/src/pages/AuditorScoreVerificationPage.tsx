@@ -5,7 +5,7 @@ const AuditorScoreVerificationPage: React.FC = () => {
   return (
     <div className="cgr-page-container">
       <CertificationOverviewWorkspace
-        title="Auditor Score Verification"
+        title="Certification Overview"
         subtitle="Review score-certification progress and judge completion by category"
         mode="all"
       />

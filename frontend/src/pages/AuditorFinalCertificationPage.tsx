@@ -14,15 +14,15 @@ const AuditorFinalCertificationPage: React.FC = () => {
   return (
     <div className="cgr-page-container space-y-6">
       <PageHeader
-        title="Final Auditor Certification"
-        subtitle="Submit auditor certification for categories that completed tally review"
+        title="Auditor Certification"
+        subtitle="Review and certify categories that completed tally review"
       />
       <CertificationOverviewWorkspace
         title=""
         subtitle=""
         mode="auditor-queue"
         allowCertify
-        certifyLabel="Finalize Certification"
+        certifyLabel="Certify Audit"
         onCertifyCategory={certifyCategory}
       />
     </div>
