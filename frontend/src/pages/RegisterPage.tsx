@@ -77,6 +77,11 @@ const RegisterPage: React.FC = () => {
             <p className="text-sm text-gray-700">
               Complete your invited account setup by choosing a password.
             </p>
+            {slug && (
+              <p className="text-xs text-gray-500">
+                This registration flow is tenant-specific. Finish setup here, then sign in through the same tenant login page.
+              </p>
+            )}
 
             <input
               type="password"
@@ -108,7 +113,7 @@ const RegisterPage: React.FC = () => {
           </form>
         ) : (
           <div className="mt-3 text-sm text-gray-700">
-            Invite-only registration is enabled. Use the registration link from your invitation email.
+            Invite-only registration is enabled. Use the registration link from your invitation email for the correct tenant.
           </div>
         )}
 

@@ -28,14 +28,14 @@ const AuditorPage: React.FC = () => {
       <div className="cgr-page-container pt-6">
         <div className="flex flex-wrap gap-2 justify-end">
           <Link to="/score-governance"><Button variant="secondary">Governance Queue ({governancePending})</Button></Link>
-          <Link to="/auditor/pending-audits"><Button variant="secondary">Pending Audits</Button></Link>
+          <Link to="/auditor/pending-audits"><Button variant="secondary">Pending Auditor Certifications</Button></Link>
           <Link to="/auditor/certification-status"><Button variant="secondary">Certification Status</Button></Link>
           <Link to="/certifications"><Button>Full Certifications View</Button></Link>
         </div>
       </div>
       <CertificationOverviewWorkspace
         title="Auditor Dashboard"
-        subtitle="Certification pipeline overview with auditor-ready categories and judge drilldown"
+        subtitle="Certification pipeline overview with auditor-ready categories and audit-stage review details"
         mode="all"
         allowCertify
         certifyLabel="Certify Audit"

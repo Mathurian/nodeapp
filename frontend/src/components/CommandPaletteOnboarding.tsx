@@ -85,7 +85,7 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
       { name: 'Users', description: 'Create and manage judges, contestants, and support roles.' },
       { name: 'Assignments', description: 'Assign users to contest/category responsibility.' },
       { name: 'Certifications', description: 'Track stage progression and resolve blockers.' },
-      { name: 'Winners / Reports', description: 'Publish final outcomes and distribute reports.' },
+      { name: 'Results / Reports', description: 'Publish approved outcomes and distribute reporting outputs.' },
     ],
     workflow: [
       'Configure event structure and validate category-level scoring settings.',
@@ -125,7 +125,7 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     primaryFeatures: [
       { name: 'Board Certifications', description: 'Review and approve board-stage certifications.' },
       { name: 'Certifications', description: 'Track upstream stage completion and readiness.' },
-      { name: 'Winners', description: 'Confirm publish state and final result presentation.' },
+      { name: 'Published Results', description: 'Confirm publish state and final result presentation after approval.' },
       { name: 'Score Governance', description: 'Review remediation or exception workflows.' },
     ],
     workflow: [
@@ -142,9 +142,9 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     roleLabel: 'Judge',
     summary: 'You score assigned contestants and certify completion for your scoring stage.',
     primaryFeatures: [
-      { name: 'Scoring', description: 'Enter and update scores for assigned categories.' },
-      { name: 'Scoring Sign-Off', description: 'Certify the currently selected contestant from within scoring when your entries are complete.' },
-      { name: 'Governance', description: 'Request uncertify/remediation when needed.' },
+      { name: 'Assigned Scoring', description: 'Enter and update scores for the contestants and categories assigned to you.' },
+      { name: 'Contestant Sign-Off', description: 'Certify the currently selected contestant from within scoring when your entries are complete.' },
+      { name: 'Score Governance', description: 'Request uncertify or remediation when a correction is needed.' },
     ],
     workflow: [
       'Select assigned contest and category before entering scores.',
@@ -161,8 +161,8 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     summary: 'You verify aggregate score integrity and certify tally readiness.',
     primaryFeatures: [
       { name: 'Tally Dashboard', description: 'Review aggregated scoring state and completion.' },
-      { name: 'Certifications', description: 'Certify tally stage for eligible categories.' },
-      { name: 'Reports', description: 'Export tally status and supporting data.' },
+      { name: 'Tally Certifications', description: 'Certify tally stage for eligible categories.' },
+      { name: 'Governance Queue', description: 'Review exception and correction requests before certification.' },
     ],
     workflow: [
       'Review judge completion and score consistency.',
@@ -170,7 +170,7 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
       'Coordinate with auditors on any discrepancies.',
     ],
     roleTips: [
-      'Use filters to isolate incomplete categories quickly.',
+      'Use the tally dashboard and certification views to isolate incomplete categories quickly.',
       'Escalate anomalies through governance before certification.',
     ],
   },
@@ -178,19 +178,20 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     roleLabel: 'Auditor',
     summary: 'You validate score integrity and certify audit-stage completion.',
     primaryFeatures: [
-      { name: 'Pending Audits', description: 'Review categories awaiting auditor action.' },
+      { name: 'Pending Auditor Certifications', description: 'Review categories awaiting auditor action.' },
       { name: 'Certifications', description: 'Inspect certification state and complete audit-stage review.' },
-      { name: 'Final Certification', description: 'Complete final auditor sign-off when a category is ready.' },
+      { name: 'Certification Status', description: 'Check overall audit readiness and prior completion state.' },
       { name: 'Audit Log', description: 'Track prior audit actions and outcomes.' },
     ],
     workflow: [
-      'Review pending audits and verify upstream tally completion.',
+      'Review pending auditor certifications and verify upstream tally completion.',
       'Confirm score integrity and exception handling.',
       'Certify audit stage when review requirements are met.',
     ],
     roleTips: [
       'Use audit logs to verify prior adjustments before sign-off.',
-      'Confirm governance actions are resolved before final certification.',
+      'Some screens may still use older labels such as Pending Audits or Final Certification for the same auditor certification flow.',
+      'Confirm governance actions are resolved before audit-stage sign-off.',
     ],
   },
   EMCEE: {
@@ -198,8 +199,8 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     summary: 'You run scripts and present officially published event outcomes.',
     primaryFeatures: [
       { name: 'Emcee Dashboard', description: 'Access live operational script controls.' },
-      { name: 'Scripts', description: 'Load and present approved script content.' },
-      { name: 'Winners', description: 'View published result sets only.' },
+      { name: 'Presentation Scripts', description: 'Load and present approved script content.' },
+      { name: 'Published Winners', description: 'View published result sets only.' },
     ],
     workflow: [
       'Open scripts and verify event/contest context.',
@@ -208,6 +209,7 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     ],
     roleTips: [
       'Refresh scripts and winners pages before key announcements.',
+      'Pure emcee access is for presentation and event flow, not template or system-wide script administration.',
       'Use mobile-safe layout controls when running from PWA.',
     ],
   },
@@ -215,7 +217,7 @@ const ROLE_GUIDES: Record<string, RoleGuideContent> = {
     roleLabel: 'Contestant',
     summary: 'You can view allowed result information and manage your profile details.',
     primaryFeatures: [
-      { name: 'Results', description: 'View only the result scopes released by the event visibility policy.' },
+      { name: 'Released Results', description: 'View only the result scopes released by the event visibility policy.' },
       { name: 'Profile', description: 'Review and manage your own user details.' },
       { name: 'Notifications', description: 'Track announcements relevant to your tenant/event.' },
     ],

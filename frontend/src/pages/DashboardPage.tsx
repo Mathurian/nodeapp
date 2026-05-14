@@ -155,6 +155,7 @@ const DashboardPage: React.FC = () => {
 
   const getRoleGreeting = (role: string) => {
     const greetings = {
+      SUPER_ADMIN: 'Welcome to your Super Admin Dashboard',
       ORGANIZER: 'Welcome to your Event Organizer Dashboard',
       JUDGE: 'Welcome to your Judge Dashboard',
       CONTESTANT: 'Welcome to your Contestant Dashboard',
@@ -169,48 +170,56 @@ const DashboardPage: React.FC = () => {
 
   const getRoleDescription = (role: string) => {
     const descriptions = {
-      ORGANIZER: 'Manage events, contests, and oversee all activities',
-      JUDGE: 'View assigned categories and submit scores',
-      CONTESTANT: 'View your events, contests, and results',
-      EMCEE: 'Access scripts and manage event flow',
-      TALLY_MASTER: 'Verify and certify scores',
-      AUDITOR: 'Audit and review score certifications',
-      BOARD: 'Review and approve final certifications',
-      ADMIN: 'Full system administration and configuration',
+      SUPER_ADMIN: 'Oversee tenant governance, platform policy, and operational health',
+      ORGANIZER: 'Manage event setup, staffing, certification progress, and publication readiness',
+      JUDGE: 'Score assigned contestants and certify each selected contestant from scoring',
+      CONTESTANT: 'Review your event information and any results released to you',
+      EMCEE: 'Use approved scripts and published winner information during live event flow',
+      TALLY_MASTER: 'Review scoring completeness and certify tally-stage categories',
+      AUDITOR: 'Review auditor-stage certifications and validate score integrity',
+      BOARD: 'Review board-stage certifications and final publication readiness',
+      ADMIN: 'Manage tenant setup, user access, certification flow, and publication controls',
     }
     return descriptions[role as keyof typeof descriptions] || 'Your personal dashboard'
   }
 
   const getQuickActions = (role: string) => {
     const actions: Record<string, Array<{ label: string; href: string; icon: any; color: string }>> = {
+      SUPER_ADMIN: [
+        { label: 'Tenants', href: '/tenants', icon: UsersIcon, color: 'blue' },
+        { label: 'System Settings', href: '/settings', icon: UsersIcon, color: 'green' },
+        { label: 'Permissions', href: '/permissions', icon: CheckCircleIcon, color: 'indigo' },
+        { label: 'Performance', href: '/performance', icon: ChartBarIcon, color: 'purple' },
+        { label: 'Backups', href: '/backups', icon: ClockIcon, color: 'orange' },
+      ],
       JUDGE: [
-        { label: 'Score Categories', href: '/scoring', icon: TrophyIcon, color: 'blue' },
+        { label: 'Assigned Scoring', href: '/scoring', icon: TrophyIcon, color: 'blue' },
         { label: 'My Schedule', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
-        { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
+        { label: 'Check Results Availability', href: '/results', icon: ChartBarIcon, color: 'green' },
       ],
       CONTESTANT: [
         { label: 'Bios Directory', href: '/bios', icon: CalendarIcon, color: 'blue' },
-        { label: 'View Results', href: '/results', icon: ChartBarIcon, color: 'green' },
+        { label: 'Check Released Results', href: '/results', icon: ChartBarIcon, color: 'green' },
       ],
       EMCEE: [
         { label: 'Emcee Console', href: '/emcee', icon: UsersIcon, color: 'blue' },
-        { label: 'Scripts', href: '/emcee?tab=scripts', icon: TrophyIcon, color: 'indigo' },
+        { label: 'Presentation Scripts', href: '/emcee?tab=scripts', icon: TrophyIcon, color: 'indigo' },
         { label: 'Bios Directory', href: '/bios', icon: UsersIcon, color: 'green' },
       ],
       TALLY_MASTER: [
         { label: 'Tally Dashboard', href: '/tally-master', icon: ChartBarIcon, color: 'blue' },
-        { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'green' },
+        { label: 'Tally Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'green' },
         { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
       AUDITOR: [
-        { label: 'Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'blue' },
-        { label: 'Audit Queue', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green' },
-        { label: 'Deductions', href: '/deductions', icon: TrophyIcon, color: 'indigo' },
+        { label: 'Certification Overview', href: '/certifications', icon: CheckCircleIcon, color: 'blue' },
+        { label: 'Pending Auditor Certifications', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green' },
+        { label: 'Certification Status', href: '/auditor/certification-status', icon: TrophyIcon, color: 'indigo' },
         { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
       BOARD: [
-        { label: 'Events', href: '/events', icon: CalendarIcon, color: 'blue' },
-        { label: 'Users', href: '/users', icon: UsersIcon, color: 'green' },
+        { label: 'Board Certifications', href: '/board', icon: CheckCircleIcon, color: 'blue' },
+        { label: 'Certification Overview', href: '/certifications', icon: CalendarIcon, color: 'green' },
         { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
         { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
       ],
