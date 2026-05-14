@@ -1,6 +1,8 @@
 import { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { LockClosedIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../contexts/AuthContext'
+import { AccessGuidanceState } from './ui'
 import { useAuthPermissions } from '../hooks/useAuthPermissions'
 import { canAccessPageByPolicy, getPagePolicyByPath, permissionSetFromList } from '../utils/pageAccess'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
@@ -50,20 +52,18 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
   if (!hasAccess) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">
-            You don't have permission to access this page.
-          </p>
-          <button
-            onClick={() => window.history.back()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
+      <AccessGuidanceState
+        icon={LockClosedIcon}
+        title="This page is not available for your account"
+        description="Your current role or permission set does not allow access to this page."
+        guidance="Return to your dashboard, go back to the previous page, or review the Help Center if you expected a different level of access."
+        actions={[
+          { label: 'Go to Dashboard', to: '/dashboard', variant: 'primary' },
+          { label: 'Go Back', onClick: () => window.history.back(), variant: 'outline' },
+        ]}
+        tone="danger"
+        fullScreen
+      />
     )
   }
 

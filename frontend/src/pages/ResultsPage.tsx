@@ -15,7 +15,7 @@ import {
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 import { safeFormatDate } from '../utils/dateUtils'
-import { Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
+import { AccessGuidanceState, Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
 import { useAuth } from '../contexts/AuthContext'
 import { useMobileWorkflowNavigation, useResultsScopeOptions } from '../hooks'
 import { compareCategories, compareContests, compareContestants, compareEvents, stableSort } from '../utils/listOrdering'
@@ -439,12 +439,14 @@ const ResultsPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="cgr-page-container">
-          <Card className="rounded-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Access Denied</h2>
-            <p className="text-gray-600 dark:text-gray-300">
-              You do not currently have access to detailed results.
-            </p>
-          </Card>
+          <AccessGuidanceState
+            icon={ChartBarIcon}
+            title="Results are not available right now"
+            description="Your account does not currently have access to released detailed results for this tenant or event."
+            guidance="Results visibility can depend on publication settings, release timing, and your role. If you expected results here, wait for release or contact event staff."
+            actions={[{ label: 'Go to Dashboard', to: '/dashboard', variant: 'primary' }]}
+            tone="warning"
+          />
         </div>
       </div>
     )

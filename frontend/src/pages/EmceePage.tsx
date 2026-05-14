@@ -25,7 +25,7 @@ import {
   UserGroupIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { Button, Card, PageHeader } from '../components/ui'
+import { AccessGuidanceState, Button, Card, PageHeader } from '../components/ui'
 import { compareCategories, compareContests, compareEvents, compareText, stableSort } from '../utils/listOrdering'
 
 interface Event {
@@ -497,15 +497,15 @@ const EmceePage: React.FC = () => {
 
   if (!isEmcee) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <MicrophoneIcon className="mx-auto h-12 w-12 text-red-500" />
-          <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            You must be an emcee to access this page.
-          </p>
-        </div>
-      </div>
+      <AccessGuidanceState
+        icon={MicrophoneIcon}
+        title="Emcee tools are not available for your account"
+        description="This workspace is available to emcees and supporting administrator, organizer, or board roles."
+        guidance="Return to your dashboard, or review the Help Center if you expected access to emcee scripts or live presentation tools."
+        actions={[{ label: 'Go to Dashboard', to: '/dashboard', variant: 'primary' }]}
+        tone="danger"
+        fullScreen
+      />
     )
   }
 

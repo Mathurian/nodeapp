@@ -8,17 +8,26 @@ const normalizeTenantSlug = (slug?: string | null): string | null => {
   return trimmed
 }
 
-export const buildTenantAwareLoginPath = (pathname?: string, preferredSlug?: string | null): string => {
+export const buildTenantAwareAppPath = (
+  path: string,
+  preferredSlug?: string | null,
+  pathname?: string
+): string => {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
   const preferred = normalizeTenantSlug(preferredSlug)
   if (preferred) {
-    return `/${preferred}/login`
+    return `/${preferred}${cleanPath}`
   }
 
-  const path = pathname || (typeof window !== 'undefined' ? window.location.pathname : '')
-  const pathSlug = normalizeTenantSlug(extractTenantSlugFromPath(path))
+  const sourcePath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '')
+  const pathSlug = normalizeTenantSlug(extractTenantSlugFromPath(sourcePath))
   if (pathSlug) {
-    return `/${pathSlug}/login`
+    return `/${pathSlug}${cleanPath}`
   }
 
-  return '/login'
+  return cleanPath
+}
+
+export const buildTenantAwareLoginPath = (pathname?: string, preferredSlug?: string | null): string => {
+  return buildTenantAwareAppPath('/login', preferredSlug, pathname)
 }

@@ -20,6 +20,8 @@ export type { LoadingProps } from './Loading'
 
 export { default as EmptyState } from './EmptyState'
 export type { EmptyStateProps, EmptyStateAction } from './EmptyState'
+export { default as AccessGuidanceState } from './AccessGuidanceState'
+export type { AccessGuidanceStateProps, AccessGuidanceAction } from './AccessGuidanceState'
 
 export { default as ErrorState } from './ErrorState'
 export type { ErrorStateProps } from './ErrorState'

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
-import { Card, PageHeader } from '../components/ui'
+import { AccessGuidanceState, Card, PageHeader } from '../components/ui'
 import { appendDocxPreviewQuery, inferFileNameFromPath, isDocxFile, isOfficeDocumentFile, openBlobDocument, openDocumentUrl } from '../utils/fileViewer'
 import {
   UserCircleIcon,
@@ -306,11 +306,14 @@ const BiosPage: React.FC = () => {
   if (!hasAccess) {
     return (
       <div className="cgr-page-container">
-        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-          <p className="text-yellow-800 dark:text-yellow-200">
-            You do not have access to the bio directory.
-          </p>
-        </Card>
+        <AccessGuidanceState
+          icon={UserCircleIcon}
+          title="Bio directory not available"
+          description="Your account does not currently have access to the bio directory for this tenant."
+          guidance="Return to your dashboard or check the Help Center if you expected access to contestant or judge profiles."
+          actions={[{ label: 'Go to Dashboard', to: '/dashboard', variant: 'primary' }]}
+          tone="warning"
+        />
       </div>
     )
   }

@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { HomeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../contexts/AuthContext'
+import { buildTenantAwareAppPath } from '../utils/authRedirect'
 
 /**
  * 404 Not Found page component.
@@ -9,13 +10,8 @@ import { useAuth } from '../contexts/AuthContext'
  */
 const NotFoundPage: React.FC = () => {
   const { user } = useAuth()
-  const tenantSlug = user?.tenant?.slug
-  const dashboardPath = tenantSlug && tenantSlug !== 'default'
-    ? `/${tenantSlug}/dashboard`
-    : '/dashboard'
-  const helpPath = tenantSlug && tenantSlug !== 'default'
-    ? `/${tenantSlug}/help`
-    : '/help'
+  const dashboardPath = buildTenantAwareAppPath('/dashboard', user?.tenant?.slug)
+  const helpPath = buildTenantAwareAppPath('/help', user?.tenant?.slug)
 
   const hardRecoverNavigate = async (path: string) => {
     const cleanPath = path.startsWith('/') ? path : `/${path}`
@@ -57,7 +53,7 @@ const NotFoundPage: React.FC = () => {
           Page not found
         </h1>
         <p className="mt-4 text-base text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-          Sorry, we couldn't find the page you're looking for. The page may have been moved, deleted, or never existed.
+          Sorry, we couldn't find the page you're looking for. It may have moved, been removed, or require a fresh navigation path from your dashboard or help center.
         </p>
       </div>
 
@@ -87,12 +83,12 @@ const NotFoundPage: React.FC = () => {
       {/* Help Text */}
       <div className="mt-12 text-center">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Need help?{' '}
+          Need help finding the right page?{' '}
           <Link
             to={helpPath}
             className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium"
           >
-            Visit our help center
+            Open Help Center
           </Link>
         </p>
       </div>
