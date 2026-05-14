@@ -1,11 +1,10 @@
 import { UserRole } from '@prisma/client';
 
 export type DocsSectionId =
-  | 'getting-started'
+  | 'public-help'
+  | 'admin-guides'
   | 'technical-reference'
-  | 'security-deployment'
-  | 'operations'
-  | 'administration-advanced';
+  | 'security-runtime';
 
 export interface DocsSectionDefinition {
   id: DocsSectionId;
@@ -25,11 +24,10 @@ export interface PublishedDocPolicy {
 }
 
 const DOCS_SECTIONS: DocsSectionDefinition[] = [
-  { id: 'getting-started', title: 'Getting Started', order: 10 },
-  { id: 'technical-reference', title: 'Technical Reference', order: 20 },
-  { id: 'security-deployment', title: 'Security & Deployment', order: 30 },
-  { id: 'operations', title: 'Operations', order: 40 },
-  { id: 'administration-advanced', title: 'Administration & Advanced', order: 50 },
+  { id: 'public-help', title: 'Public Help', order: 10 },
+  { id: 'admin-guides', title: 'Admin & Operator Guides', order: 20 },
+  { id: 'technical-reference', title: 'Technical Reference', order: 30 },
+  { id: 'security-runtime', title: 'Security, Deployment & Recovery', order: 40 },
 ];
 
 const SECTION_BY_ID = new Map(DOCS_SECTIONS.map((section) => [section.id, section]));
@@ -62,7 +60,7 @@ const buildPolicy = (
 export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
   buildPolicy(
     '01-ARCHITECTURE.md',
-    'getting-started',
+    'technical-reference',
     10,
     'System Architecture',
     'Overview of the application architecture',
@@ -70,17 +68,17 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
   ),
   buildPolicy(
     '02-GETTING-STARTED.md',
-    'getting-started',
-    20,
+    'public-help',
+    10,
     'Getting Started',
     'Sign in, understand your role, install the app on mobile, and find the right help',
   ),
   buildPolicy(
     '03-FEATURES.md',
-    'getting-started',
-    30,
+    'admin-guides',
+    10,
     'Features Overview',
-    'Comprehensive overview of platform features and capabilities',
+    'Feature and role overview for authenticated admins and operators',
     ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
@@ -109,7 +107,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
   ),
   buildPolicy(
     '07-SECURITY.md',
-    'security-deployment',
+    'security-runtime',
     10,
     'Security Guide',
     'Security features and best practices',
@@ -117,7 +115,7 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
   ),
   buildPolicy(
     '08-DEPLOYMENT.md',
-    'security-deployment',
+    'security-runtime',
     20,
     'Deployment Guide',
     'Production deployment instructions',
@@ -125,47 +123,47 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
   ),
   buildPolicy(
     '09-DEVELOPMENT.md',
-    'security-deployment',
-    30,
+    'technical-reference',
+    50,
     'Development Setup',
     'Local development environment setup',
     ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '10-TROUBLESHOOTING.md',
-    'operations',
-    10,
+    'public-help',
+    20,
     'Troubleshooting',
     'Common sign-in, scoring, results, browser, and support questions',
   ),
   buildPolicy(
     '11-DISASTER-RECOVERY.md',
-    'operations',
-    20,
+    'security-runtime',
+    30,
     'Disaster Recovery',
     'Backup and restore procedures',
     ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '12-WORKFLOW-CUSTOMIZATION.md',
-    'administration-advanced',
-    10,
+    'admin-guides',
+    20,
     'Workflow Customization',
     'Workflow configuration and customization guidance',
     ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '13-ADMIN-GUIDE.md',
-    'administration-advanced',
-    20,
+    'admin-guides',
+    30,
     'Admin Guide',
     'System administration and monitoring',
     ['ADMIN', 'SUPER_ADMIN'],
   ),
   buildPolicy(
     '14-ADVANCED-FEATURES.md',
-    'administration-advanced',
-    30,
+    'admin-guides',
+    40,
     'Advanced Features',
     'Feature flags, webhooks, custom fields, and other advanced capabilities',
     ['ADMIN', 'SUPER_ADMIN'],

@@ -9,28 +9,32 @@ These guides are appropriate for public or general event-user audiences and are 
 1. **[Getting Started](02-GETTING-STARTED.md)** - Sign in, understand role-based behavior, install the mobile app, and find the right help
 2. **[Troubleshooting](10-TROUBLESHOOTING.md)** - Common sign-in, scoring, results, browser, and support questions
 
-## Role-Based or Restricted Help
+## Admin & Operator Guides
 
-These guides remain available in-repo and may appear in authenticated Help only when intentionally published for the signed-in role:
+These guides remain in authenticated Help for admin audiences and should not be treated as public help:
 
 1. **[03-FEATURES.md](03-FEATURES.md)** - Broad feature and capability guide
-2. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - Administration, monitoring, and maintenance
-3. **[15-STRUCTURE-REUSE-GUIDE.md](15-STRUCTURE-REUSE-GUIDE.md)** - Admin/operator structure reuse workflow
+2. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow configuration reference
+3. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - Administration, monitoring, and maintenance
+4. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced configuration and capabilities
 
-## Repo Reference
+## Technical Reference
 
-### Core Product and Platform Guides
+These guides remain authenticated admin/reference material in Help:
 
 1. **[01-ARCHITECTURE.md](01-ARCHITECTURE.md)** - System architecture and design
 2. **[04-API-REFERENCE.md](04-API-REFERENCE.md)** - API route reference
 3. **[05-DATABASE.md](05-DATABASE.md)** - Schema and model reference
 4. **[06-FRONTEND.md](06-FRONTEND.md)** - Frontend architecture and UI implementation
-5. **[07-SECURITY.md](07-SECURITY.md)** - Security and permissions guidance
-6. **[08-DEPLOYMENT.md](08-DEPLOYMENT.md)** - Deployment and runtime guidance
-7. **[09-DEVELOPMENT.md](09-DEVELOPMENT.md)** - Local development workflow
-8. **[11-DISASTER-RECOVERY.md](11-DISASTER-RECOVERY.md)** - Disaster recovery and failover guidance
-9. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow configuration reference
-10. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced features and configuration
+5. **[09-DEVELOPMENT.md](09-DEVELOPMENT.md)** - Local development workflow
+
+## Security, Deployment & Recovery
+
+These guides remain authenticated admin/reference material in Help:
+
+1. **[07-SECURITY.md](07-SECURITY.md)** - Security and permissions guidance
+2. **[08-DEPLOYMENT.md](08-DEPLOYMENT.md)** - Deployment and runtime guidance
+3. **[11-DISASTER-RECOVERY.md](11-DISASTER-RECOVERY.md)** - Disaster recovery and failover guidance
 
 ### Testing and UAT
 
@@ -41,9 +45,12 @@ These guides remain available in-repo and may appear in authenticated Help only 
 - **[E2E Lifecycle Track](testing/E2E-Lifecycle-Track.md)**
 - **[Testing Guide](testing/testing-guide.md)**
 
-### Operations, Planning, and Internal Notes
+## Repo-Only Reference
+
+These materials are intentionally outside the Help taxonomy:
 
 - **[Deployment Guide](operations/DEPLOYMENT-GUIDE.md)** - Production deployment runbook
+- **[15-STRUCTURE-REUSE-GUIDE.md](15-STRUCTURE-REUSE-GUIDE.md)** - Admin/operator structure reuse workflow, kept repo-only for now
 - **[Contest/Category Copy Plan](CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md)** - Internal implementation plan, not public Help content
 - **[CDN Setup](operations/CDN-SETUP.md)** - Operational infrastructure reference
 
@@ -51,7 +58,8 @@ These guides remain available in-repo and may appear in authenticated Help only 
 
 - The app Help UI publishes only the guides defined in the docs access policy.
 - Public `/help` is intentionally narrow and should stay suitable for non-technical users.
-- Testing, operations, architecture, API, security, and implementation-plan materials remain repo reference unless intentionally promoted.
+- Authenticated Help may expose admin/reference sections, but those should remain clearly labeled as restricted documentation.
+- Testing, operations, and implementation-plan materials remain repo reference unless intentionally promoted.
 - If code and docs diverge, treat code as the source of truth and update the documentation.
 
 ## Recommended Starting Points

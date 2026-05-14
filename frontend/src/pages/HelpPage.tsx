@@ -55,11 +55,10 @@ interface DocsApiItem {
 }
 
 const SECTION_ICONS: Record<string, React.ComponentType<any>> = {
-  'getting-started': RocketLaunchIcon,
+  'public-help': RocketLaunchIcon,
+  'admin-guides': WrenchScrewdriverIcon,
   'technical-reference': CodeBracketIcon,
-  'security-deployment': ShieldCheckIcon,
-  operations: WrenchScrewdriverIcon,
-  'administration-advanced': BookOpenIcon,
+  'security-runtime': ShieldCheckIcon,
 }
 
 const HelpPage: React.FC = () => {

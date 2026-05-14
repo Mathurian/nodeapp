@@ -8,47 +8,53 @@ This directory contains both the curated Help content exposed in the app and the
 - **[Getting Started](02-GETTING-STARTED.md)** - Public-friendly guidance for signing in, using the app, installing it on mobile, and finding role-relevant help
 - **[Troubleshooting](10-TROUBLESHOOTING.md)** - Public-friendly support article for common sign-in, scoring, results, and browser issues
 
-## Public Help vs Repo-Only Reference
+## Published Help Taxonomy
 
-### Published in Public Help
+The app Help UI uses the section model below.
+
+### Public Help
 
 These guides are appropriate for public or general event-user audiences and are part of the unauthenticated `/help` experience:
 
 - **[Getting Started](02-GETTING-STARTED.md)**
 - **[Troubleshooting](10-TROUBLESHOOTING.md)**
 
-Additional documents may appear in Help after sign-in when they are intentionally published for an authenticated role.
+### Admin & Operator Guides
 
-### Repo-Only or Restricted Reference
+These guides are published only for authenticated admin audiences:
 
-These materials remain in the repository for internal teams or authenticated operators and are not part of the public Help experience:
+- **[Features Overview](03-FEATURES.md)** - Broad feature and role overview
+- **[Workflow Customization](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow configuration reference
+- **[Admin Guide](13-ADMIN-GUIDE.md)** - Administration, monitoring, and runtime operations
+- **[Advanced Features](14-ADVANCED-FEATURES.md)** - Advanced configuration and capabilities
 
-- Architecture, API, database, frontend, security, deployment, and development references
-- Admin/operator guides such as [13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md) and [15-STRUCTURE-REUSE-GUIDE.md](15-STRUCTURE-REUSE-GUIDE.md)
+### Technical Reference
+
+These guides stay in the Help taxonomy for authenticated admins but are not public Help content:
+
+- **[System Architecture](01-ARCHITECTURE.md)**
+- **[API Reference](04-API-REFERENCE.md)**
+- **[Database Schema](05-DATABASE.md)**
+- **[Frontend Guide](06-FRONTEND.md)**
+- **[Development Setup](09-DEVELOPMENT.md)**
+
+### Security, Deployment & Recovery
+
+These guides are authenticated admin/reference material:
+
+- **[Security Guide](07-SECURITY.md)**
+- **[Deployment Guide](08-DEPLOYMENT.md)**
+- **[Disaster Recovery](11-DISASTER-RECOVERY.md)**
+
+## Repo-Only Reference
+
+These materials remain in the repository for internal teams or authenticated operators and are not part of the Help taxonomy above:
+
+- **[Structure Reuse Guide](15-STRUCTURE-REUSE-GUIDE.md)** - kept repo-only for now
 - Testing runbooks under [docs/testing](testing/)
 - Operations runbooks under [docs/operations](operations/)
 - ADRs and internal notes under `docs/adr/` and `docs/operations/internal/`
 - Implementation-plan material such as [CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md](CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md)
-
-## Repo Documentation Map
-
-### Product and Platform Guides
-
-1. **[01-ARCHITECTURE.md](01-ARCHITECTURE.md)** - System architecture and platform structure
-2. **[02-GETTING-STARTED.md](02-GETTING-STARTED.md)** - Public-friendly getting started guide
-3. **[03-FEATURES.md](03-FEATURES.md)** - Broad feature and capability guide
-4. **[04-API-REFERENCE.md](04-API-REFERENCE.md)** - REST and WebSocket route reference
-5. **[05-DATABASE.md](05-DATABASE.md)** - Database schema and model reference
-6. **[06-FRONTEND.md](06-FRONTEND.md)** - Frontend architecture and UI implementation notes
-7. **[07-SECURITY.md](07-SECURITY.md)** - Security and permissions guidance
-8. **[08-DEPLOYMENT.md](08-DEPLOYMENT.md)** - Deployment and runtime guidance
-9. **[09-DEVELOPMENT.md](09-DEVELOPMENT.md)** - Local development workflow
-10. **[10-TROUBLESHOOTING.md](10-TROUBLESHOOTING.md)** - Public-friendly common issues guide
-11. **[11-DISASTER-RECOVERY.md](11-DISASTER-RECOVERY.md)** - Disaster recovery and failover guidance
-12. **[12-WORKFLOW-CUSTOMIZATION.md](12-WORKFLOW-CUSTOMIZATION.md)** - Workflow configuration reference
-13. **[13-ADMIN-GUIDE.md](13-ADMIN-GUIDE.md)** - Administration, monitoring, and runtime operations
-14. **[14-ADVANCED-FEATURES.md](14-ADVANCED-FEATURES.md)** - Advanced features and configuration
-15. **[15-STRUCTURE-REUSE-GUIDE.md](15-STRUCTURE-REUSE-GUIDE.md)** - Admin/operator structure-cloning workflow
 
 ### Testing and UAT
 
