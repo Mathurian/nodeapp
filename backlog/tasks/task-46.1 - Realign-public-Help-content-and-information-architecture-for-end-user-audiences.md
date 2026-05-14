@@ -3,10 +3,11 @@ id: TASK-46.1
 title: >-
   Realign public Help content and information architecture for end-user
   audiences
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-05-14 00:03'
-updated_date: '2026-05-14 04:49'
+updated_date: '2026-05-14 15:57'
 labels: []
 milestone: m-0
 dependencies: []
@@ -28,6 +29,16 @@ Rework the public-facing Help surface so it is actually suitable for public and 
 - [ ] #4 Help home/default guidance and cross-links from login or other public pages align with the new public Help information architecture.
 <!-- AC:END -->
 
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Replace the current public Help publishing set with a curated end-user/operator set by updating the docs access policy and any related section metadata so unauthenticated Help no longer centers install, deployment, API, or implementation material.
+2. Rewrite the public-facing Help landing surfaces and index documents (HelpPage default state, docs/README.md, docs/INDEX.md, and any linked public guides) so they introduce the app in non-technical terms, explain where to get role-relevant help, and remove implementation-plan and developer/testing navigation from public discovery paths.
+3. Restructure or replace the currently published public guides that are still technical-first, especially docs/02-GETTING-STARTED.md and docs/10-TROUBLESHOOTING.md, so they become true end-user/operator help rather than setup or infrastructure references.
+4. Fix Help entry-point cohesion by making authenticated/public Help links and default cross-links use the correct tenant-aware destinations and match the new public Help information architecture.
+5. Run focused verification on docs-policy behavior plus frontend build/lint checks, then update the task notes with the exact publication decisions and any repo-only docs that remain intentionally unpublished.
+<!-- SECTION:PLAN:END -->
+
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
@@ -46,6 +57,14 @@ PublicLandingPage itself is mostly aligned with the current invitation-based ten
 docs/02-GETTING-STARTED.md is still an installation/setup guide for developers/operators, not a public end-user getting-started guide. It should not be treated as suitable public-help copy without major restructuring or replacement.
 
 docs/10-TROUBLESHOOTING.md is still dominated by installation, database, JWT, CSRF, and deployment/debug guidance and does not read like an end-user/operator public help article set.
+
+Published Help taxonomy/sectioning has been split back out as TASK-46.12 so the content rewrite and the section-policy/index rewrite remain independently trackable.
+
+Public Help IA findings are now more exact: HelpPage still introduces the surface as a comprehensive documentation library, while docs/README.md and docs/INDEX.md continue to present testing, architecture, API, database, security, and developer references as the main navigation experience. This undermines the intended public-help posture of end-user/operator guidance only, even before individual doc content is rewritten.
+
+Line-level public-help findings from remaining root docs: docs/02-GETTING-STARTED.md is still fundamentally an installation/deployment/developer setup guide, including repository cloning, .env secrets, PostgreSQL setup, Prisma generation, and production build guidance. It is not a true end-user/operator quick start despite its public-help positioning. docs/10-TROUBLESHOOTING.md is similarly technical-first, covering npm cache cleanup, Prisma generation, PostgreSQL operations, bearer-token debugging, and permission-matrix references. These are not narrow public-help materials in their current form.
+
+Additional public/help-scope leak: docs/README.md and docs/INDEX.md still surface CONTEST-CATEGORY-TEMPLATE-COPY-PLAN.md as if it were part of normal user/operator navigation. That document reads as an implementation spec, not user-facing guidance, and should not remain prominently surfaced in help/discovery paths even if the underlying shipped operator workflow is documented separately in 15-STRUCTURE-REUSE-GUIDE.md.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

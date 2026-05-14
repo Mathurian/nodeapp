@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-14 04:41'
-updated_date: '2026-05-14 04:53'
+updated_date: '2026-05-14 05:06'
 labels: []
 milestone: m-0
 dependencies: []
@@ -28,6 +28,12 @@ Audit and update the unauthenticated user entry surfaces so login, forgot-passwo
 - [ ] #4 Ensure documentation/help references that point users into these public auth/recovery flows are updated to match the shipped behavior and wording.
 - [ ] #5 Verify the revised experience across default and tenant-slug routes and capture any remaining product decisions or follow-up gaps in the task notes.
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Public auth/recovery findings: RegisterPage correctly reflects the invite-only model and requires an invitation token, but it is still generic in presentation and does not use tenant-branded explanatory content the way LoginPage now does. ForgotPasswordPage is also generic and minimally guided; it explains the reset action but does not reinforce tenant context, invitation-based access, or how this surface relates to login/registration recovery for non-technical users. These surfaces need cohesion work more than policy correction.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

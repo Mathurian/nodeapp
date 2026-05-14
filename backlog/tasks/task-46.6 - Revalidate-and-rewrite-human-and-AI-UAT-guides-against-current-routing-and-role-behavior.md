@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-14 03:55'
-updated_date: '2026-05-14 04:49'
+updated_date: '2026-05-14 05:22'
 labels: []
 milestone: m-0
 dependencies: []
@@ -38,6 +38,14 @@ Acceptance-Test-Guide-v2.md contains a confirmed stale routing assumption: it sa
 That same section also preserves the older 'pending audits / certifications / results' quick-link framing instead of the approved single auditor certification-flow model with legacy-label note.
 
 The AI and quick-run guides are less wrong than the human guide on this point, but they still need a role/routing freshness pass against the current default-home and access-denial behavior.
+
+docs/06-FRONTEND.md also preserves a stale routing assumption that conflicts with UAT docs: it claims AUDITOR defaults to /auditor rather than the current /dashboard landing model.
+
+AI-UAT-Handoff-Template.md and E2E-Lifecycle-Track.md read as comparatively current in this review slice; the larger UAT drift remains concentrated in the human narrative guides and some routing/role-language assumptions rather than these machine-oriented handoff docs.
+
+Line-level UAT-guide findings: Acceptance-Test-Guide-v2 still expects public landing branding to reflect default tenant settings rather than the tenant-aware public-branding model, and it still expects the auditor to land on an auditor workspace with quick links framed around pending audits/certifications/results. The guide also still treats search as a normal user-facing validation surface. The AI runbook is less drifted, but it still inherits older assumptions like preserving search artifacts and does not yet clearly reflect the single-flow auditor terminology decision.
+
+Follow-up UAT-doc verification: AI-UAT-Handoff-Template.md, Acceptance-Test-Quick-Run.md, and E2E-Lifecycle-Track.md look comparatively aligned with the current lifecycle/UAT model. The strongest remaining narrative drift is still in Acceptance-Test-Guide-v2.md, with smaller terminology carryover in the AI runbook around search artifacts and auditor terminology. This means TASK-46.6 should stay focused on the narrative/manual guides first rather than treating the entire testing-doc set as equally stale.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

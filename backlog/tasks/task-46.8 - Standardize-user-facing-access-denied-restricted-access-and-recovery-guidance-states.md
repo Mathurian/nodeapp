@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-14 04:08'
-updated_date: '2026-05-14 04:53'
+updated_date: '2026-05-14 05:09'
 labels: []
 milestone: m-0
 dependencies: []
@@ -38,6 +38,8 @@ Direct review confirmed four distinct patterns already in the product: generic P
 EmceePage remains an incorrect denial message because it says 'You must be an emcee to access this page' even though the route also allows admin, organizer, and board roles.
 
 The rewrite should standardize both tone and recovery guidance, not just card styling, and should prefer tenant-aware help/recovery destinations where possible.
+
+Line-level restricted/recovery findings: ProtectedRoute still renders a generic full-screen Access Denied state with only "You do not have permission to access this page" and a Go Back button. BiosPage instead uses a softer yellow restricted card: "You do not have access to the bio directory." ResultsPage gives a scope-specific denial: "You do not currently have access to detailed results." NotFoundPage provides the strongest recovery pattern with tenant-aware dashboard/help navigation plus a hard cache/service-worker recovery path. EmceePage remains factually wrong: its denial copy says "You must be an emcee to access this page" even though ADMIN, SUPER_ADMIN, ORGANIZER, and BOARD can also legitimately access the route.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

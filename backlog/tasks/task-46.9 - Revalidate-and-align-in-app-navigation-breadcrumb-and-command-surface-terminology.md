@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-14 04:32'
-updated_date: '2026-05-14 04:53'
+updated_date: '2026-05-14 05:09'
 labels: []
 milestone: m-0
 dependencies: []
@@ -40,6 +40,8 @@ Specific drift: /scoring is labeled 'Judge Scoring' in shared shell surfaces eve
 Dashboard quick actions repeat the same assumptions for Judge and Contestant users, and Auditor quick actions still point to '/auditor/pending-audits' with legacy naming even though the intended guidance model is a single auditor certification flow.
 
 Auditor shared-shell terminology is only partially migrated. Dedicated pages such as AuditorPendingAuditsPage already use certification-oriented wording, but shared quick links and route labels still expose 'Pending Audits' and related legacy terms.
+
+Line-level shell terminology findings: navigationConfig still labels /scoring as "Judge Scoring" even though the route is shared by more than judges, and it labels /results as "View Results" with ALL_ROLES even though access can still be blocked by publication/scope state. Dashboard quick actions reinforce the same drift: Judge and Contestant dashboards both advertise View Results as a normal action, while Auditor quick actions still expose /auditor/pending-audits as "Audit Queue" despite the approved single-flow auditor certification model. CommandPaletteOnboarding still uses legacy auditor labels like Pending Audits and Final Certification, and navigationCommands automatically propagates whatever stale names remain in navigationConfig into command search.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

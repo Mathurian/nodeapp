@@ -4,7 +4,7 @@ title: Deep accuracy sweep of authenticated admin and operator documentation
 status: To Do
 assignee: []
 created_date: '2026-05-14 00:03'
-updated_date: '2026-05-14 04:41'
+updated_date: '2026-05-14 05:17'
 labels: []
 milestone: m-0
 dependencies: []
@@ -46,6 +46,32 @@ SettingsPage and EventsPage now function as admin/operator guidance surfaces for
 The current docs do not explain this model deeply enough, especially the difference between contestant visibility toggles, published-results role visibility, and event-level override/release gating.
 
 That coherent update scope has been split into TASK-46.11.
+
+Confirmed stale claims in docs/14-ADVANCED-FEATURES.md: it still advertises a global search page at /search and still says the public landing page uses a default-tenant branding baseline.
+
+Confirmed stale claims in docs/06-FRONTEND.md: it still lists search as a core shared page and still says AUDITOR defaults to /auditor even though current role landing sends auditors to /dashboard.
+
+docs/12-WORKFLOW-CUSTOMIZATION.md still speaks in more generic or older UI terms ('Admin -> Workflows -> Dashboard') than the current surfaced route model.
+
+docs/09-DEVELOPMENT.md still needs a tenant-aware routing and current-auth-pattern freshness pass; its examples continue to reflect older generic development assumptions.
+
+docs/11-DISASTER-RECOVERY.md remains a confirmed accuracy risk. It still describes a comprehensive DR management surface with explicit DR configuration objects, backup targets like Azure/GCP/FTP, test APIs, and RTO/RPO management that do not clearly match the current product/runtime surface.
+
+docs/15-STRUCTURE-REUSE-GUIDE.md appears substantially aligned on first-pass review and can likely be treated as low-risk unless later implementation changes alter those flows.
+
+Downgraded one earlier concern after code cross-check: DR functionality is not merely imagined in docs. /dr routes, drController, and DisasterRecoveryPage all exist. The remaining audit risk is wording/operability alignment rather than total feature inexistence.
+
+docs/04-API-REFERENCE.md and docs/08-DEPLOYMENT.md look comparatively aligned in this slice and are lower-priority rewrite targets than the other authenticated technical guides.
+
+docs/05-DATABASE.md and docs/testing/testing-guide.md look comparatively low-risk on first-pass review.
+
+docs/operations/DEPLOYMENT-GUIDE.md still shows mixed-era framing: current release-runtime notes are present, but the document also retains older 'Phase 1-6 features enabled' language and optional PM2/Kubernetes/process-model guidance that may not reflect the primary supported operator path anymore.
+
+Disaster-recovery review is now narrower and more precise. The live product does expose DR plans, RTO/RPO fields, automated test execution, and a failover action, so the doc is not describing a nonexistent surface. The remaining issue is mixed-era framing and operator guidance quality: docs/11-DISASTER-RECOVERY.md still uses generic examples like Admin -> DR Management, rich target-type/config JSON, and broad automation language that may overstate polish or suggest a more formalized DR-management product than the current /disaster-recovery page, which is admin-only, schedule-backed, and framed around plans/tests rather than a full infrastructure-control console.
+
+Remaining authenticated-doc findings: docs/06-FRONTEND.md still claims AUDITOR defaults to /auditor and still lists search as a core shared page. docs/09-DEVELOPMENT.md still teaches older auth/routing assumptions, including integration-test examples built around Authorization: Bearer headers and a Playwright login example expecting post-login navigation to /events. docs/10-TROUBLESHOOTING.md still directs readers to check a permissions matrix in documentation and uses bearer-token troubleshooting as the primary browser-auth model. docs/14-ADVANCED-FEATURES.md still advertises /search as a current UI route and still reduces email sending to /email-templates without teaching the separate Send Email/Bulk Operations surface.
+
+Lower-risk verification note: docs/08-DEPLOYMENT.md and docs/04-API-REFERENCE.md continue to look comparatively strong relative to the rest of the authenticated technical docs; they do not currently justify separate remediation tasks beyond normal freshness maintenance. docs/05-DATABASE.md also did not surface major correctness drift in the reviewed sections.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-14 00:03'
-updated_date: '2026-05-14 04:50'
+updated_date: '2026-05-14 05:06'
 labels: []
 milestone: m-0
 dependencies: []
@@ -44,6 +44,8 @@ Because that unauthenticated public-surface work is larger than role onboarding 
 CommandPaletteOnboarding still uses legacy auditor labels ('Pending Audits' and 'Final Certification') inside the live role welcome guide. That conflicts with the chosen model of one auditor certification flow with a legacy-label note.
 
 Auditor live UI review confirms partial migration: AuditorPendingAuditsPage already uses 'Pending Auditor Certifications', but AuditorPage quick links and the role welcome guide still use older labels like 'Pending Audits'.
+
+Line-level role-guidance findings: CommandPaletteOnboarding still contains multiple live-role mismatches. TALLY_MASTER still lists Reports as a primary feature even though the visible tally workflow centers on Tally Dashboard and Certifications rather than a dedicated reports workspace. AUDITOR still presents Pending Audits, Certifications, Final Certification, and Audit Log as if they are distinct primary destinations, which conflicts with the approved documentation model of one auditor certification flow with a legacy-label note. EMCEE guidance remains close but should stay careful not to imply script-management authority for pure EMCEE users. CONTESTANT guidance is materially better aligned because it now frames results visibility as conditional.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

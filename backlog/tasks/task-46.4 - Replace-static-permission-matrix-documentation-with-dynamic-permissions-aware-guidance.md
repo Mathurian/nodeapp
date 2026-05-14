@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-14 03:45'
-updated_date: '2026-05-14 04:50'
+updated_date: '2026-05-14 05:10'
 labels: []
 milestone: m-0
 dependencies: []
@@ -42,6 +42,10 @@ docs/10-TROUBLESHOOTING.md still tells readers to 'Check permissions matrix in d
 Direct review of PermissionsPage supports the approved strategy: use high-level docs and treat the live page as the authoritative admin reference. The page already exposes real resource scopes, resource:operation permissions, role filters, and audit-reason prompts.
 
 No separate child task is needed right now just to replace the live permissions page, but documentation should stop pretending the markdown matrix is the source of truth and instead point admins here.
+
+docs/07-SECURITY.md still publishes a static role hierarchy and a static CRUD permission matrix as if it were authoritative. That conflicts both with the chosen documentation strategy and with the current dynamic/scope-aware permissions model.
+
+Line-level permissions-doc findings: docs/07-SECURITY.md still presents a static role hierarchy rooted at ADMIN and a full CRUD permission matrix by role/resource, with many live mismatches. It also describes roles like TALLY_MASTER and CONTESTANT using static broad claims that do not reflect scope-aware/runtime-gated behavior. docs/01-ARCHITECTURE.md still points readers to a Permission Matrix in source code as if that were an authoritative public/admin reference. docs/10-TROUBLESHOOTING.md, docs/README.md, and docs/INDEX.md still direct readers to a complete CRUD permissions matrix. By contrast, PermissionsPage is already a better authority surface because it exposes live resource operations, scope controls, role filtering, and change-audit reasons.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
