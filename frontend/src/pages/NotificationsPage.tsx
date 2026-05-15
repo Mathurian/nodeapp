@@ -1015,7 +1015,7 @@ const NotificationsPage: React.FC = () => {
     <div className="cgr-page-container overflow-x-hidden">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <PageHeader title="Notifications" />
+          <PageHeader title="Notifications" subtitle="View your inbox, manage delivery preferences, and send in-app notifications when your role allows it." />
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             {filter === 'sent'
               ? `${sentNotificationsData?.total || 0} sent notifications`

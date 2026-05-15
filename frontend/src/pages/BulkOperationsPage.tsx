@@ -287,7 +287,7 @@ const BulkOperationsPage: React.FC = () => {
     <div className="cgr-page-container">
         <PageHeader
           title={isSendEmailRoute ? 'Send Email' : 'Bulk Operations'}
-          subtitle={isSendEmailRoute ? 'Send email by role or direct recipient addresses' : 'Import users, send bulk emails, and perform batch operations'}
+          subtitle={isSendEmailRoute ? 'Send outbound email by role or direct recipient addresses' : 'Import users, send outbound email, and perform related batch operations'}
         />
 
         {error && (

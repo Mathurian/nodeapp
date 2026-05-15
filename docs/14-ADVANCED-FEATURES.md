@@ -120,14 +120,19 @@ Implemented (templates + sending endpoints).
 ### UI Routes
 - `/email-templates`
 - `/bulk-operations` (`/send-email` redirects here)
+- `/notifications`
 
 ### API Routes
 - `/api/email-templates/*`
 - `/api/email/*`
+- `/api/notifications/*`
 
 ### Notes
-- Template management, bulk/direct sending, and personal notifications are separate surfaces.
-- Preview and send flows exist, but direct send operations live with bulk operations rather than a standalone `/send-email` page.
+- Template management, outbound email sends, and notifications are separate surfaces and should not be documented as one feature.
+- `/email-templates` is for reusable email content and preview/send-from-template workflows.
+- `/bulk-operations` is the actual direct/bulk email send surface, and `/send-email` is a send-focused route into that same page.
+- `/notifications` is the user inbox and preferences surface, and it also exposes admin broadcast actions for the roles allowed by the live page.
+- SMTP configuration still lives under Settings and is the transport layer for outbound email; it is not the same thing as templates or notifications.
 
 ## Workflow Templates and Instances
 

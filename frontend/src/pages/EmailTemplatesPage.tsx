@@ -332,7 +332,7 @@ const EmailTemplatesPage: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <PageHeader
             title="Email Templates"
-            subtitle="Create and manage reusable email templates"
+            subtitle="Create and manage reusable email content for later preview and send workflows"
             icon={EnvelopeIcon}
           />
           <Button

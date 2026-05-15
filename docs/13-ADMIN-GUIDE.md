@@ -147,7 +147,74 @@ If Grafana or Prometheus are proxied separately by nginx or upstream infrastruct
 ## Email / SMTP Settings
 
 Administrators configure outbound email from **Admin -> Settings -> Email / SMTP Settings**.
-The same settings path is used for notification email, report delivery, template sends, and test-email validation.
+The same settings path is the delivery foundation for:
+
+- notification email delivery
+- report delivery
+- template-based email sends
+- direct and bulk outbound email
+- SMTP test-email validation
+
+These settings do not replace the app's separate communication surfaces. They provide the sender and transport configuration those surfaces depend on.
+
+## Communications Model
+
+The current communications model is split across several surfaces with different purposes:
+
+### Notifications
+
+Use **Notifications** for:
+
+- personal in-app inbox items
+- email, push, and in-app notification preferences
+- admin-sent in-app notifications when the role has send access
+
+Current send access for notification broadcasting is broader than a purely technical admin audience. The live UI allows:
+
+- `SUPER_ADMIN`
+- `ADMIN`
+- `ORGANIZER`
+- `BOARD`
+
+to send notifications from the Notifications page.
+
+### Email Templates
+
+Use **Email Templates** for:
+
+- reusable message content
+- previewing template output
+- maintaining shared email bodies and subjects for repeated sends
+
+Templates are not the same thing as the SMTP settings page, and they are not the same thing as the user notification inbox. They are reusable content assets that other send flows can use.
+
+Current template-management access follows the live page access model:
+
+- `SUPER_ADMIN`
+- `ADMIN`
+- `ORGANIZER`
+- `BOARD`
+
+### Send Email / Bulk Operations
+
+Use **Send Email** and **Bulk Operations** for:
+
+- direct outbound email to selected addresses
+- role-targeted outbound email
+- user import workflows that share the bulk-operations surface
+
+`/send-email` is a send-focused entry into the broader bulk-operations page. It is not a separate independent implementation with different delivery rules.
+
+### SMTP Settings
+
+Use **Email / SMTP Settings** for:
+
+- authenticated sender configuration
+- reply-to defaults
+- tenant overrides versus global defaults
+- transport validation
+
+This page controls how outbound mail is delivered. It does not replace the template editor, the send-email workflow, or the notification inbox.
 
 ### Sender fields
 
@@ -170,6 +237,13 @@ Use Reply-To when outbound mail must come from a controlled sender address but r
 Super admins can edit global email settings or explicitly select a tenant scope. Global values act as platform defaults. Tenant-scoped values override the global defaults only for that tenant.
 
 When a tenant does not define a sender or reply-to value, runtime resolution falls back to the global setting and then to environment SMTP defaults where applicable. Updating a tenant's Email / SMTP Settings should therefore be treated as a tenant-specific override, not a platform-wide change.
+
+### Practical Guidance
+
+- update SMTP settings when delivery identity or provider configuration changes
+- update templates when the reusable wording or branding of a message changes
+- use Send Email/Bulk Operations when you need to deliver a message now
+- use Notifications when the goal is an in-app alert, notification preference management, or an admin broadcast to app users
 
 ## Backups and Recovery
 
