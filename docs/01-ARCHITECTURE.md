@@ -576,19 +576,14 @@ Example indexes:
 
 ### Authorization (RBAC)
 
-**Role Hierarchy**:
-```
-ADMIN (full access)
-  └── ORGANIZER (event management)
-      ├── BOARD (approval authority)
-      ├── AUDITOR (audit access)
-      ├── TALLY_MASTER (verification)
-      ├── JUDGE (scoring)
-      ├── EMCEE (scripts)
-      └── CONTESTANT (limited view)
-```
+Authorization uses a mixed model:
 
-**Permission Matrix**: See `src/middleware/permissions.ts`
+- hard role-gated routes through authentication middleware
+- dynamic tenant-specific permissions
+- fallback default permissions when dynamic rules are unavailable
+- scope-aware restrictions such as publication state, workflow state, and self-only access
+
+Do not treat source files as a user-facing permission matrix. For current tenant-specific access details, administrators should use the live **Permissions** page in the application, while the Security Guide explains the model at a high level.
 
 ## Real-Time Communication
 

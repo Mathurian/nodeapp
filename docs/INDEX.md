@@ -32,7 +32,7 @@ These guides remain authenticated admin/reference material in Help:
 
 These guides remain authenticated admin/reference material in Help:
 
-1. **[07-SECURITY.md](07-SECURITY.md)** - Security and permissions guidance
+1. **[07-SECURITY.md](07-SECURITY.md)** - Security model and permissions guidance; the live Permissions page remains the authoritative current access reference
 2. **[08-DEPLOYMENT.md](08-DEPLOYMENT.md)** - Deployment and runtime guidance
 3. **[11-DISASTER-RECOVERY.md](11-DISASTER-RECOVERY.md)** - Disaster recovery and failover guidance
 

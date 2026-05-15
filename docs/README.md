@@ -42,7 +42,7 @@ These guides stay in the Help taxonomy for authenticated admins but are not publ
 
 These guides are authenticated admin/reference material:
 
-- **[Security Guide](07-SECURITY.md)**
+- **[Security Guide](07-SECURITY.md)** - High-level security and permissions model; admins should use the live Permissions page for authoritative current access details
 - **[Deployment Guide](08-DEPLOYMENT.md)**
 - **[Disaster Recovery](11-DISASTER-RECOVERY.md)**
 

@@ -95,73 +95,77 @@ async verifyMFA(userId: string, token: string) {
 
 ## Authorization & RBAC
 
-### Role Hierarchy
+### How Access Works
 
-```
-ADMIN (full access)
-  ├── ORGANIZER (event management)
-  ├── BOARD (approval authority)
-  ├── AUDITOR (audit access)
-  ├── TALLY_MASTER (verification)
-  ├── JUDGE (scoring)
-  ├── EMCEE (scripts)
-  └── CONTESTANT (view only)
-```
+Event Manager no longer treats a static markdown permission table as the source of truth. Access is determined by a combination of:
 
-### Permission Matrix
+1. **Base role family**
+2. **Dynamic permissions configured for the tenant**
+3. **Scope-aware restrictions**
+4. **Hard route or workflow gates**
 
-Comprehensive CRUD (Create, Read, Update, Delete) permissions breakdown by role. These permissions are designed to support the multi-stage certification workflow where ORGANIZER sets up events, JUDGES score contestants, TALLY_MASTER verifies totals, AUDITOR reviews for accuracy, and BOARD provides final approval.
+That means two users with the same nominal role can still see different actions depending on tenant permissions, workflow state, publication state, or self-only scope rules.
 
-**Legend**:
-- **C** = Create
-- **R** = Read
-- **U** = Update
-- **D** = Delete
-- **CRUD** = Full access to all operations
-- **RW** = Read and Write (Create/Update without Delete)
-- **-** = No access
+### Role Families
 
-| Resource | SUPER_ADMIN | ADMIN | ORGANIZER | BOARD | JUDGE | CONTESTANT | EMCEE | TALLY_MASTER | AUDITOR |
-|----------|-------------|-------|-----------|-------|-------|------------|-------|--------------|---------|
-| **Events** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
-| **Contests** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
-| **Categories** | CRUD | CRUD | CRUD | CRUD | R | R | R | R | R |
-| **Users** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Contestants** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Scores** | CRUD | CRUD | R | R | RW | R | R | CRUD | R |
-| **Results** | CRUD | CRUD | CRUD | CRUD | R | R | R | CRUD | R |
-| **Reports** | CRUD | CRUD | CRUD | CRUD | - | - | - | R | R |
-| **Templates** | CRUD | CRUD | CRUD | - | - | - | - | - | - |
-| **Settings** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Emcee Scripts** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Category Types** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Assignments** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Criteria** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | - |
-| **Approvals** | CRUD | CRUD | CRUD | CRUD | - | - | - | - | W |
-| **Certifications** | CRUD | CRUD | CRUD | CRUD | - | - | - | W | W |
-| **Commentary** | CRUD | CRUD | R | R | W | R | - | - | - |
-| **Profile** | CRUD | CRUD | R | R | - | RW | - | - | - |
-| **Announcements** | CRUD | CRUD | - | - | - | - | W | - | - |
-| **Backup/Restore** | CRUD | CRUD | CRUD | - | - | - | - | - | - |
-| **Tracker** | CRUD | CRUD | CRUD | CRUD | - | - | - | CRUD | CRUD |
-| **Activity Logs** | CRUD | CRUD | - | - | - | - | - | - | R |
-| **Audit Logs** | CRUD | CRUD | - | - | - | - | - | - | R |
+Use these as high-level mental models rather than exhaustive authority tables:
 
-#### Role Descriptions
+- **Platform administrators**: `SUPER_ADMIN`, `ADMIN`
+  - broad configuration and oversight authority
+  - can reach the live Permissions page and change tenant permission rules
+- **Operational administrators**: `ORGANIZER`, `BOARD`
+  - broad operational access, but not every page or action is automatically available in every context
+  - workflow stage, publication state, and route-level protections still apply
+- **Workflow specialists**: `TALLY_MASTER`, `AUDITOR`, `JUDGE`, `EMCEE`
+  - narrower access aligned to scoring, certification, review, announcement, or monitoring responsibilities
+  - these roles frequently have resource-specific and stage-specific restrictions
+- **Participant access**: `CONTESTANT`
+  - highly scoped, typically self-oriented or publication-gated access
 
-- **SUPER_ADMIN**: Full unrestricted access to everything (`"*"`)
-- **ADMIN**: Full unrestricted access to everything (`"*"`)
-- **ORGANIZER**: Full management of event operations with tenant-level admin capabilities. Can manage events, contests, categories, contestants, users, criteria, approvals, templates, settings, and backups. Can view scores, commentary, profiles, and track progress. Cannot enter scores.
-- **BOARD**: Full oversight and approval authority. Same event management capabilities as ORGANIZER. Can manage contestants, criteria, approvals, and users. Can view scores, commentary, profiles, and track progress for informed decision-making. Cannot enter scores.
-- **JUDGE**: Limited to reading event structure and entering/viewing scores. Can write commentary.
-- **CONTESTANT**: Very limited read-only access. Can view events, contests, categories, results, scores, commentary, and manage their own profile.
-- **EMCEE**: Read-only event information plus ability to write announcements.
-- **TALLY_MASTER**: Specialized for results management with full CRUD on scores and results. Can write certifications as a signatory in Stage 2 of the certification workflow. Has tracker access for monitoring progress.
-- **AUDITOR**: Independent oversight role in Stage 3 of certification workflow. Read-only access to all event data, scores, logs. Can write certifications and approvals as required signatory after Tally Master and before Board approval. Has tracker access for monitoring.
+### Dynamic Permissions
+
+The current system uses dynamic permissions by default and falls back to default role permissions only when dynamic rules are unavailable or explicitly disabled.
+
+Important implications:
+
+- permissions can be changed per tenant without rewriting docs
+- a role’s effective access can differ by deployment or tenant configuration
+- default permission code should be treated as a fallback baseline, not as the final business truth for every installation
+
+### Scope-Aware Restrictions
+
+Even when a role has a relevant permission, access can still be narrowed by scope rules such as:
+
+- self-only profile or contestant access
+- tenant-specific results visibility settings
+- event-level release restrictions or overrides
+- certification stage requirements
+- current workflow ownership or assigned responsibility
+
+This is why documentation should describe access conceptually rather than promise a fixed CRUD table for every role and resource.
+
+### Hard-Protected Pages And Workflow Gates
+
+Some pages and APIs remain protected by explicit role gates in addition to dynamic permissions. Examples include admin-only or super-admin-only surfaces, as well as workflow pages that depend on the current stage of certification or publication.
+
+Practical rule:
+- a granted permission does not necessarily guarantee that every route or action is available
+- route guards, workflow state, and publication state still matter
+
+### Authoritative Access Reference
+
+For current tenant-specific access details, administrators should use the live **Permissions** page in the application. That page is the authoritative surface for:
+
+- current role/resource operations
+- scope rules
+- effective tenant-specific configuration
+- audited permission changes
+
+Use this guide for the model. Use the live Permissions page for the current truth.
 
 ### RBAC Implementation
 
-**Middleware** (`src/middleware/auth.ts`):
+**Route-level role gates** (`src/middleware/auth.ts`):
 ```typescript
 const requireRole = (roles: string[]) => {
   return (req, res, next) => {
@@ -183,7 +187,21 @@ const requireRole = (roles: string[]) => {
 };
 ```
 
-**Usage in Routes**:
+**Dynamic permission evaluation** (`src/middleware/permissions.ts`):
+```typescript
+// Dynamic permissions are enabled by default and can be explicitly disabled.
+const ENABLE_DYNAMIC_PERMISSIONS = parseBooleanEnv(
+  process.env['ENABLE_DYNAMIC_PERMISSIONS'],
+  true
+);
+```
+
+The current permissions middleware supports:
+- dynamic tenant-specific permission loading
+- fallback default role permissions
+- wildcard and `resource:*` matching
+
+**Typical route usage**:
 ```typescript
 router.post('/events', 
   authenticateToken, 
@@ -191,6 +209,8 @@ router.post('/events',
   createEvent
 );
 ```
+
+That example illustrates an important point: role gates and dynamic permissions are complementary, not interchangeable.
 
 ## Security Middleware
 
