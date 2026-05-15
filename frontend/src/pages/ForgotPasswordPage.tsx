@@ -148,7 +148,7 @@ const ForgotPasswordPage: React.FC = () => {
           </p>
           {slug && (
             <p className="mt-2 text-xs text-gray-500">
-              If you belong to multiple tenants, stay on the correct tenant login page for password recovery and sign-in.
+              If the same email is used in more than one tenant-specific account, stay on the matching tenant login page for password recovery and sign-in.
             </p>
           )}
 

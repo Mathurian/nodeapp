@@ -19,7 +19,7 @@ Check the basics first:
 - confirm your email and password
 - confirm you are using the correct tenant login page
 - complete MFA if your organization requires it
-- if you belong to multiple tenants, make sure you selected the correct one
+- if the same credentials are used for more than one tenant-specific account, make sure you continued on the correct tenant login page
 
 If you still cannot sign in:
 

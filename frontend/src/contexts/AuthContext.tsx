@@ -232,7 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return {
           tenantSelectionRequired: true,
           tenants: tenantOptions,
-          message: payload?.data?.message || payload?.error || 'Select your tenant to continue signing in.',
+          message: payload?.data?.message || payload?.error || 'We found this email in more than one tenant-specific account. Choose the correct tenant login page to continue signing in.',
         }
       }
 

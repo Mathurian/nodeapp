@@ -144,7 +144,7 @@ const HelpPage: React.FC = () => {
     try {
       const result = await login(loginEmail, loginPassword)
       if (result.tenantSelectionRequired) {
-        toast(result.message || 'Select your tenant to continue signing in.')
+        toast(result.message || 'We found this email in more than one tenant-specific account. Continue on the correct tenant login page.')
         setShowLoginModal(false)
         setLoginPassword('')
         navigate(`/login${loginEmail.trim() ? `?email=${encodeURIComponent(loginEmail.trim())}` : ''}`)

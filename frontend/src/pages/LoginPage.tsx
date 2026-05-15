@@ -361,7 +361,7 @@ const LoginPage: React.FC = () => {
         }
 
         setTenantSelectionOptions(tenantOptions)
-        setTenantSelectionMessage(result.message || 'Select your tenant to continue signing in.')
+        setTenantSelectionMessage(result.message || 'We found this email in more than one tenant-specific account. Choose the correct tenant login page to continue signing in.')
         setTenantSelectionEmail(data.email.trim())
         form.setValue('password', '')
         return
@@ -510,7 +510,7 @@ const LoginPage: React.FC = () => {
                 {tenantSelectionOptions.length > 0 && (
                   <div className="rounded-md border border-amber-200 bg-amber-50 p-4" role="status">
                     <div className="text-sm font-medium text-amber-900">
-                      {tenantSelectionMessage || 'Select your tenant to continue signing in.'}
+                      {tenantSelectionMessage || 'We found this email in more than one tenant-specific account. Choose the correct tenant login page to continue signing in.'}
                     </div>
                     <div className="mt-2 text-xs text-amber-800">
                       Choose your tenant-specific login page. Your email will be carried over, but you will need to re-enter your password.

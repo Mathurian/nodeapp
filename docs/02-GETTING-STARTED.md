@@ -16,7 +16,7 @@ This guide is for general users, contestants, judges, auditors, emcees, tally st
 1. Open the tenant-specific login page you were given.
 2. Enter your email address and password.
 3. Complete multi-factor authentication if your organization requires it.
-4. If you belong to more than one tenant, choose the correct tenant before continuing.
+4. If the same email and password are used for more than one tenant-specific account, follow the tenant-selection prompt and continue on the correct tenant login page.
 
 If you cannot sign in, go to [Troubleshooting](10-TROUBLESHOOTING.md).
 
@@ -24,7 +24,7 @@ If you cannot sign in, go to [Troubleshooting](10-TROUBLESHOOTING.md).
 
 - Use the `Forgot password` link from the correct tenant login page if you need a reset link.
 - Use the invitation link from your email if your organization requires invite-only registration.
-- If you are not sure which tenant to use, contact your event organizer or support contact before resetting your password or completing registration.
+- If you are not sure which tenant login page to use, contact your event organizer or support contact before resetting your password or completing registration.
 
 ## What Happens After Sign-In
 
