@@ -2,503 +2,207 @@
 
 ## Overview
 
-The Event Manager application includes comprehensive Disaster Recovery (DR) automation features to ensure business continuity and data protection.
+The Event Manager disaster recovery surface is an authenticated admin tool for configuring backup targets, scheduling recurring backups, running manual backup and DR test actions, and reviewing DR metrics.
 
-## Table of Contents
+This guide reflects the current shipped DR model:
+- access is limited to `ADMIN` and `SUPER_ADMIN`
+- DR configuration is managed through the authenticated Disaster Recovery page and `/api/dr/*` endpoints
+- backup schedules, backup targets, DR tests, and metrics are first-class concepts
+- restoration remains an operator-run procedure rather than a one-click in-app restore workflow
 
-1. [DR Overview](#dr-overview)
-2. [Backup Types](#backup-types)
-3. [Configuring DR](#configuring-dr)
-4. [Backup Targets](#backup-targets)
-5. [Backup Schedules](#backup-schedules)
-6. [DR Testing](#dr-testing)
-7. [RTO/RPO Monitoring](#rtorpo-monitoring)
-8. [Restoration Procedures](#restoration-procedures)
-9. [Best Practices](#best-practices)
+## What The Product Supports Today
 
-## DR Overview
+### Access Model
 
-### What is Disaster Recovery?
+- DR routes require authentication.
+- DR management is restricted to `ADMIN` and `SUPER_ADMIN`.
+- The primary UI surface is the authenticated `/dr` page.
 
-Disaster Recovery ensures your application and data can be restored quickly in case of:
-- Hardware failures
-- Data corruption
-- Natural disasters
-- Cyber attacks
-- Human errors
+### Core DR Capabilities
 
-### Key Metrics
+- Configure tenant DR settings such as RTO/RPO targets and retention guidance
+- Create and manage backup targets
+- Create and manage backup schedules
+- Verify backup target connectivity
+- Execute manual backup runs
+- Execute DR tests
+- Review metrics, dashboard summaries, and RTO/RPO status
 
-**RTO (Recovery Time Objective)**: Maximum acceptable downtime
-- Default: 4 hours
-- Configure based on business requirements
+### Current API Surface
 
-**RPO (Recovery Point Objective)**: Maximum acceptable data loss
-- Default: 1 hour
-- Determines backup frequency
+The current DR API surface is:
 
-## Backup Types
+```text
+GET    /api/dr/config
+POST   /api/dr/config
+PUT    /api/dr/config/:id
 
-### 1. Full Backup
-- Complete copy of all data
-- Recommended frequency: Daily
-- Storage requirements: Highest
-- Restoration time: Fastest
+GET    /api/dr/schedules
+POST   /api/dr/schedules
+PUT    /api/dr/schedules/:id
+DELETE /api/dr/schedules/:id
 
-### 2. Incremental Backup
-- Only changed data since last backup
-- Recommended frequency: Hourly
-- Storage requirements: Low
-- Restoration time: Moderate
+GET    /api/dr/targets
+POST   /api/dr/targets
+PUT    /api/dr/targets/:id
+DELETE /api/dr/targets/:id
+POST   /api/dr/targets/:id/verify
 
-### 3. Schema Backup
-- Database structure only
-- Recommended frequency: Before major changes
-- Storage requirements: Minimal
-- Restoration time: N/A (structure only)
+POST   /api/dr/backup/execute
+POST   /api/dr/test/execute
 
-## Configuring DR
-
-### Initial Setup
-
-1. Access DR Management:
-   ```
-   Navigate to: Admin → DR Management
-   ```
-
-2. Create DR Configuration:
-   ```json
-   {
-     "rto": 4,
-     "rpo": 1,
-     "backupRetentionDays": 30,
-     "testFrequencyDays": 90,
-     "autoFailover": false,
-     "notificationEmails": ["admin@example.com"]
-   }
-   ```
-
-3. Set notification preferences
-4. Configure backup targets
-5. Create backup schedules
-
-### Configuration Options
-
-| Option | Description | Default | Range |
-|--------|-------------|---------|-------|
-| RTO | Hours to recover | 4 | 0.5 - 72 |
-| RPO | Data loss tolerance (hours) | 1 | 0.25 - 24 |
-| Retention | Days to keep backups | 30 | 7 - 365 |
-| Test Frequency | Days between DR tests | 90 | 30 - 365 |
-| Auto Failover | Automatic failover | false | true/false |
-
-## Backup Targets
-
-### Local Filesystem
-
-**Use Case**: Development, small deployments
-
-```json
-{
-  "name": "Local Storage",
-  "targetType": "LOCAL",
-  "config": {
-    "path": "/var/backups/event-manager"
-  }
-}
+GET    /api/dr/metrics
+GET    /api/dr/dashboard
+GET    /api/dr/rto-rpo
 ```
 
-### AWS S3
+If you are documenting or testing DR behavior, use these routes as the current source of truth rather than older examples such as `POST /api/dr/test`.
 
-**Use Case**: Production, scalable storage
+## DR Workflow
 
-```json
-{
-  "name": "AWS S3 Production",
-  "targetType": "S3",
-  "config": {
-    "bucket": "my-event-backups",
-    "region": "us-east-1",
-    "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
-    "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    "encryption": "AES256"
-  }
-}
+### 1. Configure DR Settings
+
+Start by creating or updating the DR configuration. The exact stored fields may evolve, but the current UI and API are centered on:
+
+- `rto`
+- `rpo`
+- backup retention expectations
+- test cadence expectations
+- notification recipients or related operator metadata
+
+Use DR configuration to define operational targets and expectations, not to imply full automatic failover orchestration.
+
+### 2. Create Backup Targets
+
+Backup targets represent where backup artifacts are written. The product supports target management through:
+
+- `GET /api/dr/targets`
+- `POST /api/dr/targets`
+- `PUT /api/dr/targets/:id`
+- `DELETE /api/dr/targets/:id`
+- `POST /api/dr/targets/:id/verify`
+
+Practical guidance:
+- create the target
+- verify connectivity before assigning it to schedules
+- treat target-specific credentials and storage settings as environment-sensitive operator data
+
+Do not rely on older documentation examples as an exhaustive list of supported providers or required fields unless you have revalidated the current controller and service implementation.
+
+### 3. Create Backup Schedules
+
+Schedules are the main “DR plan” concept exposed in the current UI. They define when backups run and which targets they use.
+
+Current schedule management routes:
+
+- `GET /api/dr/schedules`
+- `POST /api/dr/schedules`
+- `PUT /api/dr/schedules/:id`
+- `DELETE /api/dr/schedules/:id`
+
+Recommended operator pattern:
+- maintain at least one routine backup schedule
+- keep names explicit enough for operators to recognize purpose and cadence
+- verify schedule intent against your RPO target
+
+### 4. Run Manual Backup Actions
+
+Use the manual backup execution endpoint when you need an on-demand run:
+
+```http
+POST /api/dr/backup/execute
 ```
 
-**Setup Steps**:
-1. Create S3 bucket in AWS Console
-2. Enable versioning on bucket
-3. Create IAM user with permissions:
-   - `s3:PutObject`
-   - `s3:GetObject`
-   - `s3:ListBucket`
-   - `s3:DeleteObject`
-4. Configure lifecycle policies for retention
+This is the current manual execution route. Older examples such as `POST /api/dr/schedules/{id}/execute` are stale.
 
-### Azure Blob Storage
+### 5. Run DR Tests
 
-```json
-{
-  "name": "Azure Backup",
-  "targetType": "AZURE",
-  "config": {
-    "accountName": "myeventbackups",
-    "accountKey": "your-account-key",
-    "containerName": "backups",
-    "region": "eastus"
-  }
-}
+The current DR test execution route is:
+
+```http
+POST /api/dr/test/execute
 ```
 
-### Google Cloud Storage
+Use it to validate recovery readiness and to keep DR exercises current. The product also exposes supporting metrics so operators can review recent DR activity after running a test.
 
-```json
-{
-  "name": "GCP Backup",
-  "targetType": "GCP",
-  "config": {
-    "projectId": "my-project-123",
-    "bucket": "event-manager-backups",
-    "keyFile": "/path/to/service-account-key.json"
-  }
-}
-```
+### 6. Review Metrics And Compliance Signals
 
-### FTP/SFTP
+Use the following endpoints to review DR health and compliance-oriented status:
 
-**Use Case**: Legacy systems, specific compliance requirements
-
-```json
-{
-  "name": "FTP Backup",
-  "targetType": "FTP",
-  "config": {
-    "host": "ftp.example.com",
-    "port": 21,
-    "username": "backup-user",
-    "password": "secure-password",
-    "path": "/backups/event-manager"
-  }
-}
-```
-
-**SFTP (Recommended over FTP)**:
-```json
-{
-  "targetType": "SFTP",
-  "config": {
-    "host": "sftp.example.com",
-    "port": 22,
-    "username": "backup-user",
-    "privateKey": "/path/to/private-key",
-    "path": "/backups"
-  }
-}
-```
-
-## Backup Schedules
-
-### Creating Schedules
-
-**Daily Full Backup**:
-```json
-{
-  "name": "Daily Full Backup",
-  "scheduleType": "FULL",
-  "frequency": "DAILY",
-  "cronExpression": "0 2 * * *",
-  "active": true,
-  "retentionDays": 7,
-  "targets": ["s3-target-id"]
-}
-```
-
-**Hourly Incremental**:
-```json
-{
-  "name": "Hourly Incremental",
-  "scheduleType": "INCREMENTAL",
-  "frequency": "HOURLY",
-  "cronExpression": "0 * * * *",
-  "active": true,
-  "retentionDays": 2,
-  "targets": ["s3-target-id"]
-}
-```
-
-### Cron Expression Examples
-
-| Schedule | Cron Expression | Description |
-|----------|----------------|-------------|
-| Every hour | `0 * * * *` | Hourly at minute 0 |
-| Daily 2 AM | `0 2 * * *` | Once per day |
-| Every 6 hours | `0 */6 * * *` | 4 times per day |
-| Weekly Sunday 3 AM | `0 3 * * 0` | Once per week |
-| Monthly 1st at midnight | `0 0 1 * *` | Once per month |
-
-## DR Testing
-
-### Test Types
-
-1. **Backup Verification**: Verify backup files are valid
-2. **Restore Test**: Restore to test environment
-3. **Failover Test**: Test complete failover process
-4. **Recovery Time Test**: Measure actual RTO
-
-### Running DR Tests
-
-```javascript
-// Via API
-POST /api/dr/test
-{
-  "testType": "FAILOVER",
-  "targetEnvironment": "STAGING",
-  "notifyOnCompletion": true
-}
-```
-
-### Test Frequency
-
-- **Minimum**: Quarterly (every 90 days)
-- **Recommended**: Monthly
-- **After major changes**: Always test
-
-### Recording Results
-
-```javascript
-POST /api/dr/test/{testId}/results
-{
-  "success": true,
-  "actualRTO": 3.5,
-  "actualRPO": 0.8,
-  "issues": [],
-  "notes": "Test completed successfully",
-  "participan ts": ["admin@example.com"]
-}
-```
-
-## RTO/RPO Monitoring
-
-### Metrics Dashboard
-
-Access at: `Admin → DR Management → Metrics`
-
-**Key Metrics**:
-- Backup success rate
-- Average backup duration
-- Storage utilization
-- RTO violations
-- RPO violations
-
-### Alerts
-
-Configure alerts for:
-- Backup failures
-- RTO/RPO violations
-- Storage capacity warnings
-- Test overdue notifications
-
-### API Endpoints
-
-```javascript
-// Get DR metrics
+```http
 GET /api/dr/metrics
-?startDate=2025-01-01
-&endDate=2025-01-31
-
-// Get violations
-GET /api/dr/metrics/violations
-
-// Get success rate
-GET /api/dr/metrics/success-rate
+GET /api/dr/dashboard
+GET /api/dr/rto-rpo
 ```
 
-## Restoration Procedures
+These surfaces are better thought of as operator monitoring and reporting tools than as a full disaster orchestration console.
 
-### Full Restoration
+## Recommended Operator Process
 
-1. **Identify Backup**:
-   ```bash
-   GET /api/dr/backups?type=FULL&latest=true
-   ```
+1. Set DR targets and retention expectations.
+2. Create and verify backup targets.
+3. Create recurring schedules aligned to your recovery objectives.
+4. Review dashboard and metrics regularly.
+5. Run DR tests on a defined cadence and after major operational changes.
+6. Keep a separate restoration runbook for the actual recovery procedure.
 
-2. **Download Backup**:
-   ```bash
-   GET /api/dr/backups/{id}/download
-   ```
+## Restoration Boundary
 
-3. **Stop Application**:
-   ```bash
-   systemctl stop event-manager
-   ```
+The application exposes backup, test, and metrics management, but restoration is still an operator-led process. That means:
 
-4. **Restore Database**:
-   ```bash
-   psql -U postgres event_manager < backup_2025-01-15.sql
-   ```
+- application recovery steps should be maintained in operational runbooks
+- database restore actions should be tested outside production first
+- recovery validation should include both data integrity and application startup checks
 
-5. **Restore Files**:
-   ```bash
-   tar -xzf files_2025-01-15.tar.gz -C /opt/event-manager/current
-   ```
-
-6. **Verify Integrity**:
-   ```bash
-   npm run db:verify
-   ```
-
-7. **Start Application**:
-   ```bash
-   systemctl start event-manager
-   ```
-
-### Point-in-Time Recovery
-
-1. Restore latest full backup
-2. Apply incremental backups in sequence
-3. Verify data consistency
-
-### Partial Restoration
-
-For specific data recovery:
-```bash
-# Restore only users table
-pg_restore -U postgres -d event_manager -t users backup.dump
-```
+Do not treat the in-app DR page as a complete restoration wizard.
 
 ## Best Practices
 
-### 1. Follow 3-2-1 Rule
+### Keep The Model Simple
 
-- **3** copies of data
-- **2** different media types
-- **1** off-site copy
+- Use clear names for targets and schedules.
+- Separate routine backup activity from DR test activity in operator notes.
 
-### 2. Encrypt Backups
+### Verify Before You Trust
 
-```json
-{
-  "encryption": {
-    "algorithm": "AES-256",
-    "keyRotation": 90
-  }
-}
-```
+- Verify targets before attaching them to schedules.
+- Review recent metrics after any manual execution or test run.
 
-### 3. Test Regularly
+### Test On Purpose
 
-- Schedule monthly tests
-- Document results
-- Update procedures
+- Run DR tests on a real cadence.
+- Re-test after infrastructure or storage changes.
 
-### 4. Monitor Continuously
+### Maintain External Recovery Steps
 
-- Set up real-time alerts
-- Review metrics weekly
-- Track trends
-
-### 5. Maintain Documentation
-
-- Keep restoration procedures updated
-- Document all DR configurations
-- Maintain contact lists
-
-### 6. Geographic Redundancy
-
-- Store backups in multiple regions
-- Consider cross-region replication
-- Plan for regional disasters
-
-### 7. Compliance
-
-- Verify retention policies meet regulations
-- Audit backup access logs
-- Maintain compliance documentation
+- Keep database and filesystem restoration steps in an operator runbook.
+- Record who is responsible for recovery execution and validation.
 
 ## Troubleshooting
 
-### Backup Failures
+### Target Verification Fails
 
-**Symptom**: Backup jobs failing
+Check:
+- target credentials or connection details
+- environment or network reachability
+- storage permissions
 
-**Solutions**:
-1. Check target connectivity
-2. Verify credentials
-3. Check disk space
-4. Review error logs: `/var/log/event-manager/backup.log`
+### Backups Do Not Run As Expected
 
-### Slow Backups
+Check:
+- whether the schedule exists and is active
+- whether assigned targets are still valid
+- DR metrics and recent execution history
 
-**Symptom**: Backups taking too long
+### DR Test Results Look Incomplete
 
-**Solutions**:
-1. Use incremental backups
-2. Compress data
-3. Schedule during off-peak hours
-4. Increase network bandwidth
+Check:
+- that the correct test route was used: `POST /api/dr/test/execute`
+- that operators reviewed metrics and dashboard data after the run
+- that any external recovery steps referenced by the exercise are still current
 
-### Restoration Issues
+## Related Documentation
 
-**Symptom**: Cannot restore backup
-
-**Solutions**:
-1. Verify backup integrity
-2. Check file permissions
-3. Ensure compatible versions
-4. Review restoration logs
-
-## API Reference
-
-### Create DR Config
-```http
-POST /api/dr/config
-Content-Type: application/json
-
-{
-  "rto": 4,
-  "rpo": 1,
-  "backupRetentionDays": 30
-}
-```
-
-### Create Backup Schedule
-```http
-POST /api/dr/schedules
-Content-Type: application/json
-
-{
-  "name": "Daily Backup",
-  "scheduleType": "FULL",
-  "cronExpression": "0 2 * * *"
-}
-```
-
-### Execute Manual Backup
-```http
-POST /api/dr/schedules/{id}/execute
-```
-
-### Run DR Test
-```http
-POST /api/dr/test
-Content-Type: application/json
-
-{
-  "testType": "FAILOVER",
-  "targetEnvironment": "STAGING"
-}
-```
-
-## Additional Resources
-
-- [AWS S3 Best Practices](https://docs.aws.amazon.com/s3/)
-- [Azure Backup Documentation](https://docs.microsoft.com/azure/backup/)
-- [PostgreSQL Backup Documentation](https://www.postgresql.org/docs/current/backup.html)
-
-## Support
-
-For DR-related issues:
-- Email: support@eventmanager.com
-- Emergency: Call 1-800-DR-HELP
-- Documentation: https://docs.eventmanager.com/dr
+- [13-ADMIN-GUIDE.md](./13-ADMIN-GUIDE.md)
+- [08-DEPLOYMENT.md](./08-DEPLOYMENT.md)
+- operational recovery runbooks maintained outside public Help

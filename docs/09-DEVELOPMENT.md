@@ -240,15 +240,17 @@ describe('POST /api/events', () => {
 import { test, expect } from '@playwright/test';
 
 test('user can login', async ({ page }) => {
-  await page.goto('/login');
+  await page.goto('/your-tenant-slug/login');
   
   await page.fill('input[name="email"]', 'admin@example.com');
   await page.fill('input[name="password"]', 'password');
   await page.click('button[type="submit"]');
   
-  await expect(page).toHaveURL('/events');
+  await expect(page).toHaveURL(/\/your-tenant-slug\/(dashboard|board|emcee|tally)/);
 });
 ```
+
+The exact post-login route depends on tenant-aware routing and the user role. Do not assume every successful login lands on `/events`.
 
 **Run E2E Tests**:
 ```bash
@@ -367,7 +369,7 @@ Interactive API documentation for testing and exploring endpoints.
 7. Click "Execute"
 8. View response
 
-**Getting JWT Token**:
+**Getting JWT Token For Direct API Testing**:
 ```bash
 # Login via API
 curl -X POST http://localhost:3000/api/auth/login \
@@ -377,6 +379,8 @@ curl -X POST http://localhost:3000/api/auth/login \
 # Copy the token from response
 # Use in Swagger: Bearer <token>
 ```
+
+Use this bearer-token flow for direct API testing only. The browser application uses tenant-aware routes and the normal app session flow, so browser and E2E examples should be written around tenant login pages rather than token injection by default.
 
 ### Database GUI (Prisma Studio)
 

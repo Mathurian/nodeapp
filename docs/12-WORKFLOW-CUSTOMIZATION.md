@@ -2,556 +2,313 @@
 
 ## Overview
 
-The Event Manager includes workflow templates and workflow instances for modeling multi-step approval processes.
+The current workflow system is a template-and-instance model for role-based process progression. It is not a general-purpose BPM engine and it should not be documented as one.
 
-Current implementation focus:
-- Template-driven step sequencing
-- Role-based progression and approvals
-- Instance history tracking
+What the current product supports well:
+- workflow templates with ordered steps
+- role-based responsibility for each step
+- active and inactive template management
+- workflow instances tied to specific entities
+- explicit advancement through UI or API actions
+- optional winner-unlock configuration stored with the template
 
-Current limitations:
-- No generic background trigger automation engine (event-driven automations are limited).
-- Workflows are primarily advanced through explicit UI/API actions.
+What the current product does not present as a full feature set:
+- a generic transition designer in the main UI
+- a broad background automation engine
+- arbitrary role examples outside the product’s real role set
+- a dedicated `Admin -> Workflows -> Dashboard` surface
 
-## Table of Contents
+## Access Model
 
-1. [Workflow Concepts](#workflow-concepts)
-2. [Creating Workflows](#creating-workflows)
-3. [Step Configuration](#step-configuration)
-4. [Transitions & Conditions](#transitions--conditions)
-5. [Workflow Execution](#workflow-execution)
-6. [Monitoring Workflows](#monitoring-workflows)
-7. [Best Practices](#best-practices)
-8. [Example Workflows](#example-workflows)
+Workflow management access is currently limited to:
 
-## Workflow Concepts
+- `SUPER_ADMIN`
+- `ADMIN`
+- `ORGANIZER`
+- `BOARD`
 
-### Key Terms
+Templates and instances are exposed through the authenticated workflow routes and the workflow management UI.
 
-- **Workflow Template**: Reusable definition of a process
-- **Workflow Step**: Individual stage in the process
-- **Transition**: Connection between steps
-- **Workflow Instance**: Active execution of a template
-- **Step Execution**: Record of completing a step
+## Current Workflow Model
 
-### Workflow Lifecycle
+### Workflow Template
 
-1. **Design**: Create template with steps and transitions
-2. **Activate**: Enable template for use
-3. **Instantiate**: Start workflow for specific entity
-4. **Execute**: Progress through steps via explicit action calls
-5. **Complete**: Workflow reaches final state
+A workflow template is the reusable definition of a process. The current template model is centered on:
 
-## Creating Workflows
+- `name`
+- `description`
+- `type`
+- `isActive`
+- ordered `steps`
+- optional `winnerUnlock` configuration in `config`
+
+### Workflow Step
+
+The current step model is centered on:
+
+- `name`
+- `description`
+- `stepOrder`
+- `requiredRole`
+- `requireApproval`
+- `autoAdvance`
+
+Use those fields as the primary documentation model. Older examples that rely on generic transition objects, timeout engines, or unsupported step metadata should be treated as legacy examples, not current product truth.
+
+### Workflow Instance
+
+A workflow instance is a live execution of a template for a specific entity. The current routes support instances tied to entity types such as:
+
+- `EVENT`
+- `CONTEST`
+- `CERTIFICATION`
+- `CATEGORY`
+
+## Current API Surface
+
+### Templates
+
+```text
+GET    /api/workflows/templates
+POST   /api/workflows/templates
+GET    /api/workflows/templates/:id
+PUT    /api/workflows/templates/:id
+DELETE /api/workflows/templates/:id
+```
+
+### Instances
+
+```text
+POST   /api/workflows/instances
+GET    /api/workflows/instances/:id
+POST   /api/workflows/instances/:id/advance
+GET    /api/workflows/instances/:entityType/:entityId
+```
+
+## Creating Templates
 
 ### Via UI
 
-1. Navigate to **Admin → Workflows**
-2. Click **Create Workflow**
-3. Fill in template details:
-   - Name
-   - Description
-   - Entity Type (USER, CONTESTANT, EVENT, etc.)
-4. Click **Save Template**
+Use the authenticated workflow management page to:
+
+1. create a template
+2. set a name, description, and type
+3. define ordered steps
+4. assign each step to a supported role
+5. enable or disable the template
+6. optionally configure winner unlock behavior when that template is intended to drive results visibility timing
+
+Avoid documenting the UI as `Admin -> Workflows -> Dashboard`. The current product exposes workflow management, not a separate dashboard-style workflow console.
 
 ### Via API
 
-```javascript
-POST /api/workflows/templates
-Content-Type: application/json
+Example template payload aligned with the current route and page model:
 
-{
-  "name": "Contestant Approval",
-  "description": "Multi-step approval for contestants",
-  "entityType": "CONTESTANT",
-  "active": true
-}
-```
-
-## Step Configuration
-
-### Creating Steps
-
-Each step represents a stage in your workflow:
-
-```javascript
-POST /api/workflows/templates/{templateId}/steps
-Content-Type: application/json
-
-{
-  "name": "Initial Review",
-  "description": "Organizer reviews application",
-  "stepOrder": 1,
-  "requiredRole": "ORGANIZER",
-  "actions": ["APPROVE", "REJECT", "REQUEST_CHANGES"],
-  "autoAdvance": false,
-  "timeoutHours": 48,
-  "notifyRoles": ["ORGANIZER", "ADMIN"]
-}
-```
-
-### Step Properties
-
-| Property | Type | Description | Required |
-|----------|------|-------------|----------|
-| name | string | Step name | Yes |
-| description | string | What happens in this step | No |
-| stepOrder | number | Order in sequence (1, 2, 3...) | Yes |
-| requiredRole | string | Who can complete this step | Yes |
-| actions | array | Available actions | Yes |
-| autoAdvance | boolean | Automatically move to next step | No |
-| timeoutHours | number | Hours before timeout warning | No |
-| notifyRoles | array | Roles to notify when step starts | No |
-
-### Available Roles
-
-- ADMIN
-- ORGANIZER
-- BOARD
-- JUDGE
-- CONTESTANT
-- EMCEE
-- AUDITOR
-- TALLY_MASTER
-
-### Common Actions
-
-- APPROVE: Move forward
-- REJECT: Terminate workflow
-- REQUEST_CHANGES: Send back for revision
-- COMPLETE: Mark as done
-- ESCALATE: Send to higher authority
-
-## Transitions & Conditions
-
-### Creating Transitions
-
-Transitions define how workflow moves between steps:
-
-```javascript
-POST /api/workflows/templates/{templateId}/transitions
-Content-Type: application/json
-
-{
-  "fromStepId": "step-1-id",
-  "toStepId": "step-2-id",
-  "condition": "APPROVE",
-  "priority": 1,
-  "requiresComment": false,
-  "metadata": {
-    "notifyNext": true
-  }
-}
-```
-
-### Conditional Routing
-
-```javascript
-// Approval path
-{
-  "fromStepId": "review-step",
-  "toStepId": "approval-step",
-  "condition": "APPROVE"
-}
-
-// Rejection path
-{
-  "fromStepId": "review-step",
-  "toStepId": "rejection-step",
-  "condition": "REJECT"
-}
-
-// Changes requested path
-{
-  "fromStepId": "review-step",
-  "toStepId": "revision-step",
-  "condition": "REQUEST_CHANGES"
-}
-```
-
-### Multiple Paths
-
-A step can have multiple outgoing transitions based on different conditions.
-
-## Workflow Execution
-
-### Starting a Workflow
-
-```javascript
-POST /api/workflows/instances
-Content-Type: application/json
-
-{
-  "templateId": "workflow-template-id",
-  "entityType": "CONTESTANT",
-  "entityId": "contestant-id",
-  "initiatedBy": "user-id",
-  "metadata": {
-    "priority": "high"
-  }
-}
-```
-
-### Advancing Steps
-
-```javascript
-POST /api/workflows/instances/{instanceId}/advance
-Content-Type: application/json
-
-{
-  "action": "APPROVE",
-  "comments": "Application looks good",
-  "metadata": {
-    "reviewedBy": "John Doe",
-    "reviewDate": "2025-01-15"
-  }
-}
-```
-
-### Checking Status
-
-```javascript
-GET /api/workflows/instances/{instanceId}
-```
-
-Response:
 ```json
 {
-  "id": "instance-id",
-  "template": { "name": "Contestant Approval" },
-  "entityType": "CONTESTANT",
-  "entityId": "contestant-123",
-  "status": "IN_PROGRESS",
-  "currentStep": 2,
-  "startedAt": "2025-01-15T10:00:00Z",
-  "executions": [
-    {
-      "stepName": "Initial Review",
-      "action": "APPROVE",
-      "completedBy": "user-123",
-      "completedAt": "2025-01-15T11:30:00Z",
-      "comments": "Approved"
-    }
-  ]
-}
-```
-
-## Monitoring Workflows
-
-### Workflow Dashboard
-
-Access at: **Admin → Workflows → Dashboard**
-
-**Metrics**:
-- Active workflows
-- Pending steps
-- Completion rate
-- Average completion time
-- Bottlenecks
-
-### Analytics
-
-```javascript
-GET /api/workflows/metrics
-?templateId=template-id
-&startDate=2025-01-01
-&endDate=2025-01-31
-```
-
-Response:
-```json
-{
-  "totalInstances": 150,
-  "completed": 120,
-  "inProgress": 25,
-  "failed": 5,
-  "completionRate": 0.80,
-  "avgCompletionTime": 48.5,
-  "bottlenecks": [
-    {
-      "stepName": "Board Approval",
-      "avgTime": 72,
-      "instances": 30
-    }
-  ]
-}
-```
-
-## Best Practices
-
-### 1. Keep Steps Simple
-
-Each step should have a single, clear purpose:
-- ✅ "Organizer Review"
-- ❌ "Review, Approve, and Register"
-
-### 2. Define Clear Actions
-
-Use explicit action names:
-- ✅ "APPROVE", "REJECT", "REQUEST_CHANGES"
-- ❌ "OK", "YES", "MAYBE"
-
-### 3. Set Appropriate Timeouts
-
-- Critical steps: 24-48 hours
-- Standard steps: 3-5 days
-- Low priority: 1-2 weeks
-
-### 4. Use Role-Based Access
-
-Assign steps to specific roles, not individuals:
-- ✅ requiredRole: "ORGANIZER"
-- ❌ requiredUser: "john@example.com"
-
-### 5. Add Helpful Descriptions
-
-```javascript
-{
-  "name": "Financial Review",
-  "description": "Treasurer verifies all fees are paid and documentation is complete"
-}
-```
-
-### 6. Plan for Exceptions
-
-Always include paths for:
-- Approvals
-- Rejections
-- Revisions/changes
-- Escalations
-
-### 7. Test Workflows
-
-Before activating:
-1. Create test instances
-2. Execute all paths
-3. Verify notifications
-4. Check timing
-5. Review audit trail
-
-## Example Workflows
-
-### 1. Contestant Registration
-
-```javascript
-// Template
-{
-  "name": "Contestant Registration",
-  "entityType": "CONTESTANT"
-}
-
-// Steps
-[
-  {
-    "name": "Application Submitted",
-    "stepOrder": 1,
-    "requiredRole": "SYSTEM",
-    "actions": ["AUTO_ADVANCE"],
-    "autoAdvance": true
-  },
-  {
-    "name": "Organizer Review",
-    "stepOrder": 2,
-    "requiredRole": "ORGANIZER",
-    "actions": ["APPROVE", "REJECT", "REQUEST_MORE_INFO"],
-    "timeoutHours": 48
-  },
-  {
-    "name": "Payment Verification",
-    "stepOrder": 3,
-    "requiredRole": "TREASURER",
-    "actions": ["CONFIRM_PAYMENT", "PAYMENT_PENDING"],
-    "timeoutHours": 24
-  },
-  {
-    "name": "Final Approval",
-    "stepOrder": 4,
-    "requiredRole": "BOARD",
-    "actions": ["APPROVE", "REJECT"],
-    "timeoutHours": 72
-  },
-  {
-    "name": "Registration Complete",
-    "stepOrder": 5,
-    "requiredRole": "SYSTEM",
-    "actions": ["COMPLETE"],
-    "autoAdvance": true
-  }
-]
-```
-
-### 2. Judge Assignment
-
-```javascript
-{
-  "name": "Judge Assignment",
-  "entityType": "JUDGE",
+  "name": "Contest Certification Workflow",
+  "description": "Progresses a contest through review and approval steps.",
+  "type": "custom",
+  "isActive": true,
   "steps": [
     {
-      "name": "Judge Application",
-      "requiredRole": "JUDGE",
-      "actions": ["SUBMIT_APPLICATION"]
-    },
-    {
-      "name": "Credentials Review",
-      "requiredRole": "ORGANIZER",
-      "actions": ["VERIFY", "REQUEST_MORE_INFO"]
-    },
-    {
-      "name": "Background Check",
-      "requiredRole": "ADMIN",
-      "actions": ["PASS", "FAIL"]
-    },
-    {
-      "name": "Category Assignment",
-      "requiredRole": "ORGANIZER",
-      "actions": ["ASSIGN_CATEGORIES"]
-    },
-    {
-      "name": "Judge Confirmed",
-      "requiredRole": "SYSTEM",
-      "actions": ["COMPLETE"],
-      "autoAdvance": true
-    }
-  ]
-}
-```
-
-### 3. Contest Certification
-
-```javascript
-{
-  "name": "Contest Certification",
-  "entityType": "CONTEST",
-  "steps": [
-    {
-      "name": "Scoring Complete",
+      "name": "Tally Review",
+      "description": "Tally staff review final score state.",
+      "stepOrder": 1,
       "requiredRole": "TALLY_MASTER",
-      "actions": ["CERTIFY_SCORES"]
+      "requireApproval": true,
+      "autoAdvance": false
     },
     {
       "name": "Auditor Review",
+      "description": "Auditor validates score integrity.",
+      "stepOrder": 2,
       "requiredRole": "AUDITOR",
-      "actions": ["APPROVE", "FLAG_ISSUES"]
+      "requireApproval": true,
+      "autoAdvance": false
     },
     {
-      "name": "Board Certification",
+      "name": "Board Approval",
+      "description": "Board completes final approval.",
+      "stepOrder": 3,
       "requiredRole": "BOARD",
-      "actions": ["CERTIFY", "REJECT"]
-    },
-    {
-      "name": "Results Published",
-      "requiredRole": "SYSTEM",
-      "actions": ["PUBLISH"],
-      "autoAdvance": true
+      "requireApproval": true,
+      "autoAdvance": false
     }
   ]
 }
 ```
 
-### 4. Event Approval
+## Supported Roles For Steps
 
-```javascript
+The current workflow-management UI exposes these role options:
+
+- `SUPER_ADMIN`
+- `ADMIN`
+- `ORGANIZER`
+- `BOARD`
+- `TALLY_MASTER`
+- `AUDITOR`
+- `JUDGE`
+- `EMCEE`
+- `CONTESTANT`
+
+Do not use placeholder roles such as `SYSTEM` or unsupported examples such as `TREASURER` in current user-facing workflow documentation.
+
+## Winner Unlock Configuration
+
+Templates can also carry a `winnerUnlock` configuration object. In the current UI this is used to model winner publication timing behavior tied to:
+
+- a selected contest
+- a mode of `trigger` or `scheduled`
+- either a trigger event or a scheduled unlock time
+
+This is a specialized configuration inside the broader workflow template model, not a generic workflow transition engine.
+
+## Starting And Advancing Instances
+
+### Start An Instance
+
+```json
 {
-  "name": "Event Creation",
-  "entityType": "EVENT",
+  "templateId": "workflow-template-id",
+  "entityType": "CONTEST",
+  "entityId": "contest-id",
+  "metadata": {
+    "source": "manual"
+  }
+}
+```
+
+### Advance An Instance
+
+```json
+{
+  "action": "APPROVE",
+  "comment": "Reviewed and approved."
+}
+```
+
+The current API documents workflow advancement around explicit action calls such as `APPROVE`, `REJECT`, `REVIEW`, and `CERTIFY`. Document the instance model as explicitly advanced, not as background automation.
+
+## Monitoring And Review
+
+The product supports listing templates and reviewing instances by entity. It does not currently present the richer metrics and dashboard model that older docs implied.
+
+Practical operator and admin review should focus on:
+
+- whether the template is active
+- whether steps are ordered correctly
+- which role is responsible for the current step
+- whether the instance advanced successfully for the target entity
+
+## Best Practices
+
+### Keep Step Design Narrow
+
+- Give each step one clear purpose.
+- Avoid combining multiple responsibilities into one step.
+
+### Use Real Product Roles
+
+- Assign steps only to roles the product actually exposes.
+- Keep role assignment aligned with the rest of the app’s access model.
+
+### Prefer Explicit Names
+
+- use names like `Board Approval` or `Auditor Review`
+- avoid generic names that hide who is responsible
+
+### Test Templates Before Relying On Them
+
+- create a template
+- start a test instance
+- advance it through each expected step
+- confirm the entity and role flow are understandable to operators
+
+## Example Templates
+
+### Contest Certification
+
+```json
+{
+  "name": "Contest Certification Workflow",
+  "type": "custom",
+  "isActive": true,
   "steps": [
     {
-      "name": "Event Proposed",
-      "requiredRole": "ORGANIZER",
-      "actions": ["SUBMIT_PROPOSAL"]
+      "name": "Tally Review",
+      "stepOrder": 1,
+      "requiredRole": "TALLY_MASTER",
+      "requireApproval": true,
+      "autoAdvance": false
     },
     {
-      "name": "Budget Review",
-      "requiredRole": "TREASURER",
-      "actions": ["APPROVE_BUDGET", "REJECT_BUDGET"]
+      "name": "Auditor Review",
+      "stepOrder": 2,
+      "requiredRole": "AUDITOR",
+      "requireApproval": true,
+      "autoAdvance": false
     },
     {
       "name": "Board Approval",
+      "stepOrder": 3,
       "requiredRole": "BOARD",
-      "actions": ["APPROVE", "REJECT", "REQUEST_CHANGES"]
-    },
-    {
-      "name": "Event Active",
-      "requiredRole": "SYSTEM",
-      "actions": ["ACTIVATE"],
-      "autoAdvance": true
+      "requireApproval": true,
+      "autoAdvance": false
     }
   ]
+}
+```
+
+### Winner Unlock Schedule
+
+```json
+{
+  "name": "Winner Release Workflow",
+  "type": "custom",
+  "isActive": true,
+  "steps": [
+    {
+      "name": "Board Approval",
+      "stepOrder": 1,
+      "requiredRole": "BOARD",
+      "requireApproval": true,
+      "autoAdvance": false
+    }
+  ],
+  "config": {
+    "winnerUnlock": {
+      "enabled": true,
+      "contestId": "contest-id",
+      "mode": "scheduled",
+      "unlockAt": "2026-05-31T20:00:00.000Z"
+    }
+  }
 }
 ```
 
 ## Troubleshooting
 
-### Workflow Stuck
+### Template Cannot Be Used
 
-**Symptom**: Workflow not progressing
+Check:
+- whether the template is active
+- whether steps are present and ordered
+- whether required roles are valid current product roles
 
-**Solutions**:
-1. Check user has required role
-2. Verify step hasn't timed out
-3. Review transition conditions
-4. Check for system errors
+### Instance Does Not Advance
 
-### Invalid Transitions
+Check:
+- that the acting user has the correct role for the current step
+- that the requested action is valid for the current state
+- that the instance is tied to the intended entity
 
-**Symptom**: Cannot advance workflow
+### Workflow Guidance Looks Different Than Older Docs
 
-**Solutions**:
-1. Verify transition exists for action
-2. Check condition matches
-3. Ensure step order is correct
-4. Review workflow template
+That is expected. Older docs described a more generic workflow and BPM model than the current product exposes. Use this guide and the live routes as the current source of truth.
 
-### Notifications Not Sent
+## Related Documentation
 
-**Symptom**: Users not notified
-
-**Solutions**:
-1. Check `notifyRoles` configuration
-2. Verify email settings
-3. Review notification logs
-4. Test email delivery
-
-## API Reference
-
-### List Templates
-```http
-GET /api/workflows/templates
-```
-
-### Create Template
-```http
-POST /api/workflows/templates
-```
-
-### Add Step
-```http
-POST /api/workflows/templates/{id}/steps
-```
-
-### Create Transition
-```http
-POST /api/workflows/templates/{id}/transitions
-```
-
-### Start Instance
-```http
-POST /api/workflows/instances
-```
-
-### Advance Instance
-```http
-POST /api/workflows/instances/{id}/advance
-```
-
-### Get Instance History
-```http
-GET /api/workflows/instances/{id}/history
-```
-
-## Additional Resources
-
-- Workflow Management UI: `/workflows`
-- Templates API: `/api/workflows/templates`
-- Instances API: `/api/workflows/instances`
+- [13-ADMIN-GUIDE.md](./13-ADMIN-GUIDE.md)
+- [03-FEATURES.md](./03-FEATURES.md)
