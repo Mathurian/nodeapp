@@ -116,6 +116,8 @@ Human UX reference (if needed):
 - Validate both behavior and role scoping.
 - Treat runtime/module-load errors, broken routing, and unauthorized data exposure as blockers.
 - Capture URL and exact repro steps for every failure.
+- Treat command search as an in-app control, not a standalone `/search` route.
+- Treat current auditor labels such as `Auditor Dashboard`, `Pending Auditor Certifications`, and `Certification Status` as part of one auditor certification flow, not separate workflows.
 
 ### 5.1 Single-User Rules
 

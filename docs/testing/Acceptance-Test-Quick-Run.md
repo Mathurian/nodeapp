@@ -32,8 +32,8 @@ Browser-AI minimum handoff:
 
 ## 1. Global Smoke (5 minutes)
 
-- [ ] Open `/` and confirm branding looks correct (name/favicon/alignment).
-- [ ] Open `/login` and confirm link back to `/` works.
+- [ ] Open the tested tenant's public landing surface and confirm branding looks correct (name/favicon/alignment).
+- [ ] Open the tenant-aware login page and confirm its link back to the appropriate public landing works.
 - [ ] Log in and confirm `/dashboard` resolves to `/{tenantSlug}/dashboard`.
 - [ ] Open menu and command palette; both show role-appropriate options only.
 - [ ] Menu closes after selecting a page and when clicking outside.

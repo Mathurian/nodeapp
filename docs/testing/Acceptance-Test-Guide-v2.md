@@ -45,7 +45,7 @@ scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply -
 scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario empty-tenant
 ```
 
-3. Optional: preserve logs/reports/notifications/search artifacts:
+3. Optional: preserve logs/reports/notifications artifacts:
 ```bash
 scripts/uat/reset-tenant-uat-state.sh --tenant-slug <your-tenant-slug> --apply --scenario preseeded --keep-logs
 ```
@@ -89,18 +89,18 @@ If this guide is executed by a browser AI assistant instead of a person, provide
 ### C. Stability
 - [ ] No unexpected 404/403/409/500 in normal flows.
 - [ ] No dynamic import/module load errors in browser console.
-- [ ] Search returns useful results and navigates correctly.
+- [ ] Command search returns useful results and navigates correctly.
 
 ## Public Pages (No Login)
 
-### Landing Page `/`
-- [ ] Branding (name/favicon) reflects default tenant settings.
-- [ ] Header/footer sign-in links are visually aligned and consistent.
+### Tenant Public Landing
+- [ ] Branding (name/favicon) reflects the tested tenant's public settings.
+- [ ] Header/footer sign-in and help links are visually aligned and consistent.
 - [ ] Language is not misleading (no exaggerated adoption claims).
 
 ### Login and Help
-- [ ] Login page has working link/button back to `/`.
-- [ ] Help page has working link/button back to `/`.
+- [ ] Login page is reached through a tenant-aware path and has a working link/button back to the tenant-aware public landing.
+- [ ] Help page is reached through the expected public or tenant-aware path and has a working link/button back to the appropriate landing surface.
 - [ ] Register link is absent in invite-only mode.
 
 ## Role-by-Role Manual Checklists
@@ -182,9 +182,10 @@ If this guide is executed by a browser AI assistant instead of a person, provide
 
 ## AUDITOR
 
-### Dashboard UX
-- [ ] Auditor lands on auditor workspace (not generic dashboard UX).
-- [ ] Quick links are relevant (pending audits/certifications/results).
+### Landing and Navigation
+- [ ] Auditor lands on the standard dashboard experience, not a separate default home route.
+- [ ] Auditor can navigate to the auditor certification flow using current labels such as `Auditor Dashboard`, `Pending Auditor Certifications`, or `Certification Status`.
+- [ ] If legacy or alternate auditor labels appear, they still route into the same auditor certification flow rather than separate workflows.
 
 ### Certification Flow
 - [ ] Can review tally-certified data.

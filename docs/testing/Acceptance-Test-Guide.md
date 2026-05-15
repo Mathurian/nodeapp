@@ -51,7 +51,7 @@ Required pre-run command:
 scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario preseeded
 ```
 
-Optional (preserve logs/reports/notifications/search):
+Optional (preserve logs/reports/notifications):
 ```bash
 scripts/uat/reset-tenant-uat-state.sh --tenant-slug <slug> --apply --scenario preseeded --keep-logs
 ```
@@ -180,6 +180,11 @@ ID governance:
 - Action: normal navigation across 5 pages
 - Expected: no dynamic import failures
 
+### TC-CORE-005
+- Role: Any authenticated role
+- Action: open command search using keyboard shortcut or top search control
+- Expected: search results are role-appropriate and navigation resolves to working tenant-aware routes
+
 ## 7. Navigation/Permission Matrix Cases
 
 ### TC-NAV-001
@@ -257,6 +262,11 @@ ID governance:
 - Role chain: Judge -> Tally -> Auditor -> Board/Organizer
 - Action: run flow on 2+ categories in same contest
 - Expected: status accurate per category and contest rollup
+
+### TC-CERT-004 (Auditor Terminology)
+- Role: Auditor
+- Action: navigate using current auditor labels such as `Auditor Dashboard`, `Pending Auditor Certifications`, or `Certification Status`
+- Expected: labels route into the same auditor certification flow; legacy wording is treated as alternate labeling, not a separate workflow
 
 ## 11. Governance, Un-certify, Throw-Out Cases
 
