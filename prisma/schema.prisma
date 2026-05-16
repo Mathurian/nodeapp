@@ -2331,21 +2331,24 @@ enum PermissionScopeLevel {
 enum PermissionAuditChangeType {
   ACTION_PERMISSION
   RESOURCE_SCOPE
+  OPERATION_SCOPE
 }
 
 model RolePermissionScope {
   id         String               @id @default(cuid())
   role       UserRole
   resource   String
+  operation  String?
   scope      PermissionScopeLevel
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   createdBy  String
   tenantId   String
 
-  @@unique([tenantId, role, resource], name: "tenantId_role_resource")
   @@index([tenantId, role])
+  @@index([tenantId, role, resource, operation])
   @@index([resource])
+  @@index([operation])
   @@map("role_permission_scopes")
 }
 

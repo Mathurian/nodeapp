@@ -1,4 +1,4 @@
-# Scope-Aware Permissions v1
+# Scope-Aware Permissions v1 / v1.1
 
 ## Purpose
 
@@ -16,6 +16,9 @@ Each tenant-manageable surface now has two distinct concerns:
   Over which records can the role perform the action?
 
 v1 stores scope at `role + resource`.
+
+`TASK-78` extends that model so v1.1 can also store optional overrides at
+`role + resource + operation` without breaking the existing resource-level rows.
 
 ## Scope Values
 
@@ -37,11 +40,21 @@ Resource scope is stored in `role_permission_scopes` with one row per:
 - `role`
 - `resource`
 
+In v1.1, the same table also supports optional operation-specific rows with:
+
+- `tenantId`
+- `role`
+- `resource`
+- `operation`
+
 Permission audit logs now also support scope changes through:
 
 - `previousScope`
 - `newScope`
 - `changeType`
+
+v1.1 adds `OPERATION_SCOPE` as an audit change type so operation overrides and
+resource-default changes remain distinguishable in the audit trail.
 
 ## Authority Rules
 
@@ -99,7 +112,7 @@ First-wave default scopes:
 The enforcement pattern for v1 is:
 
 1. middleware enforces action permission such as `deductions:read` or `files:write`
-2. a shared scope resolver determines the caller’s resource scope
+2. a shared scope resolver determines the caller’s effective scope
 3. controller queries are filtered to the resolved scope
 
 This keeps the same resource model across:
@@ -143,18 +156,40 @@ v1 extends the existing Permissions page instead of adding a second admin screen
 The page now manages:
 
 - action permissions
-- resource scope for scope-capable resources
+- resource scope defaults for scope-capable resources
+- optional operation-level scope overrides for scope-capable resources
 
 Some roles remain fixed in v1 and therefore have non-editable scope rows.
 
+## Resolution Order
+
+v1.1 resolves scope in this order:
+
+1. operation-specific override for `role + resource + operation`
+2. resource-level scope row for `role + resource`
+3. fixed/default role scope from `defaultPermissionScopes.ts`
+4. `TENANT` when the resource is not scope-capable
+
+This keeps older callers safe because resource-level rows still remain authoritative
+when no operation override exists.
+
+## Migration Path
+
+The migration from v1 to v1.1 is additive:
+
+1. existing `role + resource` rows remain valid and become the inherited default layer
+2. the scope resolver accepts an optional `operation`
+3. first-wave controllers can pass the concrete permission operation (`read`, `write`, `create`, `approve`, `reject`) when they want operation-specific scope to apply
+4. when no explicit override row exists, the resolver falls back automatically to the resource-level row
+
+Operation override removal is modeled as “inherit resource default” rather than a separate default row.
+
 ## Deferred Work
 
-Per-operation scope overrides are intentionally deferred.
+Further expansion beyond v1.1 is still deferred.
 
-Future expansion path:
+Future candidates:
 
-1. keep `role + resource` as the default scope
-2. add optional `role + resource + operation` overrides later
-3. resolve operation-specific scope first, then fall back to resource scope
-
-That follow-up is tracked in `TASK-78`.
+1. wider adoption across more resource families beyond the first wave
+2. more explicit operator reporting on inherited vs overridden scope state
+3. operation-specific option constraints when a resource should not expose every scope level for every operation

@@ -92,7 +92,8 @@ export class CertificationController {
 
   private async getCertificationAccessScope(
     req: Request,
-    tenantId: string
+    tenantId: string,
+    operation: string = 'read'
   ): Promise<CertificationAccessScope> {
     if (!req.user) return this.emptyCertificationScope();
 
@@ -100,7 +101,8 @@ export class CertificationController {
       req.user.role,
       'certifications',
       tenantId,
-      req.user
+      req.user,
+      operation
     );
   }
 
@@ -199,7 +201,7 @@ export class CertificationController {
     try {
       const { categoryId, contestId, eventId, comments } = req.body;
       const tenantId = (req as any).tenantId!;
-      const scope = await this.getCertificationAccessScope(req, tenantId);
+      const scope = await this.getCertificationAccessScope(req, tenantId, 'write');
 
       if (!categoryId || !contestId || !eventId) {
         return sendBadRequest(res, 'categoryId, contestId, and eventId are required');
@@ -281,7 +283,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, existing?.tenantId || (req as any).tenantId || req.user!.tenantId);
+      const scope = await this.getCertificationAccessScope(req, existing?.tenantId || (req as any).tenantId || req.user!.tenantId, 'write');
       if (!existing || !this.canAccessCertificationInScope(scope, existing)) {
         return sendNotFound(res, 'Certification not found');
       }
@@ -310,7 +312,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, certification?.tenantId || (req as any).tenantId || req.user!.tenantId);
+      const scope = await this.getCertificationAccessScope(req, certification?.tenantId || (req as any).tenantId || req.user!.tenantId, 'write');
       if (!certification || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
@@ -363,7 +365,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, tenantId);
+      const scope = await this.getCertificationAccessScope(req, tenantId, 'write');
       if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
@@ -426,7 +428,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, tenantId);
+      const scope = await this.getCertificationAccessScope(req, tenantId, 'write');
       if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
@@ -484,7 +486,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, tenantId);
+      const scope = await this.getCertificationAccessScope(req, tenantId, 'write');
       if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
@@ -542,7 +544,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, tenantId);
+      const scope = await this.getCertificationAccessScope(req, tenantId, 'write');
       if (!certification || certification.tenantId !== tenantId || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }
@@ -597,7 +599,7 @@ export class CertificationController {
         where: { id }
       });
 
-      const scope = await this.getCertificationAccessScope(req, certification?.tenantId || (req as any).tenantId || req.user!.tenantId);
+      const scope = await this.getCertificationAccessScope(req, certification?.tenantId || (req as any).tenantId || req.user!.tenantId, 'write');
       if (!certification || !this.canAccessCertificationInScope(scope, certification)) {
         return sendNotFound(res, 'Certification not found');
       }

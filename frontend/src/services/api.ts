@@ -781,7 +781,9 @@ export const permissionsAPI = {
   updatePermissionScope: (data: {
     role: string;
     resource: string;
-    scope: 'ASSIGNMENT' | 'EVENT' | 'TENANT';
+    operation?: string | null;
+    scope?: 'ASSIGNMENT' | 'EVENT' | 'TENANT';
+    inherit?: boolean;
     reason?: string;
   }) => api.put('/permissions/scopes', data),
 

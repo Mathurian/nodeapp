@@ -588,7 +588,7 @@ export const updatePermissionScope = async (
   next: NextFunction
 ): Promise<Response | void> => {
   try {
-    const { role, resource, scope, reason } = req.body;
+    const { role, resource, operation, scope, inherit, reason } = req.body;
     const tenantId = (req as any).tenantId;
 
     if (!req.user) {
@@ -599,11 +599,11 @@ export const updatePermissionScope = async (
       return sendError(res, 'Tenant context is required', 400);
     }
 
-    if (!role || !resource || !scope) {
-      return sendError(res, 'Missing required fields: role, resource, scope', 400);
+    if (!role || !resource || (!scope && !inherit)) {
+      return sendError(res, 'Missing required fields: role, resource, and scope or inherit', 400);
     }
 
-    if (!Object.values(PermissionScopeLevel).includes(scope as PermissionScopeLevel)) {
+    if (scope && !Object.values(PermissionScopeLevel).includes(scope as PermissionScopeLevel)) {
       return sendError(res, 'Invalid scope value', 400);
     }
 
@@ -611,7 +611,9 @@ export const updatePermissionScope = async (
     await service.updateResourceScope({
       role,
       resource,
+      operation,
       scope,
+      inherit,
       userId: req.user.id,
       userRole: req.user.role,
       tenantId,
@@ -621,7 +623,9 @@ export const updatePermissionScope = async (
     logger.info('Permission scope updated', {
       role,
       resource,
+      operation,
       scope,
+      inherit,
       userId: req.user.id,
       tenantId,
     });

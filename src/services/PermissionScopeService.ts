@@ -1,5 +1,6 @@
 import {
   PermissionScopeLevel,
+  Prisma,
   PrismaClient,
   UserRole,
 } from '@prisma/client';
@@ -16,8 +17,9 @@ import { BaseService } from './BaseService';
 export interface ResourceScopeDetail {
   role: UserRole;
   resource: string;
+  operation: string | null;
   scope: PermissionScopeLevel;
-  source: 'DEFAULT' | 'OVERRIDE';
+  source: 'DEFAULT' | 'RESOURCE' | 'OPERATION';
   editable: boolean;
   allowedOptions: PermissionScopeLevel[];
 }
@@ -25,7 +27,9 @@ export interface ResourceScopeDetail {
 export interface UpdateResourceScopeDTO {
   role: UserRole;
   resource: string;
-  scope: PermissionScopeLevel;
+  operation?: string | null;
+  scope?: PermissionScopeLevel;
+  inherit?: boolean;
   tenantId: string;
   userId: string;
   userRole: UserRole;
@@ -52,6 +56,11 @@ export class PermissionScopeService extends BaseService {
     super();
   }
 
+  private normalizeOperation(operation?: string | null): string | null {
+    const normalized = String(operation || '').trim().toLowerCase();
+    return normalized || null;
+  }
+
   isScopeCapableResource(resource: string): boolean {
     return SCOPE_CAPABLE_RESOURCES.includes(resource as (typeof SCOPE_CAPABLE_RESOURCES)[number]);
   }
@@ -59,7 +68,8 @@ export class PermissionScopeService extends BaseService {
   async getResourceScope(
     role: UserRole,
     resource: string,
-    tenantId: string
+    tenantId: string,
+    operation?: string | null
   ): Promise<PermissionScopeLevel> {
     if (!this.isScopeCapableResource(resource)) {
       return PermissionScopeLevel.TENANT;
@@ -69,13 +79,31 @@ export class PermissionScopeService extends BaseService {
       return PermissionScopeLevel.TENANT;
     }
 
-    const existing = await this.prisma.rolePermissionScope.findUnique({
-      where: {
-        tenantId_role_resource: {
+    const normalizedOperation = this.normalizeOperation(operation);
+    if (normalizedOperation) {
+      const operationOverride = await this.prisma.rolePermissionScope.findFirst({
+        where: {
           tenantId,
           role,
           resource,
+          operation: normalizedOperation,
         },
+        select: {
+          scope: true,
+        },
+      });
+
+      if (operationOverride?.scope) {
+        return operationOverride.scope;
+      }
+    }
+
+    const existing = await this.prisma.rolePermissionScope.findFirst({
+      where: {
+        tenantId,
+        role,
+        resource,
+        operation: null,
       },
       select: {
         scope: true,
@@ -113,36 +141,57 @@ export class PermissionScopeService extends BaseService {
       select: {
         role: true,
         resource: true,
+        operation: true,
         scope: true,
       },
     });
 
-    const overrideMap = new Map(
-      overrides.map((row) => [`${row.role}:${row.resource}`, row.scope])
+    const resourceOverrideMap = new Map(
+      overrides
+        .filter((row) => !row.operation)
+        .map((row) => [`${row.role}:${row.resource}`, row.scope])
     );
+    const operationOverrides = overrides.filter((row) => Boolean(row.operation));
 
     const details: ResourceScopeDetail[] = [];
     for (const role of roles) {
       for (const resource of SCOPE_CAPABLE_RESOURCES) {
         const defaultScope = getDefaultResourceScope(role, resource);
         const key = `${role}:${resource}`;
-        const override = overrideMap.get(key);
+        const override = resourceOverrideMap.get(key);
         const effectiveScope = override || defaultScope;
         if (!effectiveScope) continue;
         details.push({
           role,
           resource,
+          operation: null,
           scope: effectiveScope,
-          source: override ? 'OVERRIDE' : 'DEFAULT',
+          source: override ? 'RESOURCE' : 'DEFAULT',
           editable: isScopeEditable(role, resource),
           allowedOptions: getAllowedScopeOptions(role, resource),
         });
       }
     }
 
+    operationOverrides.forEach((override) => {
+      details.push({
+        role: override.role,
+        resource: override.resource,
+        operation: this.normalizeOperation(override.operation),
+        scope: override.scope,
+        source: 'OPERATION',
+        editable: isScopeEditable(override.role, override.resource),
+        allowedOptions: getAllowedScopeOptions(override.role, override.resource),
+      });
+    });
+
     return details.sort((left, right) => {
       if (left.role !== right.role) return left.role.localeCompare(right.role);
-      return left.resource.localeCompare(right.resource);
+      if (left.resource !== right.resource) return left.resource.localeCompare(right.resource);
+      if (left.operation === right.operation) return 0;
+      if (!left.operation) return -1;
+      if (!right.operation) return 1;
+      return left.operation.localeCompare(right.operation);
     });
   }
 
@@ -155,68 +204,123 @@ export class PermissionScopeService extends BaseService {
       throw this.createBadRequestError(`Resource "${dto.resource}" does not support configurable scope`);
     }
 
+    const normalizedOperation = this.normalizeOperation(dto.operation);
+    const isOperationOverride = Boolean(normalizedOperation);
+
     if (!isScopeEditable(dto.role, dto.resource)) {
       throw this.forbiddenError(`Scope for ${dto.role} on ${dto.resource} is fixed in v1`);
     }
 
-    const allowedOptions = getAllowedScopeOptions(dto.role, dto.resource);
-    if (!allowedOptions.includes(dto.scope)) {
-      throw this.createBadRequestError(
-        `Scope "${dto.scope}" is not allowed for ${dto.role} on ${dto.resource}`
-      );
+    if (normalizedOperation === '*') {
+      throw this.createBadRequestError('Wildcard operations cannot have scope overrides');
     }
 
     if (dto.role === 'SUPER_ADMIN' && dto.userRole !== 'SUPER_ADMIN') {
       throw this.forbiddenError('Only SUPER_ADMIN can view or modify SUPER_ADMIN scopes');
     }
 
-    const existing = await this.prisma.rolePermissionScope.findUnique({
+    if (!dto.inherit && !dto.scope) {
+      throw this.createBadRequestError('A scope value is required when not inheriting');
+    }
+
+    const allowedOptions = getAllowedScopeOptions(dto.role, dto.resource);
+    if (dto.scope && !allowedOptions.includes(dto.scope)) {
+      throw this.createBadRequestError(
+        `Scope "${dto.scope}" is not allowed for ${dto.role} on ${dto.resource}`
+      );
+    }
+
+    const existing = await this.prisma.rolePermissionScope.findFirst({
       where: {
-        tenantId_role_resource: {
-          tenantId: dto.tenantId,
-          role: dto.role,
-          resource: dto.resource,
-        },
+        tenantId: dto.tenantId,
+        role: dto.role,
+        resource: dto.resource,
+        operation: normalizedOperation,
       },
     });
 
-    await this.prisma.$transaction([
-      this.prisma.rolePermissionScope.upsert({
-        where: {
-          tenantId_role_resource: {
+    if (dto.inherit) {
+      if (!isOperationOverride) {
+        throw this.createBadRequestError('Only operation-specific scope overrides can be cleared to inherit');
+      }
+
+      if (!existing) {
+        return;
+      }
+
+      await this.prisma.$transaction([
+        this.prisma.rolePermissionScope.delete({
+          where: {
+            id: existing.id,
+          },
+        }),
+        this.prisma.permissionAuditLog.create({
+          data: {
+            role: dto.role,
+            resource: dto.resource,
+            operation: normalizedOperation!,
+            previousVal: null,
+            newVal: false,
+            previousScope: existing.scope,
+            newScope: null,
+            changeType: 'OPERATION_SCOPE',
+            changedBy: dto.userId,
+            tenantId: dto.tenantId,
+            reason: dto.reason || 'Reverted to inherited resource scope',
+          },
+        }),
+      ]);
+
+      return;
+    }
+
+    const writes: Prisma.PrismaPromise<unknown>[] = [];
+    if (existing) {
+      writes.push(
+        this.prisma.rolePermissionScope.update({
+          where: {
+            id: existing.id,
+          },
+          data: {
+            scope: dto.scope!,
+            updatedAt: new Date(),
+          },
+        })
+      );
+    } else {
+      writes.push(
+        this.prisma.rolePermissionScope.create({
+          data: {
             tenantId: dto.tenantId,
             role: dto.role,
             resource: dto.resource,
+            operation: normalizedOperation,
+            scope: dto.scope!,
+            createdBy: dto.userId,
           },
-        },
-        create: {
-          tenantId: dto.tenantId,
-          role: dto.role,
-          resource: dto.resource,
-          scope: dto.scope,
-          createdBy: dto.userId,
-        },
-        update: {
-          scope: dto.scope,
-          updatedAt: new Date(),
-        },
-      }),
+        })
+      );
+    }
+
+    writes.push(
       this.prisma.permissionAuditLog.create({
         data: {
           role: dto.role,
           resource: dto.resource,
-          operation: 'scope',
+          operation: normalizedOperation || 'scope',
           previousVal: null,
           newVal: false,
           previousScope: existing?.scope || null,
-          newScope: dto.scope,
-          changeType: 'RESOURCE_SCOPE',
+          newScope: dto.scope!,
+          changeType: isOperationOverride ? 'OPERATION_SCOPE' : 'RESOURCE_SCOPE',
           changedBy: dto.userId,
           tenantId: dto.tenantId,
           reason: dto.reason,
         },
-      }),
-    ]);
+      })
+    );
+
+    await this.prisma.$transaction(writes);
   }
 
   async initializeDefaultsForTenant(tenantId: string, createdBy: string): Promise<number> {
@@ -239,6 +343,7 @@ export class PermissionScopeService extends BaseService {
             tenantId,
             role: role as UserRole,
             resource,
+            operation: null,
             scope,
             createdBy,
           }];
@@ -263,9 +368,10 @@ export class PermissionScopeService extends BaseService {
       id: string;
       judgeId?: string | null;
       judge?: { id: string } | null;
-    }
+    },
+    operation?: string | null
   ): Promise<ResolvedResourceScope> {
-    const level = await this.getResourceScope(role, resource, tenantId);
+    const level = await this.getResourceScope(role, resource, tenantId, operation);
 
     if (level === PermissionScopeLevel.TENANT) {
       return {

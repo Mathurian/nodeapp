@@ -207,8 +207,9 @@ export type PermissionScopeLevel = 'ASSIGNMENT' | 'EVENT' | 'TENANT';
 export interface RoleResourceScope {
   role: UserRole;
   resource: string;
+  operation: string | null;
   scope: PermissionScopeLevel;
-  source: 'DEFAULT' | 'OVERRIDE';
+  source: 'DEFAULT' | 'RESOURCE' | 'OPERATION';
   editable: boolean;
   allowedOptions: PermissionScopeLevel[];
 }
@@ -220,6 +221,9 @@ export interface PermissionAuditLog {
   operation: string;
   previousVal: boolean | null;
   newVal: boolean;
+  previousScope?: PermissionScopeLevel | null;
+  newScope?: PermissionScopeLevel | null;
+  changeType?: 'ACTION_PERMISSION' | 'RESOURCE_SCOPE' | 'OPERATION_SCOPE';
   changedBy: string;
   changedAt: string;
   reason?: string;
@@ -241,7 +245,9 @@ export interface UpdatePermissionRequest {
 export interface UpdatePermissionScopeRequest {
   role: UserRole;
   resource: string;
-  scope: PermissionScopeLevel;
+  operation?: string | null;
+  scope?: PermissionScopeLevel;
+  inherit?: boolean;
   reason?: string;
 }
 

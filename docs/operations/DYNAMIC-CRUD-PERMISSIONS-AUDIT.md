@@ -193,6 +193,7 @@ Supported and exposed today:
 - view permission statistics
 - update one permission at a time
 - update one resource scope at a time
+- update one operation-level scope override at a time for scope-capable resources
 - view permission audit logs
 - export the matrix as CSV
 - warm the permission cache (`SUPER_ADMIN` and `ADMIN` only)

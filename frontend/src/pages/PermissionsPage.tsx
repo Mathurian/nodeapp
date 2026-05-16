@@ -35,6 +35,12 @@ interface ScopeMatrix {
   };
 }
 
+interface OperationScopeMatrix {
+  [role: string]: {
+    [resourceOperation: string]: RoleResourceScope;
+  };
+}
+
 const ROLES: UserRole[] = [
   'SUPER_ADMIN',
   'ADMIN',
@@ -68,6 +74,7 @@ const RESOURCE_DESCRIPTIONS: Record<string, string> = {
 }
 
 const OPERATION_SORT_ORDER = ['*', 'read', 'create', 'update', 'delete', 'write']
+const INHERIT_SCOPE_VALUE = '__INHERIT__'
 
 const sortOperations = (operations: string[]): string[] => {
   return [...operations].sort((a, b) => {
@@ -200,12 +207,28 @@ const PermissionsPage: React.FC = () => {
 
   const scopeMatrix = useMemo((): ScopeMatrix => {
     const matrix: ScopeMatrix = {};
-    resourceScopes.forEach((scope) => {
+    resourceScopes
+      .filter((scope) => !scope.operation)
+      .forEach((scope) => {
+        if (!matrix[scope.role]) {
+          matrix[scope.role] = {};
+        }
+        matrix[scope.role][scope.resource] = scope;
+      });
+    return matrix;
+  }, [resourceScopes]);
+
+  const operationScopeMatrix = useMemo((): OperationScopeMatrix => {
+    const matrix: OperationScopeMatrix = {};
+    resourceScopes
+      .filter((scope) => Boolean(scope.operation))
+      .forEach((scope) => {
+        const key = `${scope.resource}:${scope.operation}`;
       if (!matrix[scope.role]) {
         matrix[scope.role] = {};
       }
-      matrix[scope.role][scope.resource] = scope;
-    });
+        matrix[scope.role][key] = scope;
+      });
     return matrix;
   }, [resourceScopes]);
 
@@ -239,7 +262,9 @@ const PermissionsPage: React.FC = () => {
   }, [resources, searchTerm]);
 
   const filteredScopeResources = useMemo(() => {
-    const resourceList = Array.from(new Set(resourceScopes.map((scope) => scope.resource))).sort();
+    const resourceList = Array.from(
+      new Set(resourceScopes.filter((scope) => !scope.operation).map((scope) => scope.resource))
+    ).sort();
     if (!searchTerm) return resourceList;
     return resourceList.filter((resource) =>
       resource.toLowerCase().includes(searchTerm.toLowerCase())
@@ -273,11 +298,13 @@ const PermissionsPage: React.FC = () => {
     }
   };
 
-  const handleScopeChange = (role: UserRole, resource: string, scope: string) => {
+  const handleScopeChange = (role: UserRole, resource: string, scope: string, operation?: string | null) => {
     setPendingScopeUpdate({
       role,
       resource,
-      scope: scope as 'ASSIGNMENT' | 'EVENT' | 'TENANT',
+      operation: operation || undefined,
+      scope: scope === INHERIT_SCOPE_VALUE ? undefined : scope as 'ASSIGNMENT' | 'EVENT' | 'TENANT',
+      inherit: scope === INHERIT_SCOPE_VALUE,
       reason: updateReason,
     });
     setPendingUpdate(null);
@@ -350,7 +377,7 @@ const PermissionsPage: React.FC = () => {
       {/* Header */}
       <PageHeader
         title="Permission Management"
-        subtitle="Manage the supported v1 permission matrix for your organization"
+        subtitle="Manage the v1.1 permission matrix with resource defaults and optional operation-level scope overrides"
         icon={ShieldCheckIcon}
         actions={(
           <Link to="/permissions/audit-logs">
@@ -444,9 +471,10 @@ const PermissionsPage: React.FC = () => {
             Supported In This Version
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            This admin surface currently supports single permission changes, single resource-scope changes,
-            statistics, audit logs, CSV export, and cache warm for platform admins. Bulk import, clone,
-            compare, and other multi-step permission operations are intentionally not exposed in v1.
+            This admin surface supports single permission changes, resource-scope defaults, optional
+            operation-level scope overrides for scope-capable resources, statistics, audit logs, CSV
+            export, and cache warm for platform admins. Bulk import, clone, compare, and other multi-step
+            permission operations remain intentionally out of scope here.
           </p>
         </Card>
 
@@ -572,8 +600,16 @@ const PermissionsPage: React.FC = () => {
                         const key = `${resource}:${operation}`;
                         const permission = permissionMatrix[role]?.[key];
                         const isAllowed = permission?.allowed ?? false;
-
                         const editable = canEditRole(role);
+                        const resourceScope = scopeMatrix[role]?.[resource];
+                        const operationScope = operationScopeMatrix[role]?.[key];
+                        const canEditOperationScope = Boolean(
+                          resourceScope &&
+                          operation !== '*' &&
+                          resourceScope.editable &&
+                          editable
+                        );
+                        const effectiveOperationScope = operationScope?.scope || resourceScope?.scope;
                         return (
                           <td key={role} className="px-6 py-4 whitespace-nowrap text-center">
                             <button
@@ -599,6 +635,34 @@ const PermissionsPage: React.FC = () => {
                                 </>
                               )}
                             </button>
+                            {resourceScope && operation !== '*' && (
+                              <div className="mt-2">
+                                <label className="sr-only" htmlFor={`scope-${role}-${resource}-${operation}`}>
+                                  Scope override for {role} {resource} {operation}
+                                </label>
+                                <select
+                                  id={`scope-${role}-${resource}-${operation}`}
+                                  value={operationScope?.scope || INHERIT_SCOPE_VALUE}
+                                  disabled={!canEditOperationScope}
+                                  onChange={(event) => handleScopeChange(role, resource, event.target.value, operation)}
+                                  className="w-full rounded-md border-gray-300 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60"
+                                >
+                                  <option value={INHERIT_SCOPE_VALUE}>
+                                    Inherit {resourceScope.scope}
+                                  </option>
+                                  {resourceScope.allowedOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                      Override: {option}
+                                    </option>
+                                  ))}
+                                </select>
+                                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                  {operationScope
+                                    ? `Override active: ${operationScope.scope}`
+                                    : `Inherited from resource default: ${effectiveOperationScope || 'N/A'}`}
+                                </p>
+                              </div>
+                            )}
                           </td>
                         );
                       })}
@@ -628,10 +692,11 @@ const PermissionsPage: React.FC = () => {
                 {pendingScopeUpdate ? (
                   <>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Resource Scope: {pendingScopeUpdate.resource}
+                      Scope Target: {pendingScopeUpdate.resource}
+                      {pendingScopeUpdate.operation ? `:${pendingScopeUpdate.operation}` : ''}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      New Scope: {pendingScopeUpdate.scope}
+                      New Scope: {pendingScopeUpdate.inherit ? 'Inherit resource default' : pendingScopeUpdate.scope}
                     </p>
                   </>
                 ) : (

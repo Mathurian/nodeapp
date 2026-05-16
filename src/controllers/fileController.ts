@@ -21,14 +21,19 @@ export class FileController {
     this.permissionScopeService = container.resolve(PermissionScopeService);
   }
 
-  private async buildFileScopeWhere(req: Request, tenantId: string): Promise<Prisma.FileWhereInput | null> {
+  private async buildFileScopeWhere(
+    req: Request,
+    tenantId: string,
+    operation: string = 'read'
+  ): Promise<Prisma.FileWhereInput | null> {
     if (!req.user) return null;
 
     const scope = await this.permissionScopeService.resolveUserScope(
       req.user.role,
       'files',
       tenantId,
-      req.user
+      req.user,
+      operation
     );
 
     if (scope.tenantWide) return {};
@@ -168,7 +173,7 @@ export class FileController {
       const category = req.query['category'] as string | undefined;
       const eventId = req.query['eventId'] as string | undefined;
       const tenantId = req.tenantId || req.user.tenantId;
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
       if (!scopeWhere) {
         return sendSuccess(res, {
           files: [],
@@ -345,7 +350,7 @@ export class FileController {
         return;
       }
       const tenantId = req.tenantId || req.user.tenantId;
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
       if (!scopeWhere) {
         return sendSuccess(res, {
           totalFiles: 0,

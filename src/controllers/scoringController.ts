@@ -116,13 +116,18 @@ export class ScoringController {
     return Boolean(category.contest?.eventId && scope.eventIds.includes(category.contest.eventId));
   }
 
-  private async getDeductionAccessScope(req: Request, tenantId: string): Promise<DeductionAccessScope> {
+  private async getDeductionAccessScope(
+    req: Request,
+    tenantId: string,
+    operation: string = 'read'
+  ): Promise<DeductionAccessScope> {
     if (!req.user) return this.emptyDeductionAccessScope();
     return this.permissionScopeService.resolveUserScope(
       req.user.role,
       'deductions',
       tenantId,
-      req.user
+      req.user,
+      operation
     );
   }
 
@@ -1488,7 +1493,7 @@ export class ScoringController {
         return sendBadRequest(res, 'Selected category does not belong to the selected contest');
       }
 
-      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId, 'create');
       if (!this.canAccessCategoryInScope(scopeAccess, category)) {
         return errorResponse(
           res,
@@ -1590,7 +1595,7 @@ export class ScoringController {
         return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
       }
 
-      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId, 'approve');
       if (!deduction.category || !this.canAccessCategoryInScope(scopeAccess, deduction.category)) {
         return errorResponse(
           res,
@@ -1745,7 +1750,7 @@ export class ScoringController {
         return sendBadRequest(res, `Deduction request already ${deduction.status.toLowerCase()}`);
       }
 
-      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId, 'reject');
       if (!deduction.category || !this.canAccessCategoryInScope(scopeAccess, deduction.category)) {
         return errorResponse(
           res,
@@ -1783,7 +1788,7 @@ export class ScoringController {
         return sendBadRequest(res, 'Tenant context is required');
       }
 
-      const scopeAccess = await this.getDeductionAccessScope(req, tenantId);
+      const scopeAccess = await this.getDeductionAccessScope(req, tenantId, 'read');
       if (!this.hasDeductionScope(scopeAccess)) {
         const paginationOptions = parsePaginationQuery(req.query);
         return sendSuccess(res, createPaginatedResponse([], 0, paginationOptions));

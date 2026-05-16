@@ -40,7 +40,9 @@ export interface BulkUpdatePermissionDTO {
 export interface ResourceScopeDTO {
   role: UserRole;
   resource: string;
-  scope: PermissionScopeLevel;
+  operation?: string | null;
+  scope?: PermissionScopeLevel;
+  inherit?: boolean;
   userId: string;
   userRole: UserRole;
   tenantId: string;
@@ -287,9 +289,10 @@ export class DynamicPermissionService extends BaseService {
   async getResourceScope(
     role: UserRole,
     resource: string,
-    tenantId: string
+    tenantId: string,
+    operation?: string | null
   ): Promise<PermissionScopeLevel> {
-    return this.permissionScopeService.getResourceScope(role, resource, tenantId);
+    return this.permissionScopeService.getResourceScope(role, resource, tenantId, operation);
   }
 
   async updateResourceScope(dto: ResourceScopeDTO): Promise<void> {

@@ -21,14 +21,19 @@ export class UploadController {
     this.permissionScopeService = container.resolve(PermissionScopeService);
   }
 
-  private async buildFileScopeWhere(req: Request, tenantId: string): Promise<Prisma.FileWhereInput | null> {
+  private async buildFileScopeWhere(
+    req: Request,
+    tenantId: string,
+    operation: string = 'read'
+  ): Promise<Prisma.FileWhereInput | null> {
     if (!req.user) return null;
 
     const scope = await this.permissionScopeService.resolveUserScope(
       req.user.role,
       'files',
       tenantId,
-      req.user
+      req.user,
+      operation
     );
 
     if (scope.tenantWide) return {};
@@ -86,7 +91,7 @@ export class UploadController {
         res.status(400).json({ success: false, message: 'Tenant context is required' });
         return;
       }
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'write');
       if (scopeWhere && !('OR' in scopeWhere) && Object.keys(scopeWhere).length === 0) {
         // tenant-wide writers do not require additional linkage
       } else if (!scopeWhere) {
@@ -154,7 +159,7 @@ export class UploadController {
         res.status(400).json({ success: false, message: 'Tenant context is required' });
         return;
       }
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'write');
       const file = await this.prisma.file.findFirst({
         where: {
           id: fileId!,
@@ -193,7 +198,7 @@ export class UploadController {
         return;
       }
 
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId);
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
       if (!scopeWhere) {
         res.json({ data: [] });
         return;
