@@ -70,10 +70,15 @@ const RESOURCE_DESCRIPTIONS: Record<string, string> = {
   deductions: 'Score deduction governance',
   certifications: 'Certification pipeline actions',
   files: 'Uploaded file inventory and file operations',
+  'score-governance': 'Score governance review, requests, and approvals',
+  'score-removal': 'Score removal request and execution workflow',
+  'score-files': 'Score-specific file upload and attachment handling',
+  'delegated-scores': 'On-behalf score entry for represented judges',
+  'score-delegations': 'Delegation grant and revocation management',
   '*': 'Global wildcard permission',
 }
 
-const OPERATION_SORT_ORDER = ['*', 'read', 'create', 'update', 'delete', 'write']
+const OPERATION_SORT_ORDER = ['*', 'read', 'request', 'create', 'upload', 'update', 'write', 'certify', 'unsign', 'uncertify', 'approve', 'reject', 'sign', 'execute', 'delete', 'configure', 'grant', 'revoke']
 const INHERIT_SCOPE_VALUE = '__INHERIT__'
 
 const sortOperations = (operations: string[]): string[] => {

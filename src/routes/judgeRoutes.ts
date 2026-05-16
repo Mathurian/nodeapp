@@ -9,10 +9,15 @@ import {
   getContestantBios,
   getContestantBio
 } from '../controllers/judgeController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
+const requireAssignmentsRead = requirePermission('assignments:read');
+const requireScoresRead = requirePermission('scores:read');
+const requireScoresWrite = requirePermission('scores:write');
+const requireCertificationsRead = requirePermission('certifications:read');
+const requireContestantsRead = requirePermission('contestants:read');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -30,7 +35,7 @@ router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD']))
  *       200:
  *         description: Judge statistics retrieved successfully
  */
-router.get('/stats', getStats)
+router.get('/stats', requireScoresRead, getStats)
 
 /**
  * @swagger
@@ -44,7 +49,7 @@ router.get('/stats', getStats)
  *       200:
  *         description: Assignments retrieved successfully
  */
-router.get('/assignments', getAssignments)
+router.get('/assignments', requireAssignmentsRead, getAssignments)
 
 /**
  * @swagger
@@ -64,7 +69,7 @@ router.get('/assignments', getAssignments)
  *       200:
  *         description: Scoring interface retrieved successfully
  */
-router.get('/scoring/:categoryId', getScoringInterface)
+router.get('/scoring/:categoryId', requireScoresRead, getScoringInterface)
 
 /**
  * @swagger
@@ -84,16 +89,16 @@ router.get('/scoring/:categoryId', getScoringInterface)
  *       201:
  *         description: Score submitted successfully
  */
-router.post('/scoring/submit', logActivity('SUBMIT_SCORE', 'SCORE'), submitScore)
+router.post('/scoring/submit', requireScoresWrite, logActivity('SUBMIT_SCORE', 'SCORE'), submitScore)
 
-router.get('/history', getJudgeHistory)
+router.get('/history', requireScoresRead, getJudgeHistory)
 
 // Certification workflow
-router.get('/certification-workflow/:categoryId', getCertificationWorkflow)
+router.get('/certification-workflow/:categoryId', requireCertificationsRead, getCertificationWorkflow)
 
 // Contestant bios
-router.get('/contestant-bios/:categoryId', getContestantBios)
-router.get('/contestant/:contestantNumber', getContestantBio)
+router.get('/contestant-bios/:categoryId', requireContestantsRead, getContestantBios)
+router.get('/contestant/:contestantNumber', requireContestantsRead, getContestantBio)
 
 export default router;
 

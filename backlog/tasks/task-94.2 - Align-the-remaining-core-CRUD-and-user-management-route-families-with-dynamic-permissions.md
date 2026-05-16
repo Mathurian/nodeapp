@@ -6,11 +6,13 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-05-16 22:17'
+updated_date: '2026-05-16 22:22'
 labels:
   - permissions
   - authorization
   - backend
   - frontend
+milestone: m-0
 dependencies: []
 parent_task_id: TASK-94
 priority: high

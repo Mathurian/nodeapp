@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { commentaryAPI, scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
 import { useMobileWorkflowNavigation, useOptimisticMutation } from '../hooks'
 import { Card, MobileWorkflowNav, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
@@ -32,6 +33,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import { compareCategories, compareContestants, compareContests, stableSort } from '../utils/listOrdering'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
 type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
@@ -329,6 +331,7 @@ const openBioFile = async (path?: string | null) => {
 
 const ScoringPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const location = useLocation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -369,6 +372,14 @@ const ScoringPage: React.FC = () => {
   const pendingSyncDrainRef = React.useRef(false)
   const localEditSelectionKeyRef = React.useRef<string | null>(null)
   const { scrollToRef, scrollToTop } = useMobileWorkflowNavigation()
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload],
+  )
+  const canRequestScoreGovernance = hasPermissionAction(permissionSet, 'score-governance:request')
+  const canReadScoreFiles = hasPermissionAction(permissionSet, 'score-files:read')
+  const canUploadScoreFiles = hasPermissionAction(permissionSet, 'score-files:upload')
+  const canDeleteScoreFiles = hasPermissionAction(permissionSet, 'score-files:delete')
   const requiresSignOff = user?.role === 'JUDGE'
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
   const commentaryScope = selectedCategory?.commentaryScope || 'CATEGORY'
@@ -641,7 +652,7 @@ const ScoringPage: React.FC = () => {
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
-      enabled: !!selectedCategory && !!selectedContestant,
+      enabled: !!selectedCategory && !!selectedContestant && canReadScoreFiles,
       retry: 1,
     }
   )
@@ -2126,7 +2137,7 @@ const ScoringPage: React.FC = () => {
                         )}
                       </div>
                     )}
-                    {user?.role === 'JUDGE' && hasCertifiedScores && (
+                    {user?.role === 'JUDGE' && hasCertifiedScores && canRequestScoreGovernance && (
                       <div className="mt-3">
                         <Link
                           to={`${basePath || ''}/score-governance?action=UNCERTIFY&scope=CONTESTANT_CATEGORY&contestId=${encodeURIComponent(selectedCategory.contest.id)}&categoryId=${encodeURIComponent(selectedCategory.id)}&contestantId=${encodeURIComponent(selectedContestant.id)}`}
@@ -2158,20 +2169,24 @@ const ScoringPage: React.FC = () => {
                           />
                         </>
                       )}
-                      <label htmlFor="pages-scoringpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Category Commentary Attachment
-                      </label>
-                      <input id="pages-scoringpage-2"
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) void handleUploadAttachment(file)
-                          e.currentTarget.value = ''
-                        }}
-                        className="block w-full text-sm text-gray-600 dark:text-gray-300"
-                      />
-                      {uploadingContext === 'category' && (
-                        <p className="mt-1 text-xs text-blue-600">Uploading...</p>
+                      {canUploadScoreFiles && (
+                        <>
+                          <label htmlFor="pages-scoringpage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Category Commentary Attachment
+                          </label>
+                          <input id="pages-scoringpage-2"
+                            type="file"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void handleUploadAttachment(file)
+                              e.currentTarget.value = ''
+                            }}
+                            className="block w-full text-sm text-gray-600 dark:text-gray-300"
+                          />
+                          {uploadingContext === 'category' && (
+                            <p className="mt-1 text-xs text-blue-600">Uploading...</p>
+                          )}
+                        </>
                       )}
                       {isCertifiedContext && pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0 && (
                         <div className="mt-2 space-y-1">
@@ -2202,13 +2217,15 @@ const ScoringPage: React.FC = () => {
                                 <PaperClipIcon className="h-4 w-4" />
                                 {file.fileName}
                               </a>
-                              <button
-                                type="button"
-                                onClick={() => void removeUploadedAttachment(file.id)}
-                                className="text-xs text-red-600 hover:text-red-700 underline"
-                              >
-                                Remove
-                              </button>
+                              {canDeleteScoreFiles && (
+                                <button
+                                  type="button"
+                                  onClick={() => void removeUploadedAttachment(file.id)}
+                                  className="text-xs text-red-600 hover:text-red-700 underline"
+                                >
+                                  Remove
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -2258,20 +2275,24 @@ const ScoringPage: React.FC = () => {
                           )}
                           {supportsCriterionCommentary && criterion.id !== '__category_total__' && (
                           <div className="mt-2">
-                            <label htmlFor="pages-scoringpage-3" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                              Criterion Attachment
-                            </label>
-                            <input id="pages-scoringpage-3"
-                              type="file"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) void handleUploadAttachment(file, criterion.id)
-                                e.currentTarget.value = ''
-                              }}
-                              className="block w-full text-xs text-gray-600 dark:text-gray-300"
-                            />
-                            {uploadingContext === `criterion-${criterion.id}` && (
-                              <p className="mt-1 text-xs text-blue-600">Uploading...</p>
+                            {canUploadScoreFiles && (
+                              <>
+                                <label htmlFor="pages-scoringpage-3" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                                  Criterion Attachment
+                                </label>
+                                <input id="pages-scoringpage-3"
+                                  type="file"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) void handleUploadAttachment(file, criterion.id)
+                                    e.currentTarget.value = ''
+                                  }}
+                                  className="block w-full text-xs text-gray-600 dark:text-gray-300"
+                                />
+                                {uploadingContext === `criterion-${criterion.id}` && (
+                                  <p className="mt-1 text-xs text-blue-600">Uploading...</p>
+                                )}
+                              </>
                             )}
                             {isCertifiedContext && pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).length > 0 && (
                               <div className="mt-1 space-y-1">
@@ -2302,13 +2323,15 @@ const ScoringPage: React.FC = () => {
                                       <PaperClipIcon className="h-3.5 w-3.5" />
                                       {file.fileName}
                                     </a>
-                                    <button
-                                      type="button"
-                                      onClick={() => void removeUploadedAttachment(file.id)}
-                                      className="text-xs text-red-600 hover:text-red-700 underline"
-                                    >
-                                      Remove
-                                    </button>
+                                    {canDeleteScoreFiles && (
+                                      <button
+                                        type="button"
+                                        onClick={() => void removeUploadedAttachment(file.id)}
+                                        className="text-xs text-red-600 hover:text-red-700 underline"
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
                                   </div>
                                 ))}
                               </div>

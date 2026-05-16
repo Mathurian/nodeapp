@@ -4,11 +4,13 @@ title: Finish scoped enforcement and make permissions administration self-govern
 status: To Do
 assignee: []
 created_date: '2026-05-16 22:17'
+updated_date: '2026-05-16 22:23'
 labels:
   - permissions
   - authorization
   - scope
   - admin
+milestone: m-0
 dependencies: []
 parent_task_id: TASK-94
 priority: high

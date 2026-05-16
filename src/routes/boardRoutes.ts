@@ -23,10 +23,19 @@ import {
   signScoreRemovalRequest,
   executeScoreRemoval
 } from '../controllers/scoreRemovalController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
+const requireScoresRead = requirePermission('scores:read');
+const requireCertificationsRead = requirePermission('certifications:read');
+const requireCertificationsWrite = requirePermission('certifications:write');
+const requireScoreRemovalRead = requirePermission('score-removal:read');
+const requireScoreRemovalRequest = requirePermission('score-removal:request');
+const requireScoreRemovalSign = requirePermission('score-removal:sign');
+const requireScoreRemovalApprove = requirePermission('score-removal:approve');
+const requireScoreRemovalReject = requirePermission('score-removal:reject');
+const requireScoreRemovalExecute = requirePermission('score-removal:execute');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -44,7 +53,7 @@ router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']))
  *       200:
  *         description: Board statistics retrieved successfully
  */
-router.get('/stats', getStats)
+router.get('/stats', requireScoresRead, getStats)
 
 /**
  * @swagger
@@ -58,31 +67,31 @@ router.get('/stats', getStats)
  *       200:
  *         description: Certifications retrieved successfully
  */
-router.get('/certifications', getCertifications)
-router.get('/certification-status', getCertificationStatus)
+router.get('/certifications', requireCertificationsRead, getCertifications)
+router.get('/certification-status', requireCertificationsRead, getCertificationStatus)
 
 // Certification management (legacy)
-router.post('/certifications/:id/approve', logActivity('APPROVE_CERTIFICATION', 'CERTIFICATION'), approveCertification)
-router.post('/certifications/:id/reject', logActivity('REJECT_CERTIFICATION', 'CERTIFICATION'), rejectCertification)
+router.post('/certifications/:id/approve', requireCertificationsWrite, logActivity('APPROVE_CERTIFICATION', 'CERTIFICATION'), approveCertification)
+router.post('/certifications/:id/reject', requireCertificationsWrite, logActivity('REJECT_CERTIFICATION', 'CERTIFICATION'), rejectCertification)
 
 // Board Certification - Stage 4 Workflow
-router.get('/category/:categoryId/certification/status', getBoardCertificationStatus)
-router.post('/category/:categoryId/certification/submit', logActivity('SUBMIT_BOARD_CERTIFICATION', 'CATEGORY'), submitBoardCertification)
-router.get('/pending-approvals', getPendingBoardApprovals)
-router.get('/approved-categories', getApprovedCategories)
-router.delete('/category/:categoryId/certification/revoke', logActivity('REVOKE_BOARD_CERTIFICATION', 'CATEGORY'), revokeBoardCertification)
+router.get('/category/:categoryId/certification/status', requireCertificationsRead, getBoardCertificationStatus)
+router.post('/category/:categoryId/certification/submit', requireCertificationsWrite, logActivity('SUBMIT_BOARD_CERTIFICATION', 'CATEGORY'), submitBoardCertification)
+router.get('/pending-approvals', requireCertificationsRead, getPendingBoardApprovals)
+router.get('/approved-categories', requireCertificationsRead, getApprovedCategories)
+router.delete('/category/:categoryId/certification/revoke', requireCertificationsWrite, logActivity('REVOKE_BOARD_CERTIFICATION', 'CATEGORY'), revokeBoardCertification)
 
 // Score removal requests (legacy)
-router.get('/score-removal-requests-old', getScoreRemovalRequests)
-router.post('/score-removal-requests/:id/approve', logActivity('APPROVE_SCORE_REMOVAL', 'SCORE_REMOVAL'), approveScoreRemoval)
-router.post('/score-removal-requests/:id/reject', logActivity('REJECT_SCORE_REMOVAL', 'SCORE_REMOVAL'), rejectScoreRemoval)
+router.get('/score-removal-requests-old', requireScoreRemovalRead, getScoreRemovalRequests)
+router.post('/score-removal-requests/:id/approve', requireScoreRemovalApprove, logActivity('APPROVE_SCORE_REMOVAL', 'SCORE_REMOVAL'), approveScoreRemoval)
+router.post('/score-removal-requests/:id/reject', requireScoreRemovalReject, logActivity('REJECT_SCORE_REMOVAL', 'SCORE_REMOVAL'), rejectScoreRemoval)
 
 // New score removal endpoints
-router.get('/score-removal', getScoreRemovalRequestsNew)
-router.get('/score-removal/:id', getScoreRemovalRequest)
-router.post('/score-removal', logActivity('CREATE_SCORE_REMOVAL_REQUEST', 'SCORE_REMOVAL'), createScoreRemovalRequest)
-router.post('/score-removal/:id/sign', logActivity('SIGN_SCORE_REMOVAL_REQUEST', 'SCORE_REMOVAL'), signScoreRemovalRequest)
-router.post('/score-removal/:id/execute', logActivity('EXECUTE_SCORE_REMOVAL', 'SCORE_REMOVAL'), executeScoreRemoval)
+router.get('/score-removal', requireScoreRemovalRead, getScoreRemovalRequestsNew)
+router.get('/score-removal/:id', requireScoreRemovalRead, getScoreRemovalRequest)
+router.post('/score-removal', requireScoreRemovalRequest, logActivity('CREATE_SCORE_REMOVAL_REQUEST', 'SCORE_REMOVAL'), createScoreRemovalRequest)
+router.post('/score-removal/:id/sign', requireScoreRemovalSign, logActivity('SIGN_SCORE_REMOVAL_REQUEST', 'SCORE_REMOVAL'), signScoreRemovalRequest)
+router.post('/score-removal/:id/execute', requireScoreRemovalExecute, logActivity('EXECUTE_SCORE_REMOVAL', 'SCORE_REMOVAL'), executeScoreRemoval)
 
 export default router;
 

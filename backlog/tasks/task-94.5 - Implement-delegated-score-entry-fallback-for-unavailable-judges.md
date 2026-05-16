@@ -4,12 +4,14 @@ title: Implement delegated score entry fallback for unavailable judges
 status: To Do
 assignee: []
 created_date: '2026-05-16 22:18'
+updated_date: '2026-05-16 22:23'
 labels:
   - permissions
   - authorization
   - scoring
   - fallback
   - ocr
+milestone: m-0
 dependencies: []
 parent_task_id: TASK-94
 priority: high

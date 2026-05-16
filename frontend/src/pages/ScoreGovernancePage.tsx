@@ -4,7 +4,9 @@ import toast from 'react-hot-toast'
 import { useLocation } from 'react-router-dom'
 import { scoreGovernanceAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { useMobileWorkflowNavigation } from '../hooks'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 import { Button, Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '../components/ui'
 
 type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY' | 'ADJUST'
@@ -13,6 +15,7 @@ type CertificationLevel = 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'
 
 const ScoreGovernancePage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const location = useLocation()
   const queryClient = useQueryClient()
 
@@ -44,8 +47,13 @@ const ScoreGovernancePage: React.FC = () => {
   const [actionFilter, setActionFilter] = useState<'ALL' | GovernanceAction>('ALL')
   const [showCompleted, setShowCompleted] = useState(false)
 
-  const canConfigure = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(user?.role || '')
-  const canApprove = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR', 'TALLY_MASTER'].includes(user?.role || '')
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload],
+  )
+  const canConfigure = hasPermissionAction(permissionSet, 'score-governance:configure')
+  const canApprove = hasPermissionAction(permissionSet, 'score-governance:approve')
+  const canRequest = hasPermissionAction(permissionSet, 'score-governance:request')
   const isJudge = user?.role === 'JUDGE'
 
   const formatScoreWithPossible = (row: any): string => {
@@ -470,6 +478,11 @@ const ScoreGovernancePage: React.FC = () => {
   }
 
   const submitRequest = () => {
+    if (!canRequest) {
+      toast.error('You do not have permission to create governance requests')
+      return
+    }
+
     if (!reason.trim()) {
       toast.error('Reason is required')
       return
@@ -524,10 +537,10 @@ const ScoreGovernancePage: React.FC = () => {
             label: 'Filters',
             onClick: () => scrollToRef(filtersSectionRef),
           },
-          {
+          ...(canRequest ? [{
             label: 'Create request',
             onClick: () => scrollToRef(createRequestSectionRef),
-          },
+          }] : []),
           {
             label: 'Review rows',
             onClick: () => scrollToRef(reviewSectionRef),
@@ -838,6 +851,7 @@ const ScoreGovernancePage: React.FC = () => {
           </Card>
         )}
 
+        {canRequest && (
         <div ref={createRequestSectionRef}>
         <Card className="rounded-lg p-4 space-y-3" data-testid="create-governance-request">
           <h2 className="font-semibold text-gray-900 dark:text-white">Create Governance Request</h2>
@@ -953,6 +967,7 @@ const ScoreGovernancePage: React.FC = () => {
           />
         </Card>
         </div>
+        )}
 
       <div ref={reviewSectionRef}>
       <Card className="rounded-lg p-0 overflow-x-auto">
