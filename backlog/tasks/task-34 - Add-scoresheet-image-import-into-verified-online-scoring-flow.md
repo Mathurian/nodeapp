@@ -4,14 +4,14 @@ title: Add scoresheet image import into verified online scoring flow
 status: To Do
 assignee: []
 created_date: '2026-05-09 21:15'
-updated_date: '2026-05-09 21:15'
+updated_date: '2026-05-16 20:01'
 labels:
   - scoring
   - ocr
   - upload
   - frontend
   - backend
-milestone: m-2
+milestone: m-0
 dependencies: []
 priority: high
 ---
