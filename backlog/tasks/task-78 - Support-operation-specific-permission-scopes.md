@@ -4,9 +4,9 @@ title: Support operation-specific permission scopes
 status: To Do
 assignee: []
 created_date: '2026-05-11 22:11'
-updated_date: '2026-05-11 22:12'
+updated_date: '2026-05-16 20:37'
 labels: []
-milestone: m-2
+milestone: m-0
 dependencies: []
 priority: medium
 ---
