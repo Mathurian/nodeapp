@@ -14,7 +14,6 @@ import {
   ShieldCheckIcon,
   ArrowPathIcon,
   DocumentArrowDownIcon,
-  DocumentArrowUpIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
@@ -107,6 +106,7 @@ const PermissionsPage: React.FC = () => {
 
   // Check if user is admin
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER';
+  const canWarmCache = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const canEditRole = (role: UserRole): boolean => {
     if (user?.role === 'SUPER_ADMIN') return true;
     return role !== 'SUPER_ADMIN';
@@ -350,7 +350,7 @@ const PermissionsPage: React.FC = () => {
       {/* Header */}
       <PageHeader
         title="Permission Management"
-        subtitle="Manage role-based permissions for your organization"
+        subtitle="Manage the supported v1 permission matrix for your organization"
         icon={ShieldCheckIcon}
         actions={(
           <Link to="/permissions/audit-logs">
@@ -412,14 +412,16 @@ const PermissionsPage: React.FC = () => {
                 <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
                 Export
               </Button>
-              <Button
-                onClick={() => warmCacheMutation.mutate()}
-                disabled={warmCacheMutation.isLoading}
-                variant="secondary"
-              >
-                <ArrowPathIcon className={`h-5 w-5 mr-2 ${warmCacheMutation.isLoading ? 'animate-spin' : ''}`} />
-                Warm Cache
-              </Button>
+              {canWarmCache && (
+                <Button
+                  onClick={() => warmCacheMutation.mutate()}
+                  disabled={warmCacheMutation.isLoading}
+                  variant="secondary"
+                >
+                  <ArrowPathIcon className={`h-5 w-5 mr-2 ${warmCacheMutation.isLoading ? 'animate-spin' : ''}`} />
+                  Warm Cache
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -435,6 +437,17 @@ const PermissionsPage: React.FC = () => {
               </p>
             </div>
           </div>
+        </Card>
+
+        <Card className="rounded-lg p-4 mb-6">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
+            Supported In This Version
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            This admin surface currently supports single permission changes, single resource-scope changes,
+            statistics, audit logs, CSV export, and cache warm for platform admins. Bulk import, clone,
+            compare, and other multi-step permission operations are intentionally not exposed in v1.
+          </p>
         </Card>
 
         {/* Permission Matrix Table */}

@@ -182,6 +182,32 @@ Result:
 
 This should be treated as part of the permissions system, not a separate UI-only concern.
 
+## Permissions Management Surface (Current V1 Contract)
+
+The live tenant admin surface for `/permissions` is narrower than the broader internal service layer.
+
+Supported and exposed today:
+
+- list the permission matrix
+- list resource scopes
+- view permission statistics
+- update one permission at a time
+- update one resource scope at a time
+- view permission audit logs
+- export the matrix as CSV
+- warm the permission cache (`SUPER_ADMIN` and `ADMIN` only)
+
+Not part of the authoritative v1 admin contract today:
+
+- bulk permission updates
+- role-to-role permission cloning
+- permission comparison views
+- deleting permission rows through the UI/API contract
+- CSV import of permission changes
+- cache statistics and cache invalidation endpoints for this surface
+
+If these capabilities are needed later, they should be added as explicit backend routes, controller methods, UI affordances, and operator documentation in the same iteration rather than implied only through client stubs or internal service methods.
+
 ## Prioritized Remediation Recommendations
 
 ### Priority 1: Decide the authority model by surface

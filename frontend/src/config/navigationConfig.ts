@@ -60,6 +60,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     items: [
       { id: 'dashboard', name: 'Dashboard', href: '/dashboard', icon: HomeIcon, roles: ALL_ROLES, description: 'Go to dashboard home', keywords: ['home', 'main', 'overview'], shortcut: 'Cmd+H', priority: 100 },
       { id: 'profile', name: 'My Profile', href: '/profile', icon: UserIcon, roles: ALL_ROLES, description: 'View and edit your profile', keywords: ['profile', 'account', 'me'], shortcut: 'Cmd+P', priority: 90 },
+      { id: 'mfa', name: 'Multi-Factor Auth', href: '/mfa', icon: ShieldCheckIcon, roles: ALL_ROLES, description: 'Manage MFA for your account', keywords: ['mfa', '2fa', 'security', 'authenticator'], priority: 88 },
       { id: 'notifications', name: 'Notifications', href: '/notifications', icon: HomeIcon, roles: ALL_ROLES, description: 'View notifications', keywords: ['alerts', 'messages'], shortcut: 'Cmd+N', priority: 85 },
       { id: 'bios', name: 'Bios', href: '/bios', icon: UserIcon, roles: ALL_ROLES, description: 'View contestant and judge bios', keywords: ['bio', 'profiles'], priority: 75 },
     ],
@@ -158,7 +159,6 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
       { id: 'workflows', name: 'Workflows', href: '/workflows', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'custom-fields', name: 'Custom Fields', href: '/custom-fields', icon: DocumentTextIcon, roles: ADMIN_ROLES },
       { id: 'files', name: 'File Management', href: '/files', icon: DocumentTextIcon, roles: ADMIN_ROLES },
-      { id: 'mfa', name: 'Multi-Factor Auth', href: '/mfa', icon: ShieldCheckIcon, roles: ADMIN_ROLES },
       {
         id: 'uat-ids',
         name: 'UAT IDs',

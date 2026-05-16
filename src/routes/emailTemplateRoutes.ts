@@ -5,10 +5,12 @@
 
 import { Router } from 'express';
 import { emailTemplateController } from '../controllers/EmailTemplateController';
-import { authenticateToken, checkRoles } from '../middleware/auth';
+import { authenticateToken, checkRoles, requirePermission } from '../middleware/auth';
 
 const router = Router();
 const TEMPLATE_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'];
+const requireTemplatesRead = requirePermission('templates:read');
+const requireTemplatesWrite = requirePermission('templates:write');
 
 // All email template routes require authentication
 router.use(authenticateToken);
@@ -52,7 +54,7 @@ router.use(authenticateToken);
  *       401:
  *         description: Unauthorized
  */
-router.get('/email-templates', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.getAllTemplates.bind(emailTemplateController));
+router.get('/email-templates', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesRead, emailTemplateController.getAllTemplates.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -91,7 +93,7 @@ router.get('/email-templates', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateCo
  *       404:
  *         description: No templates found for this type
  */
-router.get('/email-templates/type/:type', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.getTemplatesByType.bind(emailTemplateController));
+router.get('/email-templates/type/:type', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesRead, emailTemplateController.getTemplatesByType.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -139,7 +141,7 @@ router.get('/email-templates/type/:type', checkRoles(TEMPLATE_ADMIN_ROLES), emai
  *       401:
  *         description: Unauthorized
  */
-router.get('/email-templates/variables/:type', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.getAvailableVariables.bind(emailTemplateController));
+router.get('/email-templates/variables/:type', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesRead, emailTemplateController.getAvailableVariables.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -189,7 +191,7 @@ router.get('/email-templates/variables/:type', checkRoles(TEMPLATE_ADMIN_ROLES),
  *       404:
  *         description: Template not found
  */
-router.get('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.getTemplateById.bind(emailTemplateController));
+router.get('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesRead, emailTemplateController.getTemplateById.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -242,7 +244,7 @@ router.get('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), emailTempla
  *       403:
  *         description: Forbidden - requires ADMIN or ORGANIZER role
  */
-router.post('/email-templates', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.createTemplate.bind(emailTemplateController));
+router.post('/email-templates', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesWrite, emailTemplateController.createTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -289,7 +291,7 @@ router.post('/email-templates', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateC
  *       404:
  *         description: Template not found
  */
-router.put('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.updateTemplate.bind(emailTemplateController));
+router.put('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesWrite, emailTemplateController.updateTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -317,7 +319,7 @@ router.put('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), emailTempla
  *       404:
  *         description: Template not found
  */
-router.delete('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.deleteTemplate.bind(emailTemplateController));
+router.delete('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesWrite, emailTemplateController.deleteTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -364,7 +366,7 @@ router.delete('/email-templates/:id', checkRoles(TEMPLATE_ADMIN_ROLES), emailTem
  *       404:
  *         description: Template not found
  */
-router.post('/email-templates/:id/clone', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.cloneTemplate.bind(emailTemplateController));
+router.post('/email-templates/:id/clone', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesWrite, emailTemplateController.cloneTemplate.bind(emailTemplateController));
 
 /**
  * @swagger
@@ -418,7 +420,7 @@ router.post('/email-templates/:id/clone', checkRoles(TEMPLATE_ADMIN_ROLES), emai
  *       404:
  *         description: Template not found
  */
-router.post('/email-templates/:id/preview', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.previewTemplate.bind(emailTemplateController));
-router.post('/email-templates/:id/send', checkRoles(TEMPLATE_ADMIN_ROLES), emailTemplateController.sendTemplate.bind(emailTemplateController));
+router.post('/email-templates/:id/preview', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesRead, emailTemplateController.previewTemplate.bind(emailTemplateController));
+router.post('/email-templates/:id/send', checkRoles(TEMPLATE_ADMIN_ROLES), requireTemplatesWrite, emailTemplateController.sendTemplate.bind(emailTemplateController));
 
 export default router;

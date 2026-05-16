@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { usersAPI, emailAPI } from '../services/api'
 import {
   DEFAULT_EMAIL_STYLE,
@@ -17,6 +18,7 @@ import {
   CloudArrowUpIcon,
 } from '@heroicons/react/24/outline'
 import { Card, PageHeader } from '../components/ui'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 interface EmailTemplateOption {
   id: string
@@ -38,6 +40,7 @@ const BULK_EMAIL_ROLE_OPTIONS = [
 
 const BulkOperationsPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const location = useLocation()
   const isSendEmailRoute = useMemo(() => location.pathname.endsWith('/send-email'), [location.pathname])
   const desiredTab = useMemo<'import' | 'email'>(() => {
@@ -66,6 +69,11 @@ const BulkOperationsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const styleContrast = useMemo(() => getEmailContrastStatus(emailStyle), [emailStyle])
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
+  const canReadTemplates = hasPermissionAction(permissionSet, 'templates:read')
 
   useEffect(() => {
     setActiveTab(desiredTab)
@@ -78,7 +86,10 @@ const BulkOperationsPage: React.FC = () => {
   }, [isSendEmailRoute])
 
   useEffect(() => {
-    if (activeTab !== 'email') {
+    if (activeTab !== 'email' || !canReadTemplates) {
+      setEmailTemplates([])
+      setSelectedEmailTemplateId('')
+      setLoadingTemplates(false)
       return
     }
 
@@ -110,7 +121,7 @@ const BulkOperationsPage: React.FC = () => {
     }
 
     void loadTemplates()
-  }, [activeTab])
+  }, [activeTab, canReadTemplates])
 
   const handleImport = async () => {
     if (!file) {
@@ -384,23 +395,25 @@ const BulkOperationsPage: React.FC = () => {
               Send Email
             </h2>
             <div className="space-y-4">
-              <div>
-                <label htmlFor="pages-bulkoperationspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
-                  Email Template
-                </label>
-                <select id="pages-bulkoperationspage-2"
-                  value={selectedEmailTemplateId}
-                  onChange={(e) => applyEmailTemplate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
-                >
-                  <option value="">{loadingTemplates ? 'Loading templates...' : 'Custom email (no template)'}</option>
-                  {emailTemplates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {canReadTemplates && (
+                <div>
+                  <label htmlFor="pages-bulkoperationspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                    Email Template
+                  </label>
+                  <select id="pages-bulkoperationspage-2"
+                    value={selectedEmailTemplateId}
+                    onChange={(e) => applyEmailTemplate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white"
+                  >
+                    <option value="">{loadingTemplates ? 'Loading templates...' : 'Custom email (no template)'}</option>
+                    {emailTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="pages-bulkoperationspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">

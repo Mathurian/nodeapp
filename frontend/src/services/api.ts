@@ -760,7 +760,7 @@ export const tenantsAPI = {
 export const permissionsAPI = {
   // Get all permissions for a specific role
   getRolePermissions: (role: string, tenantId?: string) =>
-    api.get(`/permissions/roles/${role}`, { params: { tenantId } }),
+    api.get('/permissions', { params: { role, tenantId } }),
 
   // Get all permissions (all roles)
   getAllPermissions: (tenantId?: string) =>
@@ -785,39 +785,9 @@ export const permissionsAPI = {
     reason?: string;
   }) => api.put('/permissions/scopes', data),
 
-  // Bulk update permissions
-  bulkUpdatePermissions: (data: {
-    updates: Array<{
-      role: string;
-      resource: string;
-      operation: string;
-      allowed: boolean;
-    }>;
-    reason?: string;
-  }) => api.put('/permissions/bulk', data),
-
-  // Clone permissions from one role to another
-  clonePermissions: (data: {
-    sourceRole: string;
-    targetRole: string;
-    reason?: string;
-  }) => api.post('/permissions/clone', data),
-
-  // Compare permissions between two roles
-  comparePermissions: (role1: string, role2: string, tenantId?: string) =>
-    api.get(`/permissions/compare/${role1}/${role2}`, { params: { tenantId } }),
-
   // Get permission statistics
   getStats: (tenantId?: string) =>
     api.get('/permissions/stats', { params: { tenantId } }),
-
-  // Delete a permission
-  deletePermission: (data: {
-    role: string;
-    resource: string;
-    operation: string;
-    reason?: string;
-  }) => api.delete('/permissions', { data }),
 
   // Get audit logs for permission changes
   getAuditLogs: (params?: {
@@ -834,27 +804,9 @@ export const permissionsAPI = {
   exportPermissions: (role?: string, tenantId?: string) =>
     api.get('/permissions/export', { params: { role, tenantId }, responseType: 'blob' }),
 
-  // Import permissions from CSV
-  importPermissions: (file: File, reason?: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (reason) formData.append('reason', reason);
-    return api.post('/permissions/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  },
-
-  // Get cache statistics
-  getCacheStats: (tenantId?: string) =>
-    api.get('/permissions/cache/stats', { params: { tenantId } }),
-
   // Warm permission cache
   warmCache: (tenantId?: string) =>
     api.post('/permissions/cache/warm', { tenantId }),
-
-  // Invalidate permission cache
-  invalidateCache: (role?: string, tenantId?: string) =>
-    api.post('/permissions/cache/invalidate', { role, tenantId }),
 };
 
 export const testRunnerAPI = {

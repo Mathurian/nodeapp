@@ -9,11 +9,13 @@ import {
   createEventFromTemplate,
   createContestFromTemplate
 } from '../controllers/eventTemplateController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { validate, createContestFromTemplateSchema, createTemplateFromEventSchema } from '../middleware/validation';
 
 const router: Router = express.Router();
+const requireTemplatesRead = requirePermission('templates:read');
+const requireTemplatesWrite = requirePermission('templates:write');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -44,14 +46,14 @@ router.use(authenticateToken)
  *       201:
  *         description: Event template created successfully
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getTemplates)
-router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getTemplate)
-router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
-router.post('/from-event/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createTemplateFromEventSchema), logActivity('CREATE_EVENT_TEMPLATE_FROM_EVENT', 'EVENT_TEMPLATE'), createTemplateFromEvent)
-router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), updateTemplate)
-router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), deleteTemplate)
-router.post('/:id/create-event', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_EVENT_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createEventFromTemplate)
-router.post('/:id/create-contest', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createContestFromTemplateSchema), logActivity('CREATE_CONTEST_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createContestFromTemplate)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesRead, getTemplates)
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesRead, getTemplate)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesWrite, logActivity('CREATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), createTemplate)
+router.post('/from-event/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesWrite, validate(createTemplateFromEventSchema), logActivity('CREATE_EVENT_TEMPLATE_FROM_EVENT', 'EVENT_TEMPLATE'), createTemplateFromEvent)
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesWrite, logActivity('UPDATE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), updateTemplate)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesWrite, logActivity('DELETE_EVENT_TEMPLATE', 'EVENT_TEMPLATE'), deleteTemplate)
+router.post('/:id/create-event', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesWrite, logActivity('CREATE_EVENT_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createEventFromTemplate)
+router.post('/:id/create-contest', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTemplatesWrite, validate(createContestFromTemplateSchema), logActivity('CREATE_CONTEST_FROM_TEMPLATE', 'EVENT_TEMPLATE'), createContestFromTemplate)
 
 export default router;
 

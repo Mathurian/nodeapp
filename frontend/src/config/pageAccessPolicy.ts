@@ -54,7 +54,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'cache', path: '/cache', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'logs', path: '/logs', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'activity', path: '/activity', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
-  { id: 'login-locations', path: '/login-locations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], resource: 'activity-logs', allowCrudReadOverride: true },
+  { id: 'login-locations', path: '/login-locations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], hardProtected: true },
   { id: 'performance', path: '/performance', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'], hardProtected: true },
   { id: 'backups', path: '/backups', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], hardProtected: true },
   { id: 'disaster-recovery', path: '/disaster-recovery', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
@@ -64,9 +64,9 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'emcee', path: '/emcee', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE'], resource: 'emcee', allowCrudReadOverride: true },
 
   { id: 'workflows', path: '/workflows', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'tracker', allowCrudReadOverride: true },
-  { id: 'custom-fields', path: '/custom-fields', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'settings', allowCrudReadOverride: true },
+  { id: 'custom-fields', path: '/custom-fields', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'files', path: '/files', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'files', requireResourcePermission: true },
-  { id: 'mfa', path: '/mfa', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'settings', allowCrudReadOverride: true },
+  { id: 'mfa', path: '/mfa', baseRoles: ALL_ROLES, hardProtected: true },
   { id: 'tenants', path: '/tenants', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
 
   { id: 'auditor-pending-audits', path: '/auditor/pending-audits', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'scores', allowCrudReadOverride: true },

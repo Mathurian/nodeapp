@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { api, categoriesAPI, contestsAPI } from '../services/api'
 import {
   ListBulletIcon,
@@ -25,6 +26,7 @@ import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
 import { isInteractiveElement } from '../utils/interactive'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
 type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
@@ -141,6 +143,7 @@ const toOptionalString = (value: string): string | undefined => {
 
 const CategoriesPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { contestId, slug } = useParams<{ contestId?: string; slug?: string }>()
@@ -182,10 +185,45 @@ const CategoriesPage: React.FC = () => {
 
   // Check permissions
   const canManageCategories = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
+  const canReadTemplates = hasPermissionAction(permissionSet, 'templates:read')
+  const canWriteTemplates = hasPermissionAction(permissionSet, 'templates:write')
+  const canCreateFromTemplates = canReadTemplates && canWriteTemplates
 
   useEffect(() => {
     setSelectedContestFilter(contestId || '')
   }, [contestId])
+
+  useEffect(() => {
+    if (canCreateFromTemplates) {
+      return
+    }
+
+    setCreationMode('blank')
+    setSelectedCategoryTemplateId('')
+  }, [canCreateFromTemplates])
+
+  useEffect(() => {
+    if (canReadTemplates) {
+      return
+    }
+
+    setImportMode('category')
+    setImportTemplateId('')
+  }, [canReadTemplates])
+
+  useEffect(() => {
+    if (canWriteTemplates) {
+      return
+    }
+
+    setTemplateSource(null)
+    setTemplateName('')
+    setTemplateDescription('')
+  }, [canWriteTemplates])
 
   // Debug logging
   useEffect(() => {
@@ -333,6 +371,9 @@ const CategoriesPage: React.FC = () => {
     async () => {
       const response = await fetchTemplates()
       return response
+    },
+    {
+      enabled: canReadTemplates,
     }
   )
 
@@ -939,13 +980,15 @@ const CategoriesPage: React.FC = () => {
                       <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
                       Clone
                     </button>
-                    <button
-                      onClick={() => openTemplateModal(category)}
-                      className="w-full sm:flex-1 px-3 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-md hover:bg-emerald-700 dark:hover:bg-emerald-600 flex items-center justify-center text-sm"
-                    >
-                      <BookmarkSquareIcon className="h-4 w-4 mr-1" />
-                      Save Template
-                    </button>
+                      {canWriteTemplates && (
+                        <button
+                          onClick={() => openTemplateModal(category)}
+                          className="w-full sm:flex-1 px-3 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-md hover:bg-emerald-700 dark:hover:bg-emerald-600 flex items-center justify-center text-sm"
+                        >
+                          <BookmarkSquareIcon className="h-4 w-4 mr-1" />
+                          Save Template
+                        </button>
+                      )}
                     <button
                       onClick={() => navigate(`/assignments?contestId=${category.contestId}&categoryId=${category.id}`)}
                       className="w-full sm:flex-1 px-3 py-2 bg-slate-700 dark:bg-slate-600 text-white rounded-md hover:bg-slate-800 dark:hover:bg-slate-500 flex items-center justify-center text-sm"
@@ -1005,16 +1048,18 @@ const CategoriesPage: React.FC = () => {
                       >
                         Blank Category
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setCreationMode('template')}
-                        className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
-                      >
-                        From Template
-                      </button>
+                      {canCreateFromTemplates && (
+                        <button
+                          type="button"
+                          onClick={() => setCreationMode('template')}
+                          className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                        >
+                          From Template
+                        </button>
+                      )}
                     </div>
 
-                    {creationMode === 'template' && (
+                    {canCreateFromTemplates && creationMode === 'template' && (
                       <div className="space-y-4">
                         <div>
                           <label htmlFor="pages-categoriespage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1447,7 +1492,7 @@ const CategoriesPage: React.FC = () => {
           </div>
         )}
 
-        {templateSource && (
+        {templateSource && canWriteTemplates && (
           <div className="cgr-modal-overlay" role="dialog" aria-modal="true">
             <div className="flex min-h-full items-center justify-center">
               <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-lg p-6 space-y-4">
@@ -1514,16 +1559,18 @@ const CategoriesPage: React.FC = () => {
                   >
                     From Category
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setImportMode('template')}
-                    className={`flex-1 px-3 py-2 rounded-md ${importMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
-                  >
-                    From Template
-                  </button>
+                  {canReadTemplates && (
+                    <button
+                      type="button"
+                      onClick={() => setImportMode('template')}
+                      className={`flex-1 px-3 py-2 rounded-md ${importMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                    >
+                      From Template
+                    </button>
+                  )}
                 </div>
 
-                {importMode === 'category' ? (
+                {importMode === 'category' || !canReadTemplates ? (
                   <div>
                     <label htmlFor="pages-categoriespage-13" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source Category</label>
                     <select id="pages-categoriespage-13"

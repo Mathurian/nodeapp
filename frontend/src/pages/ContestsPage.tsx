@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { api, contestsAPI, eventsAPI } from '../services/api'
 import {
   TrophyIcon,
@@ -28,6 +29,7 @@ import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import Breadcrumb, { BreadcrumbItem } from '../components/Breadcrumb'
 import ScopedRoleAssignmentsPanel from '../components/ScopedRoleAssignmentsPanel'
 import { isInteractiveElement } from '../utils/interactive'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
 type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
@@ -125,6 +127,7 @@ interface ClonedContestSummary extends Contest {
 
 const ContestsPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { eventId, slug } = useParams<{ eventId?: string; slug?: string }>()
@@ -169,6 +172,13 @@ const ContestsPage: React.FC = () => {
 
   // Check permissions
   const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
+  const canReadTemplates = hasPermissionAction(permissionSet, 'templates:read')
+  const canCreateFromTemplates =
+    canReadTemplates && hasPermissionAction(permissionSet, 'templates:write')
 
   // Debug logging
   useEffect(() => {
@@ -182,6 +192,16 @@ const ContestsPage: React.FC = () => {
       setSelectedEventFilter(eventId)
     }
   }, [eventId])
+
+  useEffect(() => {
+    if (canCreateFromTemplates) {
+      return
+    }
+
+    setCreationMode('blank')
+    setSelectedTemplateId('')
+    setSelectedTemplateContestId('')
+  }, [canCreateFromTemplates])
 
   // Fetch events for dropdowns
   const { data: events, error: eventsError } = useQuery<Event[]>('events', async () => {
@@ -201,7 +221,7 @@ const ContestsPage: React.FC = () => {
       return Array.isArray(payload) ? payload : []
     },
     {
-      enabled: canManageContests,
+      enabled: canManageContests && canReadTemplates,
       retry: 1,
     }
   )
@@ -938,16 +958,18 @@ const ContestsPage: React.FC = () => {
                       >
                         Blank Contest
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setCreationMode('template')}
-                        className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
-                      >
-                        From Template
-                      </button>
+                      {canCreateFromTemplates && (
+                        <button
+                          type="button"
+                          onClick={() => setCreationMode('template')}
+                          className={`flex-1 px-3 py-2 rounded-md ${creationMode === 'template' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                        >
+                          From Template
+                        </button>
+                      )}
                     </div>
 
-                    {creationMode === 'template' && (
+                    {canCreateFromTemplates && creationMode === 'template' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="pages-contestspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

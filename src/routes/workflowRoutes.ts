@@ -4,10 +4,12 @@
 
 import { Router } from 'express';
 import * as workflowController from '../controllers/workflowController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 
 const router = Router();
 router.use(authenticateToken);
+const requireTrackerRead = requirePermission('tracker:read');
+const requireTrackerWrite = requirePermission('tracker:write');
 
 /**
  * Workflow Templates
@@ -59,7 +61,7 @@ router.use(authenticateToken);
  *       401:
  *         description: Unauthorized
  */
-router.get('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.listTemplates);
+router.get('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerRead, workflowController.listTemplates);
 
 /**
  * @swagger
@@ -125,7 +127,7 @@ router.get('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOAR
  *       403:
  *         description: Forbidden - requires ADMIN role
  */
-router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.createTemplate);
+router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerWrite, workflowController.createTemplate);
 
 /**
  * @swagger
@@ -176,7 +178,7 @@ router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOA
  *       404:
  *         description: Template not found
  */
-router.get('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.getTemplate);
+router.get('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerRead, workflowController.getTemplate);
 
 /**
  * @swagger
@@ -208,7 +210,7 @@ router.get('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', '
  *       404:
  *         description: Template not found
  */
-router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.updateTemplate);
+router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerWrite, workflowController.updateTemplate);
 
 /**
  * @swagger
@@ -234,7 +236,7 @@ router.put('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', '
  *       404:
  *         description: Template not found
  */
-router.delete('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), workflowController.deleteTemplate);
+router.delete('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerWrite, workflowController.deleteTemplate);
 
 /**
  * Workflow Instances
@@ -300,7 +302,7 @@ router.delete('/templates/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'
  *       404:
  *         description: Template or entity not found
  */
-router.post('/instances', workflowController.startWorkflow);
+router.post('/instances', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerWrite, workflowController.startWorkflow);
 
 /**
  * @swagger
@@ -366,7 +368,7 @@ router.post('/instances', workflowController.startWorkflow);
  *       404:
  *         description: Workflow instance not found
  */
-router.get('/instances/:id', workflowController.getInstance);
+router.get('/instances/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerRead, workflowController.getInstance);
 
 /**
  * @swagger
@@ -429,7 +431,7 @@ router.get('/instances/:id', workflowController.getInstance);
  *       404:
  *         description: Workflow instance not found
  */
-router.post('/instances/:id/advance', workflowController.advanceWorkflow);
+router.post('/instances/:id/advance', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerWrite, workflowController.advanceWorkflow);
 
 /**
  * @swagger
@@ -489,6 +491,6 @@ router.post('/instances/:id/advance', workflowController.advanceWorkflow);
  *       401:
  *         description: Unauthorized
  */
-router.get('/instances/:entityType/:entityId', workflowController.listInstancesForEntity);
+router.get('/instances/:entityType/:entityId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireTrackerRead, workflowController.listInstancesForEntity);
 
 export default router;
