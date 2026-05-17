@@ -8,6 +8,11 @@ The machine-readable ground-truth dataset lives at:
 
 - [route66-phase1-ground-truth.json](/srv/event-manager/dev/tests/examples/scoresheet-import/route66-phase1-ground-truth.json:1)
 
+The current automated reliability policy and thresholds live at:
+
+- [OCR-SCORESHEET-RELIABILITY-POLICY.md](/srv/event-manager/dev/docs/operations/OCR-SCORESHEET-RELIABILITY-POLICY.md:1)
+- [route66-phase1-thresholds.json](/srv/event-manager/dev/tests/examples/scoresheet-import/route66-phase1-thresholds.json:1)
+
 ## First Supported Phase 1 Family
 
 The first family selected for production-calibration work is:

@@ -1,0 +1,16 @@
+{
+  "templateThresholds": {
+    "education_saturday_day_v1": {
+      "calibration": {
+        "minExactRowMatchRate": 0.5,
+        "maxPageTotalDelta": 25,
+        "maxAmbiguousRowsPerPage": 4
+      },
+      "rollout": {
+        "minExactRowMatchRate": 0.9,
+        "maxPageTotalDelta": 5,
+        "maxAmbiguousRowsPerPage": 1
+      }
+    }
+  }
+}
