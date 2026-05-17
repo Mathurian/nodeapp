@@ -18,6 +18,7 @@ runtime contract.
 For role-by-role execution walkthroughs after rollout, use:
 
 - [Scoring and Certification Workflow Guide](./SCORING-CERTIFICATION-WORKFLOW-GUIDE.md)
+- [TASK-94 Postdeploy Checklist](./TASK-94-POSTDEPLOY-CHECKLIST.md)
 - Help-page user workflow guide: `15-SCORING-CERTIFICATION-WORKFLOWS.md`
 - Help-page admin setup guide: `16-DELEGATED-SCORING-ADMIN-OPERATOR-SETUP.md`
 
