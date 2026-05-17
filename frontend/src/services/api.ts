@@ -295,6 +295,8 @@ export const scoreFilesAPI = {
   getByCategory: (categoryId: string) => api.get(`/score-files/category/${categoryId}`),
   getByContestant: (contestantId: string) => api.get(`/score-files/contestant/${contestantId}`),
   download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' }),
+  processScoresheetImport: (id: string, config?: any) => api.post(`/score-files/${id}/process-scoresheet-import`, {}, config),
+  getScoresheetImportDraft: (id: string) => api.get(`/score-files/${id}/scoresheet-import-draft`),
   remove: (id: string, config?: any) => api.delete(`/score-files/${id}`, config)
 }
 

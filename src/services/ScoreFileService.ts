@@ -50,9 +50,10 @@ export interface ScoreFileInfo {
   status: string;
   notes: string | null;
   metadata?: {
-    contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY';
+    contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY' | 'SCORESHEET_IMPORT';
     criterionId?: string | null;
     noteText?: string | null;
+    intent?: 'COMMENTARY_ATTACHMENT' | 'SCORESHEET_IMPORT';
   } | null;
   publicUrl?: string;
   createdAt: Date;
@@ -74,7 +75,8 @@ export class ScoreFileService extends BaseService {
           metadata = {
             contextType: parsed.contextType,
             criterionId: parsed.criterionId ?? null,
-            noteText: parsed.noteText ?? null
+            noteText: parsed.noteText ?? null,
+            intent: parsed.intent === 'SCORESHEET_IMPORT' ? 'SCORESHEET_IMPORT' : 'COMMENTARY_ATTACHMENT',
           };
         }
       } catch {

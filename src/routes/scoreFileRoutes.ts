@@ -12,7 +12,9 @@ import {
   getAllScoreFiles,
   updateScoreFile,
   deleteScoreFile,
-  downloadScoreFile
+  downloadScoreFile,
+  processScoresheetImport,
+  getScoresheetImportDraft,
 } from '../controllers/scoreFileController';
 import { authenticateToken, requireAnyPermission, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
@@ -24,6 +26,11 @@ const requireScoreFilesRead = requirePermission('score-files:read');
 const requireScoreFilesUpload = requireAnyPermission(['score-files:upload', 'delegated-scores:write']);
 const requireScoreFilesUpdate = requirePermission('score-files:update');
 const requireScoreFilesDelete = requireAnyPermission(['score-files:delete', 'delegated-scores:write']);
+const requireScoreFilesProcess = requireAnyPermission([
+  'score-files:upload',
+  'score-files:update',
+  'delegated-scores:write',
+]);
 
 const ALLOWED_SCORE_FILE_MIME_TYPES = [
   'image/jpeg',
@@ -148,6 +155,22 @@ router.get('/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JU
  *       - bearerAuth: []
  */
 router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, downloadScoreFile);
+
+router.post(
+  '/:id/process-scoresheet-import',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireScoreFilesProcess,
+  idempotencyMiddleware,
+  logActivity('PROCESS_SCORESHEET_IMPORT', 'SCORE'),
+  processScoresheetImport,
+);
+
+router.get(
+  '/:id/scoresheet-import-draft',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireScoreFilesRead,
+  getScoresheetImportDraft,
+);
 
 /**
  * @swagger

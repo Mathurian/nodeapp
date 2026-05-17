@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { ScoreDelegationService } from '../services/ScoreDelegationService';
+import { ScoreSheetImportService } from '../services/ScoreSheetImportService';
 import { sendSuccess, sendError, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { promises as fs } from 'fs';
@@ -21,10 +22,12 @@ import { createCommentaryViewerContext } from '../utils/commentaryAccess';
 export class ScoreFileController {
   private scoreFileService: ScoreFileService;
   private scoreDelegationService: ScoreDelegationService;
+  private scoreSheetImportService: ScoreSheetImportService;
 
   constructor() {
     this.scoreFileService = container.resolve(ScoreFileService);
     this.scoreDelegationService = container.resolve(ScoreDelegationService);
+    this.scoreSheetImportService = container.resolve(ScoreSheetImportService);
   }
 
   /**
@@ -33,7 +36,7 @@ export class ScoreFileController {
   uploadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { categoryId, contestantId, criterionId, notes, contextType, representedJudgeId } = req.body;
+      const { categoryId, contestantId, criterionId, notes, contextType, representedJudgeId, importIntent } = req.body;
 
       if (!req.user) {
         throw new Error('User not authenticated');
@@ -58,14 +61,26 @@ export class ScoreFileController {
       const timeoutMs = getOfflineWriteTimeoutMs(
         matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
       );
+      const normalizedIntent = importIntent === 'SCORESHEET_IMPORT'
+        ? 'SCORESHEET_IMPORT'
+        : 'COMMENTARY_ATTACHMENT';
+
+      if (normalizedIntent === 'SCORESHEET_IMPORT' && !contestantId) {
+        sendError(res, 'contestantId is required for scoresheet import uploads', 400);
+        return;
+      }
+
       const normalizedContextType = typeof contextType === 'string'
-        && ['CRITERION_COMMENT', 'CONTESTANT', 'CATEGORY'].includes(contextType)
+        && ['CRITERION_COMMENT', 'CONTESTANT', 'CATEGORY', 'SCORESHEET_IMPORT'].includes(contextType)
         ? contextType
         : undefined;
       const contextMetadata = {
-        contextType: normalizedContextType || (criterionId ? 'CRITERION_COMMENT' : (contestantId ? 'CONTESTANT' : 'CATEGORY')),
+        contextType: normalizedIntent === 'SCORESHEET_IMPORT'
+          ? 'SCORESHEET_IMPORT'
+          : (normalizedContextType || (criterionId ? 'CRITERION_COMMENT' : (contestantId ? 'CONTESTANT' : 'CATEGORY'))),
         criterionId: criterionId || null,
-        noteText: notes || null
+        noteText: notes || null,
+        intent: normalizedIntent,
       };
 
       const scoreFile = await this.scoreFileService.uploadScoreFile(
@@ -347,6 +362,49 @@ export class ScoreFileController {
       return next(error);
     }
   };
+
+  processScoresheetImport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const log = createRequestLogger(req, 'scoreFile');
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const id = getRequiredParam(req, 'id');
+      const draft = await this.scoreSheetImportService.processScoreFile(id, req.user.tenantId);
+
+      log.info('Scoresheet import processed', { scoreFileId: id, draftId: draft.id, status: draft.status });
+      sendSuccess(res, draft, 'Scoresheet import processed');
+    } catch (error) {
+      log.error('Process scoresheet import error', { error: (error as Error).message });
+      return next(error);
+    }
+  };
+
+  getScoresheetImportDraft = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const log = createRequestLogger(req, 'scoreFile');
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+
+      const id = getRequiredParam(req, 'id');
+      const draft = await this.scoreSheetImportService.getDraftByScoreFileId(id, req.user.tenantId);
+
+      if (!draft) {
+        sendError(res, 'Scoresheet import draft not found', 404);
+        return;
+      }
+
+      log.info('Scoresheet import draft retrieved', { scoreFileId: id, draftId: draft.id });
+      sendSuccess(res, draft);
+    } catch (error) {
+      log.error('Get scoresheet import draft error', { error: (error as Error).message });
+      return next(error);
+    }
+  };
 }
 
 // Create controller instance and export methods
@@ -361,3 +419,5 @@ export const getAllScoreFiles = controller.getAllScoreFiles;
 export const updateScoreFile = controller.updateScoreFile;
 export const deleteScoreFile = controller.deleteScoreFile;
 export const downloadScoreFile = controller.downloadScoreFile;
+export const processScoresheetImport = controller.processScoresheetImport;
+export const getScoresheetImportDraft = controller.getScoresheetImportDraft;
