@@ -4,7 +4,7 @@
  */
 
 import express, { Router } from 'express';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requireExplicitPermission, requireRole } from '../middleware/auth';
 import {
   getAllPermissions,
   getPermissionAuditLogs,
@@ -17,6 +17,8 @@ import {
 } from '../controllers/permissionsController';
 
 const router: Router = express.Router();
+const requirePermissionsRead = requireExplicitPermission('permissions:read');
+const requirePermissionsWrite = requireExplicitPermission('permissions:write');
 
 // Apply authentication to all routes
 router.use(authenticateToken);
@@ -39,9 +41,9 @@ router.use(authenticateToken);
  *       200:
  *         description: List of permissions
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getAllPermissions);
-router.get('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getAllPermissionScopes);
-router.get('/audit-logs', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPermissionAuditLogs);
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsRead, getAllPermissions);
+router.get('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsRead, getAllPermissionScopes);
+router.get('/audit-logs', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsRead, getPermissionAuditLogs);
 
 /**
  * @swagger
@@ -55,7 +57,7 @@ router.get('/audit-logs', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), ge
  *       200:
  *         description: Permission statistics
  */
-router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPermissionStats);
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsRead, getPermissionStats);
 
 /**
  * @swagger
@@ -86,8 +88,8 @@ router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), getPerm
  *       200:
  *         description: Permission updated successfully
  */
-router.put('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), updatePermission);
-router.put('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), updatePermissionScope);
+router.put('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsWrite, updatePermission);
+router.put('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsWrite, updatePermissionScope);
 
 /**
  * @swagger
@@ -101,7 +103,7 @@ router.put('/scopes', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), update
  *       200:
  *         description: Cache warmed successfully
  */
-router.post('/cache/warm', requireRole(['SUPER_ADMIN', 'ADMIN']), warmCache);
+router.post('/cache/warm', requireRole(['SUPER_ADMIN', 'ADMIN']), requirePermissionsWrite, warmCache);
 
 /**
  * @swagger
@@ -121,7 +123,7 @@ router.post('/cache/warm', requireRole(['SUPER_ADMIN', 'ADMIN']), warmCache);
  *       200:
  *         description: CSV file download
  */
-router.get('/export', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), exportPermissions);
+router.get('/export', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requirePermissionsRead, exportPermissions);
 
 export default router;
 

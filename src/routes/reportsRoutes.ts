@@ -9,22 +9,12 @@ import {
   sendReportEmail,
   getReportInstances,
   deleteReportInstance,
+  downloadReportInstance,
 } from '../controllers/reportsController';
 import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
-import { createLogger } from '../utils/logger';
-
-const logger = createLogger('ReportsRoutes');
 
 const router = express.Router();
-
-const getRequestPrisma = (req: express.Request, res: express.Response) => {
-  if (!req.prisma) {
-    res.status(500).json({ error: 'Database context not initialized' });
-    return null;
-  }
-  return req.prisma;
-};
 
 // Apply authentication to all routes
 router.use(authenticateToken);
@@ -96,58 +86,7 @@ router.delete('/instances/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'
 router.post('/send-email', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requirePermission('reports:write'), logActivity('EMAIL_REPORT', 'REPORT'), sendReportEmail);
 
 // Download/View route
-router.get('/:id/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requirePermission('reports:read'), async (req, res): Promise<any> => {
-  try {
-    const { id } = req.params;
-    const requestPrisma = getRequestPrisma(req, res);
-    if (!requestPrisma) return;
-
-    const reportInstance = await requestPrisma.reportInstance.findUnique({
-      where: { id }
-    });
-
-    if (!reportInstance) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-
-    // Parse the data field safely
-    let parsedData: any = {};
-    try {
-      if (typeof reportInstance.data === 'string' && reportInstance.data !== '{}' && reportInstance.data.trim() !== '') {
-        parsedData = JSON.parse(reportInstance.data);
-      } else if (reportInstance.data && typeof reportInstance.data === 'object') {
-        parsedData = reportInstance.data;
-      } else {
-        parsedData = {
-          message: 'No report data available',
-          reportType: reportInstance.type,
-          generatedAt: reportInstance.generatedAt
-        };
-      }
-    } catch (parseError) {
-      logger.error('Failed to parse report data', { error: parseError });
-      parsedData = {
-        error: 'Failed to parse report data'
-      };
-    }
-
-    // Return report data with parsed data
-    res.json({
-      data: {
-        id: reportInstance.id,
-        name: reportInstance.name,
-        type: reportInstance.type,
-        format: reportInstance.format || 'PDF',
-        generatedAt: reportInstance.generatedAt,
-        generatedBy: reportInstance.generatedById || 'System',
-        data: parsedData
-      }
-    });
-  } catch (error) {
-    logger.error('Download report error', { error });
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.get('/:id/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requirePermission('reports:read'), downloadReportInstance);
 
 // Export routes - these should come AFTER specific routes like /generate
 // or they will match /generate as an :id parameter

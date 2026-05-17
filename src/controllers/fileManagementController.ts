@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { FileManagementService } from '../services/FileManagementService';
+import { PermissionScopeService } from '../services/PermissionScopeService';
 import { sendSuccess, sendNotFound, sendBadRequest} from '../utils/responseHelpers';
 import { PrismaClient, Prisma, FileCategory } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -48,11 +49,30 @@ interface BulkOperationResult {
 
 export class FileManagementController {
   private fileManagementService: FileManagementService;
+  private permissionScopeService: PermissionScopeService;
   private prisma: PrismaClient;
 
   constructor() {
     this.fileManagementService = container.resolve(FileManagementService);
+    this.permissionScopeService = container.resolve(PermissionScopeService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
+  }
+
+  private async buildFileScopeWhere(
+    req: Request,
+    tenantId: string,
+    operation: 'read' | 'write' = 'read'
+  ): Promise<Prisma.FileWhereInput | null> {
+    if (!req.user) {
+      return null;
+    }
+
+    return this.permissionScopeService.buildFileScopeWhere(
+      req.user.role,
+      tenantId,
+      req.user,
+      operation
+    );
   }
 
   getFileInfo = async (req: Request, res: Response, next: NextFunction) => {
@@ -111,8 +131,29 @@ export class FileManagementController {
       const search = req.query['search'] as string | undefined;
       const startDate = req.query['startDate'] as string | undefined;
       const endDate = req.query['endDate'] as string | undefined;
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          files: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false
+          },
+          filters: {
+            category, eventId, contestId, categoryId, isPublic, uploadedBy,
+            mimeType, minSize, maxSize, search, startDate, endDate
+          }
+        });
+      }
 
       const where: Prisma.FileWhereInput = { tenantId };
+      const andClauses: Prisma.FileWhereInput[] = [];
+      if (Object.keys(scopeWhere).length > 0) {
+        andClauses.push(scopeWhere);
+      }
 
       if (category) where.category = category;
       if (eventId) where.eventId = eventId;
@@ -131,10 +172,12 @@ export class FileManagementController {
 
       // Search in filename and originalName
       if (search) {
-        where.OR = [
+        andClauses.push({
+          OR: [
           { filename: { contains: search, mode: 'insensitive' } },
           { originalName: { contains: search, mode: 'insensitive' } }
-        ];
+          ],
+        });
       }
 
       // Date range filtering
@@ -142,6 +185,10 @@ export class FileManagementController {
         where.uploadedAt = {};
         if (startDate) where.uploadedAt.gte = new Date(startDate);
         if (endDate) where.uploadedAt.lte = new Date(endDate);
+      }
+
+      if (andClauses.length > 0) {
+        where.AND = andClauses;
       }
 
       const [files, total] = await Promise.all([
@@ -269,15 +316,28 @@ export class FileManagementController {
       if (!query || typeof query !== 'string') {
         return sendSuccess(res, [], 'query parameter is required');
       }
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
+      if (!scopeWhere) {
+        return sendSuccess(res, []);
+      }
 
       // Search for file suggestions based on filename and originalName
-      const suggestions = await this.prisma.file.findMany({
-        where: {
-          tenantId,
+      const andClauses: Prisma.FileWhereInput[] = [
+        {
           OR: [
             { filename: { contains: query, mode: 'insensitive' } },
             { originalName: { contains: query, mode: 'insensitive' } }
           ]
+        }
+      ];
+      if (Object.keys(scopeWhere).length > 0) {
+        andClauses.unshift(scopeWhere);
+      }
+
+      const suggestions = await this.prisma.file.findMany({
+        where: {
+          tenantId,
+          AND: andClauses,
         },
         select: {
           id: true,
@@ -306,11 +366,25 @@ export class FileManagementController {
       if (!tenantId) {
         return sendBadRequest(res, 'Tenant context is required');
       }
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          timeRange: { days, since },
+          totalFiles: 0,
+          totalSize: 0,
+          totalSizeMB: '0.00',
+          byCategory: {},
+          byMimeType: {},
+          uploadsByDay: {},
+          topUploaders: [],
+        });
+      }
 
       // Get files uploaded in the time range
       const files = await this.prisma.file.findMany({
         where: {
           tenantId,
+          ...scopeWhere,
           uploadedAt: { gte: since }
         },
         select: {
@@ -389,11 +463,16 @@ export class FileManagementController {
       if (!tenantId) {
         return sendBadRequest(res, 'Tenant context is required');
       }
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
+      if (!scopeWhere) {
+        return sendNotFound(res, 'File not found');
+      }
 
       const file = await this.prisma.file.findFirst({
         where: {
           id: fileId,
-          tenantId
+          tenantId,
+          ...scopeWhere
         }
       });
 
@@ -462,6 +541,27 @@ export class FileManagementController {
       if (fileIds.length === 0) {
         return sendSuccess(res, { checked: 0, results: [] }, 'No files to check');
       }
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return sendBadRequest(res, 'Tenant context is required');
+      }
+      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'write');
+      if (!scopeWhere) {
+        return sendSuccess(res, {
+          summary: {
+            total: fileIds.length,
+            ok: 0,
+            failed: 0,
+            notFound: fileIds.length,
+            errors: 0
+          },
+          results: fileIds.map((fileId: string) => ({
+            id: fileId,
+            integrity: 'NOT_FOUND',
+            reason: 'File record not found in accessible scope'
+          }))
+        });
+      }
 
       // Check integrity for each file
       const results = await Promise.allSettled(
@@ -469,7 +569,8 @@ export class FileManagementController {
           const file = await this.prisma.file.findFirst({
             where: {
               id: fileId,
-              tenantId: req.user!.tenantId
+              tenantId,
+              ...scopeWhere,
             }
           });
 

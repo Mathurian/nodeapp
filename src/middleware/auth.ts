@@ -691,6 +691,46 @@ const requirePermission = (action: string): ((req: Request, res: Response, next:
   };
 };
 
+const requireExplicitPermission = (
+  action: string,
+): ((req: Request, res: Response, next: NextFunction) => Promise<void>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const tenantId = (req as any).tenantId || req.user.tenantId;
+      const allowed = await hasPermissionAsync(req.user.role, action, tenantId);
+
+      if (!allowed) {
+        res.status(403).json({
+          success: false,
+          error: 'Insufficient permissions',
+          required: action,
+          userRole: req.user.role,
+        });
+        return;
+      }
+
+      next();
+    } catch (error) {
+      logger.error('requireExplicitPermission check failed', {
+        action,
+        userId: req.user?.id,
+        role: req.user?.role,
+        error,
+      });
+      res.status(500).json({
+        success: false,
+        error: 'Permission check failed',
+      });
+      return;
+    }
+  };
+};
+
 const requireAnyPermission = (
   actions: string[],
 ): ((req: Request, res: Response, next: NextFunction) => Promise<void>) => {
@@ -820,6 +860,7 @@ export {
   optionalAuth,
   requireRole,
   requirePermission,
+  requireExplicitPermission,
   requireAnyPermission,
   checkRoles,
   checkOrganizerPermission

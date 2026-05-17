@@ -22,6 +22,7 @@ import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { Button, Card, PageHeader, ResponsiveTable, StatsCard } from '../components/ui';
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess';
 
 interface PermissionMatrix {
   [role: string]: {
@@ -118,7 +119,6 @@ const PermissionsPage: React.FC = () => {
 
   // Check if user is admin
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ORGANIZER';
-  const canWarmCache = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const canEditRole = (role: UserRole): boolean => {
     if (user?.role === 'SUPER_ADMIN') return true;
     return role !== 'SUPER_ADMIN';
@@ -236,6 +236,21 @@ const PermissionsPage: React.FC = () => {
       });
     return matrix;
   }, [resourceScopes]);
+
+  const currentUserPermissionSet = useMemo(() => {
+    if (!user?.role || !permissions?.length) return null;
+
+    const rolePermissions = permissions
+      .filter((permission) => permission.role === user.role && permission.allowed)
+      .map((permission) => `${permission.resource}:${permission.operation}`);
+
+    return permissionSetFromList(rolePermissions);
+  }, [permissions, user?.role]);
+
+  const canWarmCache = Boolean(
+    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') &&
+    hasPermissionAction(currentUserPermissionSet, 'permissions:write')
+  );
 
   // Get unique resources and operations
   const { resources, operationsByResource } = useMemo(() => {
@@ -478,7 +493,8 @@ const PermissionsPage: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             This admin surface supports single permission changes, resource-scope defaults, optional
             operation-level scope overrides for scope-capable resources, statistics, audit logs, CSV
-            export, and cache warm for platform admins. Bulk import, clone, compare, and other multi-step
+            export, and cache warm when the current admin role also has <code>permissions:write</code>.
+            Bulk import, clone, compare, and other multi-step
             permission operations remain intentionally out of scope here.
           </p>
         </Card>

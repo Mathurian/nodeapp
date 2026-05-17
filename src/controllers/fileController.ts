@@ -4,7 +4,7 @@ import { FileService } from '../services/FileService';
 import { AuditLogService } from '../services/AuditLogService';
 import { PermissionScopeService } from '../services/PermissionScopeService';
 import { sendSuccess, sendNotFound, sendBadRequest, sendUnauthorized} from '../utils/responseHelpers';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import { resolveRequestTenantId } from '../utils/tenantContext';
 
@@ -19,61 +19,6 @@ export class FileController {
     this.fileService = container.resolve(FileService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
     this.permissionScopeService = container.resolve(PermissionScopeService);
-  }
-
-  private async buildFileScopeWhere(
-    req: Request,
-    tenantId: string,
-    operation: string = 'read'
-  ): Promise<Prisma.FileWhereInput | null> {
-    if (!req.user) return null;
-
-    const scope = await this.permissionScopeService.resolveUserScope(
-      req.user.role,
-      'files',
-      tenantId,
-      req.user,
-      operation
-    );
-
-    if (scope.tenantWide) return {};
-
-    const eventIds = new Set(scope.eventIds);
-    const contestIds = new Set(scope.contestIds);
-    const categoryIds = new Set(scope.categoryIds);
-
-    if (eventIds.size > 0) {
-      const [contests, categories] = await Promise.all([
-        this.prisma.contest.findMany({
-          where: {
-            tenantId,
-            eventId: { in: Array.from(eventIds) },
-          },
-          select: { id: true },
-        }),
-        this.prisma.category.findMany({
-          where: {
-            tenantId,
-            contest: {
-              eventId: { in: Array.from(eventIds) },
-            },
-          },
-          select: { id: true, contestId: true },
-        }),
-      ]);
-
-      contests.forEach((contest) => contestIds.add(contest.id));
-      categories.forEach((category) => {
-        categoryIds.add(category.id);
-        contestIds.add(category.contestId);
-      });
-    }
-
-    const clauses: Prisma.FileWhereInput[] = [];
-    if (categoryIds.size > 0) clauses.push({ categoryId: { in: Array.from(categoryIds) } });
-    if (contestIds.size > 0) clauses.push({ contestId: { in: Array.from(contestIds) } });
-    if (eventIds.size > 0) clauses.push({ eventId: { in: Array.from(eventIds) } });
-    return clauses.length > 0 ? { OR: clauses } : null;
   }
 
   listFiles = async (req: Request, res: Response, next: NextFunction) => {
@@ -173,7 +118,12 @@ export class FileController {
       const category = req.query['category'] as string | undefined;
       const eventId = req.query['eventId'] as string | undefined;
       const tenantId = req.tenantId || req.user.tenantId;
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
+      const scopeWhere = await this.permissionScopeService.buildFileScopeWhere(
+        req.user.role,
+        tenantId,
+        req.user,
+        'read'
+      );
       if (!scopeWhere) {
         return sendSuccess(res, {
           files: [],
@@ -350,7 +300,12 @@ export class FileController {
         return;
       }
       const tenantId = req.tenantId || req.user.tenantId;
-      const scopeWhere = await this.buildFileScopeWhere(req, tenantId, 'read');
+      const scopeWhere = await this.permissionScopeService.buildFileScopeWhere(
+        req.user.role,
+        tenantId,
+        req.user,
+        'read'
+      );
       if (!scopeWhere) {
         return sendSuccess(res, {
           totalFiles: 0,

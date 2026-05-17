@@ -637,3 +637,26 @@ This keeps paper-form uploads and delegated manual entry on the same operational
    - finish the remaining core CRUD and user-management alignment outside the scoring critical path
 
 `TASK-94.3` and `TASK-94.5` are effectively the first delivery wave because the high-priority business contingency is not OCR by itself. It is preserving score intake when judges cannot enter directly.
+
+### TASK-94.4 status
+
+`TASK-94.4` closes the remaining partial enforcement gaps in the v1 scoped-permissions model without changing the
+resource taxonomy introduced earlier in `TASK-94`.
+
+Current behavior after `TASK-94.4`:
+
+- `/api/permissions` is no longer role-gated alone. The route family keeps its existing base-role boundary, but it
+  also requires canonical `permissions:read` or `permissions:write` tokens for list, scope, audit-log, stats,
+  export, update, and cache-warm operations.
+- `files` scope is now enforced consistently across file-management inventory, search suggestions, analytics, single
+  integrity checks, and bulk integrity checks using the same resolved scope model as the primary file inventory and
+  upload controllers.
+- `reports` remains a tenant-only scoped resource in v1. This task does not introduce event- or assignment-level
+  report scopes. It makes the tenant-scoped contract explicit and consistent across template, generation, instance,
+  download, export, delete, and email flows.
+
+Explicit remaining fixed-role exceptions:
+
+- `database`, `cache`, `logs`, `activity`, `backups`, `disaster-recovery`, `data-wipe`, `tenants`,
+  `field-visibility`, `test-runner`, and other `hardProtected` admin-plane surfaces remain outside the tenant-managed
+  CRUD permissions matrix by design.

@@ -13,6 +13,7 @@ import { ReportTemplateService } from '../services/ReportTemplateService';
 import { ReportEmailService, ReportEmailDispatchSummary } from '../services/ReportEmailService';
 import { ReportInstanceService } from '../services/ReportInstanceService';
 import { sendUnauthorized } from '../utils/responseHelpers';
+import { PermissionScopeService } from '../services/PermissionScopeService';
 
 /**
  * Reports Controller Class
@@ -23,6 +24,7 @@ export class ReportsController {
   private templateService: ReportTemplateService;
   private emailService: ReportEmailService;
   private instanceService: ReportInstanceService;
+  private permissionScopeService: PermissionScopeService;
 
   constructor() {
     this.generationService = container.resolve(ReportGenerationService);
@@ -30,6 +32,7 @@ export class ReportsController {
     this.templateService = container.resolve(ReportTemplateService);
     this.emailService = container.resolve(ReportEmailService);
     this.instanceService = container.resolve(ReportInstanceService);
+    this.permissionScopeService = container.resolve(PermissionScopeService);
   }
 
   private getRequestPrisma(req: Request, res: Response): PrismaClient | null {
@@ -40,17 +43,60 @@ export class ReportsController {
     return req.prisma;
   }
 
+  private async requireTenantScopedReportAccess(
+    req: Request,
+    res: Response,
+    operation: 'read' | 'write'
+  ): Promise<{ tenantId: string; userId: string; userRole: string; requestPrisma: PrismaClient } | null> {
+    if (!req.user) {
+      sendUnauthorized(res);
+      return null;
+    }
+
+    const tenantId = (req as any).tenantId || req.user.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ error: 'Tenant context is required' });
+      return null;
+    }
+
+    const scope = await this.permissionScopeService.resolveUserScope(
+      req.user.role as any,
+      'reports',
+      tenantId,
+      req.user,
+      operation
+    );
+
+    if (!scope.tenantWide) {
+      res.status(403).json({
+        error: 'Access denied',
+        message: 'You do not have tenant-wide report scope access',
+      });
+      return null;
+    }
+
+    const requestPrisma = this.getRequestPrisma(req, res);
+    if (!requestPrisma) {
+      return null;
+    }
+
+    return {
+      tenantId,
+      userId: req.user.id,
+      userRole: req.user.role,
+      requestPrisma,
+    };
+  }
+
   /**
    * Get all report templates
    */
   getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
 
-      const templates = await this.templateService.getAllTemplates(req.user.tenantId);
+      const templates = await this.templateService.getAllTemplates(access.tenantId);
       res.json({ data: templates });
     } catch (error) {
       return next(error);
@@ -62,10 +108,8 @@ export class ReportsController {
    */
   createTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.user) {
-        sendUnauthorized(res);
-        return;
-      }
+      const access = await this.requireTenantScopedReportAccess(req, res, 'write');
+      if (!access) return;
 
       const { name, template, parameters, type } = req.body;
       const reportTemplate = await this.templateService.createTemplate({
@@ -73,7 +117,7 @@ export class ReportsController {
         template: template || '{}',
         parameters: parameters || '{}',
         type: type || 'event',
-        tenantId: req.user.tenantId
+        tenantId: access.tenantId
       });
       res.status(201).json(reportTemplate);
     } catch (error) {
@@ -132,22 +176,21 @@ export class ReportsController {
    */
   generateReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'write');
+      if (!access) return;
+
       const { type, eventId, contestId } = req.body;
-      const userId = (req as any).user?.id;
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
+      const userId = access.userId;
+      const tenantId = access.tenantId;
+      const requestPrisma = access.requestPrisma;
 
       let reportData;
       let reportName = 'Generated Report';
       if (type === 'event' && eventId) {
-        // SECURITY: Verify user has access to this event
         const event = await requestPrisma.event.findFirst({
           where: {
             id: eventId,
-            // SUPER_ADMIN can access all events, others must match tenantId
-            ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+            tenantId,
           }
         });
 
@@ -162,12 +205,10 @@ export class ReportsController {
         reportData = await this.generationService.generateEventReportData(eventId, userId);
         reportName = 'Event Summary Report';
       } else if (type === 'contest' && contestId) {
-        // SECURITY: Verify user has access to this contest
         const contest = await requestPrisma.contest.findFirst({
           where: {
             id: contestId,
-            // SUPER_ADMIN can access all contests, others must match tenantId
-            ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+            tenantId,
           }
         });
 
@@ -182,8 +223,7 @@ export class ReportsController {
         reportData = await this.generationService.generateContestResultsData(contestId, userId);
         reportName = 'Contest Results Report';
       } else if (type === 'system') {
-        // SECURITY: Pass tenantId and userRole for proper tenant scoping
-        reportData = await this.generationService.generateSystemAnalyticsData(userId, tenantId, userRole);
+        reportData = await this.generationService.generateSystemAnalyticsData(userId, tenantId, access.userRole);
         reportName = 'System Analytics Report';
       } else {
         res.status(400).json({ error: 'Invalid report type or missing parameters' });
@@ -258,18 +298,16 @@ export class ReportsController {
    */
   getReportInstances = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { type, format, startDate, endDate } = req.query;
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
 
-      // SECURITY: Build tenant filter - SUPER_ADMIN sees all, others see only their tenant
-      const tenantFilter = userRole === 'SUPER_ADMIN' ? {} : { tenantId };
+      const { type, format, startDate, endDate } = req.query;
+      const tenantId = access.tenantId;
+      const requestPrisma = access.requestPrisma;
 
       const instances = await requestPrisma.reportInstance.findMany({
         where: {
-          ...tenantFilter,
+          tenantId,
           ...(type && { type: type as string }),
           ...(format && { format: format as string }),
           ...((startDate || endDate) && {
@@ -294,22 +332,21 @@ export class ReportsController {
    */
   deleteReportInstance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'write');
+      if (!access) return;
+
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Instance ID is required' });
         return;
       }
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
+      const tenantId = access.tenantId;
+      const requestPrisma = access.requestPrisma;
 
-      // SECURITY: Verify user has access to this report instance
       const instance = await requestPrisma.reportInstance.findFirst({
         where: {
           id,
-          // SUPER_ADMIN can delete any instance, others must match tenantId
-          ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+          tenantId,
         }
       });
 
@@ -334,18 +371,15 @@ export class ReportsController {
    */
   exportToPDF = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
+
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
-
-      // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(requestPrisma, id, tenantId, userRole);
+      const reportData = await this.getReportData(access.requestPrisma, id, access.tenantId);
 
       const buffer = await this.exportService.exportReport(reportData, 'pdf');
 
@@ -363,18 +397,15 @@ export class ReportsController {
    */
   exportToExcel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
+
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
-
-      // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(requestPrisma, id, tenantId, userRole);
+      const reportData = await this.getReportData(access.requestPrisma, id, access.tenantId);
 
       const buffer = await this.exportService.exportReport(reportData, 'excel');
 
@@ -392,18 +423,15 @@ export class ReportsController {
    */
   exportToCSV = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
+
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
-
-      // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(requestPrisma, id, tenantId, userRole);
+      const reportData = await this.getReportData(access.requestPrisma, id, access.tenantId);
 
       const buffer = await this.exportService.exportReport(reportData, 'csv');
 
@@ -419,12 +447,11 @@ export class ReportsController {
    * Helper to get report data from instance ID
    * SECURITY FIX: Now validates tenant access to report instances
    */
-  private async getReportData(prisma: PrismaClient, instanceId: string, tenantId: string, userRole: string): Promise<any> {
+  private async getReportData(prisma: PrismaClient, instanceId: string, tenantId: string): Promise<any> {
     const instance = await prisma.reportInstance.findFirst({
       where: {
         id: instanceId,
-        // SUPER_ADMIN can access all report instances, others must match tenantId
-        ...(userRole !== 'SUPER_ADMIN' && { tenantId })
+        tenantId
       }
     });
     if (!instance) {
@@ -439,15 +466,13 @@ export class ReportsController {
    */
   sendReportEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { reportId, recipients, subject, message, format, html } = req.body;
-      const userId = (req as any).user?.id || 'system';
-      const tenantId = (req as any).user?.tenantId;
-      const userRole = (req as any).user?.role;
-      const requestPrisma = this.getRequestPrisma(req, res);
-      if (!requestPrisma) return;
+      const access = await this.requireTenantScopedReportAccess(req, res, 'write');
+      if (!access) return;
 
-      // SECURITY: Validate tenant access to report
-      const reportData = await this.getReportData(requestPrisma, reportId, tenantId, userRole);
+      const { reportId, recipients, subject, message, format, html } = req.body;
+      const userId = access.userId || 'system';
+      const tenantId = access.tenantId;
+      const reportData = await this.getReportData(access.requestPrisma, reportId, tenantId);
 
       const dispatchSummary: ReportEmailDispatchSummary = await this.emailService.sendReportEmail({
         recipients,
@@ -474,6 +499,64 @@ export class ReportsController {
       return next(error);
     }
   };
+
+  downloadReportInstance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
+
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Report ID is required' });
+        return;
+      }
+
+      const reportInstance = await access.requestPrisma.reportInstance.findFirst({
+        where: {
+          id,
+          tenantId: access.tenantId,
+        },
+      });
+
+      if (!reportInstance) {
+        res.status(404).json({ error: 'Report not found' });
+        return;
+      }
+
+      let parsedData: any = {};
+      try {
+        if (typeof reportInstance.data === 'string' && reportInstance.data !== '{}' && reportInstance.data.trim() !== '') {
+          parsedData = JSON.parse(reportInstance.data);
+        } else if (reportInstance.data && typeof reportInstance.data === 'object') {
+          parsedData = reportInstance.data;
+        } else {
+          parsedData = {
+            message: 'No report data available',
+            reportType: reportInstance.type,
+            generatedAt: reportInstance.generatedAt,
+          };
+        }
+      } catch (_parseError) {
+        parsedData = {
+          error: 'Failed to parse report data',
+        };
+      }
+
+      res.json({
+        data: {
+          id: reportInstance.id,
+          name: reportInstance.name,
+          type: reportInstance.type,
+          format: reportInstance.format || 'PDF',
+          generatedAt: reportInstance.generatedAt,
+          generatedBy: reportInstance.generatedById || 'System',
+          data: parsedData,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 
 // Create and export controller instance
@@ -492,3 +575,4 @@ export const exportToPDF = controller.exportToPDF;
 export const exportToExcel = controller.exportToExcel;
 export const exportToCSV = controller.exportToCSV;
 export const sendReportEmail = controller.sendReportEmail;
+export const downloadReportInstance = controller.downloadReportInstance;

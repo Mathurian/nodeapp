@@ -44,6 +44,12 @@ export interface ResolvedResourceScope {
   categoryIds: string[];
 }
 
+type ScopeAwareUser = {
+  id: string;
+  judgeId?: string | null;
+  judge?: { id: string } | null;
+};
+
 type AssignmentScopeRow = {
   eventId: string | null;
   contestId: string | null;
@@ -364,11 +370,7 @@ export class PermissionScopeService extends BaseService {
     role: UserRole,
     resource: string,
     tenantId: string,
-    user: {
-      id: string;
-      judgeId?: string | null;
-      judge?: { id: string } | null;
-    },
+    user: ScopeAwareUser,
     operation?: string | null
   ): Promise<ResolvedResourceScope> {
     const level = await this.getResourceScope(role, resource, tenantId, operation);
@@ -527,6 +529,57 @@ export class PermissionScopeService extends BaseService {
     }
 
     return this.emptyResolvedScope(level);
+  }
+
+  async buildFileScopeWhere(
+    role: UserRole,
+    tenantId: string,
+    user: ScopeAwareUser,
+    operation: string = 'read'
+  ): Promise<Prisma.FileWhereInput | null> {
+    const scope = await this.resolveUserScope(role, 'files', tenantId, user, operation);
+
+    if (scope.tenantWide) {
+      return {};
+    }
+
+    const eventIds = new Set(scope.eventIds);
+    const contestIds = new Set(scope.contestIds);
+    const categoryIds = new Set(scope.categoryIds);
+
+    if (eventIds.size > 0) {
+      const [contests, categories] = await Promise.all([
+        this.prisma.contest.findMany({
+          where: {
+            tenantId,
+            eventId: { in: Array.from(eventIds) },
+          },
+          select: { id: true },
+        }),
+        this.prisma.category.findMany({
+          where: {
+            tenantId,
+            contest: {
+              eventId: { in: Array.from(eventIds) },
+            },
+          },
+          select: { id: true, contestId: true },
+        }),
+      ]);
+
+      contests.forEach((contest) => contestIds.add(contest.id));
+      categories.forEach((category) => {
+        categoryIds.add(category.id);
+        contestIds.add(category.contestId);
+      });
+    }
+
+    const clauses: Prisma.FileWhereInput[] = [];
+    if (categoryIds.size > 0) clauses.push({ categoryId: { in: Array.from(categoryIds) } });
+    if (contestIds.size > 0) clauses.push({ contestId: { in: Array.from(contestIds) } });
+    if (eventIds.size > 0) clauses.push({ eventId: { in: Array.from(eventIds) } });
+
+    return clauses.length > 0 ? { OR: clauses } : null;
   }
 
   private emptyResolvedScope(level: PermissionScopeLevel): ResolvedResourceScope {
