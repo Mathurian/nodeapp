@@ -4,7 +4,7 @@ title: Build OCR review and correction workflow for imported scores
 status: To Do
 assignee: []
 created_date: '2026-05-17 06:12'
-updated_date: '2026-05-17 07:43'
+updated_date: '2026-05-17 08:00'
 labels: []
 milestone: m-0
 dependencies: []
@@ -23,6 +23,21 @@ Add the review experience that lets authorized users inspect OCR-extracted score
 - [ ] #2 Users can correct extracted criterion scores, deductions, and comments before committing the import.
 - [ ] #3 Only accepted and reviewed OCR imports proceed into the existing scoring and certification flow.
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- The review workflow should be entered from the existing contestant-scoped score-file upload surface on scoring pages rather than a separate import-only page.
+- UI copy and affordances should stop implying commentary-only attachments once scoresheet import is introduced, and should clearly distinguish ordinary attachments from scoresheet import review.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+UX direction update:
+- The scoring review flow should build on the existing score-file upload entry point in the scoring workspace.
+- Labels and interaction states must distinguish commentary attachments from scoresheet imports so users understand when an upload will trigger score extraction and review.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
