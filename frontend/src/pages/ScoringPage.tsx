@@ -1690,7 +1690,8 @@ const ScoringPage: React.FC = () => {
       await scoringAPI.certifyScores(selectedCategory.id, {
         contestantId: selectedContestant?.id,
         typedSignature: typedSignature.trim() || undefined,
-        drawnSignatureData: drawnSignatureData || undefined
+        drawnSignatureData: drawnSignatureData || undefined,
+        ...(isDelegatedMode ? { representedJudgeId: effectiveRepresentedJudgeId } : {}),
       })
       if (selectedContestant) {
         await queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId])

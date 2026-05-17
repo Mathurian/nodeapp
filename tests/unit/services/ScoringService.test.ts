@@ -9,12 +9,14 @@ import { PrismaClient, ScoringType } from '@prisma/client';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '../../../src/services/BaseService';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { CacheService } from '../../../src/services/CacheService';
+import { ScoreDelegationService } from '../../../src/services/ScoreDelegationService';
 
 describe('ScoringService', () => {
   let service: ScoringService;
   let mockPrisma: DeepMockProxy<PrismaClient>;
   let mockScoreRepository: jest.Mocked<ScoreRepository>;
   let mockCacheService: jest.Mocked<CacheService>;
+  let mockScoreDelegationService: jest.Mocked<ScoreDelegationService>;
 
   const tenantId = 'tenant-1';
 
@@ -77,8 +79,20 @@ describe('ScoringService', () => {
       invalidatePattern: jest.fn(),
       clear: jest.fn(),
     } as any;
+    mockScoreDelegationService = {
+      resolveActingJudgeContext: jest.fn().mockResolvedValue({
+        judgeId: 'judge-1',
+        entryMode: 'SELF',
+        delegationGrantId: null,
+      }),
+    } as any;
 
-    service = new ScoringService(mockScoreRepository, mockPrisma as any, mockCacheService as any);
+    service = new ScoringService(
+      mockScoreRepository,
+      mockPrisma as any,
+      mockCacheService as any,
+      mockScoreDelegationService as any,
+    );
     (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback: any) =>
       callback({
         $executeRawUnsafe: jest.fn().mockResolvedValue(0),
@@ -153,6 +167,9 @@ describe('ScoringService', () => {
 
     it('should throw ValidationError when user is not a judge', async () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', judge: null });
+      (mockScoreDelegationService.resolveActingJudgeContext as jest.Mock).mockRejectedValue(
+        new ValidationError('representedJudgeId is required when the current user is not linked to a judge'),
+      );
 
       await expect(service.submitScore(scoreData, 'user-1', tenantId)).rejects.toThrow(ValidationError);
     });
@@ -278,6 +295,29 @@ describe('ScoringService', () => {
 
       expect(result.certified).toBe(false);
       expect(result.certifiedCount).toBe(0);
+    });
+
+    it('should scope certification to the represented judge when judgeId is provided', async () => {
+      (mockPrisma.score.updateMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+      await service.certifyScores('category-1', 'delegate-1', tenantId, {
+        userRole: 'ORGANIZER',
+        judgeId: 'judge-2',
+        contestantId: 'contestant-1',
+      });
+
+      expect(mockPrisma.score.updateMany).toHaveBeenCalledWith({
+        where: {
+          categoryId: 'category-1',
+          tenantId,
+          certifiedAt: null,
+          judgeId: 'judge-2',
+          contestantId: 'contestant-1',
+        },
+        data: expect.objectContaining({
+          certifiedBy: 'delegate-1',
+        }),
+      });
     });
   });
 

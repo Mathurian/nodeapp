@@ -70,6 +70,7 @@ const ScoreGovernancePage: React.FC = () => {
 
   const [requiredAdditionalApprovals, setRequiredAdditionalApprovals] = useState(2)
   const [approverRoles, setApproverRoles] = useState<string[]>(['AUDITOR', 'BOARD', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN'])
+  const [allowDelegateJudgeCertification, setAllowDelegateJudgeCertification] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING')
   const [actionFilter, setActionFilter] = useState<'ALL' | GovernanceAction>('ALL')
   const [showCompleted, setShowCompleted] = useState(false)
@@ -205,6 +206,7 @@ const ScoreGovernancePage: React.FC = () => {
       if (data) {
         setRequiredAdditionalApprovals(Number(data.requiredAdditionalApprovals || 2))
         if (Array.isArray(data.approverRoles)) setApproverRoles(data.approverRoles)
+        setAllowDelegateJudgeCertification(Boolean(data.allowDelegateJudgeCertification))
       }
       return data
     },
@@ -534,7 +536,7 @@ const ScoreGovernancePage: React.FC = () => {
 
   const saveSettingsMutation = useMutation(
     'governance-settings-save',
-    async () => scoreGovernanceAPI.updateSettings({ requiredAdditionalApprovals, approverRoles }),
+    async () => scoreGovernanceAPI.updateSettings({ requiredAdditionalApprovals, approverRoles, allowDelegateJudgeCertification }),
     {
       onSuccess: () => {
         toast.success('Settings updated')
@@ -1223,6 +1225,28 @@ const ScoreGovernancePage: React.FC = () => {
                       {role}
                     </label>
                   ))}
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <div className="flex items-start gap-3 rounded border border-gray-200 dark:border-gray-700 p-3 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    id="score-governance-allow-delegate-certification"
+                    type="checkbox"
+                    className="mt-1"
+                    checked={allowDelegateJudgeCertification}
+                    onChange={(e) => setAllowDelegateJudgeCertification(e.target.checked)}
+                  />
+                  <div>
+                    <label
+                      htmlFor="score-governance-allow-delegate-certification"
+                      className="block font-medium text-gray-900 dark:text-white"
+                    >
+                      Allow delegate judge certification
+                    </label>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      When enabled, users with an active delegation grant and delegated certification permission can certify on behalf of represented judges.
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

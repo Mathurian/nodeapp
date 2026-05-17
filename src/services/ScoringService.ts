@@ -552,8 +552,7 @@ export class ScoringService extends BaseService {
         certifiedAt: null // Only certify uncertified scores
       };
 
-      const userRole = String(options?.userRole || '').toUpperCase();
-      if (userRole === 'JUDGE' && options?.judgeId) {
+      if (options?.judgeId) {
         where.judgeId = options.judgeId;
       }
       if (options?.contestantId) {

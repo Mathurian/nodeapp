@@ -9,7 +9,7 @@ const router: Router = express.Router();
 const requireScoresRead = requirePermission('scores:read');
 const requireScoringWrite = requireAnyPermission(['scores:write', 'delegated-scores:write']);
 const requireScoringDelete = requireAnyPermission(['scores:delete', 'delegated-scores:write']);
-const requireScoresCertify = requirePermission('scores:certify');
+const requireScoresCertify = requireAnyPermission(['scores:certify', 'delegated-scores:certify']);
 const requireScoresUncertify = requirePermission('scores:uncertify');
 const requireScoresUnsign = requirePermission('scores:unsign');
 const requireCertificationsWrite = requirePermission('certifications:write');
@@ -92,7 +92,7 @@ router.post('/category/:categoryId/contestant/:contestantId',
   logActivity('SUBMIT_SCORE', 'SCORE'),
   submitScore
 )
-router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), requireScoresCertify, logActivity('CERTIFY_SCORES', 'SCORE'), certifyScores)
+router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoresCertify, logActivity('CERTIFY_SCORES', 'SCORE'), certifyScores)
 router.post('/category/:categoryId/certify-totals', requireRole(['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER']), requireCertificationsWrite, certifyTotals)
 router.post('/category/:categoryId/final-certification', requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR']), requireCertificationsWrite, finalCertification)
 router.post('/category/:categoryId/uncertify', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), requireScoresUncertify, logActivity('UNCERTIFY_CATEGORY', 'SCORE'), uncertifyCategory)

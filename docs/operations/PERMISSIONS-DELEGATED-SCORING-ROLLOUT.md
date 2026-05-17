@@ -107,6 +107,7 @@ Resources:
 
 - `delegated-scores:read`
 - `delegated-scores:write`
+- `delegated-scores:certify`
 - `score-delegations:read`
 - `score-delegations:write`
 - `score-delegations:revoke`
@@ -115,11 +116,15 @@ Runtime rules:
 
 - ordinary judge self-entry remains governed by `scores:*`
 - on-behalf entry requires an active delegation grant
+- on-behalf judge certification requires:
+  - tenant setting `delegated_scores_allow_delegate_certification = true`
+  - `delegated-scores:certify`
+  - an active delegation grant covering the represented judge and category
 - delegated entry remains attributable to:
   - the represented judge
   - the actual entry actor
   - the delegation grant used
-- delegated entry does not certify on the judge's behalf
+- delegated entry does not certify on the judge's behalf unless the tenant explicitly enables delegate judge certification
 
 Attribution fields now present in the schema:
 
@@ -137,6 +142,7 @@ The following migrations must be present in the target environment:
 1. `20260511233000_task77_permission_scopes_v1`
 2. `20260516223000_task78_operation_specific_permission_scopes`
 3. `20260516235900_task94_delegated_score_entry`
+4. `20260517001500_task94_delegate_judge_certification`
 
 Deploy command:
 
@@ -264,6 +270,7 @@ pages and affordances assume the backend permission contract is already present.
 - Review delegated-scoring grants and management permissions:
   - who may create or revoke grants
   - who may enter delegated scores
+  - who may certify scores on behalf of represented judges
 - Review scope defaults and operation overrides for scope-capable resources.
 
 ## Admin and Operator Guide
@@ -282,11 +289,19 @@ Minimum permissions by responsibility:
 - delegates who may enter on behalf of judges:
   - `delegated-scores:read`
   - `delegated-scores:write`
+- delegates who may certify on behalf of judges:
+  - `delegated-scores:certify`
 
 Default expectation:
 
 - broad delegated-entry capability should remain limited to
   `SUPER_ADMIN` and `ADMIN` until a tenant explicitly chooses otherwise
+- delegate-on-behalf certification should remain disabled until the tenant has a documented operational need for it
+
+Governance safeguard:
+
+- enable `Allow delegate judge certification` in the score-governance safeguards UI only when the tenant wants delegates to be able to sign on behalf of represented judges
+- leaving that safeguard off preserves the original model where delegates may enter scores but judges must still certify separately
 
 ### 2. Create a delegation grant
 

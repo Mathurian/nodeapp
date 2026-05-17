@@ -417,6 +417,7 @@ model User {
   delegatedScoreGrants                  ScoreDelegationGrant[]        @relation("ScoreDelegationDelegate")
   grantedScoreDelegations               ScoreDelegationGrant[]        @relation("ScoreDelegationGrantedBy")
   revokedScoreDelegations               ScoreDelegationGrant[]        @relation("ScoreDelegationRevokedBy")
+  actedJudgeCertifications              JudgeCertification[]          @relation("JudgeCertificationActedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -465,15 +466,22 @@ model JudgeCertification {
   categoryId    String
   judgeId       String
   signatureName String
+  certifiedByUserId String?
+  certificationMode JudgeCertificationMode @default(SELF)
+  delegationGrantId String?
   certifiedAt   DateTime @default(now())
   tenantId      String
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  judge    Judge    @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  category        Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  judge           Judge                 @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  certifiedByUser User?                 @relation("JudgeCertificationActedBy", fields: [certifiedByUserId], references: [id], onDelete: SetNull)
+  delegationGrant ScoreDelegationGrant? @relation("ScoreDelegationGrantJudgeCertifications", fields: [delegationGrantId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, categoryId, judgeId])
   @@index([tenantId])
   @@index([tenantId, categoryId])
+  @@index([tenantId, certifiedByUserId])
+  @@index([tenantId, delegationGrantId])
   @@index([categoryId, judgeId])
   @@map("judge_certifications")
 }
@@ -1751,6 +1759,7 @@ model ScoreDelegationGrant {
   judges       ScoreDelegationGrantJudge[]
   scores       Score[]                       @relation("ScoreDelegationGrantScores")
   scoreFiles   ScoreFile[]                   @relation("ScoreDelegationGrantScoreFiles")
+  judgeCertifications JudgeCertification[]   @relation("ScoreDelegationGrantJudgeCertifications")
 
   @@index([tenantId])
   @@index([tenantId, delegateUserId])
@@ -2410,6 +2419,11 @@ enum PermissionAuditChangeType {
 }
 
 enum ScoreEntryMode {
+  SELF
+  DELEGATED
+}
+
+enum JudgeCertificationMode {
   SELF
   DELEGATED
 }

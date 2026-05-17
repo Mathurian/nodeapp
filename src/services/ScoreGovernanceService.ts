@@ -5,13 +5,9 @@ import { BaseService } from './BaseService'
 import { NotificationService } from './NotificationService'
 import { refreshJudgeStage } from '../utils/certificationPipeline'
 import { createLogger } from '../utils/logger'
+import { SCORING_SETTINGS_KEYS } from '../config/scoringSettings'
 
 const logger = createLogger('ScoreGovernanceService')
-
-const SETTINGS_KEYS = {
-  REQUIRED_ADDITIONAL_APPROVALS: 'score_governance_required_additional_approvals',
-  APPROVER_ROLES: 'score_governance_approver_roles'
-}
 
 const ALERT_SETTINGS_KEYS = {
   ENABLED: 'alerts_scoring_enabled',
@@ -39,6 +35,7 @@ interface SignaturePayload {
 interface GovernanceSettings {
   requiredAdditionalApprovals: number
   approverRoles: UserRole[]
+  allowDelegateJudgeCertification: boolean
 }
 
 interface CreateGovernanceRequestInput {
@@ -385,10 +382,12 @@ export class ScoreGovernanceService extends BaseService {
   }
 
   async getSettings(tenantId: string): Promise<GovernanceSettings> {
-    const [requiredRaw, rolesRaw] = await Promise.all([
-      this.getTenantSetting(SETTINGS_KEYS.REQUIRED_ADDITIONAL_APPROVALS, tenantId),
-      this.getTenantSetting(SETTINGS_KEYS.APPROVER_ROLES, tenantId)
+    const [requiredRaw, rolesRaw, delegateCertificationRaw] = await Promise.all([
+      this.getTenantSetting(SCORING_SETTINGS_KEYS.GOVERNANCE_REQUIRED_ADDITIONAL_APPROVALS, tenantId),
+      this.getTenantSetting(SCORING_SETTINGS_KEYS.GOVERNANCE_APPROVER_ROLES, tenantId),
+      this.getTenantSetting(SCORING_SETTINGS_KEYS.ALLOW_DELEGATE_JUDGE_CERTIFICATION, tenantId),
     ])
+    const allowDelegateJudgeCertification = this.parseBooleanSetting(delegateCertificationRaw, false)
 
     let requiredAdditionalApprovals = DEFAULT_REQUIRED_ADDITIONAL_APPROVALS
     const parsedRequired = Number(requiredRaw)
@@ -410,20 +409,21 @@ export class ScoreGovernanceService extends BaseService {
 
     if (approverRoles.length === 0) approverRoles = DEFAULT_APPROVER_ROLES
 
-    return { requiredAdditionalApprovals, approverRoles }
+    return { requiredAdditionalApprovals, approverRoles, allowDelegateJudgeCertification }
   }
 
   async updateSettings(tenantId: string, userId: string, settings: GovernanceSettings): Promise<GovernanceSettings> {
     const requiredAdditionalApprovals = Math.max(1, Math.min(10, Number(settings.requiredAdditionalApprovals || DEFAULT_REQUIRED_ADDITIONAL_APPROVALS)))
     const approverRoles = (settings.approverRoles || []).filter((r) => Object.values(UserRole).includes(r))
+    const allowDelegateJudgeCertification = Boolean(settings.allowDelegateJudgeCertification)
 
     if (approverRoles.length === 0) throw this.badRequestError('At least one approver role is required')
 
     await this.prisma.$transaction(async (tx) => {
       await tx.systemSetting.upsert({
-        where: { key_tenantId: { key: SETTINGS_KEYS.REQUIRED_ADDITIONAL_APPROVALS, tenantId } },
+        where: { key_tenantId: { key: SCORING_SETTINGS_KEYS.GOVERNANCE_REQUIRED_ADDITIONAL_APPROVALS, tenantId } },
         create: {
-          key: SETTINGS_KEYS.REQUIRED_ADDITIONAL_APPROVALS,
+          key: SCORING_SETTINGS_KEYS.GOVERNANCE_REQUIRED_ADDITIONAL_APPROVALS,
           value: String(requiredAdditionalApprovals),
           category: 'scoring',
           description: 'Additional approvals required for score governance requests',
@@ -434,9 +434,9 @@ export class ScoreGovernanceService extends BaseService {
       })
 
       await tx.systemSetting.upsert({
-        where: { key_tenantId: { key: SETTINGS_KEYS.APPROVER_ROLES, tenantId } },
+        where: { key_tenantId: { key: SCORING_SETTINGS_KEYS.GOVERNANCE_APPROVER_ROLES, tenantId } },
         create: {
-          key: SETTINGS_KEYS.APPROVER_ROLES,
+          key: SCORING_SETTINGS_KEYS.GOVERNANCE_APPROVER_ROLES,
           value: JSON.stringify(approverRoles),
           category: 'scoring',
           description: 'Roles allowed to co-approve score governance requests',
@@ -445,9 +445,25 @@ export class ScoreGovernanceService extends BaseService {
         },
         update: { value: JSON.stringify(approverRoles), updatedBy: userId }
       })
+
+      await tx.systemSetting.upsert({
+        where: { key_tenantId: { key: SCORING_SETTINGS_KEYS.ALLOW_DELEGATE_JUDGE_CERTIFICATION, tenantId } },
+        create: {
+          key: SCORING_SETTINGS_KEYS.ALLOW_DELEGATE_JUDGE_CERTIFICATION,
+          value: allowDelegateJudgeCertification ? 'true' : 'false',
+          category: 'scoring',
+          description: 'Allow delegates with active grants to certify scores on behalf of represented judges',
+          tenantId,
+          updatedBy: userId,
+        },
+        update: {
+          value: allowDelegateJudgeCertification ? 'true' : 'false',
+          updatedBy: userId,
+        },
+      })
     })
 
-    return { requiredAdditionalApprovals, approverRoles }
+    return { requiredAdditionalApprovals, approverRoles, allowDelegateJudgeCertification }
   }
 
   private validateSignature(signature: SignaturePayload): void {

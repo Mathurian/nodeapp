@@ -7,6 +7,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ScoringController } from '../../../src/controllers/scoringController';
 import { ScoringService } from '../../../src/services/ScoringService';
+import { ScoreDelegationService } from '../../../src/services/ScoreDelegationService';
+import { DynamicPermissionService } from '../../../src/services/DynamicPermissionService';
 import { sendSuccess, sendCreated, sendNoContent, sendError, sendNotFound, sendBadRequest, sendUnauthorized, sendForbidden, errorResponse } from '../../../src/utils/responseHelpers';
 import { container } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
@@ -70,6 +72,9 @@ describe('ScoringController', () => {
   let controller: ScoringController;
   let mockScoringService: jest.Mocked<ScoringService>;
   let mockContestantFilterService: any;
+  let mockScoreDelegationService: any;
+  let mockDynamicPermissionService: any;
+  let mockPermissionScopeService: any;
   let mockPrisma: any;
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -111,6 +116,23 @@ describe('ScoringController', () => {
       areScoresVisible: jest.fn(),
       getScoreReleaseStatus: jest.fn(),
       filterScoresForContestant: jest.fn(),
+    };
+    mockScoreDelegationService = {
+      validateDelegatedAccess: jest.fn(),
+      resolveActingJudgeContext: jest.fn(),
+      resolveCertificationContext: jest.fn().mockResolvedValue(null),
+      isDelegateJudgeCertificationAllowed: jest.fn(),
+    };
+    mockDynamicPermissionService = {
+      hasPermission: jest.fn().mockResolvedValue(true),
+    };
+    mockPermissionScopeService = {
+      resolveUserScope: jest.fn().mockResolvedValue({
+        tenantWide: true,
+        eventIds: [],
+        contestIds: [],
+        categoryIds: [],
+      }),
     };
 
     mockPrisma = {
@@ -164,6 +186,7 @@ describe('ScoringController', () => {
         upsert: jest.fn(),
       },
       score: {
+        count: jest.fn(),
         updateMany: jest.fn(),
         findMany: jest.fn(),
         findFirst: jest.fn(),
@@ -184,6 +207,9 @@ describe('ScoringController', () => {
       if (token === ScoringService || token === 'ScoringService') return mockScoringService;
       if (token === 'PrismaClient') return mockPrisma;
       if (token === 'ContestantScoreFilterService' || (token && token.name === 'ContestantScoreFilterService')) return mockContestantFilterService;
+      if (token === 'PermissionScopeService' || (token && token.name === 'PermissionScopeService')) return mockPermissionScopeService;
+      if (token === ScoreDelegationService || token === 'ScoreDelegationService' || (token && token.name === 'ScoreDelegationService')) return mockScoreDelegationService;
+      if (token === DynamicPermissionService || token === 'DynamicPermissionService' || (token && token.name === 'DynamicPermissionService')) return mockDynamicPermissionService;
       if (token === 'AuditLogService' || (token && token.name === 'AuditLogService')) return mockAuditLogService;
       return mockScoringService;
     });
@@ -423,10 +449,10 @@ describe('ScoringController', () => {
   });
 
   describe('certifyScores', () => {
-    it('should certify all scores for category', async () => {
+    it('should certify all scores for category via admin recovery path', async () => {
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.body = { signatureName: 'John Doe' };
-      mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
       mockReq.body = { typedSignature: 'Tally Master' };
       const result = { certified: true, certifiedCount: 10, categoryId: 'cat-1' };
       mockScoringService.certifyScores.mockResolvedValue(result as any);
@@ -437,15 +463,93 @@ describe('ScoringController', () => {
         'cat-1',
         'user-1',
         'tenant-1',
-        { userRole: 'TALLY_MASTER', judgeId: null }
+        { userRole: 'ADMIN', judgeId: null, contestantId: null }
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, result);
+    });
+
+    it('should allow delegated certification when delegated certification permission is present', async () => {
+      mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { typedSignature: 'Delegate Signature', representedJudgeId: 'judge-2' };
+      mockReq.user = { id: 'user-1', role: 'ORGANIZER', tenantId: 'tenant-1' } as any;
+      mockScoreDelegationService.resolveCertificationContext.mockResolvedValue({
+        judgeId: 'judge-2',
+        certificationMode: 'DELEGATED',
+        delegationGrantId: 'grant-1',
+      });
+      mockPrisma.categoryContestant.findMany.mockResolvedValue([
+        { contestantId: 'contestant-1' },
+      ]);
+      mockPrisma.criterion.findMany.mockResolvedValue([
+        { id: 'crit-1' },
+        { id: 'crit-2' },
+      ]);
+      mockPrisma.score.findMany.mockResolvedValue([
+        { contestantId: 'contestant-1', criterionId: 'crit-1', score: 88 },
+        { contestantId: 'contestant-1', criterionId: 'crit-2', score: 90 },
+      ]);
+      mockScoringService.certifyScores.mockResolvedValue({ certified: true, certifiedCount: 2 } as any);
+      mockPrisma.score.count.mockResolvedValue(0);
+
+      await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockDynamicPermissionService.hasPermission).toHaveBeenCalledWith(
+        'ORGANIZER',
+        'delegated-scores',
+        'certify',
+        'tenant-1',
+      );
+      expect(mockScoringService.certifyScores).toHaveBeenCalledWith(
+        'cat-1',
+        'user-1',
+        'tenant-1',
+        { contestantId: null, userRole: 'ORGANIZER', judgeId: 'judge-2' }
+      );
+      expect(mockPrisma.judgeCertification.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
+          judgeId: 'judge-2',
+          certifiedByUserId: 'user-1',
+          certificationMode: 'DELEGATED',
+          delegationGrantId: 'grant-1',
+        }),
+        update: expect.objectContaining({
+          certifiedByUserId: 'user-1',
+          certificationMode: 'DELEGATED',
+          delegationGrantId: 'grant-1',
+        }),
+      }));
+      expect(sendSuccess).toHaveBeenCalled();
+    });
+
+    it('should forbid delegated certification without delegated certification permission', async () => {
+      mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { typedSignature: 'Delegate Signature', representedJudgeId: 'judge-2' };
+      mockReq.user = { id: 'user-1', role: 'ORGANIZER', tenantId: 'tenant-1' } as any;
+      mockScoreDelegationService.resolveCertificationContext.mockResolvedValue({
+        judgeId: 'judge-2',
+        certificationMode: 'DELEGATED',
+        delegationGrantId: 'grant-1',
+      });
+      mockDynamicPermissionService.hasPermission.mockResolvedValue(false);
+
+      await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(sendForbidden).toHaveBeenCalledWith(
+        mockRes,
+        'Delegated score certification permission is required to certify on behalf of a judge'
+      );
+      expect(mockScoringService.certifyScores).not.toHaveBeenCalled();
     });
 
     it('should reject judge certification when score coverage is incomplete', async () => {
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.body = { typedSignature: 'Judge Signature' };
       mockReq.user = { id: 'user-1', role: 'JUDGE', tenantId: 'tenant-1', judgeId: 'judge-1' } as any;
+      mockScoreDelegationService.resolveCertificationContext.mockResolvedValue({
+        judgeId: 'judge-1',
+        certificationMode: 'SELF',
+        delegationGrantId: null,
+      });
       mockPrisma.categoryContestant.findMany.mockResolvedValue([
         { contestantId: 'contestant-1' },
         { contestantId: 'contestant-2' },
@@ -472,7 +576,7 @@ describe('ScoringController', () => {
 
     it('should reject certification when no score rows were eligible to certify', async () => {
       mockReq.params = { categoryId: 'cat-1' };
-      mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
       mockReq.body = { typedSignature: 'Tally Master' };
       mockScoringService.certifyScores.mockResolvedValue({
         certified: false,
@@ -502,7 +606,7 @@ describe('ScoringController', () => {
     it('should call next with error when service throws', async () => {
       const error = new Error('Category not found');
       mockReq.params = { categoryId: 'cat-1' };
-      mockReq.user = { id: 'user-1', role: 'TALLY_MASTER', tenantId: 'tenant-1' } as any;
+      mockReq.user = { id: 'user-1', role: 'ADMIN', tenantId: 'tenant-1' } as any;
       mockReq.body = { typedSignature: 'Tally Master' };
       mockScoringService.certifyScores.mockRejectedValue(error);
 
@@ -633,11 +737,17 @@ describe('ScoringController', () => {
 
       expect(mockPrisma.category.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            tenantId: 'tenant-1',
-            deletedAt: null,
-            contest: { eventId: 'event-1' },
-          }),
+          where: {
+            AND: expect.arrayContaining([
+              expect.objectContaining({
+                tenantId: 'tenant-1',
+                deletedAt: null,
+              }),
+              expect.objectContaining({
+                contest: { eventId: 'event-1' },
+              }),
+            ]),
+          },
         })
       );
     });
@@ -653,11 +763,17 @@ describe('ScoringController', () => {
 
       expect(mockPrisma.category.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            tenantId: 'tenant-1',
-            contestId: 'contest-1',
-            deletedAt: null,
-          }),
+          where: {
+            AND: expect.arrayContaining([
+              expect.objectContaining({
+                tenantId: 'tenant-1',
+                deletedAt: null,
+              }),
+              expect.objectContaining({
+                contestId: 'contest-1',
+              }),
+            ]),
+          },
         })
       );
       expect(sendSuccess).toHaveBeenCalledWith(mockRes, categories);

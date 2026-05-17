@@ -10,6 +10,7 @@ import { ContestantScoreFilterService } from '../services/ContestantScoreFilterS
 import { AuditLogService } from '../services/AuditLogService';
 import { PermissionScopeService } from '../services/PermissionScopeService';
 import { ScoreDelegationService } from '../services/ScoreDelegationService';
+import { DynamicPermissionService } from '../services/DynamicPermissionService';
 import {
   sendSuccess,
   sendNotFound,
@@ -17,6 +18,7 @@ import {
   sendUnauthorized,
   sendCreated,
   sendNoContent,
+  sendForbidden,
   errorResponse
 } from '../utils/responseHelpers';
 import { ErrorCode } from '../types/errors';
@@ -46,6 +48,7 @@ export class ScoringController {
   private prisma: PrismaClient;
   private permissionScopeService: PermissionScopeService;
   private scoreDelegationService: ScoreDelegationService;
+  private dynamicPermissionService: DynamicPermissionService;
 
   constructor() {
     this.scoringService = container.resolve(ScoringService);
@@ -53,6 +56,7 @@ export class ScoringController {
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
     this.permissionScopeService = container.resolve(PermissionScopeService);
     this.scoreDelegationService = container.resolve(ScoreDelegationService);
+    this.dynamicPermissionService = container.resolve(DynamicPermissionService);
   }
 
   private getEffectiveTenantId(req: Request): string | null {
@@ -829,7 +833,7 @@ export class ScoringController {
     const log = createRequestLogger(req, 'scoring');
     try {
       const categoryId = req.params['categoryId']!;
-      const { contestantId, typedSignature, drawnSignatureData, signatureFilePath } = req.body || {};
+      const { contestantId, typedSignature, drawnSignatureData, signatureFilePath, representedJudgeId } = req.body || {};
 
       if (!req.user) {
         errorResponse(res, 'User not authenticated', ErrorCode.AUTHENTICATION_ERROR, 401);
@@ -847,7 +851,43 @@ export class ScoringController {
         sendBadRequest(res, 'Tenant context is required');
         return;
       }
-      const judgeId = req.user.judgeId || req.user.judge?.id || null;
+      const certificationContext = await this.scoreDelegationService.resolveCertificationContext(
+        req.user,
+        tenantId,
+        categoryId,
+        typeof representedJudgeId === 'string' ? representedJudgeId : null,
+      );
+      const judgeId = certificationContext?.judgeId || null;
+      const isAdminRecoveryPath = !judgeId && !representedJudgeId && (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN');
+      const isDelegatedCertification = certificationContext?.certificationMode === 'DELEGATED';
+
+      if (!judgeId && !isAdminRecoveryPath) {
+        sendBadRequest(
+          res,
+          'representedJudgeId is required when the current user is certifying scores on behalf of a judge',
+        );
+        return;
+      }
+
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+        const requiredPermission = isDelegatedCertification ? ['delegated-scores', 'certify'] as const : ['scores', 'certify'] as const;
+        const hasPermission = await this.dynamicPermissionService.hasPermission(
+          req.user.role,
+          requiredPermission[0],
+          requiredPermission[1],
+          tenantId,
+        );
+
+        if (!hasPermission) {
+          sendForbidden(
+            res,
+            isDelegatedCertification
+              ? 'Delegated score certification permission is required to certify on behalf of a judge'
+              : 'Score certification permission is required to certify these scores',
+          );
+          return;
+        }
+      }
 
       if (judgeId) {
         const coverage = await this.getJudgeCategoryScoreCoverageStatus(categoryId, tenantId, judgeId, contestantId);
@@ -901,11 +941,17 @@ export class ScoringController {
               tenantId,
               categoryId,
               judgeId,
-              signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
+              signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification',
+              certifiedByUserId: req.user.id,
+              certificationMode: certificationContext?.certificationMode || 'SELF',
+              delegationGrantId: certificationContext?.delegationGrantId || null,
             },
             update: {
               certifiedAt: new Date(),
-              signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification'
+              signatureName: typedSignature || req.user.name || req.user.email || 'Judge Certification',
+              certifiedByUserId: req.user.id,
+              certificationMode: certificationContext?.certificationMode || 'SELF',
+              delegationGrantId: certificationContext?.delegationGrantId || null,
             }
           });
           await refreshJudgeStage(this.prisma, tenantId, categoryId, req.user.id);

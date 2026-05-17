@@ -619,14 +619,21 @@ The current `Score` model only records the represented `judgeId`, so it cannot d
 
 #### Certification boundary
 
-Delegated score entry must not silently satisfy judge certification.
+Delegated score entry must not silently satisfy judge certification by default.
 
 Required rule:
 
 - a delegate may stage or save score data on behalf of a judge
-- the judge's certification and signature requirements remain a distinct step unless a separate, explicitly approved workflow is created later
+- the judge's certification and signature requirements remain a distinct step unless the tenant explicitly enables delegate judge certification
 
-This keeps the delegated fallback aligned with the same principle already required for OCR ingestion in `TASK-34`: imported or proxy-entered data must not bypass human verification and certification intent.
+Delegate-on-behalf certification is now supported as a separate, explicit workflow with stricter controls:
+
+- tenant setting `delegated_scores_allow_delegate_certification` must be enabled
+- the acting user must have `delegated-scores:certify`
+- an active delegation grant must cover the represented judge and category
+- the resulting judge certification must record the represented `judgeId`, acting certifier user, certification mode, and delegation grant used
+
+This preserves the same core principle already required for OCR ingestion in `TASK-34`: imported or proxy-entered data must not bypass human verification and certification intent unless the tenant deliberately enables that exception path.
 
 #### Score-file implications
 

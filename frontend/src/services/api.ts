@@ -268,6 +268,7 @@ export const scoringAPI = {
       typedSignature?: string
       drawnSignatureData?: string
       signatureFilePath?: string
+      representedJudgeId?: string
     },
   ) => api.post(`/scoring/category/${categoryId}/certify`, signature || {}),
   certifyTotals: (categoryId: string, signature?: any) => api.post(`/scoring/category/${categoryId}/certify-totals`, signature || {}),
@@ -662,7 +663,7 @@ export const scoreGovernanceAPI = {
   getScoreReview: (params?: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string }) =>
     api.get('/score-governance/review', { params }),
   getSettings: () => api.get('/score-governance/settings'),
-  updateSettings: (data: { requiredAdditionalApprovals: number; approverRoles: string[] }) =>
+  updateSettings: (data: { requiredAdditionalApprovals: number; approverRoles: string[]; allowDelegateJudgeCertification: boolean }) =>
     api.put('/score-governance/settings', data),
   createRequest: (data: any) => api.post('/score-governance/requests', data),
   getRequests: (params?: { eventId?: string; contestId?: string; categoryId?: string; contestantId?: string; status?: string; actionType?: string }) =>

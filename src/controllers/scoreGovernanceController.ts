@@ -86,7 +86,8 @@ export class ScoreGovernanceController {
       if (!tenantId) return sendBadRequest(res, 'Tenant context is required')
       const updated = await this.service.updateSettings(tenantId, req.user.id, {
         requiredAdditionalApprovals: Number(req.body?.requiredAdditionalApprovals || 2),
-        approverRoles: Array.isArray(req.body?.approverRoles) ? req.body.approverRoles : []
+        approverRoles: Array.isArray(req.body?.approverRoles) ? req.body.approverRoles : [],
+        allowDelegateJudgeCertification: Boolean(req.body?.allowDelegateJudgeCertification),
       })
       return sendSuccess(res, updated, 'Score governance settings updated')
     } catch (error) {

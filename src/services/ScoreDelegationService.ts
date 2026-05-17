@@ -1,6 +1,7 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import { inject, injectable } from 'tsyringe';
 import { BaseService } from './BaseService';
+import { SCORING_SETTINGS_KEYS } from '../config/scoringSettings';
 
 type DelegateActor = {
   id: string;
@@ -46,6 +47,12 @@ export interface DelegatedJudgeOption {
 export interface DelegatedJudgeContext {
   judgeId: string;
   entryMode: ScoreEntryMode;
+  delegationGrantId: string | null;
+}
+
+export interface DelegatedJudgeCertificationContext {
+  judgeId: string;
+  certificationMode: 'SELF' | 'DELEGATED';
   delegationGrantId: string | null;
 }
 
@@ -213,6 +220,34 @@ export class ScoreDelegationService extends BaseService {
       }
       return;
     }
+  }
+
+  async isDelegateJudgeCertificationAllowed(tenantId: string): Promise<boolean> {
+    const tenantSetting = await this.prisma.systemSetting.findFirst({
+      where: {
+        key: SCORING_SETTINGS_KEYS.ALLOW_DELEGATE_JUDGE_CERTIFICATION,
+        tenantId,
+      },
+      select: {
+        value: true,
+      },
+    });
+
+    const globalSetting = !tenantSetting
+      ? await this.prisma.systemSetting.findFirst({
+          where: {
+            key: SCORING_SETTINGS_KEYS.ALLOW_DELEGATE_JUDGE_CERTIFICATION,
+            tenantId: null,
+          },
+          select: {
+            value: true,
+          },
+        })
+      : null;
+
+    const rawValue = tenantSetting?.value ?? globalSetting?.value ?? null;
+    const normalized = String(rawValue || '').trim().toLowerCase();
+    return ['true', '1', 'yes', 'on'].includes(normalized);
   }
 
   async listGrants(
@@ -536,6 +571,54 @@ export class ScoreDelegationService extends BaseService {
     return {
       judgeId: normalizedRepresentedJudgeId,
       entryMode: 'DELEGATED',
+      delegationGrantId: grant.id,
+    };
+  }
+
+  async resolveCertificationContext(
+    actor: DelegateActor,
+    tenantId: string,
+    categoryId: string,
+    representedJudgeId?: string | null,
+  ): Promise<DelegatedJudgeCertificationContext | null> {
+    const actorJudgeId = this.getActorJudgeId(actor);
+    const normalizedRepresentedJudgeId = representedJudgeId?.trim() || null;
+
+    if (!normalizedRepresentedJudgeId) {
+      if (!actorJudgeId) {
+        return null;
+      }
+
+      return {
+        judgeId: actorJudgeId,
+        certificationMode: 'SELF',
+        delegationGrantId: null,
+      };
+    }
+
+    if (normalizedRepresentedJudgeId === actorJudgeId) {
+      return {
+        judgeId: normalizedRepresentedJudgeId,
+        certificationMode: 'SELF',
+        delegationGrantId: null,
+      };
+    }
+
+    const delegateCertificationAllowed = await this.isDelegateJudgeCertificationAllowed(tenantId);
+    if (!delegateCertificationAllowed) {
+      throw this.forbiddenError('Delegate certification on behalf of judges is not enabled for this tenant');
+    }
+
+    const { grant } = await this.validateDelegatedAccess(
+      actor.id,
+      tenantId,
+      normalizedRepresentedJudgeId,
+      categoryId,
+    );
+
+    return {
+      judgeId: normalizedRepresentedJudgeId,
+      certificationMode: 'DELEGATED',
       delegationGrantId: grant.id,
     };
   }

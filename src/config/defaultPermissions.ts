@@ -9,6 +9,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     '*',
     'delegated-scores:read',
     'delegated-scores:write',
+    'delegated-scores:certify',
     'score-delegations:read',
     'score-delegations:write',
     'score-delegations:revoke',
