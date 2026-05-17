@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { eventsAPI, tenantsAPI } from '../services/api'
 import {
   CalendarIcon,
@@ -26,6 +27,7 @@ import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import { EventCardSkeleton } from '../components/ui/SkeletonPatterns'
 import { safeFormatDate } from '../utils/dateUtils'
 import { isInteractiveElement } from '../utils/interactive'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 interface Event {
   id: string
@@ -183,9 +185,14 @@ const EventsPage: React.FC = () => {
     isOpen: false,
     event: null,
   })
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
 
   // Check permissions
-  const canManageEvents = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const canManageEvents = hasPermissionAction(permissionSet, 'events:write')
 
   const eventSortOptions = isSuperAdmin
     ? [

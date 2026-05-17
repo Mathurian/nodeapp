@@ -13,10 +13,14 @@ import {
   getWinnersPublicationStatus,
   getWinnersPublicationOverview
 } from '../controllers/winnersController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
+const requireResultsRead = requirePermission('results:read');
+const requireResultsWrite = requirePermission('results:write');
+const requireCertificationsRead = requirePermission('certifications:read');
+const requireCertificationsWrite = requirePermission('certifications:write');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -33,7 +37,7 @@ router.use(authenticateToken)
  *       200:
  *         description: Winners retrieved successfully
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinners)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), requireResultsRead, getWinners)
 
 /**
  * @swagger
@@ -53,7 +57,7 @@ router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCE
  *       200:
  *         description: Category winners retrieved successfully
  */
-router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByCategory)
+router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), requireResultsRead, getWinnersByCategory)
 
 /**
  * @swagger
@@ -73,20 +77,20 @@ router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANI
  *       200:
  *         description: Contest winners retrieved successfully
  */
-router.get('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersByContest)
-router.post('/category/:categoryId/sign', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('SIGN_WINNERS', 'WINNER'), signWinners)
-router.get('/category/:categoryId/signatures', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), getSignatureStatus)
+router.get('/contest/:contestId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), requireResultsRead, getWinnersByContest)
+router.post('/category/:categoryId/sign', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), requireCertificationsWrite, logActivity('SIGN_WINNERS', 'WINNER'), signWinners)
+router.get('/category/:categoryId/signatures', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireCertificationsRead, getSignatureStatus)
 
 // Certification endpoints
-router.get('/category/:categoryId/certification-progress', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getCertificationProgress)
-router.get('/category/:categoryId/certification-status/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), getRoleCertificationStatus)
-router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), logActivity('CERTIFY_SCORES', 'CERTIFICATION'), certifyScores)
+router.get('/category/:categoryId/certification-progress', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), requireCertificationsRead, getCertificationProgress)
+router.get('/category/:categoryId/certification-status/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']), requireCertificationsRead, getRoleCertificationStatus)
+router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), requireCertificationsWrite, logActivity('CERTIFY_SCORES', 'CERTIFICATION'), certifyScores)
 
 // Winners publication control endpoints
-router.get('/publication-overview', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersPublicationOverview)
-router.get('/contest/:contestId/publication-status', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), getWinnersPublicationStatus)
-router.post('/contest/:contestId/publish', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), logActivity('PUBLISH_WINNERS', 'CONTEST'), publishWinners)
-router.post('/contest/:contestId/unpublish', requireRole(['SUPER_ADMIN', 'ADMIN']), logActivity('UNPUBLISH_WINNERS', 'CONTEST'), unpublishWinners)
+router.get('/publication-overview', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), requireResultsRead, getWinnersPublicationOverview)
+router.get('/contest/:contestId/publication-status', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']), requireResultsRead, getWinnersPublicationStatus)
+router.post('/contest/:contestId/publish', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), requireResultsWrite, logActivity('PUBLISH_WINNERS', 'CONTEST'), publishWinners)
+router.post('/contest/:contestId/unpublish', requireRole(['SUPER_ADMIN', 'ADMIN']), requireResultsWrite, logActivity('UNPUBLISH_WINNERS', 'CONTEST'), unpublishWinners)
 
 export default router;
 

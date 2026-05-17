@@ -1,14 +1,13 @@
 import express, { Router } from 'express';
 import { getAllResults, getCategories, getScopeOptions, getContestantResults, getCategoryResults, getContestResults, getEventResults } from '../controllers/resultsController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission } from '../middleware/auth';
 
 const router: Router = express.Router();
+const requireResultsRead = requirePermission('results:read');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
-
-// Apply role-based access control - all authenticated users with appropriate roles can access results
-router.use(requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'CONTESTANT', 'EMCEE']))
+router.use(requireResultsRead)
 
 /**
  * @swagger

@@ -20,11 +20,13 @@ import {
   getJudgeContestLimitPolicy,
   updateJudgeContestLimitPolicy
 } from '../controllers/assignmentsController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { validateAssignmentCreation, validateAssignmentQuery } from '../middleware/assignmentValidation';
 
 const router: Router = express.Router();
+const requireAssignmentsRead = requirePermission('assignments:read');
+const requireAssignmentsWrite = requirePermission('assignments:write');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -59,9 +61,10 @@ router.get(
   '/',
   validateAssignmentQuery,
   requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'TALLY_MASTER', 'AUDITOR']),
+  requireAssignmentsRead,
   getAllAssignments
 )
-router.post('/', validateAssignmentCreation, requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('CREATE_ASSIGNMENT', 'ASSIGNMENT'), createAssignment)
+router.post('/', validateAssignmentCreation, requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('CREATE_ASSIGNMENT', 'ASSIGNMENT'), createAssignment)
 
 /**
  * @swagger
@@ -75,7 +78,7 @@ router.post('/', validateAssignmentCreation, requireRole(['SUPER_ADMIN', 'ADMIN'
  *       200:
  *         description: Judges retrieved successfully
  */
-router.get('/judges', getJudges)
+router.get('/judges', requireAssignmentsRead, getJudges)
 
 /**
  * @swagger
@@ -89,32 +92,32 @@ router.get('/judges', getJudges)
  *       200:
  *         description: Categories retrieved successfully
  */
-router.get('/categories', getCategories)
+router.get('/categories', requireAssignmentsRead, getCategories)
 
 // Contestant endpoints
-router.get('/contestants', getContestants)
-router.get('/contestants/assignments', getAllContestantAssignments)
-router.get('/category/:categoryId/contestants', getCategoryContestants)
-router.post('/contestants', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ASSIGN_CONTESTANT', 'ASSIGNMENT'), assignContestantToCategory)
-router.delete('/category/:categoryId/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_CONTESTANT', 'ASSIGNMENT'), removeContestantFromCategory)
+router.get('/contestants', requireAssignmentsRead, getContestants)
+router.get('/contestants/assignments', requireAssignmentsRead, getAllContestantAssignments)
+router.get('/category/:categoryId/contestants', requireAssignmentsRead, getCategoryContestants)
+router.post('/contestants', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('ASSIGN_CONTESTANT', 'ASSIGNMENT'), assignContestantToCategory)
+router.delete('/category/:categoryId/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('REMOVE_CONTESTANT', 'ASSIGNMENT'), removeContestantFromCategory)
 
 // Tally Master Assignment endpoints
-router.get('/tally-masters', getTallyMasterAssignments)
-router.post('/tally-masters', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ASSIGN_TALLY_MASTER', 'ASSIGNMENT'), createTallyMasterAssignment)
-router.delete('/tally-masters/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_TALLY_MASTER', 'ASSIGNMENT'), removeTallyMasterAssignment)
+router.get('/tally-masters', requireAssignmentsRead, getTallyMasterAssignments)
+router.post('/tally-masters', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('ASSIGN_TALLY_MASTER', 'ASSIGNMENT'), createTallyMasterAssignment)
+router.delete('/tally-masters/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('REMOVE_TALLY_MASTER', 'ASSIGNMENT'), removeTallyMasterAssignment)
 
 // Auditor Assignment endpoints
-router.get('/auditors', getAuditorAssignments)
-router.post('/auditors', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ASSIGN_AUDITOR', 'ASSIGNMENT'), createAuditorAssignment)
-router.delete('/auditors/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_AUDITOR', 'ASSIGNMENT'), removeAuditorAssignment)
+router.get('/auditors', requireAssignmentsRead, getAuditorAssignments)
+router.post('/auditors', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('ASSIGN_AUDITOR', 'ASSIGNMENT'), createAuditorAssignment)
+router.delete('/auditors/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('REMOVE_AUDITOR', 'ASSIGNMENT'), removeAuditorAssignment)
 
 // Assignment policy endpoints
-router.get('/policies/judge-contest-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getJudgeContestLimitPolicy)
-router.put('/policies/judge-contest-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_ASSIGNMENT_POLICY', 'ASSIGNMENT'), updateJudgeContestLimitPolicy)
+router.get('/policies/judge-contest-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsRead, getJudgeContestLimitPolicy)
+router.put('/policies/judge-contest-limit', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('UPDATE_ASSIGNMENT_POLICY', 'ASSIGNMENT'), updateJudgeContestLimitPolicy)
 
 // Legacy endpoints for backward compatibility
-router.post('/judge', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ASSIGN_JUDGE', 'ASSIGNMENT'), assignJudge)
-router.put('/remove/:assignmentId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_ASSIGNMENT', 'ASSIGNMENT'), removeAssignment)
+router.post('/judge', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('ASSIGN_JUDGE', 'ASSIGNMENT'), assignJudge)
+router.put('/remove/:assignmentId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsWrite, logActivity('REMOVE_ASSIGNMENT', 'ASSIGNMENT'), removeAssignment)
 
 export default router;
 

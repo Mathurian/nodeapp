@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { api, assignmentsAPI, roleAssignmentsAPI, tenantsAPI } from '../services/api'
 import { useOptimisticMutation } from '../hooks'
 import { getOptimisticRowClass } from '../components/ui'
@@ -16,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 import { compareCategories, compareContestants, compareContests, compareEvents, compareText, compareUsersByName, stableSort } from '../utils/listOrdering'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 interface Judge {
   id: string
@@ -278,8 +280,13 @@ const AssignmentsPage: React.FC = () => {
   const [policyEventId, setPolicyEventId] = useState('')
   const [tenantPolicyInput, setTenantPolicyInput] = useState('1')
   const [eventPolicyInput, setEventPolicyInput] = useState('')
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
 
-  const canManageAssignments = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
+  const canManageAssignments = hasPermissionAction(permissionSet, 'assignments:write')
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const policyTenantId = isSuperAdmin ? selectedTenantId : undefined
   const isPolicyContextReady = !isSuperAdmin || !!policyTenantId

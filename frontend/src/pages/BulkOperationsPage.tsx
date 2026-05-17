@@ -73,6 +73,7 @@ const BulkOperationsPage: React.FC = () => {
     () => permissionSetFromList(permissionsPayload?.permissions || []),
     [permissionsPayload?.permissions]
   )
+  const canManageBulkUsers = hasPermissionAction(permissionSet, 'users:write')
   const canReadTemplates = hasPermissionAction(permissionSet, 'templates:read')
 
   useEffect(() => {
@@ -124,6 +125,10 @@ const BulkOperationsPage: React.FC = () => {
   }, [activeTab, canReadTemplates])
 
   const handleImport = async () => {
+    if (!canManageBulkUsers) {
+      setError('You do not have permission to import users')
+      return
+    }
     if (!file) {
       setError('Please select a file')
       return
@@ -151,6 +156,10 @@ const BulkOperationsPage: React.FC = () => {
   }
 
   const handleBulkEmail = async () => {
+    if (!canManageBulkUsers) {
+      setError('You do not have permission to send bulk email from this page')
+      return
+    }
     if (!emailData.subject || !emailData.content) {
       setError('Subject and content are required')
       return
@@ -263,6 +272,10 @@ const BulkOperationsPage: React.FC = () => {
   }
 
   const downloadTemplate = async () => {
+    if (!canManageBulkUsers) {
+      setError('You do not have permission to download user import templates')
+      return
+    }
     try {
       const response = await usersAPI.getCSVTemplate('UNIVERSAL')
       const blob = new Blob([response.data], { type: 'text/csv' })
@@ -279,7 +292,7 @@ const BulkOperationsPage: React.FC = () => {
     }
   }
 
-  if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ORGANIZER' && user?.role !== 'BOARD') {
+  if (!canManageBulkUsers) {
     return (
       <div className="cgr-page-container">
         <Card className="p-12 text-center">
@@ -348,10 +361,11 @@ const BulkOperationsPage: React.FC = () => {
             </h2>
             <div className="space-y-4">
               <div>
-                <button
-                  onClick={downloadTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
+              <button
+                onClick={downloadTemplate}
+                disabled={!canManageBulkUsers}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
                   <DocumentTextIcon className="h-5 w-5" />
                   Download CSV Template
                 </button>
@@ -365,13 +379,14 @@ const BulkOperationsPage: React.FC = () => {
                   type="file"
                   accept=".csv"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  disabled={!canManageBulkUsers}
                   className="w-full text-gray-900 dark:text-white dark:text-white"
                 />
               </div>
 
               <button
                 onClick={handleImport}
-                disabled={!file || loading}
+                disabled={!canManageBulkUsers || !file || loading}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <CloudArrowUpIcon className="h-5 w-5" />
@@ -599,7 +614,7 @@ const BulkOperationsPage: React.FC = () => {
 
               <button
                 onClick={handleBulkEmail}
-                disabled={loading}
+                disabled={!canManageBulkUsers || loading}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <EnvelopeIcon className="h-5 w-5" />

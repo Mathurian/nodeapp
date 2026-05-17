@@ -1,10 +1,12 @@
 import express, { Router } from 'express';
 import { getAllContests, getContestById, getContestsByEvent, createContest, updateContest, deleteContest, restoreContest, archiveContest, reactivateContest, getOlympicScoringValidation, getMinimumWinningScore, updateMinimumWinningScore, cloneContest } from '../controllers/contestsController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import { validate, createContestSchema, updateContestSchema, cloneContestSchema } from '../middleware/validation';
 import { logActivity } from '../middleware/errorHandler';
 
 const router: Router = express.Router();
+const requireContestsRead = requirePermission('contests:read');
+const requireContestsWrite = requirePermission('contests:write');
 
 // Apply authentication to all routes
 router.use(authenticateToken);
@@ -21,7 +23,7 @@ router.use(authenticateToken);
  *       200:
  *         description: List of all active contests
  */
-router.get('/', getAllContests);
+router.get('/', requireContestsRead, getAllContests);
 
 /**
  * @swagger
@@ -41,7 +43,7 @@ router.get('/', getAllContests);
  *       200:
  *         description: List of contests for the event
  */
-router.get('/event/:eventId', getContestsByEvent);
+router.get('/event/:eventId', requireContestsRead, getContestsByEvent);
 
 /**
  * @swagger
@@ -61,7 +63,7 @@ router.get('/event/:eventId', getContestsByEvent);
  *       200:
  *         description: Contest details
  */
-router.get('/:id', getContestById);
+router.get('/:id', requireContestsRead, getContestById);
 
 /**
  * @swagger
@@ -94,14 +96,14 @@ router.get('/:id', getContestById);
  *       201:
  *         description: Contest created successfully
  */
-router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createContestSchema), logActivity('CREATE_CONTEST', 'CONTEST'), createContest);
-router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateContestSchema), logActivity('UPDATE_CONTEST', 'CONTEST'), updateContest);
-router.post('/:id/clone', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(cloneContestSchema), logActivity('CLONE_CONTEST', 'CONTEST'), cloneContest);
-router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_CONTEST', 'CONTEST'), deleteContest);
+router.post('/event/:eventId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, validate(createContestSchema), logActivity('CREATE_CONTEST', 'CONTEST'), createContest);
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, validate(updateContestSchema), logActivity('UPDATE_CONTEST', 'CONTEST'), updateContest);
+router.post('/:id/clone', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, validate(cloneContestSchema), logActivity('CLONE_CONTEST', 'CONTEST'), cloneContest);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, logActivity('DELETE_CONTEST', 'CONTEST'), deleteContest);
 // S4-3: Restore soft-deleted contests
-router.post('/:id/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('RESTORE_CONTEST', 'CONTEST'), restoreContest);
-router.post('/:id/archive', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('ARCHIVE_CONTEST', 'CONTEST'), archiveContest);
-router.post('/:id/reactivate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REACTIVATE_CONTEST', 'CONTEST'), reactivateContest);
+router.post('/:id/restore', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, logActivity('RESTORE_CONTEST', 'CONTEST'), restoreContest);
+router.post('/:id/archive', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, logActivity('ARCHIVE_CONTEST', 'CONTEST'), archiveContest);
+router.post('/:id/reactivate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, logActivity('REACTIVATE_CONTEST', 'CONTEST'), reactivateContest);
 
 /**
  * @swagger
@@ -146,9 +148,9 @@ router.post('/:id/reactivate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER',
  *                 canMigrateToStraight:
  *                   type: boolean
  */
-router.get('/:id/olympic-scoring-validation', getOlympicScoringValidation);
-router.get('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE', 'CONTESTANT']), getMinimumWinningScore);
-router.put('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_CONTEST_MIN_WINNING_SCORE', 'CONTEST'), updateMinimumWinningScore);
+router.get('/:id/olympic-scoring-validation', requireContestsRead, getOlympicScoringValidation);
+router.get('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE', 'CONTESTANT']), requireContestsRead, getMinimumWinningScore);
+router.put('/:id/minimum-winning-score', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireContestsWrite, logActivity('UPDATE_CONTEST_MIN_WINNING_SCORE', 'CONTEST'), updateMinimumWinningScore);
 
 export default router;
 

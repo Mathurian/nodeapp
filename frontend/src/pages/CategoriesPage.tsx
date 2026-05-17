@@ -183,12 +183,11 @@ const CategoriesPage: React.FC = () => {
   const [creationMode, setCreationMode] = useState<'blank' | 'template'>('blank')
   const [selectedCategoryTemplateId, setSelectedCategoryTemplateId] = useState('')
 
-  // Check permissions
-  const canManageCategories = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
   const permissionSet = useMemo(
     () => permissionSetFromList(permissionsPayload?.permissions || []),
     [permissionsPayload?.permissions]
   )
+  const canManageCategories = hasPermissionAction(permissionSet, 'categories:write')
   const canReadTemplates = hasPermissionAction(permissionSet, 'templates:read')
   const canWriteTemplates = hasPermissionAction(permissionSet, 'templates:write')
   const canCreateFromTemplates = canReadTemplates && canWriteTemplates

@@ -10,7 +10,7 @@ import { BulkUserController } from '../controllers/BulkUserController';
 import { BulkEventController } from '../controllers/BulkEventController';
 import { BulkContestController } from '../controllers/BulkContestController';
 import { BulkAssignmentController } from '../controllers/BulkAssignmentController';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -37,6 +37,14 @@ const bulkAssignmentController = container.resolve(BulkAssignmentController);
 
 // All bulk routes require authentication and ADMIN role
 router.use(authenticateToken);
+
+router.post(
+  '/assignments/delete',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']),
+  requirePermission('assignments:write'),
+  (req, res) => bulkAssignmentController.deleteAssignments(req, res)
+);
+
 router.use(requireRole(['SUPER_ADMIN', 'ADMIN']));
 
 /**
@@ -584,9 +592,6 @@ router.post('/assignments/create', (req, res) =>
  *       403:
  *         description: Forbidden - requires ADMIN role
  */
-router.post('/assignments/delete', (req, res) =>
-  bulkAssignmentController.deleteAssignments(req, res)
-);
 
 /**
  * @swagger

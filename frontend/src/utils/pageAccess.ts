@@ -81,6 +81,11 @@ export const canAccessPageByPolicy = (
   const hasBaseRole = policy.baseRoles.includes(normalizedRole)
   if (policy.hardProtected) return hasBaseRole
 
+  if (policy.requiredAction) {
+    if (!hasBaseRole || !permissionSet) return false
+    return hasPermissionAction(permissionSet, policy.requiredAction)
+  }
+
   if (policy.requireResourcePermission && policy.resource) {
     if (!hasBaseRole || !permissionSet) return false
     return candidateResources(policy.resource)

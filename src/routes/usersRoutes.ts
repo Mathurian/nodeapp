@@ -10,7 +10,7 @@ import {
   getAllUsers, getUserById, createUser, updateUser, deleteUser, resetPassword, importUsersFromCSV, getCSVTemplate, updateLastLogin, bulkRemoveUsers, removeAllUsersByRole, getUsersByRole, updateUserRoleFields, getUserStats, uploadUserImage, uploadUserBioFile, bulkUploadUsers, bulkDeleteUsers, getBulkUploadTemplate, getContestantPrivateProfile, uploadContestantPrivateFiles, downloadContestantPrivateFile, deleteContestantPrivateFile
 } from '../controllers/usersController';
 import {
-  authenticateToken, requireRole
+  authenticateToken, requireAnyPermission, requirePermission, requireRole
 } from '../middleware/auth';
 import {
   validate, createUserSchema, updateUserSchema
@@ -21,6 +21,9 @@ import {
 import { FILE_SIZE } from '../config/constants';
 
 const router: Router = express.Router();
+const requireUsersRead = requirePermission('users:read');
+const requireUsersWrite = requirePermission('users:write');
+const requireUsersOrContestantsRead = requireAnyPermission(['users:read', 'contestants:read']);
 
 const getRequestPrisma = (req: express.Request, res: express.Response) => {
   if (!req.prisma) {
@@ -148,20 +151,20 @@ router.use(authenticateToken)
  *                   items:
  *                     $ref: '#/components/schemas/User'
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getAllUsers)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getAllUsers)
 
 // Bulk template routes - must be before /:id route to avoid route conflict
-router.get('/bulk-template', getBulkUploadTemplate)
-router.get('/bulk-template/:userType', getBulkUploadTemplate)
-router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getCSVTemplate)
+router.get('/bulk-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getBulkUploadTemplate)
+router.get('/bulk-template/:userType', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getBulkUploadTemplate)
+router.get('/csv-template', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getCSVTemplate)
 
 // Role-based user lookup — must be before /:id to prevent route shadowing
-router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUsersByRole)
-router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getUserStats)
-router.get('/:id/contestant-private-profile', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']), getContestantPrivateProfile)
-router.post('/:id/contestant-private-files', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), contestantPrivateDocumentUpload.array('files', 10), logActivity('UPLOAD_CONTESTANT_PRIVATE_FILES', 'USER'), uploadContestantPrivateFiles)
-router.get('/:id/contestant-private-files/:fileId/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']), downloadContestantPrivateFile)
-router.delete('/:id/contestant-private-files/:fileId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), logActivity('DELETE_CONTESTANT_PRIVATE_FILE', 'USER'), deleteContestantPrivateFile)
+router.get('/role/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getUsersByRole)
+router.get('/stats', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getUserStats)
+router.get('/:id/contestant-private-profile', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']), requireUsersOrContestantsRead, getContestantPrivateProfile)
+router.post('/:id/contestant-private-files', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireUsersWrite, contestantPrivateDocumentUpload.array('files', 10), logActivity('UPLOAD_CONTESTANT_PRIVATE_FILES', 'USER'), uploadContestantPrivateFiles)
+router.get('/:id/contestant-private-files/:fileId/download', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE']), requireUsersOrContestantsRead, downloadContestantPrivateFile)
+router.delete('/:id/contestant-private-files/:fileId', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireUsersWrite, logActivity('DELETE_CONTESTANT_PRIVATE_FILE', 'USER'), deleteContestantPrivateFile)
 
 /**
  * @swagger
@@ -183,7 +186,7 @@ router.delete('/:id/contestant-private-files/:fileId', requireRole(['SUPER_ADMIN
  *       404:
  *         description: User not found
  */
-router.get('/:id', getUserById)
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersRead, getUserById)
 
 /**
  * @swagger
@@ -224,11 +227,11 @@ router.get('/:id', getUserById)
  *       400:
  *         description: Validation error
  */
-router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(createUserSchema), logActivity('CREATE_USER', 'USER'), createUser)
-router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), validate(updateUserSchema), logActivity('UPDATE_USER', 'USER'), updateUser)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, validate(createUserSchema), logActivity('CREATE_USER', 'USER'), createUser)
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, validate(updateUserSchema), logActivity('UPDATE_USER', 'USER'), updateUser)
 router.put('/profile/:id', validate(updateUserSchema), logActivity('UPDATE_PROFILE', 'USER'), updateUser)
-router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('DELETE_USER', 'USER'), deleteUser)
-router.post('/:id/reset-password', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), resetPassword)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, logActivity('DELETE_USER', 'USER'), deleteUser)
+router.post('/:id/reset-password', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, resetPassword)
 
 // Change password (self-service)
 router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), async (req, res) => {
@@ -272,13 +275,13 @@ router.post('/:id/change-password', logActivity('CHANGE_PASSWORD', 'USER'), asyn
 })
 
 // CSV Import routes
-router.post('/import-csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), csvUpload.single('file'), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
+router.post('/import-csv', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, csvUpload.single('file'), logActivity('IMPORT_USERS_CSV', 'USER'), importUsersFromCSV)
 
 // User management routes
 router.put('/:id/last-login', updateLastLogin)
-router.post('/bulk-remove', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_REMOVE_USERS', 'USER'), bulkRemoveUsers)
-router.post('/remove-all/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('REMOVE_ALL_USERS_BY_ROLE', 'USER'), removeAllUsersByRole)
-router.put('/:id/role-fields', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('UPDATE_USER_ROLE_FIELDS', 'USER'), updateUserRoleFields)
+router.post('/bulk-remove', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, logActivity('BULK_REMOVE_USERS', 'USER'), bulkRemoveUsers)
+router.post('/remove-all/:role', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, logActivity('REMOVE_ALL_USERS_BY_ROLE', 'USER'), removeAllUsersByRole)
+router.put('/:id/role-fields', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, logActivity('UPDATE_USER_ROLE_FIELDS', 'USER'), updateUserRoleFields)
 
 // User image upload route (with activity logging, auth, and file validation)
 // Allow users to upload their own image, or admins/organizers/board to upload for others
@@ -290,7 +293,9 @@ router.post('/:id/image',
       return next();
     }
     // For other users, require admin/organizer/board role
-    return requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])(req, res, next);
+    return requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])(req, res, () =>
+      requireUsersWrite(req, res, next)
+    );
   },
   logActivity('UPLOAD_USER_IMAGE', 'USER'),
   uploadUserImage
@@ -306,15 +311,17 @@ router.post('/:id/bio-file',
       return next();
     }
     // For other users, require admin/organizer/board role
-    return requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])(req, res, next);
+    return requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])(req, res, () =>
+      requireUsersWrite(req, res, next)
+    );
   },
   logActivity('UPLOAD_USER_BIO_FILE', 'USER'),
   uploadUserBioFile
 )
 
 // Bulk operations routes
-router.post('/bulk-upload', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), csvUpload.single('file'), logActivity('BULK_UPLOAD_USERS', 'USERS'), bulkUploadUsers)
-router.post('/bulk-delete', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), logActivity('BULK_DELETE_USERS', 'USERS'), bulkDeleteUsers)
+router.post('/bulk-upload', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, csvUpload.single('file'), logActivity('BULK_UPLOAD_USERS', 'USERS'), bulkUploadUsers)
+router.post('/bulk-delete', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireUsersWrite, logActivity('BULK_DELETE_USERS', 'USERS'), bulkDeleteUsers)
 
 // Tenant reassignment (SUPER_ADMIN only)
 router.put('/:id/tenant', requireRole(['SUPER_ADMIN']), logActivity('REASSIGN_USER_TENANT', 'USER'), async (req, res, next) => {

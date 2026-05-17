@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { contestsAPI, eventsAPI, resultsAPI, winnersAPI } from '../services/api'
 import { TrophyIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/react/24/outline'
 import { Button, Card, PageHeader } from '../components/ui'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 
 interface Contest {
   id: string
@@ -87,14 +89,19 @@ interface PublicationOverviewPayload {
 
 const WinnersPage: React.FC = () => {
   const { user } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(user) })
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const [selectedEventId, setSelectedEventId] = useState<string>(searchParams.get('eventId') || 'ALL')
   const [selectedContestId, setSelectedContestId] = useState<string>(searchParams.get('contestId') || 'ALL')
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
 
   const canManagePublish = useMemo(
-    () => ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || ''),
-    [user?.role]
+    () => hasPermissionAction(permissionSet, 'results:write'),
+    [permissionSet]
   )
   const isEmcee = user?.role === 'EMCEE'
 

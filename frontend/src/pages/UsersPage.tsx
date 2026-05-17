@@ -1,12 +1,14 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
+import useAuthPermissions from '../hooks/useAuthPermissions'
 import { usersAPI, api } from '../services/api'
 import { UsersIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { DateFilters } from '../components/DateFilterControls'
 import { Button, Card, ConfirmModal, PageHeader } from '../components/ui'
 import { useOptimisticMutation } from '../hooks'
+import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 import {
   UserTable,
   UserForm,
@@ -47,6 +49,7 @@ interface ContestantPrivateProfileResponse {
  */
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuth()
+  const { data: permissionsPayload } = useAuthPermissions({ enabled: Boolean(currentUser) })
   const queryClient = useQueryClient()
 
   // Filter state
@@ -93,9 +96,14 @@ const UsersPage: React.FC = () => {
   const [loadingCustomFields, setLoadingCustomFields] = useState(true)
 
   // Check permissions
-  const canManageUsers = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(currentUser?.role || '')
+  const permissionSet = useMemo(
+    () => permissionSetFromList(permissionsPayload?.permissions || []),
+    [permissionsPayload?.permissions]
+  )
+  const canManageUsers = hasPermissionAction(permissionSet, 'users:write')
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
-  const canManageContestantPrivateData = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(currentUser?.role || '')
+  const canManageContestantPrivateData =
+    canManageUsers && ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER'].includes(currentUser?.role || '')
 
   // Fetch custom fields for USER entity type
   React.useEffect(() => {

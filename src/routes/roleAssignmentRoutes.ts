@@ -1,12 +1,14 @@
 import express, { Router } from 'express';
 const router: Router = express.Router();
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
 import {
   getAllRoleAssignments,
   createRoleAssignment,
   deleteRoleAssignment,
   updateRoleAssignment
 } from '../controllers/roleAssignmentController';
+const requireAssignmentsRead = requirePermission('assignments:read');
+const requireAssignmentsWrite = requirePermission('assignments:write');
 
 // Apply authentication to all routes
 router.use(authenticateToken)
@@ -37,14 +39,14 @@ router.use(authenticateToken)
  *       201:
  *         description: Role assignment created successfully
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), getAllRoleAssignments)
-router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), createRoleAssignment)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireAssignmentsRead, getAllRoleAssignments)
+router.post('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireAssignmentsWrite, createRoleAssignment)
 
 // Update a role assignment
-router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), updateRoleAssignment)
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireAssignmentsWrite, updateRoleAssignment)
 
 // Delete a role assignment
-router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), deleteRoleAssignment)
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']), requireAssignmentsWrite, deleteRoleAssignment)
 
 export default router;
 

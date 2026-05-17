@@ -3,6 +3,7 @@ export interface PageAccessPolicy {
   path: string
   baseRoles: string[]
   resource?: string
+  requiredAction?: string
   allowCrudReadOverride?: boolean
   requireResourcePermission?: boolean
   hardProtected?: boolean
@@ -40,10 +41,10 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'winners', path: '/winners', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR'], resource: 'results', allowCrudReadOverride: true },
   { id: 'reports', path: '/reports', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'reports', requireResourcePermission: true },
 
-  { id: 'users', path: '/users', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
-  { id: 'assignments', path: '/assignments', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'assignments', allowCrudReadOverride: true },
-  { id: 'bulk-operations', path: '/bulk-operations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
-  { id: 'send-email', path: '/send-email', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', allowCrudReadOverride: true },
+  { id: 'users', path: '/users', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', requiredAction: 'users:write' },
+  { id: 'assignments', path: '/assignments', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'assignments', requiredAction: 'assignments:write' },
+  { id: 'bulk-operations', path: '/bulk-operations', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', requiredAction: 'users:write' },
+  { id: 'send-email', path: '/send-email', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'users', requiredAction: 'users:write' },
 
   { id: 'admin', path: '/admin', baseRoles: ['SUPER_ADMIN', 'ADMIN'], hardProtected: true },
   { id: 'settings', path: '/settings', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'settings', allowCrudReadOverride: true },

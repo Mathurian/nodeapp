@@ -170,12 +170,11 @@ const ContestsPage: React.FC = () => {
   const [selectedTemplateContestId, setSelectedTemplateContestId] = useState('')
   const focusedContestId = searchParams.get('contestId') || ''
 
-  // Check permissions
-  const canManageContests = ['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD'].includes(user?.role || '')
   const permissionSet = useMemo(
     () => permissionSetFromList(permissionsPayload?.permissions || []),
     [permissionsPayload?.permissions]
   )
+  const canManageContests = hasPermissionAction(permissionSet, 'contests:write')
   const canReadTemplates = hasPermissionAction(permissionSet, 'templates:read')
   const canCreateFromTemplates =
     canReadTemplates && hasPermissionAction(permissionSet, 'templates:write')
