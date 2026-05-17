@@ -1,14 +1,14 @@
 import express, { Router } from 'express';
 import { getCategories, getScores, submitScore, updateScore, deleteScore, certifyScore, certifyScores, certifyTotals, finalCertification, requestDeduction, approveDeduction, rejectDeduction, getDeductions, unsignScore, uncertifyCategory } from '../controllers/scoringController';
-import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
+import { authenticateToken, requireAnyPermission, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { validate, createScoreSchema, updateScoreSchema } from '../middleware/validation';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router: Router = express.Router();
 const requireScoresRead = requirePermission('scores:read');
-const requireScoresWrite = requirePermission('scores:write');
-const requireScoresDelete = requirePermission('scores:delete');
+const requireScoringWrite = requireAnyPermission(['scores:write', 'delegated-scores:write']);
+const requireScoringDelete = requireAnyPermission(['scores:delete', 'delegated-scores:write']);
 const requireScoresCertify = requirePermission('scores:certify');
 const requireScoresUncertify = requirePermission('scores:uncertify');
 const requireScoresUnsign = requirePermission('scores:unsign');
@@ -85,8 +85,8 @@ router.get('/category/:categoryId/contestant/:contestantId',
  *         description: Score submitted successfully
  */
 router.post('/category/:categoryId/contestant/:contestantId',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']),
-  requireScoresWrite,
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireScoringWrite,
   idempotencyMiddleware,
   validate(createScoreSchema, 'body'),
   logActivity('SUBMIT_SCORE', 'SCORE'),
@@ -99,14 +99,14 @@ router.post('/category/:categoryId/uncertify', requireRole(['SUPER_ADMIN', 'ADMI
 
 // Score-specific routes (must come after category routes)
 router.put('/:scoreId',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']),
-  requireScoresWrite,
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireScoringWrite,
   idempotencyMiddleware,
   validate(updateScoreSchema, 'body'),
   logActivity('UPDATE_SCORE', 'SCORE'),
   updateScore
 )
-router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), requireScoresDelete, idempotencyMiddleware, logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
+router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoringDelete, idempotencyMiddleware, logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
 router.post('/:scoreId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), requireScoresCertify, logActivity('CERTIFY_SCORE', 'SCORE'), certifyScore)
 router.post('/:scoreId/unsign', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireScoresUnsign, logActivity('UNSIGN_SCORE', 'SCORE'), unsignScore)
 

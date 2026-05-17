@@ -28,6 +28,8 @@ export interface UploadScoreFileDTO {
   filePath: string;
   fileSize: number;
   notes?: string;
+  entryMode?: 'SELF' | 'DELEGATED';
+  delegationGrantId?: string | null;
 }
 
 export interface UpdateScoreFileDTO {
@@ -152,6 +154,8 @@ export class ScoreFileService extends BaseService {
             filePath: data.filePath,
             fileSize: data.fileSize,
             uploadedById,
+            entryMode: data.entryMode || 'SELF',
+            delegationGrantId: data.delegationGrantId || null,
             status: 'pending',
             notes: data.notes || null,
             updatedAt: new Date()

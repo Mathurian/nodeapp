@@ -246,7 +246,9 @@ export const commentaryAPI = {
 }
 
 export const scoringAPI = {
-  getScores: (categoryId: string, contestantId: string) => api.get(`/scoring/category/${categoryId}/contestant/${contestantId}`),
+  getScores: (categoryId: string, contestantId: string, representedJudgeId?: string) => api.get(`/scoring/category/${categoryId}/contestant/${contestantId}`, {
+    params: representedJudgeId ? { representedJudgeId } : undefined,
+  }),
   submitScore: (categoryIdOrData: string | any, contestantIdOrData?: string, data?: any, config?: any) => {
     if (typeof categoryIdOrData === 'string' && typeof contestantIdOrData === 'string') {
       // Called with (categoryId, contestantId, data)
@@ -293,6 +295,29 @@ export const scoreFilesAPI = {
   getByContestant: (contestantId: string) => api.get(`/score-files/contestant/${contestantId}`),
   download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' }),
   remove: (id: string, config?: any) => api.delete(`/score-files/${id}`, config)
+}
+
+export const scoreDelegationsAPI = {
+  getAll: (params?: { activeOnly?: boolean; delegateUserId?: string }) =>
+    api.get('/score-delegations', { params }),
+  getEligibleJudges: (categoryId: string) =>
+    api.get('/score-delegations/eligible-judges', { params: { categoryId } }),
+  validate: (data: { categoryId: string; representedJudgeId: string }) =>
+    api.post('/score-delegations/validate', data),
+  create: (data: {
+    delegateUserId: string;
+    scopeLevel: 'CATEGORY' | 'CONTEST' | 'EVENT' | 'TENANT';
+    coverageMode: 'SELECTED_JUDGES' | 'ALL_JUDGES_IN_SCOPE';
+    judgeIds?: string[];
+    categoryId?: string | null;
+    contestId?: string | null;
+    eventId?: string | null;
+    startsAt?: string | null;
+    expiresAt?: string | null;
+    reason?: string;
+  }) => api.post('/score-delegations', data),
+  revoke: (id: string, reason?: string) =>
+    api.post(`/score-delegations/${id}/revoke`, reason ? { reason } : {}),
 }
 
 export const resultsAPI = {

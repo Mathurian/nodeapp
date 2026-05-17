@@ -5,7 +5,14 @@ import { UserRole } from '@prisma/client';
  */
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   SUPER_ADMIN: ['*'],
-  ADMIN: ['*'],
+  ADMIN: [
+    '*',
+    'delegated-scores:read',
+    'delegated-scores:write',
+    'score-delegations:read',
+    'score-delegations:write',
+    'score-delegations:revoke',
+  ],
   ORGANIZER: [
     'events:*', 'contests:*', 'categories:*', 'users:*', 'reports:*',
     'templates:*', 'settings:*', 'backup:*', 'emcee:*', 'category-types:*',

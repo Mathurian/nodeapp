@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import useAuthPermissions from '../hooks/useAuthPermissions'
-import { commentaryAPI, scoringAPI, scoreFilesAPI, usersAPI } from '../services/api'
+import { commentaryAPI, scoringAPI, scoreDelegationsAPI, scoreFilesAPI, usersAPI } from '../services/api'
 import { useMobileWorkflowNavigation, useOptimisticMutation } from '../hooks'
 import { Card, MobileWorkflowNav, OptimisticIndicator, OptimisticStatus, PageHeader } from '../components/ui'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from '../services/idempotency'
@@ -150,6 +150,14 @@ interface ContestantPrivateProfile {
   privateDocuments: ContestantPrivateDocument[]
 }
 
+interface DelegatedJudgeOption {
+  judgeId: string
+  judgeName: string
+  judgeEmail: string | null
+  grantIds: string[]
+  coverageModes: Array<'SELECTED_JUDGES' | 'ALL_JUDGES_IN_SCOPE'>
+}
+
 interface ScoringWorkspaceDraft {
   selectedContestId: string
   selectedContestName?: string | null
@@ -158,6 +166,7 @@ interface ScoringWorkspaceDraft {
   selectedContestantId: string | null
   selectedContestantName?: string | null
   selectedContestantNumber?: number | null
+  representedJudgeId?: string | null
   scoreFormData: Record<string, ScoreFormData>
   categoryComment: string
   isSignOffChecked: boolean
@@ -213,6 +222,7 @@ const scoringDraftPayloadSignature = (draft: Partial<ScoringWorkspaceDraft> | nu
     selectedContestantId: draft.selectedContestantId || '',
     selectedContestantName: draft.selectedContestantName || '',
     selectedContestantNumber: draft.selectedContestantNumber ?? null,
+    representedJudgeId: draft.representedJudgeId || '',
     scoreFormData: normalizeScoreDraftFormData(draft.scoreFormData || {}),
     categoryComment: draft.categoryComment || '',
     isSignOffChecked: Boolean(draft.isSignOffChecked),
@@ -340,6 +350,7 @@ const ScoringPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [selectedContestId, setSelectedContestId] = useState<string>('')
   const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null)
+  const [representedJudgeId, setRepresentedJudgeId] = useState<string>('')
   const [scoreFormData, setScoreFormData] = useState<Record<string, ScoreFormData>>({})
   const [categoryComment, setCategoryComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -380,7 +391,15 @@ const ScoringPage: React.FC = () => {
   const canReadScoreFiles = hasPermissionAction(permissionSet, 'score-files:read')
   const canUploadScoreFiles = hasPermissionAction(permissionSet, 'score-files:upload')
   const canDeleteScoreFiles = hasPermissionAction(permissionSet, 'score-files:delete')
-  const requiresSignOff = user?.role === 'JUDGE'
+  const canUseDelegatedScoring = hasPermissionAction(permissionSet, 'delegated-scores:write')
+    && hasPermissionAction(permissionSet, 'score-delegations:read')
+  const selfJudgeId = (user as { judgeId?: string } | null)?.judgeId || user?.judge?.id || ''
+  const effectiveRepresentedJudgeId = representedJudgeId || selfJudgeId || ''
+  const isDelegatedMode = Boolean(
+    effectiveRepresentedJudgeId &&
+      (!selfJudgeId || effectiveRepresentedJudgeId !== selfJudgeId),
+  )
+  const requiresSignOff = user?.role === 'JUDGE' && !isDelegatedMode
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
   const commentaryScope = selectedCategory?.commentaryScope || 'CATEGORY'
   const supportsCriterionCommentary = commentaryMode !== 'PER_CATEGORY'
@@ -545,8 +564,68 @@ const ScoringPage: React.FC = () => {
     }
   }
 
-  // Judge Scoring is limited to roles that can directly enter or manage scoring on this page.
-  const isJudge = ['JUDGE', 'SUPER_ADMIN', 'ADMIN', 'BOARD'].includes(user?.role || '')
+  // Scoring access requires either a linked judge context or delegated-scoring permission.
+  const canAccessScoringWorkspace = Boolean(selfJudgeId || canUseDelegatedScoring)
+
+  const { data: eligibleDelegatedJudges = [] } = useQuery<DelegatedJudgeOption[]>(
+    ['eligible-delegated-judges', user?.id, selectedCategory?.id],
+    async () => {
+      if (!selectedCategory) return []
+      const response = await scoreDelegationsAPI.getEligibleJudges(selectedCategory.id)
+      const payload = response.data?.data ?? response.data
+      return Array.isArray(payload) ? payload : []
+    },
+    {
+      enabled: canUseDelegatedScoring && !!selectedCategory,
+      retry: 1,
+    },
+  )
+
+  useEffect(() => {
+    if (selfJudgeId && !canUseDelegatedScoring) {
+      setRepresentedJudgeId(selfJudgeId)
+      return
+    }
+
+    if (!canUseDelegatedScoring) {
+      return
+    }
+
+    if (selectedCategory && eligibleDelegatedJudges.length === 0) {
+      setRepresentedJudgeId(selfJudgeId || '')
+      return
+    }
+
+    if (
+      effectiveRepresentedJudgeId &&
+      effectiveRepresentedJudgeId === selfJudgeId
+    ) {
+      return
+    }
+
+    if (
+      effectiveRepresentedJudgeId &&
+      eligibleDelegatedJudges.some((judge) => judge.judgeId === effectiveRepresentedJudgeId)
+    ) {
+      return
+    }
+
+    if (selfJudgeId && !isDelegatedMode) {
+      setRepresentedJudgeId(selfJudgeId)
+      return
+    }
+
+    if (eligibleDelegatedJudges.length === 1) {
+      setRepresentedJudgeId(eligibleDelegatedJudges[0].judgeId)
+    }
+  }, [
+    canUseDelegatedScoring,
+    effectiveRepresentedJudgeId,
+    eligibleDelegatedJudges,
+    isDelegatedMode,
+    selectedCategory,
+    selfJudgeId,
+  ])
 
   // Fetch categories assigned to the judge
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>(
@@ -558,7 +637,7 @@ const ScoringPage: React.FC = () => {
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
-      enabled: isJudge,
+      enabled: canAccessScoringWorkspace,
       refetchInterval: 30000, // Refresh every 30 seconds
       retry: 1,
       onError: (err) => console.error('Fetch categories failed:', err),
@@ -626,47 +705,52 @@ const ScoringPage: React.FC = () => {
 
   // Fetch existing scores for selected contestant
   const { data: existingScores, error: existingScoresError, isLoading: existingScoresLoading } = useQuery<Score[]>(
-    ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
+    ['contestant-scores', selectedCategory?.id, selectedContestant?.id, effectiveRepresentedJudgeId],
     async () => {
-      if (!selectedCategory || !selectedContestant) return []
-      const response = await scoringAPI.getScores(selectedCategory.id, selectedContestant.id)
+      if (!selectedCategory || !selectedContestant || !effectiveRepresentedJudgeId) return []
+      const response = await scoringAPI.getScores(selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId)
       const unwrapped = response.data?.data ?? response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
-      enabled: !!selectedCategory && !!selectedContestant,
+      enabled: !!selectedCategory && !!selectedContestant && !!effectiveRepresentedJudgeId,
       retry: 1,
       onError: (err) => console.error('Fetch existing scores failed:', err),
     }
   )
 
   const { data: scoreAttachments = [] } = useQuery<ScoreAttachment[]>(
-    ['score-attachments', selectedCategory?.id, selectedContestant?.id],
+    ['score-attachments', selectedCategory?.id, selectedContestant?.id, effectiveRepresentedJudgeId],
     async () => {
-      if (!selectedCategory || !selectedContestant) return []
+      if (!selectedCategory || !selectedContestant || !effectiveRepresentedJudgeId) return []
       const response = await scoreFilesAPI.getAll({
         categoryId: selectedCategory.id,
         contestantId: selectedContestant.id,
+        judgeId: effectiveRepresentedJudgeId,
       })
       const unwrapped = response.data?.data || response.data
       return Array.isArray(unwrapped) ? unwrapped : []
     },
     {
-      enabled: !!selectedCategory && !!selectedContestant && canReadScoreFiles,
+      enabled: !!selectedCategory && !!selectedContestant && !!effectiveRepresentedJudgeId && canReadScoreFiles,
       retry: 1,
     }
   )
 
   const { data: existingCategoryComment = '' } = useQuery<string>(
-    ['category-comment', sharedCommentaryScopeKey, selectedContestant?.id],
+    ['category-comment', sharedCommentaryScopeKey, selectedContestant?.id, effectiveRepresentedJudgeId],
     async () => {
-      if (!selectedCategory || !selectedContestant) return ''
-      const response = await commentaryAPI.getCategoryComment(selectedCategory.id, selectedContestant.id)
+      if (!selectedCategory || !selectedContestant || !effectiveRepresentedJudgeId) return ''
+      const response = await commentaryAPI.getCategoryComment(
+        selectedCategory.id,
+        selectedContestant.id,
+        effectiveRepresentedJudgeId,
+      )
       const payload = response.data?.data ?? response.data
       return typeof payload?.comment === 'string' ? payload.comment : ''
     },
     {
-      enabled: !!selectedCategory && !!selectedContestant && supportsCategoryCommentary,
+      enabled: !!selectedCategory && !!selectedContestant && !!effectiveRepresentedJudgeId && supportsCategoryCommentary,
       retry: 1,
       onError: (err) => console.error('Fetch category comment failed:', err),
     }
@@ -741,7 +825,8 @@ const ScoringPage: React.FC = () => {
   const restoredDraftMatchesSelection = Boolean(
     activeSelectionKey &&
       restoredDraft?.selectedCategoryId === selectedCategory?.id &&
-      restoredDraft?.selectedContestantId === selectedContestant?.id,
+      restoredDraft?.selectedContestantId === selectedContestant?.id &&
+      (restoredDraft?.representedJudgeId || selfJudgeId || '') === effectiveRepresentedJudgeId,
   )
   const draftInitializationKey = activeSelectionKey
     ? `${activeSelectionKey}:${restoredDraftMatchesSelection ? restoredDraft?.updatedAt || 'no-draft' : 'no-draft'}`
@@ -752,6 +837,7 @@ const ScoringPage: React.FC = () => {
         restoredDraft.selectedContestId,
         restoredDraft.selectedCategoryId || '',
         restoredDraft.selectedContestantId || '',
+        restoredDraft.representedJudgeId || '',
       ].join(':')
     : null
   const restoredDraftSelectionKey = restoredDraft
@@ -759,6 +845,7 @@ const ScoringPage: React.FC = () => {
         restoredDraft.selectedContestId || '',
         restoredDraft.selectedCategoryId || '',
         restoredDraft.selectedContestantId || '',
+        restoredDraft.representedJudgeId || '',
       ].join(':')
     : null
   const resumeRequestedAt = (
@@ -963,6 +1050,14 @@ const ScoringPage: React.FC = () => {
       return
     }
 
+    if (
+      restoredDraft.representedJudgeId &&
+      representedJudgeId !== restoredDraft.representedJudgeId
+    ) {
+      setRepresentedJudgeId(restoredDraft.representedJudgeId)
+      return
+    }
+
     restoredSelectionDraftKeyRef.current = restoredDraftKey
     setDraftRestoreResolved(true)
   }, [
@@ -971,6 +1066,7 @@ const ScoringPage: React.FC = () => {
     filteredCategories,
     restoredDraft,
     restoredDraftKey,
+    representedJudgeId,
     selectedCategory?.id,
     selectedContestId,
     selectedContestant?.id,
@@ -1010,7 +1106,8 @@ const ScoringPage: React.FC = () => {
     const restoredSelectionMatches =
       selectedContestId === restoredDraft.selectedContestId &&
       selectedCategory?.id === restoredDraft.selectedCategoryId &&
-      selectedContestant?.id === restoredDraft.selectedContestantId
+      selectedContestant?.id === restoredDraft.selectedContestantId &&
+      (restoredDraft.representedJudgeId || '') === representedJudgeId
 
     if (!restoredSelectionMatches || announcedRestoredDraftKeyRef.current === restoredDraftSelectionKey) {
       return
@@ -1028,6 +1125,7 @@ const ScoringPage: React.FC = () => {
     draftRestoreResolved,
     restoredDraft,
     restoredDraftSelectionKey,
+    representedJudgeId,
     selectedCategory?.id,
     selectedContestId,
     selectedContestant?.id,
@@ -1210,6 +1308,7 @@ const ScoringPage: React.FC = () => {
         selectedContestantId: selectedContestant?.id || null,
         selectedContestantName: selectedContestant?.name || null,
         selectedContestantNumber: selectedContestant?.contestantNumber ?? null,
+        representedJudgeId: effectiveRepresentedJudgeId || null,
         scoreFormData,
         categoryComment,
         isSignOffChecked,
@@ -1250,6 +1349,7 @@ const ScoringPage: React.FC = () => {
     existingScoresLoading,
     scoreDraftHasMeaningfulChanges,
     scoreFormData,
+    effectiveRepresentedJudgeId,
     selectedCategory?.id,
     selectedContestId,
     selectedContestant?.id,
@@ -1268,6 +1368,7 @@ const ScoringPage: React.FC = () => {
         'contestant-scores',
         data.categoryId,
         data.contestantId,
+        effectiveRepresentedJudgeId,
       ])
       let latestScores: Score[] = getNormalizedScores(
         cachedScores ?? normalizedExistingScores,
@@ -1275,11 +1376,15 @@ const ScoringPage: React.FC = () => {
 
       if (typeof navigator === 'undefined' || navigator.onLine) {
         try {
-          const response = await scoringAPI.getScores(data.categoryId, data.contestantId)
+          const response = await scoringAPI.getScores(
+            data.categoryId,
+            data.contestantId,
+            effectiveRepresentedJudgeId,
+          )
           const authoritativeScores = getNormalizedScores(response.data?.data ?? response.data)
           latestScores = authoritativeScores
           queryClient.setQueryData(
-            ['contestant-scores', data.categoryId, data.contestantId],
+            ['contestant-scores', data.categoryId, data.contestantId, effectiveRepresentedJudgeId],
             authoritativeScores,
           )
         } catch (error) {
@@ -1299,6 +1404,7 @@ const ScoringPage: React.FC = () => {
         const payload = {
           score: Number(scoreData.score),
           comments: scoreData.comment || '',
+          ...(isDelegatedMode ? { representedJudgeId: effectiveRepresentedJudgeId } : {}),
         }
         const criterion = effectiveCriteria.find((entry) => entry.id === scoreData.criterionId)
         const contestantLabel = selectedContestant?.name
@@ -1339,7 +1445,7 @@ const ScoringPage: React.FC = () => {
       }))
       return { success: true, hasQueuedWrites: writeOutcomes.includes('queued') }
     },
-    queryKey: ['contestant-scores', selectedCategory?.id, selectedContestant?.id],
+    queryKey: ['contestant-scores', selectedCategory?.id, selectedContestant?.id, effectiveRepresentedJudgeId],
     updateFn: (oldData, variables) => {
       // Optimistically update scores in cache
       const oldScores = Array.isArray(oldData)
@@ -1348,7 +1454,7 @@ const ScoringPage: React.FC = () => {
       const newScores = variables.scores.map((scoreData) => ({
         id: `optimistic-${scoreData.criterionId}`,
         contestantId: variables.contestantId,
-        judgeId: user?.id || '',
+        judgeId: effectiveRepresentedJudgeId || selfJudgeId || user?.id || '',
         categoryId: variables.categoryId,
         criterionId: scoreData.criterionId,
         score: Number(scoreData.score),
@@ -1442,6 +1548,10 @@ const ScoringPage: React.FC = () => {
 
   const handleSubmitScores = async () => {
     if (!selectedCategory || !selectedContestant) return
+    if (!effectiveRepresentedJudgeId) {
+      toast.error('Select a represented judge before submitting scores')
+      return
+    }
     if (requiresSignOff && !isSignOffChecked) {
       toast.error('You must certify/sign off before submitting scores')
       return
@@ -1480,7 +1590,7 @@ const ScoringPage: React.FC = () => {
         })
         : { success: true as const, hasQueuedWrites: false }
       const categoryCommentOutcome = await persistCategoryComment()
-      await queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id])
+      await queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id, effectiveRepresentedJudgeId])
       const hasQueuedWrites = submitResult.hasQueuedWrites || categoryCommentOutcome === 'queued'
       if (requiresSignOff) {
         if (hasQueuedWrites || hasPendingScoreSync) {
@@ -1583,7 +1693,7 @@ const ScoringPage: React.FC = () => {
         drawnSignatureData: drawnSignatureData || undefined
       })
       if (selectedContestant) {
-        await queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id])
+        await queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId])
       }
       await queryClient.invalidateQueries(['scoring-categories'])
       setShowSignatureModal(false)
@@ -1603,7 +1713,7 @@ const ScoringPage: React.FC = () => {
   }
 
   const uploadAttachmentNow = async (file: File, criterionId?: string, silent = false) => {
-    if (!selectedCategory || !selectedContestant || !file) return
+    if (!selectedCategory || !selectedContestant || !file || !effectiveRepresentedJudgeId) return
     const contextKey = criterionId ? `criterion-${criterionId}` : 'category'
     setUploadingContext(contextKey)
     try {
@@ -1611,6 +1721,9 @@ const ScoringPage: React.FC = () => {
       formData.append('file', file)
       formData.append('categoryId', selectedCategory.id)
       formData.append('contestantId', selectedContestant.id)
+      if (isDelegatedMode && effectiveRepresentedJudgeId) {
+        formData.append('representedJudgeId', effectiveRepresentedJudgeId)
+      }
       if (criterionId) {
         formData.append('criterionId', criterionId)
         formData.append('contextType', 'CRITERION_COMMENT')
@@ -1632,7 +1745,7 @@ const ScoringPage: React.FC = () => {
           onRetry: () => setSaveStatus('retrying'),
         },
       )
-      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
+      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId])
       if (!silent) toast.success('Attachment uploaded')
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to upload attachment')
@@ -1701,7 +1814,7 @@ const ScoringPage: React.FC = () => {
     if (!selectedCategory || !selectedContestant) return
     try {
       await scoreFilesAPI.remove(fileId)
-      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id])
+      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId])
       toast.success('Attachment removed')
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to remove attachment')
@@ -1709,7 +1822,7 @@ const ScoringPage: React.FC = () => {
   }
 
   const persistCategoryComment = async (): Promise<CategoryCommentPersistOutcome> => {
-    if (!selectedCategory || !selectedContestant || !supportsCategoryCommentary) {
+    if (!selectedCategory || !selectedContestant || !supportsCategoryCommentary || !effectiveRepresentedJudgeId) {
       return 'unchanged'
     }
 
@@ -1729,13 +1842,19 @@ const ScoringPage: React.FC = () => {
       `category-comment-update:${sharedCommentaryScopeKey}:${selectedContestant.id}`,
       `/commentary/category/${selectedCategory.id}/contestant/${selectedContestant.id}`,
       'PUT',
-      { comment: categoryComment },
+      {
+        comment: categoryComment,
+        ...(isDelegatedMode ? { judgeId: effectiveRepresentedJudgeId } : {}),
+      },
       `category-comment:${sharedCommentaryScopeKey}:${selectedContestant.id}`,
       async (headers) => {
         await commentaryAPI.updateCategoryComment(
           selectedCategory.id,
           selectedContestant.id,
-          { comment: categoryComment },
+          {
+            comment: categoryComment,
+            ...(isDelegatedMode ? { judgeId: effectiveRepresentedJudgeId } : {}),
+          },
           { headers },
         )
       },
@@ -1744,7 +1863,7 @@ const ScoringPage: React.FC = () => {
   }
 
   const handleUpdateCommentary = async () => {
-    if (!selectedCategory || !selectedContestant) return
+    if (!selectedCategory || !selectedContestant || !effectiveRepresentedJudgeId) return
 
     setUpdatingCommentary(true)
     try {
@@ -1769,10 +1888,20 @@ const ScoringPage: React.FC = () => {
             `comment-update:${score.id}`,
             `/scoring/${score.id}`,
             'PUT',
-            { comments: nextComment },
+            {
+              comments: nextComment,
+              ...(isDelegatedMode ? { representedJudgeId: effectiveRepresentedJudgeId } : {}),
+            },
             `comment:${score.id}`,
             async (headers) => {
-              await scoringAPI.updateScore(score.id, { comments: nextComment }, { headers })
+              await scoringAPI.updateScore(
+                score.id,
+                {
+                  comments: nextComment,
+                  ...(isDelegatedMode ? { representedJudgeId: effectiveRepresentedJudgeId } : {}),
+                },
+                { headers },
+              )
             },
             { notifyOnQueued: false, summary: commentSummary },
           )
@@ -1798,9 +1927,9 @@ const ScoringPage: React.FC = () => {
       }
 
       await Promise.all([
-        queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id]),
-        queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id]),
-        queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id]),
+        queryClient.invalidateQueries(['contestant-scores', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId]),
+        queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId]),
+        queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id, effectiveRepresentedJudgeId]),
       ])
 
       setPendingCommentaryFiles([])
@@ -1815,14 +1944,14 @@ const ScoringPage: React.FC = () => {
   }
 
   // Authorization check
-  if (!isJudge) {
+  if (!canAccessScoringWorkspace) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <XCircleIcon className="mx-auto h-12 w-12 text-red-500" />
           <h2 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Access Denied</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-            You must be a judge to access the scoring page.
+            This page requires a linked judge profile or delegated scoring permission.
           </p>
         </div>
       </div>
@@ -1889,7 +2018,9 @@ const ScoringPage: React.FC = () => {
       <div className="cgr-page-container">
         <PageHeader
           title="Scoring Dashboard"
-          subtitle={assignedContests.length > 1 ? 'Select a contest, category, and contestant to begin scoring' : 'Select a category and contestant to begin scoring'}
+          subtitle={assignedContests.length > 1
+            ? 'Select a contest, category, represented judge, and contestant to begin scoring'
+            : 'Select a category, represented judge, and contestant to begin scoring'}
           icon={TrophyIcon}
         />
 
@@ -1962,6 +2093,41 @@ const ScoringPage: React.FC = () => {
           {/* Middle Column: Contestants */}
           <div ref={contestantSectionRef} className="lg:col-span-1">
             <Card className="rounded-lg p-6">
+              {canUseDelegatedScoring && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <label htmlFor="pages-scoringpage-represented-judge" className="block text-sm font-medium text-amber-900 mb-1">
+                    Represented Judge
+                  </label>
+                  <p className="mb-2 text-xs text-amber-800">
+                    Delegated score entry records you as the entry actor and does not certify scores for the represented judge.
+                  </p>
+                  <select
+                    id="pages-scoringpage-represented-judge"
+                    value={representedJudgeId}
+                    onChange={(event) => {
+                      setRepresentedJudgeId(event.target.value)
+                      setSelectedContestant(null)
+                    }}
+                    className="w-full rounded-md border border-amber-200 bg-white px-3 py-2 text-gray-900"
+                    disabled={!selectedCategory}
+                  >
+                    {!selectedCategory && <option value="">Select a category first</option>}
+                    {selectedCategory && !selfJudgeId && eligibleDelegatedJudges.length === 0 && (
+                      <option value="">No active delegation covers this category</option>
+                    )}
+                    {selfJudgeId && (
+                      <option value={selfJudgeId}>My judging lane</option>
+                    )}
+                    {eligibleDelegatedJudges
+                      .filter((judge) => judge.judgeId !== selfJudgeId)
+                      .map((judge) => (
+                        <option key={judge.judgeId} value={judge.judgeId}>
+                          {judge.judgeName}{judge.judgeEmail ? ` (${judge.judgeEmail})` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Contestants
               </h2>

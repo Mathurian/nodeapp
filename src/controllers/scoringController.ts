@@ -9,6 +9,7 @@ import { ScoringService, SubmitScoreDTO, UpdateScoreDTO } from '../services/Scor
 import { ContestantScoreFilterService } from '../services/ContestantScoreFilterService';
 import { AuditLogService } from '../services/AuditLogService';
 import { PermissionScopeService } from '../services/PermissionScopeService';
+import { ScoreDelegationService } from '../services/ScoreDelegationService';
 import {
   sendSuccess,
   sendNotFound,
@@ -44,12 +45,14 @@ export class ScoringController {
   private contestantFilterService: ContestantScoreFilterService;
   private prisma: PrismaClient;
   private permissionScopeService: PermissionScopeService;
+  private scoreDelegationService: ScoreDelegationService;
 
   constructor() {
     this.scoringService = container.resolve(ScoringService);
     this.contestantFilterService = container.resolve(ContestantScoreFilterService);
     this.prisma = container.resolve<PrismaClient>('PrismaClient');
     this.permissionScopeService = container.resolve(PermissionScopeService);
+    this.scoreDelegationService = container.resolve(ScoreDelegationService);
   }
 
   private getEffectiveTenantId(req: Request): string | null {
@@ -172,6 +175,29 @@ export class ScoringController {
     };
   }
 
+  private getRequestJudgeId(req: Request): string | null {
+    return req.user?.judgeId || req.user?.judge?.id || null;
+  }
+
+  private async canActForJudgeInCategory(
+    req: Request,
+    tenantId: string,
+    representedJudgeId: string,
+    categoryId: string,
+  ): Promise<boolean> {
+    if (!req.user) return false;
+    if (req.user.role === 'SUPER_ADMIN' || req.user.role === 'ADMIN') return true;
+    if (this.getRequestJudgeId(req) === representedJudgeId) return true;
+
+    await this.scoreDelegationService.validateDelegatedAccess(
+      req.user.id,
+      tenantId,
+      representedJudgeId,
+      categoryId,
+    );
+    return true;
+  }
+
   /**
    * Get scores for a category
    * PHASE 2.1: Enforces contestant score visibility restrictions
@@ -222,7 +248,13 @@ export class ScoringController {
 
       // For non-contestant roles, use original logic
       let judgeFilterId: string | undefined;
-      if (userRole === 'JUDGE') {
+      const representedJudgeId = typeof req.query['representedJudgeId'] === 'string'
+        ? req.query['representedJudgeId']
+        : undefined;
+      if (representedJudgeId) {
+        await this.canActForJudgeInCategory(req, tenantId, representedJudgeId, categoryId);
+        judgeFilterId = representedJudgeId;
+      } else if (userRole === 'JUDGE') {
         judgeFilterId = req.user?.judgeId || req.user?.judge?.id;
         if (!judgeFilterId && userId) {
           const linkedUser = await this.prisma.user.findFirst({
@@ -254,14 +286,15 @@ export class ScoringController {
 
       const categoryId = req.params['categoryId']!;
       const contestantId = req.params['contestantId']!;
-      const { criteriaId, score, comments } = req.body;
+      const { criteriaId, score, comments, representedJudgeId } = req.body;
 
       const data: SubmitScoreDTO = {
         categoryId,
         contestantId,
         criteriaId,
         score,
-        comments
+        comments,
+        representedJudgeId,
       };
 
       log.info('Score submission requested', {
@@ -299,7 +332,10 @@ export class ScoringController {
             contestantId,
             criteriaId,
             score,
-            judgeId: req.user.id
+            judgeId: newScore.judgeId,
+            enteredByUserId: req.user.id,
+            entryMode: (newScore as any).entryMode || 'SELF',
+            delegationGrantId: (newScore as any).delegationGrantId || null,
           }
         );
       } catch (auditError) {
@@ -340,6 +376,7 @@ export class ScoringController {
         where: { id: scoreId, tenantId },
         select: {
           id: true,
+          categoryId: true,
           score: true,
           isLocked: true,
           isCertified: true,
@@ -362,11 +399,19 @@ export class ScoringController {
 
       // Non-admins can only update their own scores
       const isAdminLike = userRole === 'SUPER_ADMIN' || userRole === 'ADMIN';
-      if (!isAdminLike && existingScore.judgeId !== req.user?.judgeId) {
+      const actorJudgeId = this.getRequestJudgeId(req);
+      let authorizedJudgeId = actorJudgeId;
+      let usingDelegation = false;
+      if (!isAdminLike && existingScore.judgeId !== actorJudgeId) {
+        await this.canActForJudgeInCategory(req, tenantId, existingScore.judgeId, existingScore.categoryId);
+        authorizedJudgeId = existingScore.judgeId;
+        usingDelegation = true;
+      }
+      if (!isAdminLike && !authorizedJudgeId) {
         log.warn('Attempt to update another judge\'s score', {
           scoreId,
           userId: req.user?.id,
-          userJudgeId: req.user?.judgeId,
+          userJudgeId: actorJudgeId,
           scoreJudgeId: existingScore.judgeId
         });
         errorResponse(res, 'Can only update your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);
@@ -463,7 +508,7 @@ export class ScoringController {
       };
 
       if (!isAdminLike) {
-        whereConditions.judgeId = req.user?.judgeId;
+        whereConditions.judgeId = authorizedJudgeId;
       }
 
       // Atomic update: all checks happen in the database query
@@ -508,11 +553,11 @@ export class ScoringController {
           return;
         }
 
-        if (existingScore.judgeId !== req.user?.judgeId) {
+        if (!usingDelegation && existingScore.judgeId !== actorJudgeId) {
           log.warn('Attempt to update another judge\'s score', {
             scoreId,
             userId: req.user?.id,
-            userJudgeId: req.user?.judgeId,
+            userJudgeId: actorJudgeId,
             scoreJudgeId: existingScore.judgeId
           });
           errorResponse(res, 'Can only update your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);
@@ -608,6 +653,15 @@ export class ScoringController {
       }
 
       // RACE CONDITION FIX: Use atomic delete with all conditions in WHERE clause
+      const actorJudgeId = this.getRequestJudgeId(req);
+      let authorizedJudgeId = actorJudgeId;
+      let usingDelegation = false;
+      if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN' && score.judgeId !== actorJudgeId) {
+        await this.canActForJudgeInCategory(req, tenantId, score.judgeId, score.categoryId);
+        authorizedJudgeId = score.judgeId;
+        usingDelegation = true;
+      }
+
       const whereConditions: any = {
         id: scoreId,
         tenantId: tenantId,
@@ -617,7 +671,7 @@ export class ScoringController {
 
       // Non-admins can only delete their own scores
       if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
-        whereConditions.judgeId = req.user?.judgeId;
+        whereConditions.judgeId = authorizedJudgeId;
       }
 
       // Atomic delete: all checks happen in the database query
@@ -678,11 +732,11 @@ export class ScoringController {
           return;
         }
 
-        if (existingScore.judgeId !== req.user?.judgeId) {
+        if (!usingDelegation && existingScore.judgeId !== actorJudgeId) {
           log.warn('Attempt to delete another judge\'s score', {
             scoreId,
             userId: req.user?.id,
-            userJudgeId: req.user?.judgeId,
+            userJudgeId: actorJudgeId,
             scoreJudgeId: existingScore.judgeId
           });
           errorResponse(res, 'Can only delete your own scores', ErrorCode.AUTHORIZATION_ERROR, 403);

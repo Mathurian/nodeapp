@@ -84,6 +84,7 @@ import featureFlagsRoutes from '../routes/featureFlagsRoutes'
 import testRunnerRoutes from '../routes/testRunnerRoutes'
 import permissionsRoutes from '../routes/permissionsRoutes'
 import scoreGovernanceRoutes from '../routes/scoreGovernanceRoutes'
+import scoreDelegationRoutes from '../routes/scoreDelegationRoutes'
 import databaseHealthRoutes from '../routes/databaseHealthRoutes'
 import monitoringRoutes from '../routes/monitoringRoutes'
 import telemetryRoutes from '../routes/telemetryRoutes'
@@ -147,6 +148,7 @@ export const registerRoutes = (app: Application): void => {
   // Scoring and results
   registerRoute(app, '/scoring', scoringRoutes);
   registerRoute(app, '/score-governance', scoreGovernanceRoutes);
+  registerRoute(app, '/score-delegations', scoreDelegationRoutes);
   registerRoute(app, '/score-files', scoreFileRoutes);
   registerRoute(app, '/results', resultsRoutes);
   registerRoute(app, '/winners', winnersRoutes);

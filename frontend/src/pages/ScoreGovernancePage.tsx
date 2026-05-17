@@ -2,7 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { useLocation } from 'react-router-dom'
-import { scoreGovernanceAPI } from '../services/api'
+import {
+  assignmentsAPI,
+  categoriesAPI,
+  contestsAPI,
+  eventsAPI,
+  scoreDelegationsAPI,
+  scoreGovernanceAPI,
+  usersAPI,
+} from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import useAuthPermissions from '../hooks/useAuthPermissions'
 import { useMobileWorkflowNavigation } from '../hooks'
@@ -12,6 +20,25 @@ import { Button, Card, MobileWorkflowNav, PageHeader, ResponsiveTable } from '..
 type GovernanceAction = 'THROW_OUT' | 'UNCERTIFY' | 'ADJUST'
 type GovernanceScope = 'CATEGORY_JUDGE' | 'CONTEST_JUDGE' | 'SCORE' | 'CONTESTANT_CATEGORY' | 'CATEGORY_LEVEL' | 'CONTEST_LEVEL'
 type CertificationLevel = 'JUDGE' | 'TALLY_MASTER' | 'AUDITOR' | 'BOARD'
+type DelegationScopeLevel = 'TENANT' | 'EVENT' | 'CONTEST' | 'CATEGORY'
+type DelegationCoverageMode = 'SELECTED_JUDGES' | 'ALL_JUDGES_IN_SCOPE'
+
+type ScoreDelegationGrantRecord = {
+  id: string
+  delegateUser?: { id: string; name?: string | null; email?: string | null; role?: string | null } | null
+  grantedBy?: { id: string; name?: string | null; email?: string | null } | null
+  category?: { id: string; name?: string | null } | null
+  contest?: { id: string; name?: string | null } | null
+  event?: { id: string; name?: string | null } | null
+  judges?: Array<{ judgeId: string; judge?: { id: string; name?: string | null; email?: string | null } | null }>
+  scopeLevel: DelegationScopeLevel
+  coverageMode: DelegationCoverageMode
+  status: 'ACTIVE' | 'REVOKED' | 'EXPIRED'
+  startsAt: string
+  expiresAt?: string | null
+  revokedAt?: string | null
+  reason?: string | null
+}
 
 const ScoreGovernancePage: React.FC = () => {
   const { user } = useAuth()
@@ -46,6 +73,15 @@ const ScoreGovernancePage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING')
   const [actionFilter, setActionFilter] = useState<'ALL' | GovernanceAction>('ALL')
   const [showCompleted, setShowCompleted] = useState(false)
+  const [delegationDelegateUserId, setDelegationDelegateUserId] = useState('')
+  const [delegationScopeLevel, setDelegationScopeLevel] = useState<DelegationScopeLevel>('EVENT')
+  const [delegationCoverageMode, setDelegationCoverageMode] = useState<DelegationCoverageMode>('SELECTED_JUDGES')
+  const [delegationEventId, setDelegationEventId] = useState('')
+  const [delegationContestId, setDelegationContestId] = useState('')
+  const [delegationCategoryId, setDelegationCategoryId] = useState('')
+  const [delegationJudgeIds, setDelegationJudgeIds] = useState<string[]>([])
+  const [delegationExpiresAt, setDelegationExpiresAt] = useState('')
+  const [delegationReason, setDelegationReason] = useState('')
 
   const permissionSet = useMemo(
     () => permissionSetFromList(permissionsPayload?.permissions || []),
@@ -54,6 +90,9 @@ const ScoreGovernancePage: React.FC = () => {
   const canConfigure = hasPermissionAction(permissionSet, 'score-governance:configure')
   const canApprove = hasPermissionAction(permissionSet, 'score-governance:approve')
   const canRequest = hasPermissionAction(permissionSet, 'score-governance:request')
+  const canReadDelegations = hasPermissionAction(permissionSet, 'score-delegations:read')
+  const canCreateDelegations = hasPermissionAction(permissionSet, 'score-delegations:write')
+  const canRevokeDelegations = hasPermissionAction(permissionSet, 'score-delegations:revoke')
   const isJudge = user?.role === 'JUDGE'
 
   const formatScoreWithPossible = (row: any): string => {
@@ -91,6 +130,72 @@ const ScoreGovernancePage: React.FC = () => {
     })
     return extractRows(response)
   })
+
+  const { data: delegationGrants = [] } = useQuery<ScoreDelegationGrantRecord[]>(
+    ['score-delegation-grants'],
+    async () => {
+      const response = await scoreDelegationsAPI.getAll()
+      return extractRows(response)
+    },
+    {
+      enabled: canReadDelegations,
+    },
+  )
+
+  const { data: delegationUsers = [] } = useQuery<any[]>(
+    ['score-delegation-users'],
+    async () => {
+      const response = await usersAPI.getAll()
+      return extractRows(response)
+    },
+    {
+      enabled: canCreateDelegations,
+    },
+  )
+
+  const { data: delegationEvents = [] } = useQuery<any[]>(
+    ['score-delegation-events'],
+    async () => {
+      const response = await eventsAPI.getAll()
+      return extractRows(response)
+    },
+    {
+      enabled: canCreateDelegations,
+    },
+  )
+
+  const { data: delegationContests = [] } = useQuery<any[]>(
+    ['score-delegation-contests'],
+    async () => {
+      const response = await contestsAPI.getAll()
+      return extractRows(response)
+    },
+    {
+      enabled: canCreateDelegations,
+    },
+  )
+
+  const { data: delegationCategories = [] } = useQuery<any[]>(
+    ['score-delegation-categories'],
+    async () => {
+      const response = await categoriesAPI.getAll()
+      return extractRows(response)
+    },
+    {
+      enabled: canCreateDelegations,
+    },
+  )
+
+  const { data: delegationJudges = [] } = useQuery<any[]>(
+    ['score-delegation-judges'],
+    async () => {
+      const response = await assignmentsAPI.getJudges()
+      return extractRows(response)
+    },
+    {
+      enabled: canCreateDelegations,
+    },
+  )
 
   useQuery(
     'governance-settings',
@@ -372,6 +477,23 @@ const ScoreGovernancePage: React.FC = () => {
     }
   }, [showCompleted, statusFilter])
 
+  const filteredDelegationContests = useMemo(() => (
+    delegationContests.filter((contest: any) => !delegationEventId || contest.eventId === delegationEventId)
+  ), [delegationContests, delegationEventId])
+
+  const filteredDelegationCategories = useMemo(() => (
+    delegationCategories.filter((category: any) => {
+      if (delegationContestId) return category.contestId === delegationContestId
+      if (delegationEventId) return category.contest?.event?.id === delegationEventId || category.eventId === delegationEventId
+      return true
+    })
+  ), [delegationCategories, delegationContestId, delegationEventId])
+
+  const filteredDelegationJudges = useMemo(() => {
+    if (delegationCoverageMode === 'ALL_JUDGES_IN_SCOPE') return []
+    return delegationJudges
+  }, [delegationCoverageMode, delegationJudges])
+
   const createMutation = useMutation((payload: any) => scoreGovernanceAPI.createRequest(payload), {
     onSuccess: async () => {
       toast.success('Governance request submitted')
@@ -421,6 +543,45 @@ const ScoreGovernancePage: React.FC = () => {
         toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to update settings')
       }
     }
+  )
+
+  const createDelegationMutation = useMutation(
+    async () => scoreDelegationsAPI.create({
+      delegateUserId: delegationDelegateUserId,
+      scopeLevel: delegationScopeLevel,
+      coverageMode: delegationCoverageMode,
+      judgeIds: delegationCoverageMode === 'SELECTED_JUDGES' ? delegationJudgeIds : undefined,
+      eventId: delegationScopeLevel === 'EVENT' ? delegationEventId || null : null,
+      contestId: delegationScopeLevel === 'CONTEST' ? delegationContestId || null : null,
+      categoryId: delegationScopeLevel === 'CATEGORY' ? delegationCategoryId || null : null,
+      expiresAt: delegationExpiresAt || null,
+      reason: delegationReason || undefined,
+    }),
+    {
+      onSuccess: async () => {
+        toast.success('Score delegation grant created')
+        setDelegationJudgeIds([])
+        setDelegationReason('')
+        setDelegationExpiresAt('')
+        await queryClient.invalidateQueries('score-delegation-grants')
+      },
+      onError: (error: any) => {
+        toast.error(error?.response?.data?.message || error?.response?.data?.error || 'Failed to create delegation grant')
+      },
+    },
+  )
+
+  const revokeDelegationMutation = useMutation(
+    ({ id }: { id: string }) => scoreDelegationsAPI.revoke(id),
+    {
+      onSuccess: async () => {
+        toast.success('Score delegation grant revoked')
+        await queryClient.invalidateQueries('score-delegation-grants')
+      },
+      onError: (error: any) => {
+        toast.error(error?.response?.data?.message || error?.response?.data?.error || 'Failed to revoke delegation grant')
+      },
+    },
   )
 
   const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -475,6 +636,40 @@ const ScoreGovernancePage: React.FC = () => {
     if (!ctx) return
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     setDrawnSignatureData('')
+  }
+
+  const submitDelegationGrant = () => {
+    if (!canCreateDelegations) {
+      toast.error('You do not have permission to grant score delegations')
+      return
+    }
+
+    if (!delegationDelegateUserId) {
+      toast.error('Select a delegate user')
+      return
+    }
+
+    if (delegationScopeLevel === 'EVENT' && !delegationEventId) {
+      toast.error('Select an event scope')
+      return
+    }
+
+    if (delegationScopeLevel === 'CONTEST' && !delegationContestId) {
+      toast.error('Select a contest scope')
+      return
+    }
+
+    if (delegationScopeLevel === 'CATEGORY' && !delegationCategoryId) {
+      toast.error('Select a category scope')
+      return
+    }
+
+    if (delegationCoverageMode === 'SELECTED_JUDGES' && delegationJudgeIds.length === 0) {
+      toast.error('Select at least one represented judge')
+      return
+    }
+
+    createDelegationMutation.mutate()
   }
 
   const submitRequest = () => {
@@ -551,6 +746,190 @@ const ScoreGovernancePage: React.FC = () => {
           },
         ]}
       />
+
+      {(canReadDelegations || canCreateDelegations) && (
+        <Card className="rounded-lg p-4 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Delegated Score Entry</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Create and revoke on-behalf score-entry grants for one judge, selected judges, or all judges in scope.
+            </p>
+          </div>
+
+          {canCreateDelegations && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <select
+                value={delegationDelegateUserId}
+                onChange={(e) => setDelegationDelegateUserId(e.target.value)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="">Select delegate user</option>
+                {delegationUsers.map((entry: any) => (
+                  <option key={entry.id} value={entry.id}>
+                    {(entry.name || entry.email || entry.id)} {entry.role ? `(${entry.role})` : ''}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={delegationScopeLevel}
+                onChange={(e) => setDelegationScopeLevel(e.target.value as DelegationScopeLevel)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="TENANT">Tenant scope</option>
+                <option value="EVENT">Event scope</option>
+                <option value="CONTEST">Contest scope</option>
+                <option value="CATEGORY">Category scope</option>
+              </select>
+
+              <select
+                value={delegationCoverageMode}
+                onChange={(e) => setDelegationCoverageMode(e.target.value as DelegationCoverageMode)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="SELECTED_JUDGES">Selected judges</option>
+                <option value="ALL_JUDGES_IN_SCOPE">All judges in scope</option>
+              </select>
+
+              <input
+                type="datetime-local"
+                value={delegationExpiresAt}
+                onChange={(e) => setDelegationExpiresAt(e.target.value)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+
+              {delegationScopeLevel === 'EVENT' && (
+                <select
+                  value={delegationEventId}
+                  onChange={(e) => {
+                    setDelegationEventId(e.target.value)
+                    setDelegationContestId('')
+                    setDelegationCategoryId('')
+                  }}
+                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">Select event</option>
+                  {delegationEvents.map((entry: any) => (
+                    <option key={entry.id} value={entry.id}>{entry.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {delegationScopeLevel === 'CONTEST' && (
+                <select
+                  value={delegationContestId}
+                  onChange={(e) => {
+                    setDelegationContestId(e.target.value)
+                    setDelegationCategoryId('')
+                  }}
+                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">Select contest</option>
+                  {filteredDelegationContests.map((entry: any) => (
+                    <option key={entry.id} value={entry.id}>{entry.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {delegationScopeLevel === 'CATEGORY' && (
+                <select
+                  value={delegationCategoryId}
+                  onChange={(e) => setDelegationCategoryId(e.target.value)}
+                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">Select category</option>
+                  {filteredDelegationCategories.map((entry: any) => (
+                    <option key={entry.id} value={entry.id}>{entry.name}</option>
+                  ))}
+                </select>
+              )}
+
+              <input
+                type="text"
+                value={delegationReason}
+                onChange={(e) => setDelegationReason(e.target.value)}
+                placeholder="Reason / usage note"
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white md:col-span-2 xl:col-span-2"
+              />
+            </div>
+          )}
+
+          {canCreateDelegations && delegationCoverageMode === 'SELECTED_JUDGES' && (
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Represented Judges</p>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {filteredDelegationJudges.map((judge: any) => (
+                  <label key={judge.id} className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={delegationJudgeIds.includes(judge.id)}
+                      onChange={(e) => {
+                        setDelegationJudgeIds((current) => (
+                          e.target.checked
+                            ? Array.from(new Set([...current, judge.id]))
+                            : current.filter((id) => id !== judge.id)
+                        ))
+                      }}
+                    />
+                    <span>{judge.name || judge.email || judge.id}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {canCreateDelegations && (
+            <div className="flex justify-end">
+              <Button onClick={submitDelegationGrant} disabled={createDelegationMutation.isLoading}>
+                Create Delegation Grant
+              </Button>
+            </div>
+          )}
+
+          {canReadDelegations && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Active / Recent Grants</h3>
+              {delegationGrants.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No delegation grants found.</p>
+              ) : (
+                <div className="space-y-2">
+                  {delegationGrants.map((grant) => (
+                    <div key={grant.id} className="rounded-lg border border-gray-200 px-3 py-3 text-sm dark:border-gray-700">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {grant.delegateUser?.name || grant.delegateUser?.email || grant.delegateUser?.id || grant.id}
+                          </div>
+                          <div className="text-gray-600 dark:text-gray-300">
+                            {grant.scopeLevel} • {grant.coverageMode} • {grant.status}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Scope: {grant.category?.name || grant.contest?.name || grant.event?.name || 'Tenant-wide'}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Judges: {grant.coverageMode === 'ALL_JUDGES_IN_SCOPE'
+                              ? 'All judges in scope'
+                              : (grant.judges || []).map((entry) => entry.judge?.name || entry.judge?.email || entry.judgeId).join(', ') || 'None'}
+                          </div>
+                        </div>
+                        {canRevokeDelegations && grant.status === 'ACTIVE' && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => revokeDelegationMutation.mutate({ id: grant.id })}
+                            disabled={revokeDelegationMutation.isLoading}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="rounded-lg p-4">

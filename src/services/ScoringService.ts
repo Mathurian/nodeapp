@@ -8,6 +8,7 @@ import { injectable, inject } from 'tsyringe';
 import { BaseService, ValidationError, ForbiddenError, ConflictError } from './BaseService';
 import { ScoreRepository } from '../repositories/ScoreRepository';
 import { CacheService } from './CacheService';
+import { ScoreDelegationService } from './ScoreDelegationService';
 import { withMutationTimeoutTx } from '../utils/dbMutationTimeout';
 import { QUERY_TIMEOUTS } from '../config/queryTimeouts';
 
@@ -84,6 +85,7 @@ type UserWithJudge = Prisma.UserGetPayload<{
   select: {
     id: true;
     role: true;
+    tenantId: true;
     judge: {
       select: {
         id: true;
@@ -159,12 +161,14 @@ export interface SubmitScoreDTO {
   criteriaId?: string;
   score: number;
   comments?: string;
+  representedJudgeId?: string;
   judgeId?: string; // Optional, will be extracted from auth context if not provided
 }
 
 export interface UpdateScoreDTO {
   score?: number;
   comments?: string;
+  representedJudgeId?: string;
 }
 
 export interface CertifyScoresResult {
@@ -184,7 +188,8 @@ export class ScoringService extends BaseService {
   constructor(
     @inject(ScoreRepository) private scoreRepository: ScoreRepository,
     @inject('PrismaClient') private prisma: PrismaClient,
-    @inject('CacheService') private cacheService: CacheService
+    @inject('CacheService') private cacheService: CacheService,
+    @inject(ScoreDelegationService) private scoreDelegationService: ScoreDelegationService,
   ) {
     super();
   }
@@ -249,7 +254,7 @@ export class ScoringService extends BaseService {
     timeoutMs: number = QUERY_TIMEOUTS.standard,
   ): Promise<ScoreWithRelations> {
     try {
-      const { categoryId, contestantId, criteriaId, score, comments } = data;
+      const { categoryId, contestantId, criteriaId, score, comments, representedJudgeId } = data;
 
       this.logInfo('Score submission requested', {
         categoryId,
@@ -321,6 +326,7 @@ export class ScoringService extends BaseService {
         select: {
           id: true,
           role: true,
+          tenantId: true,
           judge: {
             select: {
               id: true
@@ -329,18 +335,34 @@ export class ScoringService extends BaseService {
         }
       }) as UserWithJudge | null;
 
-      if (!userWithJudge?.judge) {
-        throw new ValidationError('User is not linked to a Judge record');
+      if (!userWithJudge) {
+        throw new ValidationError('User context could not be resolved for scoring');
       }
 
-      const judgeId = userWithJudge.judge.id;
-      this.logDebug('Judge ID retrieved', { judgeId });
+      const actingJudge = await this.scoreDelegationService.resolveActingJudgeContext(
+        userWithJudge as unknown as {
+          id: string;
+          role: any;
+          tenantId: string;
+          judge?: { id?: string | null } | null;
+        },
+        tenantId,
+        categoryId,
+        representedJudgeId,
+      );
+
+      const judgeId = actingJudge.judgeId;
+      this.logDebug('Judge context resolved', {
+        judgeId,
+        entryMode: actingJudge.entryMode,
+        delegationGrantId: actingJudge.delegationGrantId,
+      });
 
       // Validate judge assignment to this category
       const assignment = await this.prisma.assignment.findFirst({
         where: {
           tenantId,
-          judgeId: userWithJudge.judge.id,
+          judgeId,
           OR: [
             { categoryId },
             { contestId: category.contestId, categoryId: null }
@@ -367,12 +389,16 @@ export class ScoringService extends BaseService {
                 criterionId: criteriaId || null,
                 judgeId,
                 score: numericScore,
+                comment: comments || null,
+                enteredByUserId: userId,
+                entryMode: actingJudge.entryMode,
+                delegationGrantId: actingJudge.delegationGrantId,
                 tenantId,
                 certifiedAt: null,
                 certifiedBy: null
               },
               select: SCORE_WITH_RELATIONS_SELECT,
-            }) as ScoreWithRelations,
+            }) as unknown as ScoreWithRelations,
           timeoutMs,
           this.prisma,
         );

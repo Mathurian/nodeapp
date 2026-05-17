@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../config/container';
 import { CommentaryService } from '../services/CommentaryService';
+import { ScoreDelegationService } from '../services/ScoreDelegationService';
 import { sendSuccess, sendUnauthorized, sendForbidden } from '../utils/responseHelpers';
 import { getRequiredParam } from '../utils/routeHelpers';
 import {
@@ -11,9 +12,11 @@ import { createCommentaryViewerContext } from '../utils/commentaryAccess';
 
 export class CommentaryController {
   private commentaryService: CommentaryService;
+  private scoreDelegationService: ScoreDelegationService;
 
   constructor() {
     this.commentaryService = container.resolve(CommentaryService);
+    this.scoreDelegationService = container.resolve(ScoreDelegationService);
   }
 
   createComment = async (req: Request, res: Response, next: NextFunction) => {
@@ -91,12 +94,18 @@ export class CommentaryController {
 
       const categoryId = getRequiredParam(req, 'categoryId');
       const contestantId = getRequiredParam(req, 'contestantId');
-      const judgeId = typeof req.query?.['judgeId'] === 'string' ? req.query['judgeId'] : undefined;
+      const requestedJudgeId = typeof req.query?.['judgeId'] === 'string' ? req.query['judgeId'] : undefined;
+      const actingJudge = await this.scoreDelegationService.resolveActingJudgeContext(
+        req.user,
+        req.user.tenantId,
+        categoryId,
+        requestedJudgeId,
+      );
       const comment = await this.commentaryService.getCategoryComment(
         categoryId,
         contestantId,
         createCommentaryViewerContext(req.user),
-        judgeId,
+        actingJudge.judgeId,
       );
       return sendSuccess(res, comment);
     } catch (error) {
@@ -114,14 +123,12 @@ export class CommentaryController {
       const categoryId = getRequiredParam(req, 'categoryId');
       const contestantId = getRequiredParam(req, 'contestantId');
       const { comment, judgeId: requestedJudgeId } = req.body as { comment?: string; judgeId?: string };
-      const viewer = createCommentaryViewerContext(req.user);
-      const resolvedJudgeId = viewer.role === 'JUDGE' && viewer.judgeId
-        ? viewer.judgeId
-        : requestedJudgeId;
-      if (!resolvedJudgeId) {
-        sendForbidden(res, 'Judge context is required to update category commentary');
-        return;
-      }
+      const actingJudge = await this.scoreDelegationService.resolveActingJudgeContext(
+        req.user,
+        req.user.tenantId,
+        categoryId,
+        requestedJudgeId,
+      );
 
       const timeoutMs = getOfflineWriteTimeoutMs(
         matchOfflineWriteOwnershipRoute(req.method, req.originalUrl || req.path),
@@ -131,7 +138,7 @@ export class CommentaryController {
           tenantId: req.user.tenantId,
           categoryId,
           contestantId,
-          judgeId: resolvedJudgeId,
+          judgeId: actingJudge.judgeId,
           comment: comment || '',
         },
         timeoutMs,

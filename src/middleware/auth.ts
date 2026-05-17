@@ -691,6 +691,52 @@ const requirePermission = (action: string): ((req: Request, res: Response, next:
   };
 };
 
+const requireAnyPermission = (
+  actions: string[],
+): ((req: Request, res: Response, next: NextFunction) => Promise<void>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      if (isAdmin(req.user.role)) {
+        next();
+        return;
+      }
+
+      const tenantId = (req as any).tenantId || req.user.tenantId;
+      for (const action of actions) {
+        if (await hasPermissionAsync(req.user.role, action, tenantId)) {
+          next();
+          return;
+        }
+      }
+
+      res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions',
+        requiredAnyOf: actions,
+        userRole: req.user.role,
+      });
+      return;
+    } catch (error) {
+      logger.error('requireAnyPermission check failed', {
+        actions,
+        userId: req.user?.id,
+        role: req.user?.role,
+        error,
+      });
+      res.status(500).json({
+        success: false,
+        error: 'Permission check failed',
+      });
+      return;
+    }
+  };
+};
+
 // Export checkRoles as an alias for requireRole (for backward compatibility)
 const checkRoles = requireRole;
 
@@ -774,6 +820,7 @@ export {
   optionalAuth,
   requireRole,
   requirePermission,
+  requireAnyPermission,
   checkRoles,
   checkOrganizerPermission
  }

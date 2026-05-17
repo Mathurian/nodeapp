@@ -14,16 +14,16 @@ import {
   deleteScoreFile,
   downloadScoreFile
 } from '../controllers/scoreFileController';
-import { authenticateToken, requirePermission, requireRole } from '../middleware/auth';
+import { authenticateToken, requireAnyPermission, requirePermission, requireRole } from '../middleware/auth';
 import { logActivity } from '../middleware/errorHandler';
 import { resolveRequestTenantId } from '../utils/tenantContext';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router: Router = express.Router();
 const requireScoreFilesRead = requirePermission('score-files:read');
-const requireScoreFilesUpload = requirePermission('score-files:upload');
+const requireScoreFilesUpload = requireAnyPermission(['score-files:upload', 'delegated-scores:write']);
 const requireScoreFilesUpdate = requirePermission('score-files:update');
-const requireScoreFilesDelete = requirePermission('score-files:delete');
+const requireScoreFilesDelete = requireAnyPermission(['score-files:delete', 'delegated-scores:write']);
 
 const ALLOWED_SCORE_FILE_MIME_TYPES = [
   'image/jpeg',

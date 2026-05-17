@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ScoreFileService } from '../services/ScoreFileService';
+import { ScoreDelegationService } from '../services/ScoreDelegationService';
 import { sendSuccess, sendError, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { promises as fs } from 'fs';
@@ -19,9 +20,11 @@ import { createCommentaryViewerContext } from '../utils/commentaryAccess';
 
 export class ScoreFileController {
   private scoreFileService: ScoreFileService;
+  private scoreDelegationService: ScoreDelegationService;
 
   constructor() {
     this.scoreFileService = container.resolve(ScoreFileService);
+    this.scoreDelegationService = container.resolve(ScoreDelegationService);
   }
 
   /**
@@ -30,7 +33,7 @@ export class ScoreFileController {
   uploadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { categoryId, contestantId, criterionId, notes, contextType } = req.body;
+      const { categoryId, contestantId, criterionId, notes, contextType, representedJudgeId } = req.body;
 
       if (!req.user) {
         throw new Error('User not authenticated');
@@ -44,12 +47,12 @@ export class ScoreFileController {
         return;
       }
 
-      const userJudgeId = req.user.judgeId || req.user.judge?.id || null;
-      const judgeId = userJudgeId || req.body.judgeId;
-      if (!judgeId) {
-        sendError(res, 'Judge context is required for score file uploads', 400);
-        return;
-      }
+      const actingJudge = await this.scoreDelegationService.resolveActingJudgeContext(
+        req.user,
+        req.user.tenantId,
+        categoryId,
+        representedJudgeId || req.body.judgeId,
+      );
 
       const relativeFilePath = path.relative(process.cwd(), req.file.path);
       const timeoutMs = getOfflineWriteTimeoutMs(
@@ -68,20 +71,22 @@ export class ScoreFileController {
       const scoreFile = await this.scoreFileService.uploadScoreFile(
         {
           categoryId,
-          judgeId,
+          judgeId: actingJudge.judgeId,
           contestantId,
           fileName: req.file.originalname,
           fileType: req.file.mimetype,
           filePath: relativeFilePath,
           fileSize: req.file.size,
           notes: JSON.stringify(contextMetadata),
-          tenantId: req.user.tenantId
+          tenantId: req.user.tenantId,
+          entryMode: actingJudge.entryMode,
+          delegationGrantId: actingJudge.delegationGrantId,
         },
         req.user.id,
         timeoutMs,
       );
 
-      log.info('Score file uploaded', { categoryId, judgeId, fileId: scoreFile.id });
+      log.info('Score file uploaded', { categoryId, judgeId: actingJudge.judgeId, fileId: scoreFile.id });
       sendSuccess(res, scoreFile, 'Score file uploaded successfully');
     } catch (error) {
       log.error('Upload score file error', { error: (error as Error).message });

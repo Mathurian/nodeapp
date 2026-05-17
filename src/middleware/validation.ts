@@ -261,6 +261,7 @@ export const updateEventSchema = z.object({
 export const createScoreSchema = z.object({
   score: z.number().min(0, 'Score must be non-negative'),
   criteriaId: z.string().cuid().optional(),
+  representedJudgeId: z.string().cuid().optional(),
   deduction: z.number().int().min(0).optional(),
   deductionReason: z.string().max(500).optional(),
   comments: z.string().max(1000).optional()
@@ -271,6 +272,7 @@ export const createScoreSchema = z.object({
  */
 export const updateScoreSchema = z.object({
   score: z.number().min(0).optional(),
+  representedJudgeId: z.string().cuid().optional(),
   comments: z.string().max(1000).optional()
 });
 
