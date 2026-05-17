@@ -54,6 +54,7 @@ export interface ScoreFileInfo {
     criterionId?: string | null;
     noteText?: string | null;
     intent?: 'COMMENTARY_ATTACHMENT' | 'SCORESHEET_IMPORT';
+    templateKey?: string | null;
   } | null;
   publicUrl?: string;
   createdAt: Date;
@@ -77,6 +78,7 @@ export class ScoreFileService extends BaseService {
             criterionId: parsed.criterionId ?? null,
             noteText: parsed.noteText ?? null,
             intent: parsed.intent === 'SCORESHEET_IMPORT' ? 'SCORESHEET_IMPORT' : 'COMMENTARY_ATTACHMENT',
+            templateKey: typeof parsed.templateKey === 'string' ? parsed.templateKey : null,
           };
         }
       } catch {

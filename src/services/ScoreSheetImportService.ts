@@ -8,26 +8,25 @@ import sharp from 'sharp';
 import { Prisma, PrismaClient, ScoreSheetImportDraft } from '@prisma/client';
 import { inject, injectable } from 'tsyringe';
 import { BaseService, ValidationError } from './BaseService';
+import {
+  resolveTemplateByCriteria,
+  scoreSheetImportTemplateMap,
+  ScoreSheetTemplateDefinition,
+  ScoreSheetTemplateKey,
+  getTemplateCriterionMatchAlias,
+} from '../config/scoreSheetImportTemplates';
 
 const execFileAsync = promisify(execFile);
 
 const NORMALIZED_WIDTH = 1000;
 const NORMALIZED_HEIGHT = 1400;
-const SCORE_COLUMNS = [6, 5, 4, 3, 2, 1, 0] as const;
-const SCORE_GRID_LEFT = 0.326;
-const SCORE_GRID_RIGHT = 0.986;
-const SCORE_GRID_TOP = 0.318;
-const SCORE_GRID_BOTTOM = 0.804;
-const CELL_HORIZONTAL_PADDING = 0.18;
-const CELL_VERTICAL_PADDING = 0.16;
-const MIN_CELL_INK_SCORE = 0.0035;
-const MIN_CONFIDENCE_GAP = 0.15;
 
 type ScoreFileMetadata = {
   contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY' | 'SCORESHEET_IMPORT';
   criterionId?: string | null;
   noteText?: string | null;
   intent?: 'COMMENTARY_ATTACHMENT' | 'SCORESHEET_IMPORT';
+  templateKey?: ScoreSheetTemplateKey | null;
 };
 
 type CriterionExtraction = {
@@ -82,11 +81,20 @@ type RenderedPage = {
   pageCount: number;
 };
 
+type ProcessScoreFileOptions = {
+  templateKey?: ScoreSheetTemplateKey | null;
+};
+
 type RawImage = {
   data: Buffer;
   width: number;
   height: number;
   channels: number;
+};
+
+type GridGeometry = {
+  horizontalBoundaries: number[];
+  verticalBoundaries: number[];
 };
 
 @injectable()
@@ -95,7 +103,11 @@ export class ScoreSheetImportService extends BaseService {
     super();
   }
 
-  async processScoreFile(scoreFileId: string, tenantId: string): Promise<ScoreSheetImportDraftInfo> {
+  async processScoreFile(
+    scoreFileId: string,
+    tenantId: string,
+    options?: ProcessScoreFileOptions,
+  ): Promise<ScoreSheetImportDraftInfo> {
     const scoreFile = await this.prisma.scoreFile.findFirst({
       where: { id: scoreFileId, tenantId },
       select: {
@@ -152,10 +164,12 @@ export class ScoreSheetImportService extends BaseService {
     let pageCount: number | null = null;
 
     try {
+      const template = this.resolveTemplate(criteria, metadata, options);
+      const orderedCriteria = this.orderCriteriaForTemplate(criteria, template);
       const rendered = await this.renderFirstPage(absolutePath, scoreFile.fileType);
       pageCount = rendered.pageCount;
       const normalized = await this.normalizePage(rendered.buffer);
-      const analysis = this.extractScoresFromNormalizedImage(normalized, criteria);
+      const analysis = this.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
 
       extraction = analysis.payload;
       computedTotal = analysis.computedTotal;
@@ -201,6 +215,78 @@ export class ScoreSheetImportService extends BaseService {
     return this.normalizeDraft(draft);
   }
 
+  private resolveTemplate(
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    metadata: ScoreFileMetadata,
+    options?: ProcessScoreFileOptions,
+  ): ScoreSheetTemplateDefinition {
+    const explicitTemplateKey = options?.templateKey || metadata.templateKey || null;
+
+    if (explicitTemplateKey) {
+      const explicitTemplate = scoreSheetImportTemplateMap.get(explicitTemplateKey);
+      if (!explicitTemplate || !explicitTemplate.supported) {
+        throw new ValidationError(`Scoresheet import template ${explicitTemplateKey} is not supported`);
+      }
+
+      if (!this.templateCanOrderCriteria(criteria, explicitTemplate)) {
+        throw new ValidationError(
+          `Scoresheet import template ${explicitTemplate.displayName} does not match this category's criteria`,
+        );
+      }
+
+      return explicitTemplate;
+    }
+
+    const inferredTemplate = resolveTemplateByCriteria(criteria.map((criterion) => criterion.name));
+    if (!inferredTemplate) {
+      throw new ValidationError(
+        'Scoresheet import is not calibrated for this category yet. Use delegated entry or a manually reviewed import instead.',
+      );
+    }
+
+    return inferredTemplate;
+  }
+
+  private templateCanOrderCriteria(
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): boolean {
+    try {
+      this.orderCriteriaForTemplate(criteria, template);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private orderCriteriaForTemplate(
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): Array<{ id: string; name: string; maxScore: number }> {
+    const unmatchedCriteria = [...criteria];
+
+    return template.criteria.map((templateCriterion) => {
+      const criterionIndex = unmatchedCriteria.findIndex(
+        (criterion) => getTemplateCriterionMatchAlias(templateCriterion, criterion.name) !== null,
+      );
+
+      if (criterionIndex < 0) {
+        throw new ValidationError(
+          `Scoresheet import template ${template.displayName} is missing a match for criterion ${templateCriterion.label}`,
+        );
+      }
+
+      const [matchedCriterion] = unmatchedCriteria.splice(criterionIndex, 1);
+      if (!matchedCriterion) {
+        throw new ValidationError(
+          `Scoresheet import template ${template.displayName} could not order category criteria`,
+        );
+      }
+
+      return matchedCriterion;
+    });
+  }
+
   async getDraftByScoreFileId(scoreFileId: string, tenantId: string): Promise<ScoreSheetImportDraftInfo | null> {
     const draft = await this.prisma.scoreSheetImportDraft.findFirst({
       where: { scoreFileId, tenantId },
@@ -243,23 +329,27 @@ export class ScoreSheetImportService extends BaseService {
 
   private async renderFirstPage(filePath: string, fileType: string): Promise<RenderedPage> {
     if (fileType === 'application/pdf' || filePath.toLowerCase().endsWith('.pdf')) {
-      try {
-        const buffer = await sharp(filePath, { density: 200, page: 0 })
-          .flatten({ background: '#ffffff' })
-          .png()
-          .toBuffer();
-
-        return { buffer, pageCount: 1 };
-      } catch {
-        return this.renderPdfWithPdftoppm(filePath);
-      }
+      return this.renderPdfPage(filePath, 1);
     }
 
     const buffer = await fs.readFile(filePath);
     return { buffer, pageCount: 1 };
   }
 
-  private async renderPdfWithPdftoppm(filePath: string): Promise<RenderedPage> {
+  private async renderPdfPage(filePath: string, pageNumber: number): Promise<RenderedPage> {
+    try {
+      const buffer = await sharp(filePath, { density: 200, page: Math.max(0, pageNumber - 1) })
+        .flatten({ background: '#ffffff' })
+        .png()
+        .toBuffer();
+
+      return { buffer, pageCount: 1 };
+    } catch {
+      return this.renderPdfWithPdftoppm(filePath, pageNumber);
+    }
+  }
+
+  private async renderPdfWithPdftoppm(filePath: string, pageNumber: number): Promise<RenderedPage> {
     const tempPrefix = path.join(
       os.tmpdir(),
       `scoresheet-import-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`,
@@ -267,15 +357,30 @@ export class ScoreSheetImportService extends BaseService {
     const outputPath = `${tempPrefix}.png`;
 
     try {
-      await execFileAsync('pdftoppm', ['-f', '1', '-l', '1', '-singlefile', '-png', filePath, tempPrefix]);
-      const buffer = await fs.readFile(outputPath);
+      await execFileAsync('pdftoppm', [
+        '-f',
+        String(pageNumber),
+        '-l',
+        String(pageNumber),
+        '-singlefile',
+        '-png',
+        filePath,
+        tempPrefix,
+      ]);
+      const buffer = await sharp(outputPath)
+        .png()
+        .toBuffer();
       return { buffer, pageCount: 1 };
     } catch (error) {
       throw new ValidationError(
         `Unable to render PDF for scoresheet import: ${this.formatErrorMessage(error)}`,
       );
     } finally {
-      await fs.unlink(outputPath).catch(() => undefined);
+      try {
+        await fs.unlink(outputPath);
+      } catch {
+        // ignore temp-file cleanup failures
+      }
     }
   }
 
@@ -365,6 +470,7 @@ export class ScoreSheetImportService extends BaseService {
   private extractScoresFromNormalizedImage(
     image: RawImage & { bounds: { left: number; top: number; width: number; height: number } },
     criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
   ): {
     payload: ExtractionPayload;
     computedTotal: number;
@@ -375,8 +481,7 @@ export class ScoreSheetImportService extends BaseService {
       throw new ValidationError('Scoresheet import requires at least one criterion');
     }
 
-    const rowHeight = (SCORE_GRID_BOTTOM - SCORE_GRID_TOP) / rowCount;
-    const columnWidth = (SCORE_GRID_RIGHT - SCORE_GRID_LEFT) / SCORE_COLUMNS.length;
+    const gridGeometry = this.resolveGridGeometry(image, template, rowCount);
     const extractedCriteria: CriterionExtraction[] = [];
     const mismatchWarnings: string[] = [];
     let computedTotal = 0;
@@ -384,20 +489,26 @@ export class ScoreSheetImportService extends BaseService {
 
     for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
       const criterion = criteria[rowIndex]!;
-      const cellInkScores = SCORE_COLUMNS.map((_, columnIndex) => {
+      const cellInkScores = template.scoreColumns.map((_, columnIndex) => {
+        const columnLeftBoundary = gridGeometry.verticalBoundaries[columnIndex] ?? 0;
+        const columnRightBoundary = gridGeometry.verticalBoundaries[columnIndex + 1] ?? image.width;
+        const rowTopBoundary = gridGeometry.horizontalBoundaries[rowIndex] ?? 0;
+        const rowBottomBoundary = gridGeometry.horizontalBoundaries[rowIndex + 1] ?? image.height;
+        const columnWidth = Math.max(1, columnRightBoundary - columnLeftBoundary);
+        const rowHeight = Math.max(1, rowBottomBoundary - rowTopBoundary);
         const left = Math.round(
-          image.width * (SCORE_GRID_LEFT + (columnIndex * columnWidth) + (columnWidth * CELL_HORIZONTAL_PADDING)),
+          columnLeftBoundary + (columnWidth * template.grid.cellHorizontalPadding),
         );
         const top = Math.round(
-          image.height * (SCORE_GRID_TOP + (rowIndex * rowHeight) + (rowHeight * CELL_VERTICAL_PADDING)),
+          rowTopBoundary + (rowHeight * template.grid.cellVerticalPadding),
         );
         const width = Math.max(
           4,
-          Math.round(image.width * (columnWidth * (1 - (CELL_HORIZONTAL_PADDING * 2)))),
+          Math.round(columnWidth * (1 - (template.grid.cellHorizontalPadding * 2))),
         );
         const height = Math.max(
           4,
-          Math.round(image.height * (rowHeight * (1 - (CELL_VERTICAL_PADDING * 2)))),
+          Math.round(rowHeight * (1 - (template.grid.cellVerticalPadding * 2))),
         );
 
         return this.measureCellInk(image.data, image.width, image.height, image.channels, left, top, width, height);
@@ -411,12 +522,14 @@ export class ScoreSheetImportService extends BaseService {
       const confidence = topCell
         ? Math.max(0, Math.min(1, (topCell.scoreValue - secondCell.scoreValue) / Math.max(topCell.scoreValue, 0.0001)))
         : 0;
-      const ambiguous = !topCell || topCell.scoreValue < MIN_CELL_INK_SCORE || confidence < MIN_CONFIDENCE_GAP;
+      const ambiguous = !topCell
+        || topCell.scoreValue < template.grid.minCellInkScore
+        || confidence < template.grid.minConfidenceGap;
       const resolvedScoreValue: number | null = topCell
-        ? (SCORE_COLUMNS[topCell.index] ?? null)
+        ? (template.scoreColumns[topCell.index] ?? null)
         : null;
       const detectedScore: number | null = ambiguous ? null : resolvedScoreValue;
-      const detectedColumnLabel = ambiguous || !topCell ? null : String(SCORE_COLUMNS[topCell.index]);
+      const detectedColumnLabel = ambiguous || !topCell ? null : String(template.scoreColumns[topCell.index]);
 
       if (detectedScore !== null && detectedScore > Number(criterion.maxScore)) {
         mismatchWarnings.push(
@@ -445,19 +558,179 @@ export class ScoreSheetImportService extends BaseService {
 
     return {
       payload: {
-        templateKey: 'generic-score-grid-v1',
+        templateKey: template.key,
         normalizedImage: {
           width: image.width,
           height: image.height,
         },
         sheetBounds: image.bounds,
-        scoreValues: [...SCORE_COLUMNS],
+        scoreValues: [...template.scoreColumns],
         criteria: extractedCriteria,
         mismatchWarnings,
       },
       computedTotal,
       overallConfidence,
     };
+  }
+
+  private resolveGridGeometry(
+    image: RawImage,
+    template: ScoreSheetTemplateDefinition,
+    rowCount: number,
+  ): GridGeometry {
+    const fallbackHorizontal = this.buildFallbackBoundaries(
+      image.height,
+      template.grid.top,
+      template.grid.bottom,
+      rowCount,
+    );
+    const fallbackVertical = this.buildFallbackBoundaries(
+      image.width,
+      template.grid.left,
+      template.grid.right,
+      template.scoreColumns.length,
+    );
+
+    const detectedHorizontal = this.detectUniformLineSequence(
+      image.data,
+      image.width,
+      image.channels,
+      'horizontal',
+      Math.round(image.width * 0.08),
+      Math.round(image.width * 0.98),
+      Math.max(0, (fallbackHorizontal[0] ?? 0) - 24),
+      Math.min(image.height - 1, (fallbackHorizontal[fallbackHorizontal.length - 1] ?? image.height) + 24),
+      rowCount + 1,
+      fallbackHorizontal[0] ?? 0,
+      fallbackHorizontal[fallbackHorizontal.length - 1] ?? image.height,
+    );
+
+    const detectedVertical = this.detectUniformLineSequence(
+      image.data,
+      image.width,
+      image.channels,
+      'vertical',
+      Math.max(0, (fallbackHorizontal[0] ?? 0) + 8),
+      Math.min(image.height - 1, (fallbackHorizontal[fallbackHorizontal.length - 1] ?? image.height) - 8),
+      Math.max(0, (fallbackVertical[0] ?? 0) - 24),
+      Math.min(image.width - 1, (fallbackVertical[fallbackVertical.length - 1] ?? image.width) + 24),
+      template.scoreColumns.length + 1,
+      fallbackVertical[0] ?? 0,
+      fallbackVertical[fallbackVertical.length - 1] ?? image.width,
+    );
+
+    return {
+      horizontalBoundaries: detectedHorizontal ?? fallbackHorizontal,
+      verticalBoundaries: detectedVertical ?? fallbackVertical,
+    };
+  }
+
+  private buildFallbackBoundaries(
+    imageDimension: number,
+    startRatio: number,
+    endRatio: number,
+    segmentCount: number,
+  ): number[] {
+    const start = Math.round(imageDimension * startRatio);
+    const end = Math.round(imageDimension * endRatio);
+    const segmentSize = (end - start) / segmentCount;
+
+    return Array.from({ length: segmentCount + 1 }, (_value, index) =>
+      Math.round(start + (segmentSize * index)),
+    );
+  }
+
+  private detectUniformLineSequence(
+    data: Buffer,
+    imageWidth: number,
+    channels: number,
+    axis: 'horizontal' | 'vertical',
+    orthogonalStart: number,
+    orthogonalEnd: number,
+    scanStart: number,
+    scanEnd: number,
+    expectedCount: number,
+    expectedStart: number,
+    expectedEnd: number,
+  ): number[] | null {
+    const lineScores: number[] = [];
+
+    for (let position = scanStart; position <= scanEnd; position += 1) {
+      let darkPixelCount = 0;
+      let totalPixelCount = 0;
+
+      if (axis === 'horizontal') {
+        for (let x = orthogonalStart; x <= orthogonalEnd; x += 1) {
+          const offset = ((position * imageWidth) + x) * channels;
+          const r = data[offset] ?? 255;
+          const g = data[offset + 1] ?? r;
+          const b = data[offset + 2] ?? r;
+          const luminance = (r + g + b) / 3;
+          if (luminance < 110) {
+            darkPixelCount += 1;
+          }
+          totalPixelCount += 1;
+        }
+      } else {
+        for (let y = orthogonalStart; y <= orthogonalEnd; y += 1) {
+          const offset = ((y * imageWidth) + position) * channels;
+          const r = data[offset] ?? 255;
+          const g = data[offset + 1] ?? r;
+          const b = data[offset + 2] ?? r;
+          const luminance = (r + g + b) / 3;
+          if (luminance < 110) {
+            darkPixelCount += 1;
+          }
+          totalPixelCount += 1;
+        }
+      }
+
+      lineScores.push(totalPixelCount > 0 ? darkPixelCount / totalPixelCount : 0);
+    }
+
+    const threshold = axis === 'horizontal' ? 0.32 : 0.24;
+    const centers: number[] = [];
+    let bandStart: number | null = null;
+
+    for (let index = 0; index < lineScores.length; index += 1) {
+      const score = lineScores[index] ?? 0;
+      if (score >= threshold) {
+        if (bandStart === null) {
+          bandStart = index;
+        }
+      } else if (bandStart !== null) {
+        centers.push(scanStart + Math.round((bandStart + index - 1) / 2));
+        bandStart = null;
+      }
+    }
+
+    if (bandStart !== null) {
+      centers.push(scanStart + Math.round((bandStart + lineScores.length - 1) / 2));
+    }
+
+    if (centers.length < expectedCount) {
+      return null;
+    }
+
+    let bestSequence: number[] | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (let startIndex = 0; startIndex <= centers.length - expectedCount; startIndex += 1) {
+      const sequence = centers.slice(startIndex, startIndex + expectedCount);
+      const gaps = sequence.slice(1).map((value, index) => value - sequence[index]!);
+      const averageGap = gaps.reduce((sum, value) => sum + value, 0) / Math.max(gaps.length, 1);
+      const varianceScore = gaps.reduce((sum, value) => sum + Math.abs(value - averageGap), 0);
+      const anchorPenalty = Math.abs((sequence[0] ?? expectedStart) - expectedStart)
+        + Math.abs((sequence[sequence.length - 1] ?? expectedEnd) - expectedEnd);
+      const totalScore = varianceScore + (anchorPenalty * 2.5);
+
+      if (totalScore < bestScore) {
+        bestScore = totalScore;
+        bestSequence = sequence;
+      }
+    }
+
+    return bestSequence;
   }
 
   private measureCellInk(
@@ -484,11 +757,17 @@ export class ScoreSheetImportService extends BaseService {
         const g = data[offset + 1] ?? r;
         const b = data[offset + 2] ?? r;
         const luminance = (r + g + b) / 3;
-        const purpleSignal = Math.max(0, (((r + b) / 2) - g - 8) / 255);
-        const darkSignal = luminance < 160 ? ((160 - luminance) / 160) * 0.12 : 0;
-        const combinedSignal = purpleSignal + darkSignal;
+        const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+        const purpleSignal = Math.max(0, (((r + b) / 2) - g - 2) / 255);
+        const darkSignal = luminance < 150 ? ((150 - luminance) / 150) : 0;
+        const neutralDarkWeight = chroma < 14 ? 0.025 : 0.085;
+        const edgeDistanceX = Math.min(x - boundedLeft, (boundedLeft + boundedWidth - 1) - x);
+        const edgeDistanceY = Math.min(y - boundedTop, (boundedTop + boundedHeight - 1) - y);
+        const edgeDistance = Math.min(edgeDistanceX, edgeDistanceY);
+        const edgeWeight = edgeDistance <= 2 ? 0.25 : edgeDistance <= 4 ? 0.55 : 1;
+        const combinedSignal = ((purpleSignal * 1.8) + (darkSignal * neutralDarkWeight)) * edgeWeight;
 
-        if (combinedSignal > 0.02) {
+        if (combinedSignal > 0.006) {
           darkSum += combinedSignal;
           activePixelCount += 1;
         }

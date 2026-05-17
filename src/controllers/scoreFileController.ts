@@ -36,7 +36,16 @@ export class ScoreFileController {
   uploadScoreFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
-      const { categoryId, contestantId, criterionId, notes, contextType, representedJudgeId, importIntent } = req.body;
+      const {
+        categoryId,
+        contestantId,
+        criterionId,
+        notes,
+        contextType,
+        representedJudgeId,
+        importIntent,
+        templateKey,
+      } = req.body;
 
       if (!req.user) {
         throw new Error('User not authenticated');
@@ -81,6 +90,9 @@ export class ScoreFileController {
         criterionId: criterionId || null,
         noteText: notes || null,
         intent: normalizedIntent,
+        templateKey: normalizedIntent === 'SCORESHEET_IMPORT' && typeof templateKey === 'string'
+          ? templateKey
+          : null,
       };
 
       const scoreFile = await this.scoreFileService.uploadScoreFile(
@@ -372,7 +384,12 @@ export class ScoreFileController {
       }
 
       const id = getRequiredParam(req, 'id');
-      const draft = await this.scoreSheetImportService.processScoreFile(id, req.user.tenantId);
+      const requestedTemplateKey = typeof req.body?.templateKey === 'string' ? req.body.templateKey : undefined;
+      const draft = await this.scoreSheetImportService.processScoreFile(
+        id,
+        req.user.tenantId,
+        requestedTemplateKey ? { templateKey: requestedTemplateKey } : undefined,
+      );
 
       log.info('Scoresheet import processed', { scoreFileId: id, draftId: draft.id, status: draft.status });
       sendSuccess(res, draft, 'Scoresheet import processed');
