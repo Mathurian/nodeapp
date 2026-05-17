@@ -6,6 +6,11 @@ This document defines the v1 scope-aware permissions model introduced by `TASK-7
 
 The goal of v1 is to keep dynamic action permissions and data visibility boundaries aligned for a limited first wave of tenant-manageable resources without attempting a whole-codebase rewrite in one step.
 
+For deployment sequencing, tenant bootstrap, delegated-scoring rollout, and the
+current post-`TASK-94` operational contract, also see:
+
+- [Permissions and Delegated Scoring Rollout](./PERMISSIONS-DELEGATED-SCORING-ROLLOUT.md)
+
 ## Core Model
 
 Each tenant-manageable surface now has two distinct concerns:
@@ -183,6 +188,18 @@ The migration from v1 to v1.1 is additive:
 4. when no explicit override row exists, the resolver falls back automatically to the resource-level row
 
 Operation override removal is modeled as “inherit resource default” rather than a separate default row.
+
+## Deployment Caveats
+
+- Existing tenants may rely on merged static defaults at runtime before explicit
+  `role_permission` and `role_permission_scope` rows are materialized.
+- If admins are expected to manage new resources and scopes through
+  `/permissions`, tenant bootstrap still needs to occur after deploy through the
+  permissions management surface.
+- Cache warm is a post-bootstrap optimization, not a replacement for seeding or
+  scope initialization.
+- Reports remain tenant-scoped in the current release even though they are part
+  of the scope-aware resource set.
 
 ## Deferred Work
 

@@ -8,6 +8,19 @@ This audit documents where the current dynamic CRUD permissions system is author
 
 This document is the output for `TASK-74` and is intended to be the decision input for follow-on remediation work, including deductions-specific access alignment.
 
+## Current-State Note
+
+The opening sections of this document describe the historical baseline that
+existed before `TASK-93` and `TASK-94` completed the broader authority-model
+remediation.
+
+For the current deployable runtime contract and rollout procedure, use:
+
+- [Permissions and Delegated Scoring Rollout](./PERMISSIONS-DELEGATED-SCORING-ROLLOUT.md)
+
+This audit remains useful for architectural history and for understanding why
+the later authority-model decisions were made.
+
 ## End-to-End Pipeline
 
 ### 1. Default source data
