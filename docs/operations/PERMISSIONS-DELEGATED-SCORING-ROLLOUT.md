@@ -15,6 +15,12 @@ Use this document for production or tenant rollout. It supersedes the older
 historical-only audit sections when the goal is to understand the current live
 runtime contract.
 
+For role-by-role execution walkthroughs after rollout, use:
+
+- [Scoring and Certification Workflow Guide](./SCORING-CERTIFICATION-WORKFLOW-GUIDE.md)
+- Help-page user workflow guide: `15-SCORING-CERTIFICATION-WORKFLOWS.md`
+- Help-page admin setup guide: `16-DELEGATED-SCORING-ADMIN-OPERATOR-SETUP.md`
+
 ## Scope
 
 This rollout covers:

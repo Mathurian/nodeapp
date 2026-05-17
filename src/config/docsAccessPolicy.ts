@@ -168,6 +168,21 @@ export const PUBLISHED_DOCS_POLICY: PublishedDocPolicy[] = [
     'Feature flags, webhooks, custom fields, and other advanced capabilities',
     ['ADMIN', 'SUPER_ADMIN'],
   ),
+  buildPolicy(
+    '15-SCORING-CERTIFICATION-WORKFLOWS.md',
+    'public-help',
+    30,
+    'Scoring and Certification Workflows',
+    'Step-by-step scoring, delegated scoring, delegated certification, tally, auditor, and final approval workflows',
+  ),
+  buildPolicy(
+    '16-DELEGATED-SCORING-ADMIN-OPERATOR-SETUP.md',
+    'admin-guides',
+    50,
+    'Delegated Scoring Admin and Operator Setup',
+    'Permissions, grants, delegate-certification controls, and audit expectations for delegated scoring fallback',
+    ['ORGANIZER', 'ADMIN', 'SUPER_ADMIN'],
+  ),
 ];
 
 const DOC_POLICY_BY_PATH = new Map(

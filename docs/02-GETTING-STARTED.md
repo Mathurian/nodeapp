@@ -68,6 +68,9 @@ Use the Help area when you need:
 
 If you are signed in, the Help sidebar may show more content than a public visitor sees.
 
+For scoring and certification help, use
+[Scoring and Certification Workflows](15-SCORING-CERTIFICATION-WORKFLOWS.md).
+
 ## Install on Mobile as an App (PWA)
 
 You can install Event Manager on many phones and tablets for a faster app-like experience.
