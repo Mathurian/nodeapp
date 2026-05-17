@@ -117,10 +117,40 @@ interface ScoreAttachment {
   filePath: string
   publicUrl?: string
   metadata?: {
-    contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY'
+    contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY' | 'SCORESHEET_IMPORT'
     criterionId?: string | null
     noteText?: string | null
+    intent?: 'COMMENTARY_ATTACHMENT' | 'SCORESHEET_IMPORT'
   } | null
+}
+
+interface ScoreSheetImportCriterionDraft {
+  rowIndex: number
+  criterionId: string
+  criterionName: string
+  detectedScore: number | null
+  detectedColumnLabel: string | null
+  confidence: number
+  ambiguous: boolean
+}
+
+interface ScoreSheetImportDraft {
+  id: string
+  scoreFileId: string
+  status: string
+  templateKey: string | null
+  processingError: string | null
+  computedTotal: number | null
+  overallConfidence: number | null
+  extraction: {
+    criteria: ScoreSheetImportCriterionDraft[]
+    mismatchWarnings?: string[]
+  } | null
+}
+
+interface ScoreSheetImportReviewEntry {
+  criterionId: string
+  score: number | ''
 }
 
 interface PendingCommentaryFile {
@@ -359,6 +389,9 @@ const ScoringPage: React.FC = () => {
   const [uploadingContext, setUploadingContext] = useState<string | null>(null)
   const [updatingCommentary, setUpdatingCommentary] = useState(false)
   const [pendingCommentaryFiles, setPendingCommentaryFiles] = useState<PendingCommentaryFile[]>([])
+  const [selectedScoreSheetImportFileId, setSelectedScoreSheetImportFileId] = useState<string>('')
+  const [processingScoreSheetImportFileId, setProcessingScoreSheetImportFileId] = useState<string | null>(null)
+  const [scoreSheetImportReview, setScoreSheetImportReview] = useState<Record<string, ScoreSheetImportReviewEntry>>({})
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [typedSignature, setTypedSignature] = useState('')
   const [drawnSignatureData, setDrawnSignatureData] = useState('')
@@ -377,6 +410,7 @@ const ScoringPage: React.FC = () => {
   const criteriaSectionRef = React.useRef<HTMLDivElement | null>(null)
   const scoringActionsRef = React.useRef<HTMLDivElement | null>(null)
   const initializedSelectionRef = React.useRef<string | null>(null)
+  const initializedScoreSheetImportDraftRef = React.useRef<string | null>(null)
   const restoredSelectionDraftKeyRef = React.useRef<string | null>(null)
   const announcedRestoredDraftKeyRef = React.useRef<string | null>(null)
   const handledResumeRequestRef = React.useRef<number | null>(null)
@@ -735,6 +769,26 @@ const ScoringPage: React.FC = () => {
       enabled: !!selectedCategory && !!selectedContestant && !!effectiveRepresentedJudgeId && canReadScoreFiles,
       retry: 1,
     }
+  )
+
+  const { data: scoreSheetImportDraft, isFetching: isFetchingScoreSheetImportDraft } = useQuery<ScoreSheetImportDraft | null>(
+    ['scoresheet-import-draft', selectedScoreSheetImportFileId],
+    async () => {
+      if (!selectedScoreSheetImportFileId) return null
+      try {
+        const response = await scoreFilesAPI.getScoresheetImportDraft(selectedScoreSheetImportFileId)
+        return (response.data?.data ?? response.data) || null
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          return null
+        }
+        throw error
+      }
+    },
+    {
+      enabled: !!selectedScoreSheetImportFileId && canReadScoreFiles,
+      retry: 1,
+    },
   )
 
   const { data: existingCategoryComment = '' } = useQuery<string>(
@@ -1756,6 +1810,51 @@ const ScoringPage: React.FC = () => {
     }
   }
 
+  const uploadScoresheetImportNow = async (file: File) => {
+    if (!selectedCategory || !selectedContestant || !file || !effectiveRepresentedJudgeId) return
+    setUploadingContext('scoresheet-import')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('categoryId', selectedCategory.id)
+      formData.append('contestantId', selectedContestant.id)
+      formData.append('contextType', 'SCORESHEET_IMPORT')
+      formData.append('importIntent', 'SCORESHEET_IMPORT')
+      if (isDelegatedMode && effectiveRepresentedJudgeId) {
+        formData.append('representedJudgeId', effectiveRepresentedJudgeId)
+      }
+
+      const response = await scoreFilesAPI.upload(formData, {
+        headers: {
+          [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(
+            `scoresheet-import-upload:${selectedCategory.id}:${selectedContestant.id}:${effectiveRepresentedJudgeId}`,
+          ),
+        },
+      })
+      const uploaded = response.data?.data ?? response.data
+      const fileId = uploaded?.id as string | undefined
+      await queryClient.invalidateQueries(['score-attachments', selectedCategory.id, selectedContestant.id, effectiveRepresentedJudgeId])
+
+      if (fileId) {
+        setSelectedScoreSheetImportFileId(fileId)
+        setProcessingScoreSheetImportFileId(fileId)
+        await scoreFilesAPI.processScoresheetImport(fileId, {
+          headers: {
+            [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(`scoresheet-import-process:${fileId}`),
+          },
+        })
+        await queryClient.invalidateQueries(['scoresheet-import-draft', fileId])
+      }
+
+      toast.success('Scoresheet uploaded for review')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to upload scoresheet import')
+    } finally {
+      setUploadingContext(null)
+      setProcessingScoreSheetImportFileId(null)
+    }
+  }
+
   const handleUploadAttachment = async (file: File, criterionId?: string) => {
     if (!selectedCategory || !selectedContestant || !file) return
 
@@ -1771,6 +1870,79 @@ const ScoringPage: React.FC = () => {
     }
 
     await uploadAttachmentNow(file, criterionId)
+  }
+
+  const handleProcessScoresheetImport = async (fileId: string) => {
+    try {
+      setSelectedScoreSheetImportFileId(fileId)
+      setProcessingScoreSheetImportFileId(fileId)
+      await scoreFilesAPI.processScoresheetImport(fileId, {
+        headers: {
+          [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(`scoresheet-import-process:${fileId}`),
+        },
+      })
+      await queryClient.invalidateQueries(['scoresheet-import-draft', fileId])
+      toast.success('Scoresheet import processed')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to process scoresheet import')
+    } finally {
+      setProcessingScoreSheetImportFileId(null)
+    }
+  }
+
+  const handleScoreSheetImportReviewChange = (criterionId: string, value: string) => {
+    const criterion = effectiveCriteria.find((entry) => entry.id === criterionId)
+    const maxScore = criterion?.maxScore ?? selectedCategory?.scoreCap ?? 100
+
+    setScoreSheetImportReview((prev) => {
+      if (value === '') {
+        return {
+          ...prev,
+          [criterionId]: {
+            criterionId,
+            score: '',
+          },
+        }
+      }
+
+      const numericValue = Number(value)
+      if (!Number.isFinite(numericValue)) return prev
+      return {
+        ...prev,
+        [criterionId]: {
+          criterionId,
+          score: Math.max(0, Math.min(numericValue, Number(maxScore))),
+        },
+      }
+    })
+  }
+
+  const handleApplyScoresheetImportToForm = () => {
+    if (!scoreSheetImportDraft?.extraction?.criteria?.length) {
+      toast.error('No processed scoresheet draft available')
+      return
+    }
+
+    if (activeSelectionKey) {
+      localEditSelectionKeyRef.current = activeSelectionKey
+    }
+
+    setScoreFormData((prev) => {
+      const next = { ...prev }
+      for (const row of scoreSheetImportDraft.extraction?.criteria || []) {
+        const reviewed = scoreSheetImportReview[row.criterionId]
+        next[row.criterionId] = {
+          ...(next[row.criterionId] || { criterionId: row.criterionId, comment: '' }),
+          criterionId: row.criterionId,
+          score: reviewed?.score ?? '',
+        }
+      }
+      return next
+    })
+
+    setSaveStatus('idle')
+    toast.success('Imported scores applied to the scoring form')
+    scrollToRef(criteriaSectionRef, { delayMs: 20, behavior: 'smooth' })
   }
 
   const handleDownloadContestantPrivateDocument = async (fileId: string, originalName: string) => {
@@ -1797,11 +1969,54 @@ const ScoringPage: React.FC = () => {
     return Object.values(scoreFormData).reduce((sum, data) => sum + (Number(data.score) || 0), 0)
   }
 
-  const categoryLevelAttachments = scoreAttachments.filter((file) => file?.metadata?.contextType !== 'CRITERION_COMMENT')
+  const scoresheetImportAttachments = scoreAttachments.filter((file) => file?.metadata?.intent === 'SCORESHEET_IMPORT')
+  const categoryLevelAttachments = scoreAttachments.filter(
+    (file) => file?.metadata?.intent !== 'SCORESHEET_IMPORT' && file?.metadata?.contextType !== 'CRITERION_COMMENT',
+  )
   const criterionAttachments = (criterionId: string) => scoreAttachments.filter(
-    (file) => file?.metadata?.contextType === 'CRITERION_COMMENT' && file?.metadata?.criterionId === criterionId
+    (file) => file?.metadata?.intent !== 'SCORESHEET_IMPORT' &&
+      file?.metadata?.contextType === 'CRITERION_COMMENT' &&
+      file?.metadata?.criterionId === criterionId
   )
   const isCertifiedContext = normalizedExistingScores.length > 0
+
+  useEffect(() => {
+    if (scoresheetImportAttachments.length === 0) {
+      setSelectedScoreSheetImportFileId('')
+      setScoreSheetImportReview({})
+      initializedScoreSheetImportDraftRef.current = null
+      return
+    }
+
+    const stillExists = scoresheetImportAttachments.some((file) => file.id === selectedScoreSheetImportFileId)
+    if (!selectedScoreSheetImportFileId || !stillExists) {
+      setSelectedScoreSheetImportFileId(scoresheetImportAttachments[0]!.id)
+    }
+  }, [scoresheetImportAttachments, selectedScoreSheetImportFileId])
+
+  useEffect(() => {
+    if (!scoreSheetImportDraft) {
+      initializedScoreSheetImportDraftRef.current = null
+      setScoreSheetImportReview({})
+      return
+    }
+
+    const draftKey = `${scoreSheetImportDraft.id}:${scoreSheetImportDraft.status}:${scoreSheetImportDraft.computedTotal ?? 'none'}`
+    if (initializedScoreSheetImportDraftRef.current === draftKey) {
+      return
+    }
+
+    const nextReview = (scoreSheetImportDraft.extraction?.criteria || []).reduce<Record<string, ScoreSheetImportReviewEntry>>((acc, row) => {
+      acc[row.criterionId] = {
+        criterionId: row.criterionId,
+        score: row.detectedScore ?? '',
+      }
+      return acc
+    }, {})
+
+    setScoreSheetImportReview(nextReview)
+    initializedScoreSheetImportDraftRef.current = draftKey
+  }, [scoreSheetImportDraft])
 
   useEffect(() => {
     setPendingCommentaryFiles([])
@@ -2314,7 +2529,11 @@ const ScoringPage: React.FC = () => {
                         </Link>
                       </div>
                     )}
-                    {(supportsCategoryCommentary || categoryLevelAttachments.length > 0 || pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0) && (
+                    {(supportsCategoryCommentary ||
+                      categoryLevelAttachments.length > 0 ||
+                      pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0 ||
+                      scoresheetImportAttachments.length > 0 ||
+                      (canUploadScoreFiles && !hasCertifiedScores)) && (
                     <div className="mt-3">
                       {supportsCategoryCommentary && (
                         <>
@@ -2354,6 +2573,30 @@ const ScoringPage: React.FC = () => {
                             <p className="mt-1 text-xs text-blue-600">Uploading...</p>
                           )}
                         </>
+                      )}
+                      {canUploadScoreFiles && !hasCertifiedScores && (
+                        <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-3">
+                          <label htmlFor="pages-scoringpage-scoresheet-import" className="block text-sm font-medium text-blue-900 mb-1">
+                            Scoresheet Import
+                          </label>
+                          <p className="text-xs text-blue-800 mb-2">
+                            Upload a filled paper scoresheet to extract criterion scores for review. Comments are not imported in Phase 1.
+                          </p>
+                          <input
+                            id="pages-scoringpage-scoresheet-import"
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,application/pdf,image/png,image/jpeg,image/webp,image/gif"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void uploadScoresheetImportNow(file)
+                              e.currentTarget.value = ''
+                            }}
+                            className="block w-full text-sm text-gray-600 dark:text-gray-300"
+                          />
+                          {uploadingContext === 'scoresheet-import' && (
+                            <p className="mt-1 text-xs text-blue-700">Uploading and processing...</p>
+                          )}
+                        </div>
                       )}
                       {isCertifiedContext && pendingCommentaryFiles.filter((f) => !f.criterionId).length > 0 && (
                         <div className="mt-2 space-y-1">
@@ -2395,6 +2638,124 @@ const ScoringPage: React.FC = () => {
                               )}
                             </div>
                           ))}
+                        </div>
+                      )}
+                      {scoresheetImportAttachments.length > 0 && (
+                        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
+                          <div>
+                            <h4 className="text-sm font-medium text-slate-900">Imported Scoresheets</h4>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Review extracted scores, correct them if needed, then apply them to the scoring form before normal submission.
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            {scoresheetImportAttachments.map((file) => {
+                              const isSelected = file.id === selectedScoreSheetImportFileId
+                              const isProcessing = processingScoreSheetImportFileId === file.id
+                              return (
+                                <div key={file.id} className={`rounded-md border px-3 py-2 ${isSelected ? 'border-blue-300 bg-white' : 'border-slate-200 bg-white/80'}`}>
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedScoreSheetImportFileId(file.id)}
+                                      className="text-left text-sm font-medium text-blue-700 underline hover:text-blue-800"
+                                    >
+                                      {file.fileName}
+                                    </button>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                      <a
+                                        href={file.publicUrl || file.filePath}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-blue-700 underline hover:text-blue-800"
+                                      >
+                                        View source
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleProcessScoresheetImport(file.id)}
+                                        disabled={isProcessing}
+                                        className="rounded border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                                      >
+                                        {isProcessing ? 'Processing…' : 'Process / Retry'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {selectedScoreSheetImportFileId && (
+                            <div className="rounded-md border border-blue-200 bg-white px-3 py-3">
+                              {isFetchingScoreSheetImportDraft ? (
+                                <p className="text-sm text-blue-700">Loading import draft…</p>
+                              ) : scoreSheetImportDraft?.status === 'failed' ? (
+                                <div className="space-y-2">
+                                  <p className="text-sm font-medium text-red-700">Import processing failed</p>
+                                  <p className="text-sm text-red-600">{scoreSheetImportDraft.processingError || 'Unknown processing error'}</p>
+                                </div>
+                              ) : scoreSheetImportDraft?.extraction?.criteria?.length ? (
+                                <div className="space-y-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-900">Review extracted scores</p>
+                                      <p className="text-xs text-slate-600">
+                                        Template: {scoreSheetImportDraft.templateKey || 'unknown'} · Confidence: {typeof scoreSheetImportDraft.overallConfidence === 'number' ? `${Math.round(scoreSheetImportDraft.overallConfidence * 100)}%` : 'n/a'}
+                                      </p>
+                                    </div>
+                                    <div className="text-xs text-slate-700">
+                                      Draft total: <span className="font-semibold">{scoreSheetImportDraft.computedTotal ?? 'n/a'}</span>
+                                    </div>
+                                  </div>
+                                  {scoreSheetImportDraft.extraction.mismatchWarnings && scoreSheetImportDraft.extraction.mismatchWarnings.length > 0 && (
+                                    <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                      {scoreSheetImportDraft.extraction.mismatchWarnings.join(' ')}
+                                    </div>
+                                  )}
+                                  <div className="space-y-2">
+                                    {scoreSheetImportDraft.extraction.criteria.map((row) => (
+                                      <div key={row.criterionId} className="grid grid-cols-[minmax(0,1fr)_110px] gap-3 items-center rounded border border-slate-200 px-3 py-2">
+                                        <div>
+                                          <div className="text-sm font-medium text-slate-900">{row.criterionName}</div>
+                                          <div className="text-xs text-slate-600">
+                                            {row.ambiguous ? 'Low confidence or ambiguous extraction' : `Detected ${row.detectedColumnLabel ?? row.detectedScore ?? 'n/a'}`}
+                                            {' · '}
+                                            Confidence {Math.round(row.confidence * 100)}%
+                                          </div>
+                                        </div>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max={effectiveCriteria.find((criterion) => criterion.id === row.criterionId)?.maxScore ?? selectedCategory?.scoreCap ?? 100}
+                                          value={scoreSheetImportReview[row.criterionId]?.score ?? ''}
+                                          onChange={(e) => handleScoreSheetImportReviewChange(row.criterionId, e.target.value)}
+                                          className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${row.ambiguous ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <div className="text-sm text-slate-700">
+                                      Reviewed total:{' '}
+                                      <span className="font-semibold">
+                                        {Object.values(scoreSheetImportReview).reduce((sum, entry) => sum + (Number(entry.score) || 0), 0)}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleApplyScoresheetImportToForm}
+                                      className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                                    >
+                                      Apply Reviewed Scores to Form
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-600">Process this file to generate a review draft.</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

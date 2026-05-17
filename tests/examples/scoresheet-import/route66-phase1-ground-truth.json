@@ -1,0 +1,202 @@
+{
+  "sourcePdf": "temp/DD_Scores copy.pdf",
+  "packet": {
+    "pageCount": 30,
+    "pageSize": "letter portrait",
+    "pageBlocks": [
+      {
+        "templateKey": "education_saturday_day_v1",
+        "displayName": "Education",
+        "observedPages": [1, 2, 3, 4, 5, 6]
+      },
+      {
+        "templateKey": "formal_wear_and_speech_saturday_night_v1",
+        "displayName": "Formal Wear & Speech",
+        "observedPages": [7, 8, 9, 10, 11, 12]
+      },
+      {
+        "templateKey": "hot_wear_and_pop_question_friday_night_v1",
+        "displayName": "Hot Wear & Pop-Question",
+        "observedPages": [13, 14, 15, 16, 17, 18]
+      },
+      {
+        "templateKey": "personal_interview_friday_morning_v1",
+        "displayName": "Personal Interview",
+        "observedPages": [19, 20, 21, 22, 23, 24]
+      },
+      {
+        "templateKey": "public_image_weekend_v1",
+        "displayName": "Public Image",
+        "observedPages": [25, 26, 27, 28, 29, 30]
+      }
+    ]
+  },
+  "intendedPhase1Families": [
+    {
+      "templateKey": "education_saturday_day_v1",
+      "displayName": "Education",
+      "selectedForFirstSupport": true,
+      "scoreColumns": [6, 5, 4, 3, 2, 1, 0],
+      "criterionOrder": [
+        "Knowledge",
+        "Technique",
+        "Safety",
+        "Attitude",
+        "Personality Projection",
+        "Volume",
+        "Audience Engagement",
+        "Appropriate Attire",
+        "Preparation",
+        "Time Management"
+      ],
+      "samples": [
+        {
+          "page": 1,
+          "contestantName": "Retro",
+          "judgeName": "Daddie Danger",
+          "captureType": "pdf_scan",
+          "markStyle": "checkmarks",
+          "handwrittenCommentsPresent": true,
+          "handwrittenTotal": 48,
+          "criterionScores": {
+            "Knowledge": 4,
+            "Technique": 4,
+            "Safety": 4,
+            "Attitude": 5,
+            "Personality Projection": 6,
+            "Volume": 4,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 6,
+            "Preparation": 5,
+            "Time Management": 5
+          }
+        },
+        {
+          "page": 2,
+          "contestantName": "Cub Scout",
+          "judgeName": "Daddie Danger",
+          "captureType": "pdf_scan",
+          "markStyle": "checkmarks",
+          "handwrittenCommentsPresent": true,
+          "handwrittenTotal": 58,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 5,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management": 5
+          }
+        },
+        {
+          "page": 3,
+          "contestantName": "Delta Diogenes",
+          "judgeName": "Daddie Danger",
+          "captureType": "pdf_scan",
+          "markStyle": "checkmarks",
+          "handwrittenCommentsPresent": true,
+          "handwrittenTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 5,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management": 6
+          }
+        },
+        {
+          "page": 4,
+          "contestantName": "Pup Bandit",
+          "judgeName": "Daddie Danger",
+          "captureType": "pdf_scan",
+          "markStyle": "crosses",
+          "handwrittenCommentsPresent": true,
+          "handwrittenTotal": 56,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 5,
+            "Preparation": 6,
+            "Time Management": 6
+          }
+        },
+        {
+          "page": 5,
+          "contestantName": "Pup Hoss",
+          "judgeName": "Daddie Danger",
+          "captureType": "pdf_scan",
+          "markStyle": "checkmarks",
+          "handwrittenCommentsPresent": true,
+          "handwrittenTotal": 39,
+          "criterionScores": {
+            "Knowledge": 4,
+            "Technique": 4,
+            "Safety": 3,
+            "Attitude": 4,
+            "Personality Projection": 3,
+            "Volume": 4,
+            "Audience Engagement": 3,
+            "Appropriate Attire": 5,
+            "Preparation": 5,
+            "Time Management": 2
+          }
+        },
+        {
+          "page": 6,
+          "contestantName": "Pup Salem Netherworld",
+          "judgeName": "Daddie Danger",
+          "captureType": "pdf_scan",
+          "markStyle": "mixed_checkmarks_and_crosses",
+          "handwrittenCommentsPresent": true,
+          "handwrittenTotal": 57,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 5,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management": 5
+          }
+        }
+      ]
+    }
+  ],
+  "missingRequiredSamples": [
+    {
+      "templateKey": "education_saturday_day_v1",
+      "need": "phone_photo",
+      "minimumExamples": 6,
+      "notes": "Need representative phone captures with mild skew, realistic lighting variance, and full-page framing."
+    },
+    {
+      "templateKey": "education_saturday_day_v1",
+      "need": "poor_but_supported_quality_boundary",
+      "minimumExamples": 3,
+      "notes": "Need borderline-but-usable captures to set supported vs unsupported conditions."
+    },
+    {
+      "templateKey": "education_saturday_day_v1",
+      "need": "marking_variation",
+      "minimumExamples": 4,
+      "notes": "Need extra examples covering checkmarks, crosses, heavier pen pressure, and slightly messy single-cell marks."
+    }
+  ]
+}
