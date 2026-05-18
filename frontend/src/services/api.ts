@@ -576,7 +576,8 @@ export const settingsAPI = {
 }
 
 export const assignmentsAPI = {
-  getAll: () => api.get('/assignments'),
+  getAll: (params?: { status?: string; judgeId?: string; categoryId?: string; contestId?: string; eventId?: string }) =>
+    api.get('/assignments', { params }),
   getJudges: () => api.get('/assignments/judges'),
   getCategories: () => api.get('/assignments/categories'),
   create: (data: any) => api.post('/assignments', data),

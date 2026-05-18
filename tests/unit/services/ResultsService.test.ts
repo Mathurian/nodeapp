@@ -127,6 +127,18 @@ describe('ResultsService', () => {
       expect(result.total).toBe(1);
     });
 
+    it('should return no results for DELEGATE instead of throwing', async () => {
+      const result = await service.getAllResults({
+        userRole: 'DELEGATE' as UserRole,
+        userId: 'delegate-1',
+        offset: 0,
+        limit: 50
+      });
+
+      expect(result).toEqual({ results: [], total: 0 });
+      expect(mockPrisma.score.findMany).not.toHaveBeenCalled();
+    });
+
     it('should filter results for JUDGE role', async () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
@@ -515,6 +527,20 @@ describe('ResultsService', () => {
         }),
       ]);
       expect(result.categories).toEqual([]);
+    });
+
+    it('should return empty scope options for DELEGATE instead of throwing', async () => {
+      const result = await service.getScopeOptions({
+        userRole: 'DELEGATE' as UserRole,
+        userId: 'delegate-1',
+      });
+
+      expect(result).toEqual({
+        events: [],
+        contests: [],
+        categories: [],
+      });
+      expect(mockPrisma.category.findMany).not.toHaveBeenCalled();
     });
   });
 

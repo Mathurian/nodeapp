@@ -217,7 +217,7 @@ router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), 
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [SUPER_ADMIN, ADMIN, ORGANIZER, JUDGE, CONTESTANT, BOARD, EMCEE, TALLY_MASTER, AUDITOR]
+ *                 enum: [SUPER_ADMIN, ADMIN, ORGANIZER, JUDGE, DELEGATE, CONTESTANT, BOARD, EMCEE, TALLY_MASTER, AUDITOR]
  *               boardRole:
  *                 type: string
  *                 description: Optional board title/position (BOARD users only)

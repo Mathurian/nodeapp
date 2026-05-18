@@ -53,6 +53,10 @@ Examples:
 - the judge is temporarily unable to use the device
 - an operator is transcribing scores after the round
 
+Recommended role for that operator:
+
+- `DELEGATE`
+
 ### Steps
 
 1. The delegate opens scoring.

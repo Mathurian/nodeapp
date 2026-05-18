@@ -93,7 +93,7 @@ router.use(authenticateToken);
  */
 router.post(
   '/',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
   requireScoreFilesUpload,
   scoreFileUpload.single('file'),
   idempotencyMiddleware,
@@ -110,7 +110,7 @@ router.post(
  *     security:
  *       - bearerAuth: []
  */
-router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE']), requireScoreFilesRead, getAllScoreFiles);
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'EMCEE']), requireScoreFilesRead, getAllScoreFiles);
 
 /**
  * @swagger
@@ -121,7 +121,7 @@ router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORG
  *     security:
  *       - bearerAuth: []
  */
-router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFilesByCategory);
+router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFilesByCategory);
 
 /**
  * @swagger
@@ -132,7 +132,7 @@ router.get('/category/:categoryId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE'
  *     security:
  *       - bearerAuth: []
  */
-router.get('/judge/:judgeId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFilesByJudge);
+router.get('/judge/:judgeId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFilesByJudge);
 
 /**
  * @swagger
@@ -143,7 +143,7 @@ router.get('/judge/:judgeId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORG
  *     security:
  *       - bearerAuth: []
  */
-router.get('/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFilesByContestant);
+router.get('/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFilesByContestant);
 
 /**
  * @swagger
@@ -154,11 +154,11 @@ router.get('/contestant/:contestantId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JU
  *     security:
  *       - bearerAuth: []
  */
-router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, downloadScoreFile);
+router.get('/download/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, downloadScoreFile);
 
 router.post(
   '/:id/process-scoresheet-import',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
   requireScoreFilesProcess,
   idempotencyMiddleware,
   logActivity('PROCESS_SCORESHEET_IMPORT', 'SCORE'),
@@ -167,7 +167,7 @@ router.post(
 
 router.get(
   '/:id/scoresheet-import-draft',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
   requireScoreFilesRead,
   getScoresheetImportDraft,
 );
@@ -192,7 +192,7 @@ router.patch('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'])
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER']), requireScoreFilesDelete, idempotencyMiddleware, logActivity('DELETE_SCORE_FILE', 'SCORE'), deleteScoreFile);
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER']), requireScoreFilesDelete, idempotencyMiddleware, logActivity('DELETE_SCORE_FILE', 'SCORE'), deleteScoreFile);
 
 /**
  * @swagger
@@ -203,7 +203,7 @@ router.delete('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER']
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFileById);
+router.get('/:id', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoreFilesRead, getScoreFileById);
 
 export default router;
 

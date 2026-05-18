@@ -386,8 +386,8 @@ export class UsersController {
 
       // Validate role. Creating SUPER_ADMIN is restricted to SUPER_ADMIN requestors only.
       const validRoles = requesterIsSuperAdmin
-        ? ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
-        : ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
+        ? ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+        : ['ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
       if (!validRoles.includes(data.role)) {
         log.warn('User creation failed: invalid role', { role: data.role });
         errorResponse(res, 'Invalid role', ErrorCode.VALIDATION_ERROR, 400, { field: 'role', validRoles });
@@ -961,7 +961,7 @@ export class UsersController {
       const role = req.params['role']!;
       const authReq = req as AuthenticatedRequest;
 
-      const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
+      const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
       if (!validRoles.includes(role)) {
         sendError(res, 'Invalid role', 400);
         return;
@@ -1807,7 +1807,7 @@ export class UsersController {
           }
 
           // Validate role
-          const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
+          const validRoles = ['ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD'];
           if (!validRoles.includes(userData['role'] as string)) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Invalid role "${userData['role']}"`);
@@ -2093,7 +2093,7 @@ export class UsersController {
       const commonInstructions = [
         '# Bulk User Upload Template',
         '# Required columns for every row: name, email, password, role',
-        '# Allowed roles: ADMIN, ORGANIZER, JUDGE, CONTESTANT, EMCEE, TALLY_MASTER, AUDITOR, BOARD',
+        '# Allowed roles: ADMIN, ORGANIZER, JUDGE, DELEGATE, CONTESTANT, EMCEE, TALLY_MASTER, AUDITOR, BOARD',
         '# boardRole is optional and only used when role is BOARD.',
         '# Existing users are not updated. Duplicate emails are skipped.',
         '# contestId/categoryId must be valid IDs from your tenant.',

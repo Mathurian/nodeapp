@@ -10,10 +10,18 @@ for the execution workflow, use
 ## What This Guide Covers
 
 - when to use delegated scoring
+- when to use the dedicated `DELEGATE` role instead of overloading `BOARD`
 - which permissions must be assigned
 - how to create and revoke grants
 - when to enable delegated certification
 - what gets recorded for audit and chain of custody
+
+## Recommended Fallback Role
+
+Use the dedicated `DELEGATE` role for fallback score-entry operators.
+
+Do not assign `BOARD` just to satisfy scoring access unless you are dealing with
+an older tenant state that has not yet adopted the dedicated delegate role.
 
 ## 1. Decide Which Operational Mode You Need
 

@@ -35,6 +35,7 @@ export const DEFAULT_ROLE_RESOURCE_SCOPES: Record<UserRole, Partial<Record<Scope
     reports: 'TENANT',
     files: 'TENANT',
   },
+  DELEGATE: {},
   BOARD: {
     deductions: 'EVENT',
     certifications: 'EVENT',

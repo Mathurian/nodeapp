@@ -174,6 +174,39 @@ describe('ScoringService', () => {
       await expect(service.submitScore(scoreData, 'user-1', tenantId)).rejects.toThrow(ValidationError);
     });
 
+    it('should allow delegate users to submit on behalf of a represented judge through an active grant', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', role: 'DELEGATE', judge: null });
+      (mockScoreDelegationService.resolveActingJudgeContext as jest.Mock).mockResolvedValue({
+        judgeId: 'judge-2',
+        entryMode: 'DELEGATED',
+        delegationGrantId: 'grant-1',
+      });
+      (mockPrisma.assignment.findFirst as jest.Mock).mockResolvedValue({ id: 'assignment-1', status: 'ACTIVE' });
+      (mockPrisma.score.create as jest.Mock).mockResolvedValue({ ...mockScore, judgeId: 'judge-2' });
+
+      const result = await service.submitScore(
+        { ...scoreData, representedJudgeId: 'judge-2' },
+        'user-1',
+        tenantId,
+      );
+
+      expect(mockScoreDelegationService.resolveActingJudgeContext).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'user-1', role: 'DELEGATE' }),
+        tenantId,
+        'category-1',
+        'judge-2',
+      );
+      expect(mockPrisma.score.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          judgeId: 'judge-2',
+          enteredByUserId: 'user-1',
+          entryMode: 'DELEGATED',
+          delegationGrantId: 'grant-1',
+        }),
+      }));
+      expect(result.judgeId).toBe('judge-2');
+    });
+
     it('should throw ForbiddenError when judge not assigned to category', async () => {
       (mockPrisma.assignment.findFirst as jest.Mock).mockResolvedValue(null);
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ ...mockJudgeUser, role: 'JUDGE' });

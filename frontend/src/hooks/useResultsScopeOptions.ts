@@ -36,7 +36,7 @@ export interface ResultsScopeOptions {
   categories: ResultsScopeCategory[]
 }
 
-const RESTRICTED_RESULTS_ROLES = new Set(['EMCEE', 'JUDGE', 'CONTESTANT'])
+const RESTRICTED_RESULTS_ROLES = new Set(['EMCEE', 'JUDGE', 'CONTESTANT', 'DELEGATE'])
 
 export const useResultsScopeOptions = () => {
   const { user } = useAuth()

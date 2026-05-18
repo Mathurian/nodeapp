@@ -9,7 +9,7 @@ export interface PageAccessPolicy {
   hardProtected?: boolean
 }
 
-const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'DELEGATE', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
 
 // Canonical page-access policy used by route guards, nav, and command palette.
 export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
@@ -26,7 +26,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'archive', path: '/archive', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'events', allowCrudReadOverride: true },
   { id: 'category-types', path: '/category-types', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'categories', allowCrudReadOverride: true },
 
-  { id: 'scoring', path: '/scoring', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'JUDGE'], resource: 'scores', requireResourcePermission: true },
+  { id: 'scoring', path: '/scoring', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'JUDGE', 'DELEGATE'], resource: 'scores', requireResourcePermission: true },
   { id: 'tally-master', path: '/tally-master', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'], resource: 'scores', requireResourcePermission: true },
   { id: 'auditor', path: '/auditor', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'scores', requireResourcePermission: true },
   { id: 'certifications', path: '/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], resource: 'certifications', requireResourcePermission: true },

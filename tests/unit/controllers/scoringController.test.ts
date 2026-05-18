@@ -521,6 +521,44 @@ describe('ScoringController', () => {
       expect(sendSuccess).toHaveBeenCalled();
     });
 
+    it('should allow delegated certification for a DELEGATE role when the permission is present', async () => {
+      mockReq.params = { categoryId: 'cat-1' };
+      mockReq.body = { typedSignature: 'Delegate Signature', representedJudgeId: 'judge-2' };
+      mockReq.user = { id: 'user-1', role: 'DELEGATE', tenantId: 'tenant-1' } as any;
+      mockScoreDelegationService.resolveCertificationContext.mockResolvedValue({
+        judgeId: 'judge-2',
+        certificationMode: 'DELEGATED',
+        delegationGrantId: 'grant-1',
+      });
+      mockPrisma.categoryContestant.findMany.mockResolvedValue([
+        { contestantId: 'contestant-1' },
+      ]);
+      mockPrisma.criterion.findMany.mockResolvedValue([
+        { id: 'crit-1' },
+      ]);
+      mockPrisma.score.findMany.mockResolvedValue([
+        { contestantId: 'contestant-1', criterionId: 'crit-1', score: 88 },
+      ]);
+      mockScoringService.certifyScores.mockResolvedValue({ certified: true, certifiedCount: 1 } as any);
+      mockPrisma.score.count.mockResolvedValue(0);
+
+      await controller.certifyScores(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockDynamicPermissionService.hasPermission).toHaveBeenCalledWith(
+        'DELEGATE',
+        'delegated-scores',
+        'certify',
+        'tenant-1',
+      );
+      expect(mockScoringService.certifyScores).toHaveBeenCalledWith(
+        'cat-1',
+        'user-1',
+        'tenant-1',
+        { contestantId: null, userRole: 'DELEGATE', judgeId: 'judge-2' }
+      );
+      expect(sendSuccess).toHaveBeenCalled();
+    });
+
     it('should forbid delegated certification without delegated certification permission', async () => {
       mockReq.params = { categoryId: 'cat-1' };
       mockReq.body = { typedSignature: 'Delegate Signature', representedJudgeId: 'judge-2' };

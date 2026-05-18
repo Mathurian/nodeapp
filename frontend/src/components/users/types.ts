@@ -90,6 +90,7 @@ export const ROLES: RoleInfo[] = [
   { value: 'SUPER_ADMIN', label: 'Super Admin', color: 'bg-violet-100 text-violet-800' },
   { value: 'ADMIN', label: 'Admin', color: 'bg-red-100 text-red-800' },
   { value: 'ORGANIZER', label: 'Organizer', color: 'bg-purple-100 text-purple-800' },
+  { value: 'DELEGATE', label: 'Delegate', color: 'bg-cyan-100 text-cyan-800' },
   { value: 'JUDGE', label: 'Judge', color: 'bg-blue-100 text-blue-800' },
   { value: 'CONTESTANT', label: 'Contestant', color: 'bg-green-100 text-green-800' },
   { value: 'EMCEE', label: 'Emcee', color: 'bg-yellow-100 text-yellow-800' },

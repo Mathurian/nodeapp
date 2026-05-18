@@ -571,6 +571,10 @@ export class ResultsService extends BaseService {
   async getAllResults(filter: ResultsFilter): Promise<AllResultsResponse> {
     const { userRole, userId, offset = 0, limit = 50 } = filter;
 
+    if (userRole === 'DELEGATE') {
+      return { results: [], total: 0 };
+    }
+
     let whereClause: Prisma.ScoreWhereInput = {};
     const selectClause: Prisma.ScoreSelect = {
       id: true,
@@ -836,6 +840,10 @@ export class ResultsService extends BaseService {
     const { userRole, userId } = filter;
     const where: Prisma.CategoryWhereInput = {};
 
+    if (userRole === 'DELEGATE') {
+      return [];
+    }
+
     if (userRole === 'JUDGE') {
       const judgeUser = await this.prisma.user.findUnique({
         where: { id: userId },
@@ -925,6 +933,14 @@ export class ResultsService extends BaseService {
   }
 
   async getScopeOptions(filter: CategoriesFilter): Promise<ResultsScopeOptions> {
+    if (filter.userRole === 'DELEGATE') {
+      return {
+        events: [],
+        contests: [],
+        categories: [],
+      };
+    }
+
     if (filter.userRole === 'CONTESTANT') {
       const { categories, visibility } = await this.getContestantAccessibleCategoriesAndVisibility(filter.userId);
       if (!visibility || (!visibility.canViewWinners && !visibility.canViewOverallResults)) {
@@ -949,6 +965,10 @@ export class ResultsService extends BaseService {
    */
   async getContestantResults(filter: ContestantResultsFilter): Promise<ContestantScore[]> {
     const { contestantId, userRole, userId } = filter;
+
+    if (userRole === 'DELEGATE') {
+      return [];
+    }
 
     let whereClause: Prisma.ScoreWhereInput = { contestantId };
 
@@ -1054,6 +1074,10 @@ export class ResultsService extends BaseService {
    */
   async getCategoryResults(filter: CategoryResultsFilter): Promise<CategoryResultWithRanking[]> {
     const { categoryId, userRole, userId } = filter;
+
+    if (userRole === 'DELEGATE') {
+      return [];
+    }
 
     // Verify category exists
     const category = await this.prisma.category.findUnique({
@@ -1260,6 +1284,10 @@ export class ResultsService extends BaseService {
   async getContestResults(filter: ContestResultsFilter): Promise<ContestScore[]> {
     const { contestId, userRole, userId } = filter;
 
+    if (userRole === 'DELEGATE') {
+      return [];
+    }
+
     // Verify contest exists
     const contest = await this.prisma.contest.findUnique({
       where: { id: contestId },
@@ -1429,6 +1457,10 @@ export class ResultsService extends BaseService {
    */
   async getEventResults(filter: EventResultsFilter): Promise<EventScore[]> {
     const { eventId, userRole, userId } = filter;
+
+    if (userRole === 'DELEGATE') {
+      return [];
+    }
 
     // Verify event exists
     const event = await this.prisma.event.findUnique({

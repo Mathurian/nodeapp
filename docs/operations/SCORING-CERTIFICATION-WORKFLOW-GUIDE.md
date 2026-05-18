@@ -134,6 +134,10 @@ For normal self-certification:
 Use this path when a judge can score on paper or otherwise provide intent, but
 someone else must enter the data.
 
+Recommended fallback operator role:
+
+- `DELEGATE`
+
 ### Step by step
 
 1. An admin or organizer confirms the delegate has:

@@ -46,6 +46,7 @@ const ROLES: UserRole[] = [
   'SUPER_ADMIN',
   'ADMIN',
   'ORGANIZER',
+  'DELEGATE',
   'BOARD',
   'TALLY_MASTER',
   'AUDITOR',

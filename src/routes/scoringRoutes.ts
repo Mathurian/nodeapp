@@ -29,17 +29,17 @@ router.use(authenticateToken)
  *       200:
  *         description: List of categories available for scoring
  */
-router.get('/categories', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), requireScoresRead, getCategories)
+router.get('/categories', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']), requireScoresRead, getCategories)
 
 // Keep backward-compatible GET endpoint used by frontend scoring flow
 router.get('/category/:categoryId',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
   requireScoresRead,
   getScores
 )
 
 router.get('/category/:categoryId/contestant/:contestantId',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'DELEGATE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']),
   requireScoresRead,
   (req, _res, next) => {
     req.query['contestantId'] = req.params['contestantId'];
@@ -85,29 +85,29 @@ router.get('/category/:categoryId/contestant/:contestantId',
  *         description: Score submitted successfully
  */
 router.post('/category/:categoryId/contestant/:contestantId',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
   requireScoringWrite,
   idempotencyMiddleware,
   validate(createScoreSchema, 'body'),
   logActivity('SUBMIT_SCORE', 'SCORE'),
   submitScore
 )
-router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoresCertify, logActivity('CERTIFY_SCORES', 'SCORE'), certifyScores)
+router.post('/category/:categoryId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoresCertify, logActivity('CERTIFY_SCORES', 'SCORE'), certifyScores)
 router.post('/category/:categoryId/certify-totals', requireRole(['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER']), requireCertificationsWrite, certifyTotals)
 router.post('/category/:categoryId/final-certification', requireRole(['SUPER_ADMIN', 'ADMIN', 'AUDITOR']), requireCertificationsWrite, finalCertification)
 router.post('/category/:categoryId/uncertify', requireRole(['SUPER_ADMIN', 'ADMIN', 'BOARD', 'ORGANIZER']), requireScoresUncertify, logActivity('UNCERTIFY_CATEGORY', 'SCORE'), uncertifyCategory)
 
 // Score-specific routes (must come after category routes)
 router.put('/:scoreId',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
   requireScoringWrite,
   idempotencyMiddleware,
   validate(updateScoreSchema, 'body'),
   logActivity('UPDATE_SCORE', 'SCORE'),
   updateScore
 )
-router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoringDelete, idempotencyMiddleware, logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
-router.post('/:scoreId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE']), requireScoresCertify, logActivity('CERTIFY_SCORE', 'SCORE'), certifyScore)
+router.delete('/:scoreId', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']), requireScoringDelete, idempotencyMiddleware, logActivity('DELETE_SCORE', 'SCORE'), deleteScore)
+router.post('/:scoreId/certify', requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE']), requireScoresCertify, logActivity('CERTIFY_SCORE', 'SCORE'), certifyScore)
 router.post('/:scoreId/unsign', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requireScoresUnsign, logActivity('UNSIGN_SCORE', 'SCORE'), unsignScore)
 
 // Deduction endpoints

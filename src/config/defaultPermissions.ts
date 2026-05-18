@@ -26,6 +26,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'score-files:delete', 'scores:uncertify', 'scores:unsign', 'permissions:read', 'permissions:write',
     'commentary:read', 'profile:read',
   ],
+  DELEGATE: [
+    'delegated-scores:read', 'delegated-scores:write', 'delegated-scores:certify',
+    'score-delegations:read', 'score-files:read', 'score-files:upload', 'score-files:delete',
+    'scores:read', 'events:read', 'contests:read', 'categories:read', 'contestants:read',
+    'results:read', 'profile:read',
+  ],
   BOARD: [
     'events:*', 'contests:*', 'categories:*', 'results:*', 'reports:*', 'approvals:*',
     'users:*', 'settings:*', 'emcee:*', 'category-types:*',

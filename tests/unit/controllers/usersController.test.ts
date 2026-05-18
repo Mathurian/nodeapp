@@ -269,6 +269,28 @@ describe('UsersController', () => {
       expect(mockSendError).toHaveBeenCalledWith(mockRes, 'Invalid role', 400);
     });
 
+    it('should create user successfully with DELEGATE role', async () => {
+      const delegateData = {
+        ...validUserData,
+        role: 'DELEGATE',
+      };
+
+      mockReq.body = delegateData;
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+      mockUserService.createUser.mockResolvedValue({ id: 'user-delegate-1', ...delegateData } as any);
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-delegate-1', ...delegateData } as any);
+
+      await controller.createUser(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockUserService.createUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: 'DELEGATE',
+          tenantId: 'tenant-1',
+        })
+      );
+      expect(mockSendCreated).toHaveBeenCalledWith(mockRes, expect.any(Object));
+    });
+
     it('should return 400 if email already exists', async () => {
       mockReq.body = validUserData;
       mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-user' } as any);
@@ -634,6 +656,23 @@ describe('UsersController', () => {
       await controller.getUsersByRole(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockSendError).toHaveBeenCalledWith(mockRes, 'Invalid role', 400);
+    });
+
+    it('should accept DELEGATE as a valid role filter', async () => {
+      mockReq.params = { role: 'DELEGATE' };
+      mockPrisma.user.findMany.mockResolvedValue([] as any);
+
+      await controller.getUsersByRole(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            role: 'DELEGATE',
+            tenantId: 'tenant-1',
+          }),
+        })
+      );
+      expect(mockSendSuccess).toHaveBeenCalledWith(mockRes, []);
     });
 
     it('should handle errors and call next', async () => {

@@ -46,7 +46,7 @@ export interface AppNavSection {
   items: AppNavItem[]
 }
 
-export const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
+export const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'DELEGATE', 'JUDGE', 'CONTESTANT', 'EMCEE', 'TALLY_MASTER', 'AUDITOR', 'BOARD']
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']
 export const ADMIN_ONLY_ROLES = ['SUPER_ADMIN', 'ADMIN']
 export const MONITORING_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
@@ -83,9 +83,9 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     id: 'scoring',
     name: 'Scoring',
     icon: TrophyIcon,
-    roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'TALLY_MASTER', 'AUDITOR', 'ORGANIZER', 'BOARD'],
+    roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'TALLY_MASTER', 'AUDITOR', 'ORGANIZER', 'BOARD'],
     items: [
-      { id: 'scoring', name: 'Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'BOARD'], description: 'Enter scores and certify contestants', keywords: ['score', 'judge', 'judge scoring', 'points', 'certify'], priority: 80 },
+      { id: 'scoring', name: 'Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'BOARD'], description: 'Enter scores and certify contestants', keywords: ['score', 'judge', 'judge scoring', 'points', 'certify'], priority: 80 },
       { id: 'judge-schedules', name: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'], description: 'Upload or view judge schedules', keywords: ['schedule', 'calendar', 'judge'], priority: 79 },
       { id: 'tally-master', name: 'Tally Dashboard', href: '/tally-master', icon: CalculatorIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'] },
       { id: 'board-certifications', name: 'Board Certifications', href: '/board/certifications', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'] },

@@ -36,7 +36,7 @@ router.use(authenticateToken)
  *       201:
  *         description: Comment created successfully
  */
-router.post("/scores", requireRole(["ADMIN", "JUDGE"]), idempotencyMiddleware, logActivity("CREATE_SCORE_COMMENT", "COMMENTARY"), createScoreComment)
+router.post("/scores", requireRole(["ADMIN", "JUDGE", "DELEGATE"]), idempotencyMiddleware, logActivity("CREATE_SCORE_COMMENT", "COMMENTARY"), createScoreComment)
 
 /**
  * @swagger
@@ -56,12 +56,12 @@ router.post("/scores", requireRole(["ADMIN", "JUDGE"]), idempotencyMiddleware, l
  *       201:
  *         description: Commentary created successfully
  */
-router.post('/', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('CREATE_COMMENT', 'COMMENTARY'), createComment)
+router.post('/', requireRole(['JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('CREATE_COMMENT', 'COMMENTARY'), createComment)
 router.get('/score/:scoreId', getCommentsForScore)
 router.get('/category/:categoryId/contestant/:contestantId', getCategoryComment)
-router.put('/category/:categoryId/contestant/:contestantId', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('UPDATE_CATEGORY_COMMENT', 'COMMENTARY'), upsertCategoryComment)
-router.put('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('UPDATE_COMMENT', 'COMMENTARY'), updateComment)
-router.delete('/:id', requireRole(['JUDGE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('DELETE_COMMENT', 'COMMENTARY'), deleteComment)
+router.put('/category/:categoryId/contestant/:contestantId', requireRole(['JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('UPDATE_CATEGORY_COMMENT', 'COMMENTARY'), upsertCategoryComment)
+router.put('/:id', requireRole(['JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('UPDATE_COMMENT', 'COMMENTARY'), updateComment)
+router.delete('/:id', requireRole(['JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'ADMIN']), idempotencyMiddleware, logActivity('DELETE_COMMENT', 'COMMENTARY'), deleteComment)
 router.get('/contestant/:contestantId', getCommentsByContestant)
 
 export default router;

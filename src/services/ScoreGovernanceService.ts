@@ -657,6 +657,7 @@ export class ScoreGovernanceService extends BaseService {
         CONTESTANT: 0,
         EMCEE: 0,
         JUDGE: 1,
+        DELEGATE: 1,
         TALLY_MASTER: 2,
         AUDITOR: 3,
         BOARD: 4,

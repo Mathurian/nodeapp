@@ -15,21 +15,21 @@ router.use(authenticateToken);
 
 router.get(
   '/',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'DELEGATE']),
   requirePermission('score-delegations:read'),
   listScoreDelegationGrants,
 );
 
 router.get(
   '/eligible-judges',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'DELEGATE']),
   requireAnyPermission(['score-delegations:read', 'delegated-scores:read', 'delegated-scores:write']),
   getEligibleDelegatedJudges,
 );
 
 router.post(
   '/validate',
-  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE']),
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR', 'JUDGE', 'DELEGATE']),
   requireAnyPermission(['score-delegations:read', 'delegated-scores:read', 'delegated-scores:write']),
   validateScoreDelegationGrant,
 );

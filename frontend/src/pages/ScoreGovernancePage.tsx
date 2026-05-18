@@ -166,35 +166,57 @@ const ScoreGovernancePage: React.FC = () => {
   )
 
   const { data: delegationContests = [] } = useQuery<any[]>(
-    ['score-delegation-contests'],
+    ['score-delegation-contests', delegationEventId],
     async () => {
-      const response = await contestsAPI.getAll()
+      const response = await contestsAPI.getAll({ eventId: delegationEventId || undefined })
       return extractRows(response)
     },
     {
-      enabled: canCreateDelegations,
+      enabled: canCreateDelegations && (!['CONTEST', 'CATEGORY'].includes(delegationScopeLevel) || Boolean(delegationEventId)),
     },
   )
 
   const { data: delegationCategories = [] } = useQuery<any[]>(
-    ['score-delegation-categories'],
+    ['score-delegation-categories', delegationContestId],
     async () => {
-      const response = await categoriesAPI.getAll()
+      const response = await categoriesAPI.getByContest(delegationContestId)
       return extractRows(response)
     },
     {
-      enabled: canCreateDelegations,
+      enabled: canCreateDelegations && delegationScopeLevel === 'CATEGORY' && Boolean(delegationContestId),
     },
   )
 
-  const { data: delegationJudges = [] } = useQuery<any[]>(
-    ['score-delegation-judges'],
+  const delegationAssignmentsScopeReady =
+    delegationCoverageMode === 'SELECTED_JUDGES' && (
+      delegationScopeLevel === 'TENANT' ||
+      (delegationScopeLevel === 'EVENT' && Boolean(delegationEventId)) ||
+      (delegationScopeLevel === 'CONTEST' && Boolean(delegationContestId)) ||
+      (delegationScopeLevel === 'CATEGORY' && Boolean(delegationCategoryId))
+    )
+
+  const { data: delegationAssignments = [] } = useQuery<any[]>(
+    [
+      'score-delegation-assignment-judges',
+      delegationScopeLevel,
+      delegationEventId,
+      delegationContestId,
+      delegationCategoryId,
+      delegationCoverageMode,
+    ],
     async () => {
-      const response = await assignmentsAPI.getJudges()
+      const response = await assignmentsAPI.getAll({
+        eventId: delegationScopeLevel === 'TENANT' ? undefined : delegationEventId || undefined,
+        contestId:
+          delegationScopeLevel === 'CONTEST' || delegationScopeLevel === 'CATEGORY'
+            ? delegationContestId || undefined
+            : undefined,
+        categoryId: delegationScopeLevel === 'CATEGORY' ? delegationCategoryId || undefined : undefined,
+      })
       return extractRows(response)
     },
     {
-      enabled: canCreateDelegations,
+      enabled: canCreateDelegations && delegationAssignmentsScopeReady,
     },
   )
 
@@ -479,22 +501,64 @@ const ScoreGovernancePage: React.FC = () => {
     }
   }, [showCompleted, statusFilter])
 
-  const filteredDelegationContests = useMemo(() => (
-    delegationContests.filter((contest: any) => !delegationEventId || contest.eventId === delegationEventId)
-  ), [delegationContests, delegationEventId])
+  useEffect(() => {
+    if (delegationScopeLevel === 'TENANT') {
+      setDelegationEventId('')
+      setDelegationContestId('')
+      setDelegationCategoryId('')
+    }
 
-  const filteredDelegationCategories = useMemo(() => (
-    delegationCategories.filter((category: any) => {
-      if (delegationContestId) return category.contestId === delegationContestId
-      if (delegationEventId) return category.contest?.event?.id === delegationEventId || category.eventId === delegationEventId
-      return true
-    })
-  ), [delegationCategories, delegationContestId, delegationEventId])
+    if (delegationScopeLevel === 'EVENT') {
+      setDelegationContestId('')
+      setDelegationCategoryId('')
+    }
+
+    if (delegationScopeLevel === 'CONTEST') {
+      setDelegationCategoryId('')
+    }
+
+    setDelegationJudgeIds([])
+  }, [delegationScopeLevel])
+
+  const filteredDelegationContests = useMemo(() => delegationContests, [delegationContests])
+
+  const filteredDelegationCategories = useMemo(() => delegationCategories, [delegationCategories])
 
   const filteredDelegationJudges = useMemo(() => {
     if (delegationCoverageMode === 'ALL_JUDGES_IN_SCOPE') return []
-    return delegationJudges
-  }, [delegationCoverageMode, delegationJudges])
+    const judgeMap = new Map<string, { id: string; name: string; email?: string | null }>()
+    delegationAssignments.forEach((assignment: any) => {
+      const judge = assignment?.judge
+      const judgeId = assignment?.judgeId || judge?.id
+      if (!judgeId) return
+      if (!judgeMap.has(judgeId)) {
+        judgeMap.set(judgeId, {
+          id: judgeId,
+          name: judge?.name || assignment?.judgeName || 'Judge',
+          email: judge?.email || null,
+        })
+      }
+    })
+    return Array.from(judgeMap.values()).sort((left, right) => left.name.localeCompare(right.name))
+  }, [delegationAssignments, delegationCoverageMode])
+
+  useEffect(() => {
+    setDelegationContestId((current) =>
+      current && filteredDelegationContests.some((contest: any) => contest.id === current) ? current : '',
+    )
+  }, [filteredDelegationContests])
+
+  useEffect(() => {
+    setDelegationCategoryId((current) =>
+      current && filteredDelegationCategories.some((category: any) => category.id === current) ? current : '',
+    )
+  }, [filteredDelegationCategories])
+
+  useEffect(() => {
+    setDelegationJudgeIds((current) =>
+      current.filter((judgeIdValue) => filteredDelegationJudges.some((judge) => judge.id === judgeIdValue)),
+    )
+  }, [filteredDelegationJudges])
 
   const createMutation = useMutation((payload: any) => scoreGovernanceAPI.createRequest(payload), {
     onSuccess: async () => {
@@ -800,13 +864,14 @@ const ScoreGovernancePage: React.FC = () => {
                 className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
 
-              {delegationScopeLevel === 'EVENT' && (
+              {['EVENT', 'CONTEST', 'CATEGORY'].includes(delegationScopeLevel) && (
                 <select
                   value={delegationEventId}
                   onChange={(e) => {
                     setDelegationEventId(e.target.value)
                     setDelegationContestId('')
                     setDelegationCategoryId('')
+                    setDelegationJudgeIds([])
                   }}
                   className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 >
@@ -817,13 +882,15 @@ const ScoreGovernancePage: React.FC = () => {
                 </select>
               )}
 
-              {delegationScopeLevel === 'CONTEST' && (
+              {['CONTEST', 'CATEGORY'].includes(delegationScopeLevel) && (
                 <select
                   value={delegationContestId}
                   onChange={(e) => {
                     setDelegationContestId(e.target.value)
                     setDelegationCategoryId('')
+                    setDelegationJudgeIds([])
                   }}
+                  disabled={!delegationEventId}
                   className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 >
                   <option value="">Select contest</option>
@@ -836,7 +903,11 @@ const ScoreGovernancePage: React.FC = () => {
               {delegationScopeLevel === 'CATEGORY' && (
                 <select
                   value={delegationCategoryId}
-                  onChange={(e) => setDelegationCategoryId(e.target.value)}
+                  onChange={(e) => {
+                    setDelegationCategoryId(e.target.value)
+                    setDelegationJudgeIds([])
+                  }}
+                  disabled={!delegationContestId}
                   className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 >
                   <option value="">Select category</option>
@@ -859,6 +930,15 @@ const ScoreGovernancePage: React.FC = () => {
           {canCreateDelegations && delegationCoverageMode === 'SELECTED_JUDGES' && (
             <div className="rounded-lg border border-gray-200 p-3">
               <p className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Represented Judges</p>
+              {!delegationAssignmentsScopeReady ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Select the full delegation scope first to load eligible judges.
+                </p>
+              ) : filteredDelegationJudges.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No assigned judges were found for the selected scope.
+                </p>
+              ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {filteredDelegationJudges.map((judge: any) => (
                   <label key={judge.id} className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -877,6 +957,7 @@ const ScoreGovernancePage: React.FC = () => {
                   </label>
                 ))}
               </div>
+              )}
             </div>
           )}
 

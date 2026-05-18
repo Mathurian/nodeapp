@@ -12,6 +12,7 @@ export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN' as UserRole,
   ADMIN: 'ADMIN' as UserRole,
   ORGANIZER: 'ORGANIZER' as UserRole,
+  DELEGATE: 'DELEGATE' as UserRole,
   BOARD: 'BOARD' as UserRole,
   JUDGE: 'JUDGE' as UserRole,
   CONTESTANT: 'CONTESTANT' as UserRole,
