@@ -42,6 +42,10 @@ type DeductionAccessScope = {
   categoryIds: string[];
 };
 
+type DelegateScoringAccessScope = DeductionAccessScope & {
+  hasActiveGrant: boolean;
+};
+
 export class ScoringController {
   private scoringService: ScoringService;
   private contestantFilterService: ContestantScoreFilterService;
@@ -111,6 +115,15 @@ export class ScoringController {
     }
 
     return clauses.length > 0 ? { OR: clauses } : null;
+  }
+
+  private hasDelegateScoringScope(scope: DelegateScoringAccessScope): boolean {
+    return scope.hasActiveGrant && this.hasDeductionScope(scope);
+  }
+
+  private buildDelegateScoringCategoryWhere(scope: DelegateScoringAccessScope): Prisma.CategoryWhereInput | null {
+    if (!scope.hasActiveGrant) return null;
+    return this.buildCategoryScopeWhere(scope);
   }
 
   private canAccessCategoryInScope(
@@ -1243,6 +1256,19 @@ export class ScoringController {
         const scopeWhere = this.buildCategoryScopeWhere(scope);
 
         if (!scopeWhere || !this.hasDeductionScope(scope)) {
+          return sendSuccess(res, []);
+        }
+
+        if (!scope.tenantWide) {
+          filters.push(scopeWhere);
+        }
+      }
+
+      if (userRole === 'DELEGATE') {
+        const scope = await this.scoreDelegationService.getDelegateScoringScope(req.user.id, tenantId);
+        const scopeWhere = this.buildDelegateScoringCategoryWhere(scope);
+
+        if (!scopeWhere || !this.hasDelegateScoringScope(scope)) {
           return sendSuccess(res, []);
         }
 

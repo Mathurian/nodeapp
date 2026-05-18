@@ -56,6 +56,14 @@ export interface DelegatedJudgeCertificationContext {
   delegationGrantId: string | null;
 }
 
+export interface DelegatedScoringScope {
+  tenantWide: boolean;
+  eventIds: string[];
+  contestIds: string[];
+  categoryIds: string[];
+  hasActiveGrant: boolean;
+}
+
 type CategoryContext = {
   id: string;
   contestId: string;
@@ -68,6 +76,16 @@ type CategoryContext = {
 export class ScoreDelegationService extends BaseService {
   constructor(@inject('PrismaClient') private prisma: PrismaClient) {
     super();
+  }
+
+  private emptyDelegatedScoringScope(): DelegatedScoringScope {
+    return {
+      tenantWide: false,
+      eventIds: [],
+      contestIds: [],
+      categoryIds: [],
+      hasActiveGrant: false,
+    };
   }
 
   private getActorJudgeId(actor: Pick<DelegateActor, 'judgeId' | 'judge'>): string | null {
@@ -458,6 +476,62 @@ export class ScoreDelegationService extends BaseService {
     });
 
     return Array.from(options.values()).sort((left, right) => left.judgeName.localeCompare(right.judgeName));
+  }
+
+  async getDelegateScoringScope(
+    delegateUserId: string,
+    tenantId: string,
+  ): Promise<DelegatedScoringScope> {
+    const grants = await this.prisma.scoreDelegationGrant.findMany({
+      where: {
+        tenantId,
+        delegateUserId,
+        status: 'ACTIVE',
+        startsAt: { lte: new Date() },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: {
+        scopeLevel: true,
+        categoryId: true,
+        contestId: true,
+        eventId: true,
+      },
+    });
+
+    if (grants.length === 0) {
+      return this.emptyDelegatedScoringScope();
+    }
+
+    const scope = this.emptyDelegatedScoringScope();
+    scope.hasActiveGrant = true;
+
+    for (const grant of grants) {
+      if (grant.scopeLevel === 'TENANT') {
+        scope.tenantWide = true;
+        scope.eventIds = [];
+        scope.contestIds = [];
+        scope.categoryIds = [];
+        break;
+      }
+
+      if (grant.scopeLevel === 'EVENT' && grant.eventId) {
+        scope.eventIds.push(grant.eventId);
+      }
+      if (grant.scopeLevel === 'CONTEST' && grant.contestId) {
+        scope.contestIds.push(grant.contestId);
+      }
+      if (grant.scopeLevel === 'CATEGORY' && grant.categoryId) {
+        scope.categoryIds.push(grant.categoryId);
+      }
+    }
+
+    if (!scope.tenantWide) {
+      scope.eventIds = Array.from(new Set(scope.eventIds));
+      scope.contestIds = Array.from(new Set(scope.contestIds));
+      scope.categoryIds = Array.from(new Set(scope.categoryIds));
+    }
+
+    return scope;
   }
 
   async validateDelegatedAccess(

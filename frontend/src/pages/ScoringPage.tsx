@@ -375,6 +375,7 @@ const ScoringPage: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const isDelegateUser = user?.role === 'DELEGATE'
   const canViewPrivateContestantProfile = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'].includes(user?.role || '')
 
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
@@ -835,6 +836,7 @@ const ScoringPage: React.FC = () => {
     if (!selectedContestId) return sortedCategories
     return sortedCategories.filter((category) => category.contest.id === selectedContestId)
   }, [sortedCategories, selectedContestId])
+  const isDelegateGrantEmptyState = isDelegateUser && sortedCategories.length === 0
 
   const sortedContestants = useMemo<Contestant[]>(() => {
     if (!contestants || contestants.length === 0) return []
@@ -2234,11 +2236,24 @@ const ScoringPage: React.FC = () => {
       <div className="cgr-page-container">
         <PageHeader
           title="Scoring Dashboard"
-          subtitle={assignedContests.length > 1
-            ? 'Select a contest, category, represented judge, and contestant to begin scoring'
-            : 'Select a category, represented judge, and contestant to begin scoring'}
+          subtitle={isDelegateGrantEmptyState
+            ? 'You need an active delegation grant before delegated scoring becomes available.'
+            : assignedContests.length > 1
+              ? 'Select a contest, category, represented judge, and contestant to begin scoring'
+              : 'Select a category, represented judge, and contestant to begin scoring'}
           icon={TrophyIcon}
         />
+
+        {isDelegateGrantEmptyState && (
+          <Card className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-6">
+            <h2 className="text-lg font-semibold text-amber-900">No Active Delegation Grants</h2>
+            <p className="mt-2 text-sm text-amber-800">
+              Your delegate account is ready, but there is no active delegation grant covering scoring right now.
+              Ask an administrator or organizer to assign a delegation grant before attempting delegated score entry
+              or delegated certification.
+            </p>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Categories */}
@@ -2297,7 +2312,9 @@ const ScoringPage: React.FC = () => {
                 <div className="text-center py-8">
                   <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                    {categories && categories.length > 0
+                    {isDelegateGrantEmptyState
+                      ? 'No active delegation grants currently allow delegated scoring.'
+                      : categories && categories.length > 0
                       ? 'No categories assigned in the selected contest'
                       : 'No categories assigned yet'}
                   </p>

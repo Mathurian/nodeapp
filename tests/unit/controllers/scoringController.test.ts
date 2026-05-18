@@ -122,6 +122,13 @@ describe('ScoringController', () => {
       resolveActingJudgeContext: jest.fn(),
       resolveCertificationContext: jest.fn().mockResolvedValue(null),
       isDelegateJudgeCertificationAllowed: jest.fn(),
+      getDelegateScoringScope: jest.fn().mockResolvedValue({
+        tenantWide: false,
+        eventIds: [],
+        contestIds: [],
+        categoryIds: [],
+        hasActiveGrant: false,
+      }),
     };
     mockDynamicPermissionService = {
       hasPermission: jest.fn().mockResolvedValue(true),
@@ -342,6 +349,87 @@ describe('ScoringController', () => {
       await controller.submitScore(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('getCategories', () => {
+    it('should fail closed for DELEGATE users without an active scoring grant scope', async () => {
+      mockReq.user = { id: 'delegate-1', role: 'DELEGATE', tenantId: 'tenant-1' } as any;
+      mockScoreDelegationService.getDelegateScoringScope.mockResolvedValue({
+        tenantWide: false,
+        eventIds: [],
+        contestIds: [],
+        categoryIds: [],
+        hasActiveGrant: false,
+      });
+
+      await controller.getCategories(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockScoreDelegationService.getDelegateScoringScope).toHaveBeenCalledWith('delegate-1', 'tenant-1');
+      expect(mockPrisma.category.findMany).not.toHaveBeenCalled();
+      expect(sendSuccess).toHaveBeenCalledWith(mockRes, []);
+    });
+
+    it('should limit DELEGATE categories to the active delegation scope', async () => {
+      mockReq.user = { id: 'delegate-1', role: 'DELEGATE', tenantId: 'tenant-1' } as any;
+      mockScoreDelegationService.getDelegateScoringScope.mockResolvedValue({
+        tenantWide: false,
+        eventIds: ['event-1'],
+        contestIds: [],
+        categoryIds: [],
+        hasActiveGrant: true,
+      });
+      mockPrisma.category.findMany.mockResolvedValue([
+        {
+          id: 'cat-1',
+          name: 'Talent',
+          contestId: 'contest-1',
+          commentaryMode: 'PER_CRITERION',
+          commentaryScope: 'CATEGORY',
+          contest: {
+            id: 'contest-1',
+            name: 'Contest 1',
+            deletedAt: null,
+            event: {
+              id: 'event-1',
+              name: 'Event 1',
+              deletedAt: null,
+            },
+          },
+          _count: {
+            scores: 0,
+            categoryContestants: 0,
+          },
+          categoryContestants: [],
+        },
+      ]);
+
+      await controller.getCategories(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.category.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: expect.arrayContaining([
+              expect.objectContaining({ tenantId: 'tenant-1', deletedAt: null }),
+              expect.objectContaining({
+                OR: [{ contest: { eventId: { in: ['event-1'] } } }],
+              }),
+            ]),
+          }),
+        }),
+      );
+      expect(sendSuccess).toHaveBeenCalledWith(
+        mockRes,
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'cat-1',
+            contest: expect.objectContaining({
+              id: 'contest-1',
+              event: expect.objectContaining({ id: 'event-1' }),
+            }),
+          }),
+        ]),
+      );
     });
   });
 
