@@ -2,11 +2,13 @@ import React from 'react'
 import { useQuery } from 'react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useSystemSettings } from '../contexts/SystemSettingsContext'
+import { useAllowedNavigationIds } from '../hooks/useAllowedNavigationIds'
 import { adminAPI, tenantsAPI, eventsAPI, contestsAPI, scoreGovernanceAPI, tallyMasterAPI, auditorAPI, boardAPI } from '../services/api'
 import { DEFAULT_APP_BASELINE } from '../config/appBaseline'
 import {
   ChartBarIcon,
   UsersIcon,
+  UserIcon,
   CalendarIcon,
   TrophyIcon,
   ClockIcon,
@@ -68,9 +70,19 @@ interface ScopedContest {
   eventId: string
 }
 
+interface QuickAction {
+  id: string
+  label: string
+  href: string
+  icon: any
+  color: string
+  navId?: string
+}
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth()
   const { settings } = useSystemSettings()
+  const allowedNavigationIds = useAllowedNavigationIds()
   const appName = settings.app_name || DEFAULT_APP_BASELINE.appName
 
   // Admin endpoints only allow SUPER_ADMIN, ADMIN, ORGANIZER, BOARD
@@ -163,6 +175,7 @@ const DashboardPage: React.FC = () => {
       TALLY_MASTER: 'Welcome to your Tally Master Dashboard',
       AUDITOR: 'Welcome to your Auditor Dashboard',
       BOARD: 'Welcome to your Board Dashboard',
+      DELEGATE: 'Welcome to your Delegate Dashboard',
       ADMIN: 'Welcome to your Admin Dashboard',
     }
     return greetings[role as keyof typeof greetings] || DEFAULT_APP_BASELINE.dashboardWelcome
@@ -178,71 +191,88 @@ const DashboardPage: React.FC = () => {
       TALLY_MASTER: 'Review scoring completeness and certify tally-stage categories',
       AUDITOR: 'Review auditor-stage certifications and validate score integrity',
       BOARD: 'Review board-stage certifications and final publication readiness',
+      DELEGATE: 'Enter scores on behalf of covered judges when an active delegation grant authorizes that work',
       ADMIN: 'Manage tenant setup, user access, certification flow, and publication controls',
     }
     return descriptions[role as keyof typeof descriptions] || 'Your personal dashboard'
   }
 
   const getQuickActions = (role: string) => {
-    const actions: Record<string, Array<{ label: string; href: string; icon: any; color: string }>> = {
+    const actions: Record<string, QuickAction[]> = {
       SUPER_ADMIN: [
-        { label: 'Tenants', href: '/tenants', icon: UsersIcon, color: 'blue' },
-        { label: 'System Settings', href: '/settings', icon: UsersIcon, color: 'green' },
-        { label: 'Permissions', href: '/permissions', icon: CheckCircleIcon, color: 'indigo' },
-        { label: 'Performance', href: '/performance', icon: ChartBarIcon, color: 'purple' },
-        { label: 'Backups', href: '/backups', icon: ClockIcon, color: 'orange' },
+        { id: 'tenants', label: 'Tenants', href: '/tenants', icon: UsersIcon, color: 'blue', navId: 'tenants' },
+        { id: 'settings', label: 'System Settings', href: '/settings', icon: UsersIcon, color: 'green', navId: 'settings' },
+        { id: 'permissions', label: 'Permissions', href: '/permissions', icon: CheckCircleIcon, color: 'indigo', navId: 'permissions' },
+        { id: 'performance', label: 'Performance', href: '/performance', icon: ChartBarIcon, color: 'purple', navId: 'performance' },
+        { id: 'backups', label: 'Backups', href: '/backups', icon: ClockIcon, color: 'orange', navId: 'backups' },
       ],
       JUDGE: [
-        { label: 'Assigned Scoring', href: '/scoring', icon: TrophyIcon, color: 'blue' },
-        { label: 'My Schedule', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
-        { label: 'Check Results Availability', href: '/results', icon: ChartBarIcon, color: 'green' },
+        { id: 'scoring', label: 'Assigned Scoring', href: '/scoring', icon: TrophyIcon, color: 'blue', navId: 'scoring' },
+        { id: 'judge-schedules', label: 'My Schedule', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo', navId: 'judge-schedules' },
+        { id: 'results', label: 'Check Results Availability', href: '/results', icon: ChartBarIcon, color: 'green', navId: 'results' },
+      ],
+      DELEGATE: [
+        { id: 'scoring', label: 'Delegated Scoring', href: '/scoring', icon: TrophyIcon, color: 'blue', navId: 'scoring' },
+        { id: 'profile', label: 'My Profile', href: '/profile', icon: UserIcon, color: 'indigo', navId: 'profile' },
+        { id: 'notifications', label: 'Notifications', href: '/notifications', icon: BellIcon, color: 'green', navId: 'notifications' },
       ],
       CONTESTANT: [
-        { label: 'Bios Directory', href: '/bios', icon: CalendarIcon, color: 'blue' },
-        { label: 'Check Released Results', href: '/results', icon: ChartBarIcon, color: 'green' },
+        { id: 'bios', label: 'Bios Directory', href: '/bios', icon: CalendarIcon, color: 'blue', navId: 'bios' },
+        { id: 'results', label: 'Check Released Results', href: '/results', icon: ChartBarIcon, color: 'green', navId: 'results' },
       ],
       EMCEE: [
-        { label: 'Emcee Console', href: '/emcee', icon: UsersIcon, color: 'blue' },
-        { label: 'Presentation Scripts', href: '/emcee?tab=scripts', icon: TrophyIcon, color: 'indigo' },
-        { label: 'Bios Directory', href: '/bios', icon: UsersIcon, color: 'green' },
+        { id: 'emcee', label: 'Emcee Console', href: '/emcee', icon: UsersIcon, color: 'blue', navId: 'emcee' },
+        { id: 'emcee-scripts', label: 'Presentation Scripts', href: '/emcee?tab=scripts', icon: TrophyIcon, color: 'indigo', navId: 'emcee' },
+        { id: 'bios', label: 'Bios Directory', href: '/bios', icon: UsersIcon, color: 'green', navId: 'bios' },
       ],
       TALLY_MASTER: [
-        { label: 'Tally Dashboard', href: '/tally-master', icon: ChartBarIcon, color: 'blue' },
-        { label: 'Tally Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'green' },
-        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
+        { id: 'tally-master', label: 'Tally Dashboard', href: '/tally-master', icon: ChartBarIcon, color: 'blue', navId: 'tally-master' },
+        { id: 'certifications', label: 'Tally Certifications', href: '/certifications', icon: CheckCircleIcon, color: 'green', navId: 'certifications' },
+        { id: 'score-governance', label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange', navId: 'score-governance' },
       ],
       AUDITOR: [
-        { label: 'Certification Overview', href: '/certifications', icon: CheckCircleIcon, color: 'blue' },
-        { label: 'Pending Auditor Certifications', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green' },
-        { label: 'Certification Status', href: '/auditor/certification-status', icon: TrophyIcon, color: 'indigo' },
-        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
+        { id: 'certifications', label: 'Certification Overview', href: '/certifications', icon: CheckCircleIcon, color: 'blue', navId: 'certifications' },
+        { id: 'auditor-pending-audits', label: 'Pending Auditor Certifications', href: '/auditor/pending-audits', icon: ClockIcon, color: 'green', navId: 'auditor-pending-audits' },
+        { id: 'auditor-certification-status', label: 'Certification Status', href: '/auditor/certification-status', icon: TrophyIcon, color: 'indigo', navId: 'auditor-certification-status' },
+        { id: 'score-governance', label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange', navId: 'score-governance' },
       ],
       BOARD: [
-        { label: 'Board Certifications', href: '/board', icon: CheckCircleIcon, color: 'blue' },
-        { label: 'Certification Overview', href: '/certifications', icon: CalendarIcon, color: 'green' },
-        { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
-        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
+        { id: 'board', label: 'Board Certifications', href: '/board', icon: CheckCircleIcon, color: 'blue', navId: 'board' },
+        { id: 'certifications', label: 'Certification Overview', href: '/certifications', icon: CalendarIcon, color: 'green', navId: 'certifications' },
+        { id: 'reports', label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple', navId: 'reports' },
+        { id: 'score-governance', label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange', navId: 'score-governance' },
       ],
       ADMIN: [
-        { label: 'System Admin', href: '/admin', icon: UsersIcon, color: 'blue' },
-        { label: 'Events', href: '/events', icon: CalendarIcon, color: 'green' },
-        { label: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
-        { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'indigo' },
-        { label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
-        { label: 'Settings', href: '/settings', icon: UsersIcon, color: 'orange' },
-        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
+        { id: 'admin', label: 'System Admin', href: '/admin', icon: UsersIcon, color: 'blue', navId: 'admin' },
+        { id: 'events', label: 'Events', href: '/events', icon: CalendarIcon, color: 'green', navId: 'events' },
+        { id: 'judge-schedules', label: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo', navId: 'judge-schedules' },
+        { id: 'users', label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'indigo', navId: 'users' },
+        { id: 'reports', label: 'Reports', href: '/reports', icon: ChartBarIcon, color: 'purple', navId: 'reports' },
+        { id: 'settings', label: 'Settings', href: '/settings', icon: UsersIcon, color: 'orange', navId: 'settings' },
+        { id: 'score-governance', label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange', navId: 'score-governance' },
       ],
       ORGANIZER: [
-        { label: 'Create Event', href: '/events', icon: CalendarIcon, color: 'blue' },
-        { label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'green' },
-        { label: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo' },
-        { label: 'View Reports', href: '/reports', icon: ChartBarIcon, color: 'purple' },
-        { label: 'Event Templates', href: '/event-templates', icon: TrophyIcon, color: 'orange' },
-        { label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange' },
+        { id: 'events', label: 'Create Event', href: '/events', icon: CalendarIcon, color: 'blue', navId: 'events' },
+        { id: 'users', label: 'Manage Users', href: '/users', icon: UsersIcon, color: 'green', navId: 'users' },
+        { id: 'judge-schedules', label: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, color: 'indigo', navId: 'judge-schedules' },
+        { id: 'reports', label: 'View Reports', href: '/reports', icon: ChartBarIcon, color: 'purple', navId: 'reports' },
+        { id: 'event-templates', label: 'Event Templates', href: '/event-templates', icon: TrophyIcon, color: 'orange', navId: 'event-templates' },
+        { id: 'score-governance', label: 'Governance Queue', href: '/score-governance', icon: ExclamationTriangleIcon, color: 'orange', navId: 'score-governance' },
+      ],
+      DEFAULT: [
+        { id: 'profile', label: 'My Profile', href: '/profile', icon: UserIcon, color: 'indigo', navId: 'profile' },
+        { id: 'notifications', label: 'Notifications', href: '/notifications', icon: BellIcon, color: 'green', navId: 'notifications' },
       ],
     }
-    return actions[role] || actions.ADMIN
+    return actions[role] || actions.DEFAULT
   }
+
+  const quickActions = (getQuickActions(user?.role || '')).filter((action) => {
+    if (!action.navId || !allowedNavigationIds) {
+      return true
+    }
+    return allowedNavigationIds.has(action.navId)
+  })
 
   const statCards = [
     { label: 'Total Events', value: stats?.totalEvents || 0, icon: CalendarIcon, color: 'blue' },
@@ -393,9 +423,9 @@ const DashboardPage: React.FC = () => {
             Quick Actions
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {getQuickActions(user?.role || '').map((action) => (
+            {quickActions.map((action) => (
               <Link
-                key={action.label}
+                key={action.id}
                 to={action.href}
                 className="block"
               >
@@ -653,12 +683,21 @@ const DashboardPage: React.FC = () => {
                   >
                     API Documentation
                   </a>
-                  <Link
-                    to="/settings"
-                    className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 text-blue-900 dark:text-blue-100 rounded-md transition-colors"
-                  >
-                    Settings
-                  </Link>
+                  {allowedNavigationIds?.has('settings') ? (
+                    <Link
+                      to="/settings"
+                      className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 text-blue-900 dark:text-blue-100 rounded-md transition-colors"
+                    >
+                      Settings
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/help"
+                      className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 text-blue-900 dark:text-blue-100 rounded-md transition-colors"
+                    >
+                      Help Center
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
