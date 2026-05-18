@@ -46,6 +46,7 @@ Current state of the local corpus:
 
 - every currently observed sample is a `pdf_scan`
 - no dedicated phone-photo capture set is available yet
+- `TASK-34.10` added synthetic phone-style UAT profiles derived from the clean scans, but those are proxies rather than real handset captures
 - every page is `letter portrait`
 - every page is a single front-side scoresheet with comments present below the score grid
 
@@ -74,7 +75,7 @@ This is enough for:
 It is not yet enough for:
 
 - production rollout approval
-- supported phone-upload guidance
+- supported phone-upload guidance based on real handset captures
 - multi-family release support
 
 ## Supported Calibration Assumptions

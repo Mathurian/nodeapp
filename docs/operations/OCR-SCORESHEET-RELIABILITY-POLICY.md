@@ -24,11 +24,13 @@ The sample corpus lives at:
 The automated harness is:
 
 - [score-sheet-import-regression.js](/srv/event-manager/dev/scripts/ops/score-sheet-import-regression.js:1)
+- [score-sheet-import-uat.js](/srv/event-manager/dev/scripts/ops/score-sheet-import-uat.js:1)
 
 Available commands:
 
 - `npm run test:scoresheet-import:calibration`
 - `npm run test:scoresheet-import:rollout`
+- `npm run test:scoresheet-import:uat`
 
 Both commands build the backend and then evaluate supported templates against the shared ground-truth packet.
 
@@ -114,11 +116,14 @@ It only means:
 - changes to that family can be measured repeatably,
 - and the project now has a clear line between calibration progress and rollout readiness.
 
-## Next Dependency
+## Current Rollout Status
 
-`TASK-34.10` remains the task that should decide whether the first supported template family is actually ready for rollout after:
+`TASK-34.10` completed the first Education-family UAT pass and the result is still `No-Go` for production rollout.
 
-- additional tuning if needed
-- phone-photo sample collection
-- UAT against realistic uploads
-- comparison against delegated entry workload and failure handling
+See:
+
+- [OCR-SCORESHEET-UAT-EDUCATION.md](/srv/event-manager/dev/docs/operations/OCR-SCORESHEET-UAT-EDUCATION.md:1)
+
+The next architecture and operations dependency is:
+
+- [TASK-34.11](/srv/event-manager/dev/backlog/tasks/task-34.11%20-%20Define-template-versioning-and-recalibration-workflow-for-supported-scoresheet-imports.md:1)

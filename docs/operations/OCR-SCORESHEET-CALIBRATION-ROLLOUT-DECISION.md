@@ -1,5 +1,20 @@
 # Scoresheet Import Calibration And Rollout Decision
 
+## Status
+
+This document records the pre-UAT calibration baseline from `TASK-34.5`.
+
+The final Education-family UAT and rollout decision now lives at:
+
+- [OCR-SCORESHEET-UAT-EDUCATION.md](/srv/event-manager/dev/docs/operations/OCR-SCORESHEET-UAT-EDUCATION.md:1)
+
+Current final recommendation after `TASK-34.10`:
+
+- `No-Go` for production rollout of `education_saturday_day_v1`
+- continue using delegated entry as the operational fallback
+
+The sections below are kept as the historical calibration baseline that led into the later UAT pass.
+
 ## Scope
 
 This document records the Phase 1 calibration outcome for [TASK-34](/srv/event-manager/dev/backlog/tasks/task-34%20-%20Add-scoresheet-image-import-into-verified-online-scoring-flow.md).

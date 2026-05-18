@@ -13,6 +13,7 @@
     "test:unit": "node --max-old-space-size=4096 node_modules/.bin/jest --runInBand --no-forceExit --openHandlesTimeout=10000 --testPathPatterns=tests/unit",
     "test:scoresheet-import:calibration": "npm run build && node scripts/ops/score-sheet-import-regression.js --mode=calibration",
     "test:scoresheet-import:rollout": "npm run build && node scripts/ops/score-sheet-import-regression.js --mode=rollout",
+    "test:scoresheet-import:uat": "npm run build && node scripts/ops/score-sheet-import-uat.js",
     "test:integration": "bash scripts/test-backend-jest.sh --prepare-db --no-forceExit --openHandlesTimeout=10000 --testPathPatterns=tests/integration",
     "test:contracts": "bash scripts/test-backend-jest.sh --prepare-db --no-forceExit --openHandlesTimeout=10000 --testPathPatterns=tests/contracts",
     "test:e2e": "playwright test",
