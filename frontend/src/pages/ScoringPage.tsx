@@ -428,13 +428,13 @@ const ScoringPage: React.FC = () => {
   const canDeleteScoreFiles = hasPermissionAction(permissionSet, 'score-files:delete')
   const canUseDelegatedScoring = hasPermissionAction(permissionSet, 'delegated-scores:write')
     && hasPermissionAction(permissionSet, 'score-delegations:read')
+  const canUseDelegatedCertificationPermission = hasPermissionAction(permissionSet, 'delegated-scores:certify')
   const selfJudgeId = (user as { judgeId?: string } | null)?.judgeId || user?.judge?.id || ''
   const effectiveRepresentedJudgeId = representedJudgeId || selfJudgeId || ''
   const isDelegatedMode = Boolean(
     effectiveRepresentedJudgeId &&
       (!selfJudgeId || effectiveRepresentedJudgeId !== selfJudgeId),
   )
-  const requiresSignOff = user?.role === 'JUDGE' && !isDelegatedMode
   const commentaryMode = selectedCategory?.commentaryMode || 'PER_CRITERION'
   const commentaryScope = selectedCategory?.commentaryScope || 'CATEGORY'
   const supportsCriterionCommentary = commentaryMode !== 'PER_CATEGORY'
@@ -615,6 +615,30 @@ const ScoringPage: React.FC = () => {
       retry: 1,
     },
   )
+  const hasActiveDelegatedJudgeCoverage = Boolean(
+    isDelegatedMode &&
+      effectiveRepresentedJudgeId &&
+      eligibleDelegatedJudges.some((judge) => judge.judgeId === effectiveRepresentedJudgeId),
+  )
+  const requiresSignOff = user?.role === 'JUDGE' && !isDelegatedMode
+  const canOptionallyDelegatedCertify = Boolean(
+    isDelegateUser &&
+      canUseDelegatedCertificationPermission &&
+      hasActiveDelegatedJudgeCoverage,
+  )
+  const shouldLaunchCertificationFlow = requiresSignOff || (canOptionallyDelegatedCertify && isSignOffChecked)
+  const certificationActionLabel = canOptionallyDelegatedCertify
+    ? 'Certify these scores now on behalf of the represented judge.'
+    : 'I certify these scores are final and accurate.'
+  const certificationModalTitle = canOptionallyDelegatedCertify
+    ? 'Delegated Judge Certification Signature'
+    : 'Judge Certification Signature'
+  const certificationModalDescription = canOptionallyDelegatedCertify
+    ? 'Provide typed and/or drawn signature to certify these scores on behalf of the represented judge.'
+    : 'Provide typed and/or drawn signature to finalize score certification.'
+  const certificationSubmitLabel = canOptionallyDelegatedCertify
+    ? 'Certify on Behalf of Judge'
+    : 'Certify and Submit'
 
   useEffect(() => {
     if (selfJudgeId && !canUseDelegatedScoring) {
@@ -1620,7 +1644,7 @@ const ScoringPage: React.FC = () => {
       const explicitScores = scores.filter((entry) => hasExplicitScoreValue(entry.score))
       const missingScores = scores.filter((entry) => !hasExplicitScoreValue(entry.score))
 
-      if (requiresSignOff && missingScores.length > 0) {
+      if (shouldLaunchCertificationFlow && missingScores.length > 0) {
         toast.error('Enter a score for every criterion before certifying')
         setSaveStatus('error')
         setIsSubmitting(false)
@@ -1648,7 +1672,7 @@ const ScoringPage: React.FC = () => {
       const categoryCommentOutcome = await persistCategoryComment()
       await queryClient.invalidateQueries(['category-comment', sharedCommentaryScopeKey, selectedContestant.id, effectiveRepresentedJudgeId])
       const hasQueuedWrites = submitResult.hasQueuedWrites || categoryCommentOutcome === 'queued'
-      if (requiresSignOff) {
+      if (shouldLaunchCertificationFlow) {
         if (hasQueuedWrites || hasPendingScoreSync) {
           setSaveStatus('queued')
           toast('Scores saved offline. Reconnect and wait for sync before certifying.')
@@ -2332,7 +2356,7 @@ const ScoringPage: React.FC = () => {
                     Represented Judge
                   </label>
                   <p className="mb-2 text-xs text-amber-800">
-                    Delegated score entry records you as the entry actor and does not certify scores for the represented judge.
+                    Delegated score entry records you as the entry actor. Delegate certification is only available when your active grant and permissions allow it.
                   </p>
                   <select
                     id="pages-scoringpage-represented-judge"
@@ -2922,7 +2946,7 @@ const ScoringPage: React.FC = () => {
                             )}
                           </button>
                         )}
-                        {requiresSignOff && (
+                        {(requiresSignOff || canOptionallyDelegatedCertify) && (
                           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                             <input
                               type="checkbox"
@@ -2934,7 +2958,7 @@ const ScoringPage: React.FC = () => {
                                 setIsSignOffChecked(e.target.checked)
                               }}
                             />
-                            I certify these scores are final and accurate.
+                            {certificationActionLabel}
                           </label>
                         )}
                         <button
@@ -3015,8 +3039,8 @@ const ScoringPage: React.FC = () => {
       {showSignatureModal && (
         <div className="cgr-modal-overlay-soft">
           <div className="w-full max-w-xl rounded-lg bg-white dark:bg-gray-800 p-5 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Judge Certification Signature</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Provide typed and/or drawn signature to finalize score certification.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{certificationModalTitle}</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{certificationModalDescription}</p>
             <div className="mt-4">
               <input
                 value={typedSignature}
@@ -3058,7 +3082,7 @@ const ScoringPage: React.FC = () => {
                 onClick={submitCertificationSignature}
                 className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
               >
-                Certify and Submit
+                {certificationSubmitLabel}
               </button>
             </div>
           </div>
