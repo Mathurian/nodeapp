@@ -131,10 +131,75 @@ describe('ScoreSheetImportService', () => {
     );
 
     expect(result.computedTotal).toBe(7);
+    expect(result.payload.preprocessingMode).toBe('standard');
+    expect(result.payload.thresholdStrategy).toBe('none');
+    expect(result.payload.qualitySignals.thresholdValue).toBeNull();
     expect(result.payload.criteria[0].detectedScore).toBe(6);
     expect(result.payload.criteria[0].ambiguous).toBe(false);
     expect(result.payload.criteria[7].detectedScore).toBe(1);
     expect(result.payload.criteria[7].ambiguous).toBe(false);
+  });
+
+  it('can scan-normalize a marked image before extraction', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const criteria = Array.from({ length: 10 }, (_value, index) => ({
+      id: `criterion-${index + 1}`,
+      name: `Criterion ${index + 1}`,
+      maxScore: 6,
+    }));
+    const template = {
+      key: 'test-template',
+      displayName: 'Test Template',
+      supported: true,
+      scoreColumns: SCORE_COLUMNS,
+      criteria: criteria.map((criterion) => ({
+        label: criterion.name,
+        aliases: [criterion.name.toLowerCase()],
+      })),
+      grid: {
+        left: SCORE_GRID_LEFT,
+        right: SCORE_GRID_RIGHT,
+        top: SCORE_GRID_TOP,
+        bottom: SCORE_GRID_BOTTOM,
+        cellHorizontalPadding: CELL_HORIZONTAL_PADDING,
+        cellVerticalPadding: CELL_VERTICAL_PADDING,
+        minCellInkScore: 0.0024,
+        minConfidenceGap: 0.09,
+      },
+    };
+
+    const image = createBlankImage();
+    paintPurpleCell(image, 0, criteria.length, 0);
+    paintPurpleCell(image, 7, criteria.length, 5);
+
+    const scanNormalized = (service as any).applyScanNormalization(
+      {
+        data: image,
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+      },
+      'fixed_150',
+    );
+
+    let nonBinaryPixelCount = 0;
+    for (const value of scanNormalized.data.values()) {
+      if (value !== 0 && value !== 255) {
+        nonBinaryPixelCount += 1;
+      }
+    }
+    expect(nonBinaryPixelCount).toBe(0);
+
+    const result = (service as any).extractScoresFromNormalizedImage(scanNormalized, criteria, template);
+
+    expect(result.computedTotal).toBe(7);
+    expect(result.payload.preprocessingMode).toBe('scan_bw');
+    expect(result.payload.thresholdStrategy).toBe('fixed_150');
+    expect(result.payload.qualitySignals.thresholdValue).toBe(150);
+    expect(result.payload.qualitySignals.darkPixelRatio).toBeGreaterThan(0);
+    expect(result.payload.criteria[0].detectedScore).toBe(6);
+    expect(result.payload.criteria[7].detectedScore).toBe(1);
   });
 
   it('resolves the Education template from category criteria', () => {

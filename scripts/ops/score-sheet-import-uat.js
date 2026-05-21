@@ -7,6 +7,40 @@ const sharp = require('sharp');
 const groundTruth = require('../../tests/examples/scoresheet-import/route66-phase1-ground-truth.json');
 const { ScoreSheetImportService } = require('../../dist/services/ScoreSheetImportService');
 
+const FALSE_HIGH_CONFIDENCE_THRESHOLD = 0.75;
+const PREPROCESSING_VARIANTS = [
+  {
+    id: 'standard',
+    label: 'Standard normalized image',
+    preprocessingMode: 'standard',
+    thresholdStrategy: 'none',
+  },
+  {
+    id: 'scan_bw_otsu',
+    label: 'Scan-normalized black-and-white (Otsu)',
+    preprocessingMode: 'scan_bw',
+    thresholdStrategy: 'otsu',
+  },
+  {
+    id: 'scan_bw_fixed_150',
+    label: 'Scan-normalized black-and-white (fixed 150)',
+    preprocessingMode: 'scan_bw',
+    thresholdStrategy: 'fixed_150',
+  },
+  {
+    id: 'scan_bw_fixed_170',
+    label: 'Scan-normalized black-and-white (fixed 170)',
+    preprocessingMode: 'scan_bw',
+    thresholdStrategy: 'fixed_170',
+  },
+  {
+    id: 'scan_bw_fixed_190',
+    label: 'Scan-normalized black-and-white (fixed 190)',
+    preprocessingMode: 'scan_bw',
+    thresholdStrategy: 'fixed_190',
+  },
+];
+
 const buildCriteriaForTemplate = (family) =>
   family.criterionOrder
     .slice()
@@ -148,6 +182,10 @@ const evaluatePage = (result, sample) => {
   const rows = result.payload.criteria.map((criterion) => {
     const expectedScore = sample.criterionScores[criterion.criterionName];
     const exactMatch = criterion.detectedScore === expectedScore;
+    const falseHighConfidenceMark = !exactMatch
+      && criterion.detectedScore !== null
+      && !criterion.ambiguous
+      && criterion.confidence >= FALSE_HIGH_CONFIDENCE_THRESHOLD;
 
     return {
       criterionName: criterion.criterionName,
@@ -156,14 +194,19 @@ const evaluatePage = (result, sample) => {
       exactMatch,
       ambiguous: criterion.ambiguous,
       confidence: criterion.confidence,
+      falseHighConfidenceMark,
     };
   });
 
   const exactRowCount = rows.filter((row) => row.exactMatch).length;
   const ambiguousRowCount = rows.filter((row) => row.ambiguous).length;
   const incorrectRowCount = rows.length - exactRowCount;
+  const falseHighConfidenceMarkCount = rows.filter((row) => row.falseHighConfidenceMark).length;
 
   return {
+    preprocessingMode: result.payload.preprocessingMode,
+    thresholdStrategy: result.payload.thresholdStrategy,
+    qualitySignals: result.payload.qualitySignals,
     expectedTotal: sample.handwrittenTotal,
     computedTotal: result.computedTotal,
     totalDelta: Math.abs((sample.handwrittenTotal || 0) - (result.computedTotal || 0)),
@@ -171,6 +214,7 @@ const evaluatePage = (result, sample) => {
     rowCount: rows.length,
     ambiguousRowCount,
     incorrectRowCount,
+    falseHighConfidenceMarkCount,
     exactRowMatchRate: rows.length > 0 ? exactRowCount / rows.length : 0,
     rows,
   };
@@ -183,6 +227,7 @@ const summarizeRuns = (runs) => {
     rowCount: 0,
     ambiguousRowCount: 0,
     incorrectRowCount: 0,
+    falseHighConfidenceMarkCount: 0,
     maxTotalDelta: 0,
   };
 
@@ -191,6 +236,7 @@ const summarizeRuns = (runs) => {
     aggregate.rowCount += run.metrics.rowCount;
     aggregate.ambiguousRowCount += run.metrics.ambiguousRowCount;
     aggregate.incorrectRowCount += run.metrics.incorrectRowCount;
+    aggregate.falseHighConfidenceMarkCount += run.metrics.falseHighConfidenceMarkCount;
     aggregate.maxTotalDelta = Math.max(aggregate.maxTotalDelta, run.metrics.totalDelta);
   }
 
@@ -199,6 +245,9 @@ const summarizeRuns = (runs) => {
     exactRowMatchRate: aggregate.rowCount > 0 ? aggregate.exactRowCount / aggregate.rowCount : 0,
     averageIncorrectRowsPerPage: aggregate.pages > 0 ? aggregate.incorrectRowCount / aggregate.pages : 0,
     averageAmbiguousRowsPerPage: aggregate.pages > 0 ? aggregate.ambiguousRowCount / aggregate.pages : 0,
+    averageFalseHighConfidenceMarksPerPage:
+      aggregate.pages > 0 ? aggregate.falseHighConfidenceMarkCount / aggregate.pages : 0,
+    falseHighConfidenceMarks: aggregate.falseHighConfidenceMarkCount,
     maxTotalDelta: aggregate.maxTotalDelta,
   };
 };
@@ -210,20 +259,25 @@ const printHumanReport = (report) => {
 
   report.profiles.forEach((profile) => {
     console.log(`${profile.label} (${profile.captureType})`);
-    console.log(
-      `  exact-row-match: ${(profile.summary.exactRowMatchRate * 100).toFixed(1)}%`
-      + `, avg incorrect rows/page: ${profile.summary.averageIncorrectRowsPerPage.toFixed(2)}`
-      + `, avg ambiguous rows/page: ${profile.summary.averageAmbiguousRowsPerPage.toFixed(2)}`
-      + `, max total delta: ${profile.summary.maxTotalDelta}`,
-    );
 
-    profile.pages.forEach((page) => {
+    profile.variants.forEach((variant) => {
       console.log(
-        `  - page ${page.page}: exact rows ${page.metrics.exactRowCount}/${page.metrics.rowCount},`
-        + ` incorrect ${page.metrics.incorrectRowCount}, ambiguous ${page.metrics.ambiguousRowCount},`
-        + ` total ${page.metrics.computedTotal}/${page.metrics.expectedTotal}`
-        + ` (delta ${page.metrics.totalDelta})`,
+        `  ${variant.label}: exact-row-match ${(variant.summary.exactRowMatchRate * 100).toFixed(1)}%`
+        + `, avg incorrect rows/page: ${variant.summary.averageIncorrectRowsPerPage.toFixed(2)}`
+        + `, avg ambiguous rows/page: ${variant.summary.averageAmbiguousRowsPerPage.toFixed(2)}`
+        + `, false high-confidence: ${variant.summary.falseHighConfidenceMarks}`
+        + `, max total delta: ${variant.summary.maxTotalDelta}`,
       );
+
+      variant.pages.forEach((page) => {
+        console.log(
+          `    - page ${page.page}: exact rows ${page.metrics.exactRowCount}/${page.metrics.rowCount},`
+          + ` incorrect ${page.metrics.incorrectRowCount}, ambiguous ${page.metrics.ambiguousRowCount},`
+          + ` false high-confidence ${page.metrics.falseHighConfidenceMarkCount},`
+          + ` total ${page.metrics.computedTotal}/${page.metrics.expectedTotal}`
+          + ` (delta ${page.metrics.totalDelta})`,
+        );
+      });
     });
 
     console.log('');
@@ -250,21 +304,44 @@ const main = async () => {
   const profiles = [];
 
   for (const profile of PROFILES) {
-    const pageRuns = [];
+    const variants = [];
+    const capturedPages = [];
 
     for (const sample of family.samples) {
       const rendered = await service.renderPdfPage(pdfPath, sample.page);
-      const captureBuffer = await applyPhoneTransforms(rendered.buffer, profile);
-      const normalized = await service.normalizePage(captureBuffer);
-      const result = service.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
-      const metrics = evaluatePage(result, sample);
+      capturedPages.push({
+        sample,
+        captureBuffer: await applyPhoneTransforms(rendered.buffer, profile),
+      });
+    }
 
-      pageRuns.push({
-        page: sample.page,
-        contestantName: sample.contestantName,
-        judgeName: sample.judgeName,
-        captureType: profile.captureType,
-        metrics,
+    for (const variant of PREPROCESSING_VARIANTS) {
+      const pageRuns = [];
+
+      for (const capturedPage of capturedPages) {
+        const normalized = await service.normalizePage(capturedPage.captureBuffer, {
+          preprocessingMode: variant.preprocessingMode,
+          thresholdStrategy: variant.thresholdStrategy,
+        });
+        const result = service.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
+        const metrics = evaluatePage(result, capturedPage.sample);
+
+        pageRuns.push({
+          page: capturedPage.sample.page,
+          contestantName: capturedPage.sample.contestantName,
+          judgeName: capturedPage.sample.judgeName,
+          captureType: profile.captureType,
+          metrics,
+        });
+      }
+
+      variants.push({
+        id: variant.id,
+        label: variant.label,
+        preprocessingMode: variant.preprocessingMode,
+        thresholdStrategy: variant.thresholdStrategy,
+        summary: summarizeRuns(pageRuns),
+        pages: pageRuns,
       });
     }
 
@@ -272,8 +349,7 @@ const main = async () => {
       id: profile.id,
       label: profile.label,
       captureType: profile.captureType,
-      summary: summarizeRuns(pageRuns),
-      pages: pageRuns,
+      variants,
     });
   }
 

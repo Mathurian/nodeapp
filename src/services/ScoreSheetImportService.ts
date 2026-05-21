@@ -20,6 +20,25 @@ const execFileAsync = promisify(execFile);
 
 const NORMALIZED_WIDTH = 1000;
 const NORMALIZED_HEIGHT = 1400;
+const DEFAULT_PREPROCESSING_MODE = 'standard';
+const DEFAULT_SCAN_THRESHOLD_STRATEGY = 'otsu';
+
+type ScoreSheetPreprocessingMode = 'standard' | 'scan_bw';
+type ScoreSheetThresholdStrategy = 'none' | 'otsu' | 'fixed_150' | 'fixed_170' | 'fixed_190';
+
+type PreprocessingQualitySignals = {
+  darkPixelRatio: number;
+  midtonePixelRatio: number;
+  contrastRange: number;
+  thresholdValue: number | null;
+  despeckledPixelRatio: number;
+};
+
+type PreprocessingMetadata = {
+  preprocessingMode: ScoreSheetPreprocessingMode;
+  thresholdStrategy: ScoreSheetThresholdStrategy;
+  qualitySignals: PreprocessingQualitySignals;
+};
 
 type ScoreFileMetadata = {
   contextType?: 'CRITERION_COMMENT' | 'CONTESTANT' | 'CATEGORY' | 'SCORESHEET_IMPORT';
@@ -42,6 +61,9 @@ type CriterionExtraction = {
 
 type ExtractionPayload = {
   templateKey: string;
+  preprocessingMode: ScoreSheetPreprocessingMode;
+  thresholdStrategy: ScoreSheetThresholdStrategy;
+  qualitySignals: PreprocessingQualitySignals;
   normalizedImage: {
     width: number;
     height: number;
@@ -83,6 +105,8 @@ type RenderedPage = {
 
 type ProcessScoreFileOptions = {
   templateKey?: ScoreSheetTemplateKey | null;
+  preprocessingMode?: ScoreSheetPreprocessingMode;
+  thresholdStrategy?: ScoreSheetThresholdStrategy;
 };
 
 type RawImage = {
@@ -90,6 +114,11 @@ type RawImage = {
   width: number;
   height: number;
   channels: number;
+};
+
+type NormalizedImage = RawImage & {
+  bounds: { left: number; top: number; width: number; height: number };
+  preprocessing: PreprocessingMetadata;
 };
 
 type GridGeometry = {
@@ -168,7 +197,10 @@ export class ScoreSheetImportService extends BaseService {
       const orderedCriteria = this.orderCriteriaForTemplate(criteria, template);
       const rendered = await this.renderFirstPage(absolutePath, scoreFile.fileType);
       pageCount = rendered.pageCount;
-      const normalized = await this.normalizePage(rendered.buffer);
+      const normalized = await this.normalizePage(rendered.buffer, {
+        preprocessingMode: options?.preprocessingMode,
+        thresholdStrategy: options?.thresholdStrategy,
+      });
       const analysis = this.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
 
       extraction = analysis.payload;
@@ -384,12 +416,19 @@ export class ScoreSheetImportService extends BaseService {
     }
   }
 
-  private async normalizePage(buffer: Buffer): Promise<RawImage & {
-    bounds: { left: number; top: number; width: number; height: number };
-  }> {
+  private async normalizePage(
+    buffer: Buffer,
+    options?: {
+      preprocessingMode?: ScoreSheetPreprocessingMode;
+      thresholdStrategy?: ScoreSheetThresholdStrategy;
+    },
+  ): Promise<NormalizedImage> {
+    const preprocessingMode = options?.preprocessingMode ?? DEFAULT_PREPROCESSING_MODE;
+    const thresholdStrategy = this.resolveThresholdStrategy(preprocessingMode, options?.thresholdStrategy);
     const preprocessed = await sharp(buffer)
       .rotate()
       .flatten({ background: '#ffffff' })
+      .toColourspace('srgb')
       .raw()
       .toBuffer({ resolveWithObject: true });
 
@@ -403,17 +442,277 @@ export class ScoreSheetImportService extends BaseService {
     const normalized = await sharp(buffer)
       .rotate()
       .flatten({ background: '#ffffff' })
+      .toColourspace('srgb')
       .extract(bounds)
       .resize(NORMALIZED_WIDTH, NORMALIZED_HEIGHT, { fit: 'fill' })
       .raw()
       .toBuffer({ resolveWithObject: true });
 
-    return {
+    const normalizedImage: RawImage & {
+      bounds: { left: number; top: number; width: number; height: number };
+    } = {
       data: normalized.data,
       width: normalized.info.width,
       height: normalized.info.height,
       channels: normalized.info.channels,
       bounds,
+    };
+
+    if (preprocessingMode === 'scan_bw') {
+      return this.applyScanNormalization(normalizedImage, thresholdStrategy);
+    }
+
+    return {
+      ...normalizedImage,
+      preprocessing: {
+        preprocessingMode: DEFAULT_PREPROCESSING_MODE,
+        thresholdStrategy: 'none',
+        qualitySignals: this.measureImageQuality(normalizedImage, null, 0),
+      },
+    };
+  }
+
+  private resolveThresholdStrategy(
+    preprocessingMode: ScoreSheetPreprocessingMode,
+    thresholdStrategy?: ScoreSheetThresholdStrategy,
+  ): ScoreSheetThresholdStrategy {
+    if (preprocessingMode === 'standard') {
+      return 'none';
+    }
+
+    if (!thresholdStrategy || thresholdStrategy === 'none') {
+      return DEFAULT_SCAN_THRESHOLD_STRATEGY;
+    }
+
+    return thresholdStrategy;
+  }
+
+  private applyScanNormalization(
+    image: RawImage & { bounds: { left: number; top: number; width: number; height: number } },
+    thresholdStrategy: ScoreSheetThresholdStrategy,
+  ): NormalizedImage {
+    const effectiveThresholdStrategy = thresholdStrategy === 'none'
+      ? DEFAULT_SCAN_THRESHOLD_STRATEGY
+      : thresholdStrategy;
+    const pixelCount = image.width * image.height;
+    const grayscale = Buffer.alloc(pixelCount);
+    const histogram = Array.from({ length: 256 }, () => 0);
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      const offset = pixelIndex * image.channels;
+      const r = image.data[offset] ?? 255;
+      const g = image.data[offset + 1] ?? r;
+      const b = image.data[offset + 2] ?? r;
+      const luminance = Math.round((r * 0.299) + (g * 0.587) + (b * 0.114));
+      const boundedLuminance = Math.max(0, Math.min(255, luminance));
+      grayscale[pixelIndex] = boundedLuminance;
+      histogram[boundedLuminance] = (histogram[boundedLuminance] ?? 0) + 1;
+    }
+
+    const lowPercentile = this.findHistogramPercentile(histogram, pixelCount, 0.02);
+    const highPercentile = this.findHistogramPercentile(histogram, pixelCount, 0.98);
+    const contrastLow = Math.min(lowPercentile, Math.max(0, highPercentile - 8));
+    const contrastHigh = Math.max(highPercentile, contrastLow + 8);
+    const contrastRange = contrastHigh - contrastLow;
+    const stretched = Buffer.alloc(pixelCount);
+    const stretchedHistogram = Array.from({ length: 256 }, () => 0);
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      const value = grayscale[pixelIndex] ?? 255;
+      const stretchedValue = Math.round(
+        Math.max(0, Math.min(255, ((value - contrastLow) / contrastRange) * 255)),
+      );
+      stretched[pixelIndex] = stretchedValue;
+      stretchedHistogram[stretchedValue] = (stretchedHistogram[stretchedValue] ?? 0) + 1;
+    }
+
+    const thresholdValue = this.resolveThresholdValue(effectiveThresholdStrategy, stretchedHistogram, pixelCount);
+    const thresholded = Buffer.alloc(pixelCount);
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      thresholded[pixelIndex] = (stretched[pixelIndex] ?? 255) <= thresholdValue ? 0 : 255;
+    }
+
+    const { data: despeckled, removedPixelCount } = this.removeIsolatedDarkPixels(
+      thresholded,
+      image.width,
+      image.height,
+    );
+    const output = Buffer.alloc(pixelCount * image.channels);
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      const value = despeckled[pixelIndex] ?? 255;
+      const offset = pixelIndex * image.channels;
+      for (let channelIndex = 0; channelIndex < image.channels; channelIndex += 1) {
+        output[offset + channelIndex] = value;
+      }
+    }
+
+    return {
+      data: output,
+      width: image.width,
+      height: image.height,
+      channels: image.channels,
+      bounds: image.bounds,
+      preprocessing: {
+        preprocessingMode: 'scan_bw',
+        thresholdStrategy: effectiveThresholdStrategy,
+        qualitySignals: this.measureImageQuality(
+          {
+            data: output,
+            width: image.width,
+            height: image.height,
+            channels: image.channels,
+          },
+          thresholdValue,
+          removedPixelCount,
+        ),
+      },
+    };
+  }
+
+  private findHistogramPercentile(histogram: number[], pixelCount: number, percentile: number): number {
+    if (pixelCount <= 0) return 0;
+
+    const target = Math.max(1, Math.ceil(pixelCount * percentile));
+    let cumulative = 0;
+
+    for (let value = 0; value < histogram.length; value += 1) {
+      cumulative += histogram[value] ?? 0;
+      if (cumulative >= target) {
+        return value;
+      }
+    }
+
+    return 255;
+  }
+
+  private resolveThresholdValue(
+    thresholdStrategy: ScoreSheetThresholdStrategy,
+    histogram: number[],
+    pixelCount: number,
+  ): number {
+    if (thresholdStrategy === 'fixed_150') return 150;
+    if (thresholdStrategy === 'fixed_170') return 170;
+    if (thresholdStrategy === 'fixed_190') return 190;
+
+    return this.computeOtsuThreshold(histogram, pixelCount);
+  }
+
+  private computeOtsuThreshold(histogram: number[], pixelCount: number): number {
+    if (pixelCount <= 0) return 170;
+
+    let totalWeightedValue = 0;
+    for (let value = 0; value < histogram.length; value += 1) {
+      totalWeightedValue += value * (histogram[value] ?? 0);
+    }
+
+    let backgroundWeight = 0;
+    let backgroundWeightedValue = 0;
+    let bestThreshold = 170;
+    let bestVariance = -1;
+
+    for (let threshold = 0; threshold < histogram.length; threshold += 1) {
+      const count = histogram[threshold] ?? 0;
+      backgroundWeight += count;
+      if (backgroundWeight === 0) continue;
+
+      const foregroundWeight = pixelCount - backgroundWeight;
+      if (foregroundWeight === 0) break;
+
+      backgroundWeightedValue += threshold * count;
+      const backgroundMean = backgroundWeightedValue / backgroundWeight;
+      const foregroundMean = (totalWeightedValue - backgroundWeightedValue) / foregroundWeight;
+      const variance = backgroundWeight * foregroundWeight * ((backgroundMean - foregroundMean) ** 2);
+
+      if (variance > bestVariance) {
+        bestVariance = variance;
+        bestThreshold = threshold;
+      }
+    }
+
+    return bestThreshold;
+  }
+
+  private removeIsolatedDarkPixels(data: Buffer, width: number, height: number): {
+    data: Buffer;
+    removedPixelCount: number;
+  } {
+    const output = Buffer.from(data);
+    let removedPixelCount = 0;
+
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const index = (y * width) + x;
+        if ((data[index] ?? 255) > 0) continue;
+
+        let darkNeighborCount = 0;
+        for (let neighborY = y - 1; neighborY <= y + 1; neighborY += 1) {
+          for (let neighborX = x - 1; neighborX <= x + 1; neighborX += 1) {
+            if (neighborX === x && neighborY === y) continue;
+            const neighborIndex = (neighborY * width) + neighborX;
+            if ((data[neighborIndex] ?? 255) === 0) {
+              darkNeighborCount += 1;
+            }
+          }
+        }
+
+        if (darkNeighborCount <= 1) {
+          output[index] = 255;
+          removedPixelCount += 1;
+        }
+      }
+    }
+
+    return { data: output, removedPixelCount };
+  }
+
+  private measureImageQuality(
+    image: RawImage,
+    thresholdValue: number | null,
+    removedPixelCount: number,
+  ): PreprocessingQualitySignals {
+    const pixelCount = image.width * image.height;
+    if (pixelCount <= 0) {
+      return {
+        darkPixelRatio: 0,
+        midtonePixelRatio: 0,
+        contrastRange: 0,
+        thresholdValue,
+        despeckledPixelRatio: 0,
+      };
+    }
+
+    const histogram = Array.from({ length: 256 }, () => 0);
+    let darkPixelCount = 0;
+    let midtonePixelCount = 0;
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      const offset = pixelIndex * image.channels;
+      const r = image.data[offset] ?? 255;
+      const g = image.data[offset + 1] ?? r;
+      const b = image.data[offset + 2] ?? r;
+      const luminance = Math.round((r * 0.299) + (g * 0.587) + (b * 0.114));
+      const boundedLuminance = Math.max(0, Math.min(255, luminance));
+      histogram[boundedLuminance] = (histogram[boundedLuminance] ?? 0) + 1;
+
+      if (boundedLuminance < 150) {
+        darkPixelCount += 1;
+      }
+      if (boundedLuminance >= 80 && boundedLuminance <= 220) {
+        midtonePixelCount += 1;
+      }
+    }
+
+    const lowPercentile = this.findHistogramPercentile(histogram, pixelCount, 0.02);
+    const highPercentile = this.findHistogramPercentile(histogram, pixelCount, 0.98);
+
+    return {
+      darkPixelRatio: Number((darkPixelCount / pixelCount).toFixed(6)),
+      midtonePixelRatio: Number((midtonePixelCount / pixelCount).toFixed(6)),
+      contrastRange: Math.max(0, highPercentile - lowPercentile),
+      thresholdValue,
+      despeckledPixelRatio: Number((removedPixelCount / pixelCount).toFixed(6)),
     };
   }
 
@@ -468,7 +767,10 @@ export class ScoreSheetImportService extends BaseService {
   }
 
   private extractScoresFromNormalizedImage(
-    image: RawImage & { bounds: { left: number; top: number; width: number; height: number } },
+    image: RawImage & {
+      bounds: { left: number; top: number; width: number; height: number };
+      preprocessing?: PreprocessingMetadata;
+    },
     criteria: Array<{ id: string; name: string; maxScore: number }>,
     template: ScoreSheetTemplateDefinition,
   ): {
@@ -555,10 +857,18 @@ export class ScoreSheetImportService extends BaseService {
     }
 
     const overallConfidence = rowCount > 0 ? Number((confidenceSum / rowCount).toFixed(4)) : 0;
+    const preprocessing = image.preprocessing ?? {
+      preprocessingMode: DEFAULT_PREPROCESSING_MODE,
+      thresholdStrategy: 'none' as const,
+      qualitySignals: this.measureImageQuality(image, null, 0),
+    };
 
     return {
       payload: {
         templateKey: template.key,
+        preprocessingMode: preprocessing.preprocessingMode,
+        thresholdStrategy: preprocessing.thresholdStrategy,
+        qualitySignals: preprocessing.qualitySignals,
         normalizedImage: {
           width: image.width,
           height: image.height,
