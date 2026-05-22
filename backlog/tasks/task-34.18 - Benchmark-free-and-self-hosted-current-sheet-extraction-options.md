@@ -1,11 +1,11 @@
 ---
 id: TASK-34.18
 title: Benchmark free and self-hosted current-sheet extraction options
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-05-21 20:40'
-updated_date: '2026-05-21 21:24'
+updated_date: '2026-05-21 22:22'
 labels:
   - scoring
   - ocr
@@ -24,8 +24,8 @@ Evaluate whether free or self-hosted extraction options can preserve the current
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The benchmark compares the current extractor against improved local OMR, CPU-feasible local mark classification, and at least one free or self-hosted OCR/layout candidate without requiring scoresheet form changes.
-- [ ] #2 The benchmark reports exact row match, exact sheet match, incorrect rows per page, ambiguous rows per page, false high-confidence marks, rejection rate, runtime, hosting requirements, and operational risks.
+- [x] #1 The benchmark compares the current extractor against improved local OMR, CPU-feasible local mark classification, and at least one free or self-hosted OCR/layout candidate without requiring scoresheet form changes.
+- [x] #2 The benchmark reports exact row match, exact sheet match, incorrect rows per page, ambiguous rows per page, false high-confidence marks, rejection rate, runtime, hosting requirements, and operational risks.
 - [x] #3 The recommendation identifies the best primary extraction path and whether any free hosted fallback is accurate enough to consider behind tenant opt-in controls.
 - [x] #4 Paid cloud services are excluded from the recommended production path.
 <!-- AC:END -->
@@ -52,6 +52,10 @@ Benchmark result on the six-page Education corpus: current extractor remains bes
 Recommendation documented in docs/operations/OCR-SCORESHEET-SELF-HOSTED-BENCHMARK.md: do not enable auto-submit or auto-certification, do not enable tenant opt-in free OCR fallback yet, and do not promote TASK-34.19 into production implementation without stronger registration/classification and a larger representative corpus.
 
 Reopened after review: the task did not empirically evaluate external self-hosted OCR/layout tools because Tesseract, PaddleOCR/PP-Structure, Surya, and docTR were not installed in the environment. The prior work should be treated as a local no-new-dependency benchmark plus an external-tool feasibility screen, not a complete self-hosted contender evaluation. A follow-up task will install and run the top self-hosted contenders before this effort can be considered complete.
+
+- Follow-up TASK-34.25 completed the missing installed-tool evaluation. Tesseract and docTR were run against the Education corpus; PaddleOCR/PP-Structure and Surya were blocked with concrete runtime reasons.
+- Installed contender results were added to docs/operations/OCR-SCORESHEET-SELF-HOSTED-BENCHMARK.md and temp/scoresheet-selfhosted-benchmark/benchmark-report.json.
+- The reopened acceptance gap is resolved: no evaluated free/self-hosted contender materially improves the current-sheet import path or justifies tenant opt-in fallback, auto-submit, auto-certification, or removing review/correction.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
@@ -80,11 +84,13 @@ Tests:
 - npm run test:scoresheet-import:calibration
 
 Correction: external self-hosted tools were screened for availability and operating model only, not empirically benchmarked. TASK-34.18 is reopened until the installed-tool evaluation is completed or explicitly scoped out.
+
+Follow-up correction completed in TASK-34.25: the top self-hosted contenders were installed and empirically benchmarked. Tesseract reached 3.3% exact row match, docTR reached 6.7%, PaddleOCR/PP-Structure is blocked by a PaddlePaddle illegal-instruction fault, and Surya is operationally impractical on this CPU-only host. The recommendation remains unchanged: do not enable tenant opt-in OCR fallback or reduce review/correction based on these contenders.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
 - [x] #1 No regressions introduced
 - [x] #2 All functions behave properly
-- [ ] #3 All items in task are complete or notated why incomplete
+- [x] #3 All items in task are complete or notated why incomplete
 <!-- DOD:END -->
