@@ -35,6 +35,20 @@ export interface PrintJudgePerformanceInput {
   options?: Record<string, any>;
 }
 
+export interface PrintScoreSheetV2Input {
+  categoryId: string;
+  contestantId: string;
+  judgeId: string;
+  format?: PrintFormat;
+}
+
+export interface PrintScoreSheetV3Input {
+  categoryId: string;
+  contestantId: string;
+  judgeId: string;
+  format?: PrintFormat;
+}
+
 export interface PrintOutput {
   content: Buffer;
   contentType: string;

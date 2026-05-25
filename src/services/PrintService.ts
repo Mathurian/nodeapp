@@ -11,9 +11,24 @@ import {
   PrintEventReportInput,
   PrintContestResultsInput,
   PrintJudgePerformanceInput,
+  PrintScoreSheetV2Input,
+  PrintScoreSheetV3Input,
   PrintFormat,
   PrintOutput,
 } from '../types/print.types';
+import {
+  buildScoreSheetV2Html,
+  SCORE_SHEET_V2_TEMPLATE_KEY,
+} from '../utils/scoreSheetV2Renderer';
+import {
+  buildScoreSheetV3Html,
+  SCORE_SHEET_V3_TEMPLATE_KEY,
+} from '../utils/scoreSheetV3Renderer';
+import {
+  getTemplateCriterionMatchAlias,
+  resolveTemplateByCriteria,
+  ScoreSheetTemplateDefinition,
+} from '../config/scoreSheetImportTemplates';
 
 // Prisma payload types for complex queries
 type EventWithContests = Prisma.EventGetPayload<{
@@ -123,6 +138,27 @@ type ContestWithCategories = Prisma.ContestGetPayload<{
   };
 }>;
 
+type ScoreSheetV2Category = Prisma.CategoryGetPayload<{
+  include: {
+    contest: {
+      include: {
+        event: true;
+      };
+    };
+    categoryContestants: {
+      include: {
+        contestant: true;
+      };
+    };
+    categoryJudges: {
+      include: {
+        judge: true;
+      };
+    };
+    criteria: true;
+  };
+}>;
+
 // Interface for template return type
 interface TemplateInfo {
   name: string;
@@ -164,6 +200,26 @@ interface PrintOptions {
     left?: string;
   };
   [key: string]: unknown;
+}
+
+interface MachineReadableScoreSheetConfig {
+  templateKey: string;
+  templateVersion: string;
+  filenamePrefix: string;
+  buildHtml: (input: {
+    templateKey: string;
+    templateVersion: string;
+    identityCode: string;
+    eventName: string;
+    contestName: string;
+    categoryName: string;
+    contestantName: string;
+    contestantNumber?: number | null;
+    judgeName: string;
+    generatedAt: string;
+    criteria: Array<{ id: string; name: string; maxScore: number }>;
+    scoreValues: readonly number[];
+  }) => string;
 }
 
 @injectable()
@@ -410,6 +466,144 @@ export class PrintService extends BaseService {
     );
   }
 
+  async printScoreSheetV2(
+    input: PrintScoreSheetV2Input,
+    tenantId: string,
+  ): Promise<PrintOutput> {
+    return this.printMachineReadableScoreSheet(input, tenantId, {
+      templateKey: SCORE_SHEET_V2_TEMPLATE_KEY,
+      templateVersion: '2.0.0',
+      filenamePrefix: 'scoresheet-v2',
+      buildHtml: buildScoreSheetV2Html,
+    });
+  }
+
+  async printScoreSheetV3(
+    input: PrintScoreSheetV3Input,
+    tenantId: string,
+  ): Promise<PrintOutput> {
+    return this.printMachineReadableScoreSheet(input, tenantId, {
+      templateKey: SCORE_SHEET_V3_TEMPLATE_KEY,
+      templateVersion: '3.0.0',
+      filenamePrefix: 'scoresheet-v3',
+      buildHtml: buildScoreSheetV3Html,
+    });
+  }
+
+  private async printMachineReadableScoreSheet(
+    input: PrintScoreSheetV2Input | PrintScoreSheetV3Input,
+    tenantId: string,
+    config: MachineReadableScoreSheetConfig,
+  ): Promise<PrintOutput> {
+    this.validateRequired(input as unknown as Record<string, unknown>, [
+      'categoryId',
+      'contestantId',
+      'judgeId',
+    ]);
+
+    const category = await this.prisma.category.findFirst({
+      where: {
+        id: input.categoryId,
+        tenantId,
+        deletedAt: null,
+      },
+      include: {
+        contest: {
+          include: {
+            event: true,
+          },
+        },
+        categoryContestants: {
+          where: {
+            contestantId: input.contestantId,
+          },
+          include: {
+            contestant: true,
+          },
+        },
+        categoryJudges: {
+          where: {
+            judgeId: input.judgeId,
+          },
+          include: {
+            judge: true,
+          },
+        },
+        criteria: true,
+      },
+    }) as ScoreSheetV2Category | null;
+
+    if (!category) {
+      throw this.createNotFoundError('Category not found');
+    }
+
+    const contestant = category.categoryContestants[0]?.contestant;
+    if (!contestant) {
+      throw this.createBadRequestError('Contestant is not assigned to this category');
+    }
+
+    const judge = category.categoryJudges[0]?.judge;
+    if (!judge) {
+      throw this.createBadRequestError('Judge is not assigned to this category');
+    }
+
+    const template = resolveTemplateByCriteria(category.criteria.map((criterion) => criterion.name));
+    if (!template) {
+      throw this.createBadRequestError('Machine-readable scoresheet v2 is not available for this category');
+    }
+
+    const orderedCriteria = this.orderCriteriaForScoreSheetV2(category.criteria, template);
+    const identityCode = this.buildScoreSheetV2IdentityCode({
+      eventId: category.contest.event.id,
+      contestId: category.contest.id,
+      categoryId: category.id,
+      contestantId: contestant.id,
+      judgeId: judge.id,
+    });
+    const html = config.buildHtml({
+      templateKey: config.templateKey,
+      templateVersion: config.templateVersion,
+      identityCode,
+      eventName: category.contest.event.name,
+      contestName: category.contest.name,
+      categoryName: category.name,
+      contestantName: contestant.name,
+      contestantNumber: contestant.contestantNumber,
+      judgeName: judge.name,
+      generatedAt: new Date().toISOString(),
+      criteria: orderedCriteria.map((criterion) => ({
+        id: criterion.id,
+        name: criterion.name,
+        maxScore: criterion.maxScore,
+      })),
+      scoreValues: template.scoreColumns,
+    });
+    const filename = this.buildSafeFilename([
+      config.filenamePrefix,
+      category.name,
+      contestant.name,
+      judge.name,
+      Date.now(),
+    ]);
+
+    return this.generateHtmlOutput(
+      html,
+      input.format || 'pdf',
+      filename,
+      {
+        format: 'Letter',
+        printBackground: true,
+        margin: {
+          top: '0',
+          right: '0',
+          bottom: '0',
+          left: '0',
+        },
+        preferCSSPageSize: true,
+      },
+    );
+  }
+
   /**
    * Get contestant report data
    */
@@ -611,6 +805,15 @@ export class PrintService extends BaseService {
     const template = handlebars.compile(templateContent);
     const html = template(data);
 
+    return this.generateHtmlOutput(html, format, filename, options);
+  }
+
+  private async generateHtmlOutput(
+    html: string,
+    format: PrintFormat,
+    filename: string,
+    options: PrintOptions = {}
+  ): Promise<PrintOutput> {
     if (format === 'html') {
       return {
         content: Buffer.from(html),
@@ -647,6 +850,61 @@ export class PrintService extends BaseService {
       contentType: 'application/pdf',
       filename: `${filename}.pdf`,
     };
+  }
+
+  private orderCriteriaForScoreSheetV2(
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): Array<{ id: string; name: string; maxScore: number }> {
+    const unmatchedCriteria = [...criteria];
+
+    return template.criteria.map((templateCriterion) => {
+      const criterionIndex = unmatchedCriteria.findIndex(
+        (criterion) => getTemplateCriterionMatchAlias(templateCriterion, criterion.name) !== null,
+      );
+
+      if (criterionIndex < 0) {
+        throw this.createBadRequestError(
+          `Machine-readable scoresheet v2 is missing criterion ${templateCriterion.label}`,
+        );
+      }
+
+      const [matchedCriterion] = unmatchedCriteria.splice(criterionIndex, 1);
+      if (!matchedCriterion) {
+        throw this.createBadRequestError('Machine-readable scoresheet v2 could not order criteria');
+      }
+
+      return matchedCriterion;
+    });
+  }
+
+  private buildScoreSheetV2IdentityCode(parts: {
+    eventId: string;
+    contestId: string;
+    categoryId: string;
+    contestantId: string;
+    judgeId: string;
+  }): string {
+    return [
+      parts.eventId,
+      parts.contestId,
+      parts.categoryId,
+      parts.contestantId,
+      parts.judgeId,
+      'p1',
+    ].map((part) => this.compactIdentityPart(part)).join('.');
+  }
+
+  private compactIdentityPart(value: string): string {
+    const compact = value.replace(/[^a-zA-Z0-9]/g, '').slice(-8);
+    return compact || 'unknown';
+  }
+
+  private buildSafeFilename(parts: Array<string | number>): string {
+    return parts
+      .map((part) => String(part).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))
+      .filter(Boolean)
+      .join('-');
   }
 
   /**

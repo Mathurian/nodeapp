@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Education SCORESHEET-V2</title>
+  <style>
+    @page {
+      size: Letter portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #fff;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .sheet {
+      position: relative;
+      width: 8.5in;
+      height: 11in;
+      padding: 0.42in 0.5in 0.44in;
+      background: #fff;
+    }
+
+    .anchor {
+      position: absolute;
+      width: 0.22in;
+      height: 0.22in;
+      background: #000;
+    }
+
+    .anchor-tl { top: 0.3in; left: 0.3in; }
+    .anchor-tr { top: 0.3in; right: 0.3in; }
+    .anchor-bl { bottom: 0.3in; left: 0.3in; }
+    .anchor-br { bottom: 0.3in; right: 0.3in; }
+
+    .header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.18in;
+      align-items: start;
+      border-bottom: 2px solid #111;
+      padding: 0.06in 0 0.12in;
+      margin: 0 0.06in 0.16in;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin: 0.04in 0 0;
+      font-size: 11px;
+      color: #333;
+    }
+
+    .machine-id {
+      border: 1px solid #111;
+      padding: 0.08in;
+      min-width: 2.2in;
+      font-size: 9px;
+    }
+
+    .machine-id strong {
+      display: block;
+      font-size: 11px;
+      margin-bottom: 0.03in;
+    }
+
+    .version-strip {
+      display: grid;
+      grid-template-columns: repeat(8, 0.12in);
+      gap: 0.035in;
+      margin-top: 0.06in;
+    }
+
+    .version-bit {
+      display: block;
+      width: 0.12in;
+      height: 0.12in;
+      border: 1px solid #111;
+      background: #fff;
+    }
+
+    .version-bit.filled {
+      background: #000;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.06in 0.16in;
+      margin: 0 0.06in 0.16in;
+      font-size: 10px;
+    }
+
+    .meta-item {
+      border-bottom: 1px solid #999;
+      padding-bottom: 0.025in;
+      min-height: 0.2in;
+    }
+
+    .meta-item .label {
+      font-weight: 700;
+      margin-right: 0.04in;
+    }
+
+    .instruction {
+      margin: 0 0.06in 0.14in;
+      padding: 0.07in 0.1in;
+      border: 1px solid #777;
+      font-size: 10px;
+      line-height: 1.25;
+    }
+
+    .score-table {
+      margin: 0 0.06in;
+      border: 1px solid #111;
+    }
+
+    .score-header,
+    .score-row {
+      display: grid;
+      grid-template-columns: minmax(0, 2.65in) 1fr;
+    }
+
+    .score-header {
+      border-bottom: 1px solid #111;
+      background: #f4f4f4;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .criterion-heading {
+      padding: 0.07in 0.1in;
+      border-right: 1px solid #111;
+    }
+
+    .score-headings,
+    .mark-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      align-items: center;
+      text-align: center;
+    }
+
+    .score-heading {
+      padding: 0.07in 0;
+      border-right: 1px solid #ccc;
+    }
+
+    .score-heading:last-child,
+    .mark-cell:last-child {
+      border-right: 0;
+    }
+
+    .score-row {
+      min-height: 0.42in;
+      border-bottom: 1px solid #ccc;
+      page-break-inside: avoid;
+    }
+
+    .score-row:last-child {
+      border-bottom: 0;
+    }
+
+    .criterion-label {
+      display: flex;
+      align-items: center;
+      gap: 0.07in;
+      padding: 0.06in 0.1in;
+      border-right: 1px solid #111;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .row-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0.2in;
+      height: 0.2in;
+      border: 1px solid #777;
+      font-size: 9px;
+    }
+
+    .mark-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0.42in;
+      border-right: 1px solid #ddd;
+    }
+
+    .mark-target {
+      display: inline-block;
+      width: 0.18in;
+      height: 0.18in;
+      border: 2px solid #111;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .footer {
+      position: absolute;
+      left: 0.56in;
+      right: 0.56in;
+      bottom: 0.42in;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.2in;
+      font-size: 8px;
+      color: #333;
+      border-top: 1px solid #999;
+      padding-top: 0.05in;
+    }
+  </style>
+</head>
+<body>
+  <main
+    class="sheet"
+    data-sheet-version="v2"
+    data-template-key="education_omr_v2"
+    data-template-version="2.0.0"
+    data-identity-code="sample-event.sample-contest.education.c001.j001.p1"
+  >
+    <div class="anchor anchor-tl" data-anchor="tl"></div>
+    <div class="anchor anchor-tr" data-anchor="tr"></div>
+    <div class="anchor anchor-bl" data-anchor="bl"></div>
+    <div class="anchor anchor-br" data-anchor="br"></div>
+
+    <section class="header">
+      <div>
+        <h1 class="title">Education Score Sheet</h1>
+        <p class="subtitle">SCORESHEET-V2 · education_omr_v2 · 2.0.0</p>
+      </div>
+      <div class="machine-id">
+        <strong>SCORESHEET-V2</strong>
+        <div>Template: education_omr_v2</div>
+        <div>Identity: sample-event.sample-contest.education.c001.j001.p1</div>
+        <div class="version-strip" aria-hidden="true"><span class="version-bit filled" data-bit-index="0"></span><span class="version-bit " data-bit-index="1"></span><span class="version-bit filled" data-bit-index="2"></span><span class="version-bit filled" data-bit-index="3"></span><span class="version-bit " data-bit-index="4"></span><span class="version-bit " data-bit-index="5"></span><span class="version-bit filled" data-bit-index="6"></span><span class="version-bit " data-bit-index="7"></span></div>
+      </div>
+    </section>
+
+    <section class="meta-grid" aria-label="Scoresheet identity">
+      <div class="meta-item"><span class="label">Event</span>Sample Event</div>
+      <div class="meta-item"><span class="label">Contest</span>Sample Contest</div>
+      <div class="meta-item"><span class="label">Category</span>Education</div>
+      <div class="meta-item"><span class="label">Generated</span>2026-05-25T00:00:00.000Z</div>
+      <div class="meta-item"><span class="label">Contestant</span>#1 Sample Contestant</div>
+      <div class="meta-item"><span class="label">Judge</span>#1 Sample Judge</div>
+    </section>
+
+    <section class="instruction">
+      Fill exactly one bubble per criterion using a dark pen or marker. Keep all four corner anchors visible when scanning. If a row is corrected on paper, enter that score manually instead of relying on import.
+    </section>
+
+    <section class="score-table" aria-label="Criterion scores">
+      <div class="score-header">
+        <div class="criterion-heading">Criterion</div>
+        <div class="score-headings"><div class="score-heading">6</div><div class="score-heading">5</div><div class="score-heading">4</div><div class="score-heading">3</div><div class="score-heading">2</div><div class="score-heading">1</div><div class="score-heading">0</div></div>
+      </div>
+      
+        <div class="score-row" data-criterion-id="criterion-knowledge" data-row-index="0">
+          <div class="criterion-label">
+            <span class="row-number">1</span>
+            <span>Knowledge</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="0" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="0" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="0" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="0" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="0" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="0" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="0" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-technique" data-row-index="1">
+          <div class="criterion-label">
+            <span class="row-number">2</span>
+            <span>Technique</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="1" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="1" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="1" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="1" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="1" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="1" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="1" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-safety" data-row-index="2">
+          <div class="criterion-label">
+            <span class="row-number">3</span>
+            <span>Safety</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="2" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="2" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="2" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="2" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="2" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="2" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="2" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-attitude" data-row-index="3">
+          <div class="criterion-label">
+            <span class="row-number">4</span>
+            <span>Attitude</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="3" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="3" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="3" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="3" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="3" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="3" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="3" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-personality-projection" data-row-index="4">
+          <div class="criterion-label">
+            <span class="row-number">5</span>
+            <span>Personality Projection</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="4" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="4" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="4" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="4" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="4" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="4" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="4" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-volume" data-row-index="5">
+          <div class="criterion-label">
+            <span class="row-number">6</span>
+            <span>Volume</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="5" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="5" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="5" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="5" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="5" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="5" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="5" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-audience-engagement" data-row-index="6">
+          <div class="criterion-label">
+            <span class="row-number">7</span>
+            <span>Audience Engagement</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="6" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="6" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="6" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="6" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="6" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="6" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="6" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-appropriate-attire" data-row-index="7">
+          <div class="criterion-label">
+            <span class="row-number">8</span>
+            <span>Appropriate Attire</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="7" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="7" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="7" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="7" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="7" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="7" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="7" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-preparation" data-row-index="8">
+          <div class="criterion-label">
+            <span class="row-number">9</span>
+            <span>Preparation</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="8" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="8" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="8" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="8" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="8" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="8" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="8" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+        <div class="score-row" data-criterion-id="criterion-time-management" data-row-index="9">
+          <div class="criterion-label">
+            <span class="row-number">10</span>
+            <span>Time Management</span>
+          </div>
+          <div class="mark-grid"><div class="mark-cell"><span class="mark-target" data-row="9" data-score="6" data-score-index="0"></span></div><div class="mark-cell"><span class="mark-target" data-row="9" data-score="5" data-score-index="1"></span></div><div class="mark-cell"><span class="mark-target" data-row="9" data-score="4" data-score-index="2"></span></div><div class="mark-cell"><span class="mark-target" data-row="9" data-score="3" data-score-index="3"></span></div><div class="mark-cell"><span class="mark-target" data-row="9" data-score="2" data-score-index="4"></span></div><div class="mark-cell"><span class="mark-target" data-row="9" data-score="1" data-score-index="5"></span></div><div class="mark-cell"><span class="mark-target" data-row="9" data-score="0" data-score-index="6"></span></div></div>
+        </div>
+      
+    </section>
+
+    <footer class="footer">
+      <span>Use scanner PDF for first-pass import calibration. Phone photos are not approved for v2 assurance yet.</span>
+      <span>sample-event.sample-contest.education.c001.j001.p1</span>
+    </footer>
+  </main>
+</body>
+</html>

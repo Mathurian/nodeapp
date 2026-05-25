@@ -715,4 +715,221 @@ describe('PrintService', () => {
       );
     });
   });
+
+  describe('printScoreSheetV2', () => {
+    const buildEducationCategory = () => ({
+      id: 'category-1',
+      name: 'Education',
+      description: null,
+      scoreCap: 60,
+      timeLimit: null,
+      contestantMin: null,
+      contestantMax: null,
+      commentaryMode: 'PER_CRITERION',
+      commentaryScope: 'CATEGORY',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      totalsCertified: false,
+      boardApproved: false,
+      approvedAt: null,
+      approvedBy: null,
+      deletedAt: null,
+      deletedBy: null,
+      contestId: 'contest-1',
+      tenantId: 'tenant-1',
+      contest: {
+        id: 'contest-1',
+        name: 'Pet',
+        eventId: 'event-1',
+        tenantId: 'tenant-1',
+        event: {
+          id: 'event-1',
+          name: 'Route 66',
+          tenantId: 'tenant-1',
+        },
+      },
+      categoryContestants: [
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          tenantId: 'tenant-1',
+          contestant: {
+            id: 'contestant-1',
+            name: 'Contestant One',
+            contestantNumber: 12,
+            tenantId: 'tenant-1',
+          },
+        },
+      ],
+      categoryJudges: [
+        {
+          categoryId: 'category-1',
+          judgeId: 'judge-1',
+          tenantId: 'tenant-1',
+          judge: {
+            id: 'judge-1',
+            name: 'Judge One',
+            email: 'judge@example.test',
+            isHeadJudge: false,
+            tenantId: 'tenant-1',
+          },
+        },
+      ],
+      criteria: [
+        { id: 'criterion-8', name: 'Appropriate Attire', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-1', name: 'Knowledge', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-10', name: 'Time Management', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-4', name: 'Attitude', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-7', name: 'Audience Engagement', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-5', name: 'Personality Projection', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-9', name: 'Preparation', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-3', name: 'Safety', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-2', name: 'Technique', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'criterion-6', name: 'Volume', maxScore: 6, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+      ],
+    });
+
+    it('generates a v2 machine-readable scoresheet as HTML', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue(buildEducationCategory() as any);
+
+      const output = await service.printScoreSheetV2(
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          format: 'html',
+        },
+        'tenant-1',
+      );
+      const html = output.content.toString('utf8');
+
+      expect(output.contentType).toBe('text/html');
+      expect(output.filename).toMatch(/^scoresheet-v2-education-contestant-one-judge-one-\d+\.html$/);
+      expect(html).toContain('SCORESHEET-V2');
+      expect(html).toContain('education_omr_v2');
+      expect(html).toContain('Route 66');
+      expect(html).toContain('#12 Contestant One');
+      expect((html.match(/data-anchor="/g) || []).length).toBe(4);
+      expect((html.match(/class="mark-target"/g) || []).length).toBe(70);
+      expect(html.indexOf('Knowledge')).toBeLessThan(html.indexOf('Technique'));
+      expect(html.indexOf('Technique')).toBeLessThan(html.indexOf('Safety'));
+      expect(mockPrisma.category.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          id: 'category-1',
+          tenantId: 'tenant-1',
+          deletedAt: null,
+        },
+        include: expect.objectContaining({
+          categoryContestants: expect.objectContaining({
+            where: { contestantId: 'contestant-1' },
+          }),
+          categoryJudges: expect.objectContaining({
+            where: { judgeId: 'judge-1' },
+          }),
+        }),
+      }));
+    });
+
+    it('generates a v2 machine-readable scoresheet as PDF', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue(buildEducationCategory() as any);
+
+      const output = await service.printScoreSheetV2(
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+        },
+        'tenant-1',
+      );
+
+      expect(output.contentType).toBe('application/pdf');
+      expect(output.content).toEqual(Buffer.from('mock pdf'));
+      expect(mockPage.pdf).toHaveBeenCalledWith(expect.objectContaining({
+        format: 'Letter',
+        preferCSSPageSize: true,
+        margin: {
+          top: '0',
+          right: '0',
+          bottom: '0',
+          left: '0',
+        },
+      }));
+    });
+
+    it('generates a v3 machine-readable scoresheet with ignored commentary', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue(buildEducationCategory() as any);
+
+      const output = await service.printScoreSheetV3(
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          format: 'html',
+        },
+        'tenant-1',
+      );
+      const html = output.content.toString('utf8');
+
+      expect(output.contentType).toBe('text/html');
+      expect(output.filename).toMatch(/^scoresheet-v3-education-contestant-one-judge-one-\d+\.html$/);
+      expect(html).toContain('SCORESHEET-V3');
+      expect(html).toContain('education_omr_v3');
+      expect(html).toContain('data-score-region="primary"');
+      expect(html).toContain('data-ignore-region="commentary"');
+      expect((html.match(/class="mark-target"/g) || []).length).toBe(70);
+    });
+
+    it('rejects unsupported category criteria', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        ...buildEducationCategory(),
+        criteria: [
+          { id: 'criterion-1', name: 'Unmapped Criterion', maxScore: 10, categoryId: 'category-1', tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date() },
+        ],
+      } as any);
+
+      await expect(service.printScoreSheetV2(
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          format: 'html',
+        },
+        'tenant-1',
+      )).rejects.toThrow('Machine-readable scoresheet v2 is not available for this category');
+    });
+
+    it('rejects contestants that are not assigned to the category', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        ...buildEducationCategory(),
+        categoryContestants: [],
+      } as any);
+
+      await expect(service.printScoreSheetV2(
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          format: 'html',
+        },
+        'tenant-1',
+      )).rejects.toThrow('Contestant is not assigned to this category');
+    });
+
+    it('rejects judges that are not assigned to the category', async () => {
+      mockPrisma.category.findFirst.mockResolvedValue({
+        ...buildEducationCategory(),
+        categoryJudges: [],
+      } as any);
+
+      await expect(service.printScoreSheetV2(
+        {
+          categoryId: 'category-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          format: 'html',
+        },
+        'tenant-1',
+      )).rejects.toThrow('Judge is not assigned to this category');
+    });
+  });
 });

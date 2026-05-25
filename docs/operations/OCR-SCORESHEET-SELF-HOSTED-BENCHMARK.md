@@ -187,7 +187,11 @@ For `TASK-34.19`, do not simply promote the current extractor or wrap a generic 
 3. prototype a purpose-built self-hosted mark-classifier against registered score cells;
 4. rerun calibration with assurance bands that explicitly track false high-confidence marks, exact sheet rate, rejected uploads, and correction burden.
 
-If those still do not materially improve accuracy, the reliable path will require either score-sheet form changes that add registration anchors/filled bubbles or staying with manual entry after rejected uploads.
+After `TASK-34.14`, the project chose the lower-maintenance form-change path instead of continuing current-sheet extractor research. The v2 contract is:
+
+- [OCR-SCORESHEET-V2-MACHINE-READABLE-CONTRACT.md](/srv/event-manager/dev/docs/operations/OCR-SCORESHEET-V2-MACHINE-READABLE-CONTRACT.md:1)
+
+V2 keeps the scoring workflow intact while adding registration anchors and filled score mark regions so future extraction can use deterministic OMR rather than generic OCR/layout or handwritten-mark inference.
 
 ## Operational Decision
 
@@ -197,5 +201,5 @@ For now:
 - do not remove correction/review before certification
 - do not enable tenant opt-in free OCR fallback
 - keep paid cloud services out of the recommended production path
-- require more corpus coverage before any assurance-band routing can be considered
+- route high-assurance work through the v2 machine-readable sheet path
 - continue preserving attempt-limit and same-user manual entry requirements for future workflow design

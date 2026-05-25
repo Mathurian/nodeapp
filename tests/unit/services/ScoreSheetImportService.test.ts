@@ -1,4 +1,5 @@
 import { ScoreSheetImportService } from '../../../src/services/ScoreSheetImportService';
+import { scoreSheetImportTemplateMap } from '../../../src/config/scoreSheetImportTemplates';
 import groundTruth from '../../examples/scoresheet-import/route66-phase1-ground-truth.json';
 
 const WIDTH = 1000;
@@ -11,6 +12,17 @@ const SCORE_GRID_BOTTOM = 0.804;
 const CELL_HORIZONTAL_PADDING = 0.18;
 const CELL_VERTICAL_PADDING = 0.16;
 const SCORE_COLUMNS = [6, 5, 4, 3, 2, 1, 0] as const;
+const V3_SCORE_GRID_LEFT = 0.367;
+const V3_SCORE_GRID_RIGHT = 0.95;
+const V3_SCORE_GRID_TOP = 0.266;
+const V3_SCORE_GRID_BOTTOM = 0.634;
+const V3_VERSION_BITS = [1, 1, 0, 0, 0, 0, 1, 1] as const;
+const V3_ANCHOR_LEFT = 0.3 / 8.5;
+const V3_ANCHOR_TOP = 0.3 / 11;
+const V3_ANCHOR_WIDTH = 0.22 / 8.5;
+const V3_ANCHOR_HEIGHT = 0.22 / 11;
+const V3_ANCHOR_RIGHT = (8.5 - 0.3 - 0.22) / 8.5;
+const V3_ANCHOR_BOTTOM = (11 - 0.3 - 0.22) / 11;
 
 const createBlankImage = (): Buffer => Buffer.alloc(WIDTH * HEIGHT * CHANNELS, 255);
 
@@ -68,6 +80,132 @@ const paintScoreGrid = (buffer: Buffer, rowCount: number): void => {
     }
   }
 };
+
+const paintRatioRect = (
+  buffer: Buffer,
+  leftRatio: number,
+  topRatio: number,
+  widthRatio: number,
+  heightRatio: number,
+  color: [number, number, number] = [0, 0, 0],
+): void => {
+  const left = Math.max(0, Math.round(WIDTH * leftRatio));
+  const top = Math.max(0, Math.round(HEIGHT * topRatio));
+  const right = Math.min(WIDTH - 1, Math.round(WIDTH * (leftRatio + widthRatio)));
+  const bottom = Math.min(HEIGHT - 1, Math.round(HEIGHT * (topRatio + heightRatio)));
+
+  for (let y = top; y <= bottom; y += 1) {
+    for (let x = left; x <= right; x += 1) {
+      const offset = ((y * WIDTH) + x) * CHANNELS;
+      buffer[offset] = color[0];
+      buffer[offset + 1] = color[1];
+      buffer[offset + 2] = color[2];
+    }
+  }
+};
+
+const paintV3MachineReadableMetadata = (buffer: Buffer): void => {
+  paintRatioRect(buffer, V3_ANCHOR_LEFT, V3_ANCHOR_TOP, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+  paintRatioRect(buffer, V3_ANCHOR_RIGHT, V3_ANCHOR_TOP, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+  paintRatioRect(buffer, V3_ANCHOR_LEFT, V3_ANCHOR_BOTTOM, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+  paintRatioRect(buffer, V3_ANCHOR_RIGHT, V3_ANCHOR_BOTTOM, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+
+  const bitWidth = 0.016;
+  const bitHeight = 0.013;
+  const gap = 0.005;
+  V3_VERSION_BITS.forEach((bit, bitIndex) => {
+    if (bit === 1) {
+      paintRatioRect(buffer, 0.62 + (bitIndex * (bitWidth + gap)), 0.074, bitWidth, bitHeight);
+    }
+  });
+};
+
+const paintGrid = (
+  buffer: Buffer,
+  rowCount: number,
+  leftRatio: number,
+  rightRatio: number,
+  topRatio: number,
+  bottomRatio: number,
+): void => {
+  const gridLeft = Math.round(WIDTH * leftRatio);
+  const gridRight = Math.round(WIDTH * rightRatio);
+  const gridTop = Math.round(HEIGHT * topRatio);
+  const gridBottom = Math.round(HEIGHT * bottomRatio);
+  const rowHeight = (gridBottom - gridTop) / rowCount;
+  const columnWidth = (gridRight - gridLeft) / SCORE_COLUMNS.length;
+
+  for (let rowIndex = 0; rowIndex <= rowCount; rowIndex += 1) {
+    const y = Math.round(gridTop + (rowHeight * rowIndex));
+    for (let lineOffset = -1; lineOffset <= 1; lineOffset += 1) {
+      for (let x = gridLeft; x <= gridRight; x += 1) {
+        const offset = (((y + lineOffset) * WIDTH) + x) * CHANNELS;
+        buffer[offset] = 0;
+        buffer[offset + 1] = 0;
+        buffer[offset + 2] = 0;
+      }
+    }
+  }
+
+  for (let columnIndex = 0; columnIndex <= SCORE_COLUMNS.length; columnIndex += 1) {
+    const x = Math.round(gridLeft + (columnWidth * columnIndex));
+    for (let lineOffset = -1; lineOffset <= 1; lineOffset += 1) {
+      for (let y = gridTop; y <= gridBottom; y += 1) {
+        const offset = ((y * WIDTH) + x + lineOffset) * CHANNELS;
+        buffer[offset] = 0;
+        buffer[offset + 1] = 0;
+        buffer[offset + 2] = 0;
+      }
+    }
+  }
+};
+
+const paintV3Cell = (buffer: Buffer, rowIndex: number, rowCount: number, columnIndex: number): void => {
+  const rowHeight = (V3_SCORE_GRID_BOTTOM - V3_SCORE_GRID_TOP) / rowCount;
+  const columnWidth = (V3_SCORE_GRID_RIGHT - V3_SCORE_GRID_LEFT) / SCORE_COLUMNS.length;
+  const centerX = WIDTH * (V3_SCORE_GRID_LEFT + (columnIndex * columnWidth) + (columnWidth / 2));
+  const centerY = HEIGHT * (V3_SCORE_GRID_TOP + (rowIndex * rowHeight) + (rowHeight / 2));
+  const radiusX = Math.max(5, Math.round(WIDTH * columnWidth * 0.16));
+  const radiusY = Math.max(5, Math.round(HEIGHT * rowHeight * 0.18));
+
+  for (let y = Math.round(centerY - radiusY); y <= Math.round(centerY + radiusY); y += 1) {
+    for (let x = Math.round(centerX - radiusX); x <= Math.round(centerX + radiusX); x += 1) {
+      const normalizedX = (x - centerX) / radiusX;
+      const normalizedY = (y - centerY) / radiusY;
+      if ((normalizedX * normalizedX) + (normalizedY * normalizedY) <= 1) {
+        const offset = ((y * WIDTH) + x) * CHANNELS;
+        buffer[offset] = 20;
+        buffer[offset + 1] = 20;
+        buffer[offset + 2] = 20;
+      }
+    }
+  }
+};
+
+const paintV3CommentaryScribble = (buffer: Buffer): void => {
+  for (let lineIndex = 0; lineIndex < 5; lineIndex += 1) {
+    const y = Math.round(HEIGHT * (0.69 + (lineIndex * 0.035)));
+    for (let x = Math.round(WIDTH * 0.08); x < Math.round(WIDTH * 0.9); x += 8) {
+      const offset = ((y + (x % 17)) * WIDTH + x) * CHANNELS;
+      buffer[offset] = 10;
+      buffer[offset + 1] = 10;
+      buffer[offset + 2] = 10;
+    }
+  }
+};
+
+const buildEducationCriteria = () => [
+  { id: 'criterion-knowledge', name: 'Knowledge', maxScore: 6 },
+  { id: 'criterion-technique', name: 'Technique', maxScore: 6 },
+  { id: 'criterion-safety', name: 'Safety', maxScore: 6 },
+  { id: 'criterion-attitude', name: 'Attitude', maxScore: 6 },
+  { id: 'criterion-personality-projection', name: 'Personality Projection', maxScore: 6 },
+  { id: 'criterion-volume', name: 'Volume', maxScore: 6 },
+  { id: 'criterion-audience-engagement', name: 'Audience Engagement', maxScore: 6 },
+  { id: 'criterion-appropriate-attire', name: 'Appropriate Attire', maxScore: 6 },
+  { id: 'criterion-preparation', name: 'Preparation', maxScore: 6 },
+  { id: 'criterion-time-management', name: 'Time Management', maxScore: 6 },
+];
 
 const buildCriteria = () => Array.from({ length: 10 }, (_value, index) => ({
   id: `criterion-${index + 1}`,
@@ -384,6 +522,101 @@ describe('ScoreSheetImportService', () => {
         }),
       }),
     );
+  });
+
+  it('detects the v3 machine-readable template from anchors and version metadata', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const criteria = buildEducationCriteria();
+    const image = createBlankImage();
+    paintV3MachineReadableMetadata(image);
+
+    const template = (service as any).resolveTemplate(
+      criteria,
+      { intent: 'SCORESHEET_IMPORT' },
+      undefined,
+      {
+        data: image,
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+      },
+    );
+
+    expect(template.key).toBe('education_omr_v3');
+  });
+
+  it('extracts v3 score marks while ignoring commentary below the grid', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const criteria = buildEducationCriteria();
+    const template = scoreSheetImportTemplateMap.get('education_omr_v3')!;
+    const image = createBlankImage();
+    paintV3MachineReadableMetadata(image);
+    paintGrid(image, criteria.length, V3_SCORE_GRID_LEFT, V3_SCORE_GRID_RIGHT, V3_SCORE_GRID_TOP, V3_SCORE_GRID_BOTTOM);
+    criteria.forEach((_criterion, rowIndex) => {
+      paintV3Cell(image, rowIndex, criteria.length, rowIndex % SCORE_COLUMNS.length);
+    });
+    paintV3CommentaryScribble(image);
+
+    const result = (service as any).extractScoresFromNormalizedImage(
+      {
+        data: image,
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+      },
+      criteria,
+      template,
+    );
+
+    expect(result.payload.templateKey).toBe('education_omr_v3');
+    expect(result.payload.machineReadable.sheetVersion).toBe('v3');
+    expect(result.payload.machineReadable.templateVersion).toBe('3.0.0');
+    expect(result.payload.machineReadable.ignoredRegions[0]).toEqual(expect.objectContaining({
+      name: 'commentary',
+      purpose: 'judge-commentary',
+    }));
+    expect(result.payload.machineReadable.markQuality.rejectedRowCount).toBe(0);
+    expect(result.payload.criteria[0].detectedScore).toBe(6);
+    expect(result.payload.criteria[1].detectedScore).toBe(5);
+    expect(result.payload.criteria[6].detectedScore).toBe(0);
+    expect(result.payload.criteria.every((criterion: any) => criterion.ambiguous === false)).toBe(true);
+  });
+
+  it('rejects v3 rows with multiple marked score cells', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const criteria = buildEducationCriteria();
+    const template = scoreSheetImportTemplateMap.get('education_omr_v3')!;
+    const image = createBlankImage();
+    paintV3MachineReadableMetadata(image);
+    paintGrid(image, criteria.length, V3_SCORE_GRID_LEFT, V3_SCORE_GRID_RIGHT, V3_SCORE_GRID_TOP, V3_SCORE_GRID_BOTTOM);
+    criteria.forEach((_criterion, rowIndex) => {
+      paintV3Cell(image, rowIndex, criteria.length, rowIndex % SCORE_COLUMNS.length);
+    });
+    paintV3Cell(image, 0, criteria.length, 1);
+
+    const result = (service as any).extractScoresFromNormalizedImage(
+      {
+        data: image,
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+      },
+      criteria,
+      template,
+    );
+
+    expect(result.payload.criteria[0].detectedScore).toBeNull();
+    expect(result.payload.criteria[0].ambiguous).toBe(true);
+    expect(result.payload.machineReadable.markQuality.rejectedRowCount).toBe(1);
+    expect(result.payload.machineReadable.markQuality.multiMarkRowCount).toBe(1);
+    expect(result.payload.machineReadable.rejectedRows[0]).toEqual(expect.objectContaining({
+      rowIndex: 0,
+      reason: 'multi_mark',
+      markedColumnIndexes: [0, 1],
+    }));
   });
 
   it('resolves the Education template from category criteria', () => {

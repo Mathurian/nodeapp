@@ -1,4 +1,4 @@
-export type ScoreSheetTemplateKey = 'education_saturday_day_v1';
+export type ScoreSheetTemplateKey = 'education_saturday_day_v1' | 'education_omr_v3';
 
 export type ScoreSheetTemplateCriterion = {
   label: string;
@@ -9,6 +9,7 @@ export type ScoreSheetTemplateDefinition = {
   key: ScoreSheetTemplateKey;
   displayName: string;
   supported: boolean;
+  inferFromCriteria?: boolean;
   scoreColumns: readonly number[];
   criteria: ScoreSheetTemplateCriterion[];
   grid: {
@@ -20,6 +21,18 @@ export type ScoreSheetTemplateDefinition = {
     cellVerticalPadding: number;
     minCellInkScore: number;
     minConfidenceGap: number;
+  };
+  machineReadable?: {
+    sheetVersion: 'v3';
+    templateVersion: string;
+    ignoredRegions: Array<{
+      name: string;
+      left: number;
+      right: number;
+      top: number;
+      bottom: number;
+      purpose: string;
+    }>;
   };
 };
 
@@ -61,6 +74,38 @@ export const scoreSheetImportTemplates: ScoreSheetTemplateDefinition[] = [
       cellVerticalPadding: 0.1,
       minCellInkScore: 0.0011,
       minConfidenceGap: 0.05,
+    },
+  },
+  {
+    key: 'education_omr_v3',
+    displayName: 'Education OMR v3',
+    supported: true,
+    inferFromCriteria: false,
+    scoreColumns: [6, 5, 4, 3, 2, 1, 0] as const,
+    criteria: educationCriteria,
+    grid: {
+      left: 0.367,
+      right: 0.95,
+      top: 0.266,
+      bottom: 0.634,
+      cellHorizontalPadding: 0.2,
+      cellVerticalPadding: 0.18,
+      minCellInkScore: 0.002,
+      minConfidenceGap: 0.2,
+    },
+    machineReadable: {
+      sheetVersion: 'v3',
+      templateVersion: '3.0.0',
+      ignoredRegions: [
+        {
+          name: 'commentary',
+          left: 0.04,
+          right: 0.96,
+          top: 0.65,
+          bottom: 0.88,
+          purpose: 'judge-commentary',
+        },
+      ],
     },
   },
 ];
@@ -118,7 +163,11 @@ export const resolveTemplateByCriteria = (
   criterionNames: string[],
 ): ScoreSheetTemplateDefinition | null => {
   for (const template of scoreSheetImportTemplates) {
-    if (template.supported && templateMatchesCriteria(template, criterionNames)) {
+    if (
+      template.supported
+      && template.inferFromCriteria !== false
+      && templateMatchesCriteria(template, criterionNames)
+    ) {
       return template;
     }
   }

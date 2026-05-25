@@ -5,6 +5,8 @@ import {
   printEventReport,
   printContestResults,
   printJudgePerformance,
+  printScoreSheetV2,
+  printScoreSheetV3,
   printContestantReport,
   printJudgeReport,
   printCategoryReport,
@@ -52,6 +54,8 @@ router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOA
 router.post('/event-report', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('PRINT_EVENT_REPORT', 'PRINT'), printEventReport)
 router.post('/contest-results', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('PRINT_CONTEST_RESULTS', 'PRINT'), printContestResults)
 router.post('/judge-performance', requireRole(['ADMIN', 'ORGANIZER', 'BOARD', 'AUDITOR']), logActivity('PRINT_JUDGE_PERFORMANCE', 'PRINT'), printJudgePerformance)
+router.post('/scoresheets/v2', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'DELEGATE']), logActivity('PRINT_SCORESHEET_V2', 'PRINT'), printScoreSheetV2)
+router.post('/scoresheets/v3', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'DELEGATE']), logActivity('PRINT_SCORESHEET_V3', 'PRINT'), printScoreSheetV3)
 
 // Direct print report routes
 router.get('/contestant/:id', printContestantReport)

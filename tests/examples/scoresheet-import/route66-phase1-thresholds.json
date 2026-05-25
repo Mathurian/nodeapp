@@ -12,5 +12,32 @@
         "maxAmbiguousRowsPerPage": 1
       }
     }
+  },
+  "machineReadableThresholds": {
+    "education_omr_v3": {
+      "reviewRequired": {
+        "minExactRowMatchRate": 0.98,
+        "minExactSheetMatchRate": 0.95,
+        "maxFalseHighConfidenceMarks": 0,
+        "maxUnexpectedRejectedRows": 0
+      },
+      "autoSubmit": {
+        "minExactRowMatchRate": 1,
+        "minExactSheetMatchRate": 1,
+        "maxFalseHighConfidenceMarks": 0,
+        "maxUnexpectedRejectedRows": 0,
+        "maxRejectedRowsPerAcceptedSheet": 0,
+        "minRealScannerSheets": 30
+      },
+      "autoCertify": {
+        "minExactRowMatchRate": 1,
+        "minExactSheetMatchRate": 1,
+        "maxFalseHighConfidenceMarks": 0,
+        "maxUnexpectedRejectedRows": 0,
+        "maxRejectedRowsPerAcceptedSheet": 0,
+        "minRealScannerSheets": 100,
+        "requiresOperationalUat": true
+      }
+    }
   }
 }

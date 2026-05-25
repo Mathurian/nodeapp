@@ -2,6 +2,7 @@
 
 require('reflect-metadata');
 
+const fs = require('fs');
 const path = require('path');
 const { ScoreSheetImportService } = require('../../dist/services/ScoreSheetImportService');
 
@@ -10,6 +11,61 @@ const DEFAULT_GROUND_TRUTH_PATH = 'tests/examples/scoresheet-import/route66-phas
 const DEFAULT_THRESHOLDS_PATH = 'tests/examples/scoresheet-import/route66-phase1-thresholds.json';
 const FALSE_HIGH_CONFIDENCE_THRESHOLD = 0.75;
 const MATERIAL_EXACT_ROW_MATCH_IMPROVEMENT = 0.05;
+const NORMALIZED_WIDTH = 1000;
+const NORMALIZED_HEIGHT = 1400;
+const CHANNELS = 3;
+const V3_TEMPLATE_KEY = 'education_omr_v3';
+const V3_VERSION_BITS = [1, 1, 0, 0, 0, 0, 1, 1];
+const V3_SCORE_GRID = {
+  left: 0.367,
+  right: 0.95,
+  top: 0.266,
+  bottom: 0.634,
+};
+const V3_ANCHOR = {
+  left: 0.3 / 8.5,
+  top: 0.3 / 11,
+  width: 0.22 / 8.5,
+  height: 0.22 / 11,
+  right: (8.5 - 0.3 - 0.22) / 8.5,
+  bottom: (11 - 0.3 - 0.22) / 11,
+};
+const V3_ASSURANCE_THRESHOLDS = {
+  reviewRequired: {
+    minExactRowMatchRate: 0.98,
+    minExactSheetMatchRate: 0.95,
+    maxFalseHighConfidenceMarks: 0,
+    maxUnexpectedRejectedRows: 0,
+  },
+  autoSubmit: {
+    minExactRowMatchRate: 1,
+    minExactSheetMatchRate: 1,
+    maxFalseHighConfidenceMarks: 0,
+    maxUnexpectedRejectedRows: 0,
+    maxRejectedRowsPerAcceptedSheet: 0,
+    minRealScannerSheets: 30,
+  },
+  autoCertify: {
+    minExactRowMatchRate: 1,
+    minExactSheetMatchRate: 1,
+    maxFalseHighConfidenceMarks: 0,
+    maxUnexpectedRejectedRows: 0,
+    maxRejectedRowsPerAcceptedSheet: 0,
+    minRealScannerSheets: 100,
+    requiresOperationalUat: true,
+  },
+};
+const V3_PHONE_PHOTO_SAMPLES = [
+  {
+    id: 'v3-phone-img-5145',
+    label: 'V3 phone photo IMG_5145',
+    captureType: 'phone_photo',
+    sourcePath: 'temp/scoresheet-corpus-intake/IMG_5145.jpeg',
+    contestantName: 'Retro',
+    judgeName: 'Daddie Danger',
+    expectedRejectedRows: [],
+  },
+];
 const PREPROCESSING_VARIANTS = [
   {
     id: 'standard',
@@ -99,6 +155,8 @@ const parseArgs = (argv) => {
 };
 
 const loadJson = (relativePath) => require(path.resolve(process.cwd(), relativePath));
+
+const measureRuntimeMs = (startedAt) => Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 
 const buildCriteriaForTemplate = (family) =>
   family.criterionOrder
@@ -335,6 +393,521 @@ const evaluateFamily = async (service, groundTruth, thresholdConfig, family, mod
   };
 };
 
+const createBlankV3Image = () => Buffer.alloc(NORMALIZED_WIDTH * NORMALIZED_HEIGHT * CHANNELS, 255);
+
+const paintRatioRect = (
+  buffer,
+  leftRatio,
+  topRatio,
+  widthRatio,
+  heightRatio,
+  color = [0, 0, 0],
+) => {
+  const left = Math.max(0, Math.round(NORMALIZED_WIDTH * leftRatio));
+  const top = Math.max(0, Math.round(NORMALIZED_HEIGHT * topRatio));
+  const right = Math.min(NORMALIZED_WIDTH - 1, Math.round(NORMALIZED_WIDTH * (leftRatio + widthRatio)));
+  const bottom = Math.min(NORMALIZED_HEIGHT - 1, Math.round(NORMALIZED_HEIGHT * (topRatio + heightRatio)));
+
+  for (let y = top; y <= bottom; y += 1) {
+    for (let x = left; x <= right; x += 1) {
+      const offset = ((y * NORMALIZED_WIDTH) + x) * CHANNELS;
+      buffer[offset] = color[0];
+      buffer[offset + 1] = color[1];
+      buffer[offset + 2] = color[2];
+    }
+  }
+};
+
+const paintV3MachineReadableMetadata = (buffer) => {
+  paintRatioRect(buffer, V3_ANCHOR.left, V3_ANCHOR.top, V3_ANCHOR.width, V3_ANCHOR.height);
+  paintRatioRect(buffer, V3_ANCHOR.right, V3_ANCHOR.top, V3_ANCHOR.width, V3_ANCHOR.height);
+  paintRatioRect(buffer, V3_ANCHOR.left, V3_ANCHOR.bottom, V3_ANCHOR.width, V3_ANCHOR.height);
+  paintRatioRect(buffer, V3_ANCHOR.right, V3_ANCHOR.bottom, V3_ANCHOR.width, V3_ANCHOR.height);
+
+  const bitWidth = 0.016;
+  const bitHeight = 0.013;
+  const gap = 0.005;
+  V3_VERSION_BITS.forEach((bit, bitIndex) => {
+    if (bit === 1) {
+      paintRatioRect(buffer, 0.62 + (bitIndex * (bitWidth + gap)), 0.074, bitWidth, bitHeight);
+    }
+  });
+};
+
+const paintV3Grid = (buffer, rowCount, scoreColumns) => {
+  const gridLeft = Math.round(NORMALIZED_WIDTH * V3_SCORE_GRID.left);
+  const gridRight = Math.round(NORMALIZED_WIDTH * V3_SCORE_GRID.right);
+  const gridTop = Math.round(NORMALIZED_HEIGHT * V3_SCORE_GRID.top);
+  const gridBottom = Math.round(NORMALIZED_HEIGHT * V3_SCORE_GRID.bottom);
+  const rowHeight = (gridBottom - gridTop) / rowCount;
+  const columnWidth = (gridRight - gridLeft) / scoreColumns.length;
+
+  for (let rowIndex = 0; rowIndex <= rowCount; rowIndex += 1) {
+    const y = Math.round(gridTop + (rowHeight * rowIndex));
+    for (let lineOffset = -1; lineOffset <= 1; lineOffset += 1) {
+      for (let x = gridLeft; x <= gridRight; x += 1) {
+        const offset = (((y + lineOffset) * NORMALIZED_WIDTH) + x) * CHANNELS;
+        buffer[offset] = 0;
+        buffer[offset + 1] = 0;
+        buffer[offset + 2] = 0;
+      }
+    }
+  }
+
+  for (let columnIndex = 0; columnIndex <= scoreColumns.length; columnIndex += 1) {
+    const x = Math.round(gridLeft + (columnWidth * columnIndex));
+    for (let lineOffset = -1; lineOffset <= 1; lineOffset += 1) {
+      for (let y = gridTop; y <= gridBottom; y += 1) {
+        const offset = ((y * NORMALIZED_WIDTH) + x + lineOffset) * CHANNELS;
+        buffer[offset] = 0;
+        buffer[offset + 1] = 0;
+        buffer[offset + 2] = 0;
+      }
+    }
+  }
+};
+
+const paintV3Cell = (buffer, rowIndex, rowCount, columnIndex, scoreColumns) => {
+  const rowHeight = (V3_SCORE_GRID.bottom - V3_SCORE_GRID.top) / rowCount;
+  const columnWidth = (V3_SCORE_GRID.right - V3_SCORE_GRID.left) / scoreColumns.length;
+  const centerX = NORMALIZED_WIDTH * (V3_SCORE_GRID.left + (columnIndex * columnWidth) + (columnWidth / 2));
+  const centerY = NORMALIZED_HEIGHT * (V3_SCORE_GRID.top + (rowIndex * rowHeight) + (rowHeight / 2));
+  const radiusX = Math.max(5, Math.round(NORMALIZED_WIDTH * columnWidth * 0.16));
+  const radiusY = Math.max(5, Math.round(NORMALIZED_HEIGHT * rowHeight * 0.18));
+
+  for (let y = Math.round(centerY - radiusY); y <= Math.round(centerY + radiusY); y += 1) {
+    for (let x = Math.round(centerX - radiusX); x <= Math.round(centerX + radiusX); x += 1) {
+      const normalizedX = (x - centerX) / radiusX;
+      const normalizedY = (y - centerY) / radiusY;
+      if ((normalizedX * normalizedX) + (normalizedY * normalizedY) <= 1) {
+        const offset = ((y * NORMALIZED_WIDTH) + x) * CHANNELS;
+        buffer[offset] = 20;
+        buffer[offset + 1] = 20;
+        buffer[offset + 2] = 20;
+      }
+    }
+  }
+};
+
+const paintV3CommentaryScribble = (buffer) => {
+  for (let lineIndex = 0; lineIndex < 5; lineIndex += 1) {
+    const y = Math.round(NORMALIZED_HEIGHT * (0.69 + (lineIndex * 0.035)));
+    for (let x = Math.round(NORMALIZED_WIDTH * 0.08); x < Math.round(NORMALIZED_WIDTH * 0.9); x += 8) {
+      const scribbleY = Math.max(0, Math.min(NORMALIZED_HEIGHT - 1, y + (x % 17)));
+      const offset = ((scribbleY * NORMALIZED_WIDTH) + x) * CHANNELS;
+      buffer[offset] = 10;
+      buffer[offset + 1] = 10;
+      buffer[offset + 2] = 10;
+    }
+  }
+};
+
+const buildV3SyntheticSamples = (criteria, scoreColumns) => [
+  {
+    id: 'v3-clean-full-grid',
+    label: 'Clean v3 grid',
+    captureType: 'synthetic_generated',
+    scores: [6, 5, 4, 3, 2, 1, 0, 6, 5, 4],
+    commentaryScribble: false,
+    expectedRejectedRows: [],
+  },
+  {
+    id: 'v3-commentary-scribble',
+    label: 'V3 grid with dark commentary scribble',
+    captureType: 'synthetic_generated',
+    scores: [0, 1, 2, 3, 4, 5, 6, 0, 1, 2],
+    commentaryScribble: true,
+    expectedRejectedRows: [],
+  },
+  {
+    id: 'v3-multi-mark-row',
+    label: 'V3 multi-mark rejection',
+    captureType: 'synthetic_generated',
+    scores: [null, 5, 4, 3, 2, 1, 0, 6, 5, 4],
+    commentaryScribble: false,
+    expectedRejectedRows: [0],
+    extraMarks: [{ rowIndex: 0, score: 6 }, { rowIndex: 0, score: 5 }],
+  },
+  {
+    id: 'v3-missing-mark-row',
+    label: 'V3 missing-mark rejection',
+    captureType: 'synthetic_generated',
+    scores: [6, 5, 4, null, 2, 1, 0, 6, 5, 4],
+    commentaryScribble: true,
+    expectedRejectedRows: [3],
+  },
+].map((sample) => ({
+  ...sample,
+  expectedScoresByCriterion: Object.fromEntries(
+    criteria.map((criterion, rowIndex) => [criterion.name, sample.scores[rowIndex] ?? null]),
+  ),
+  expectedTotal: sample.scores.reduce((sum, score) => sum + (score ?? 0), 0),
+  scoreColumns,
+}));
+
+const renderV3SyntheticSample = (sample, criteria, scoreColumns) => {
+  const image = createBlankV3Image();
+  paintV3MachineReadableMetadata(image);
+  paintV3Grid(image, criteria.length, scoreColumns);
+
+  sample.scores.forEach((score, rowIndex) => {
+    if (score === null) return;
+    const columnIndex = scoreColumns.indexOf(score);
+    if (columnIndex >= 0) {
+      paintV3Cell(image, rowIndex, criteria.length, columnIndex, scoreColumns);
+    }
+  });
+
+  (sample.extraMarks || []).forEach((extraMark) => {
+    const columnIndex = scoreColumns.indexOf(extraMark.score);
+    if (columnIndex >= 0) {
+      paintV3Cell(image, extraMark.rowIndex, criteria.length, columnIndex, scoreColumns);
+    }
+  });
+
+  if (sample.commentaryScribble) {
+    paintV3CommentaryScribble(image);
+  }
+
+  return {
+    data: image,
+    width: NORMALIZED_WIDTH,
+    height: NORMALIZED_HEIGHT,
+    channels: CHANNELS,
+    bounds: { left: 0, top: 0, width: NORMALIZED_WIDTH, height: NORMALIZED_HEIGHT },
+  };
+};
+
+const normalizeCriterionName = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const resolveExpectedCriterionScore = (sample, criterionName) => {
+  if (
+    sample.expectedScoresByCriterion
+    && Object.prototype.hasOwnProperty.call(sample.expectedScoresByCriterion, criterionName)
+  ) {
+    return sample.expectedScoresByCriterion[criterionName];
+  }
+
+  if (!sample.criterionScores) {
+    return undefined;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(sample.criterionScores, criterionName)) {
+    return sample.criterionScores[criterionName];
+  }
+
+  const normalizedCriterionName = normalizeCriterionName(criterionName);
+  const matchedEntry = Object.entries(sample.criterionScores).find(([candidateName]) => {
+    const normalizedCandidateName = normalizeCriterionName(candidateName);
+    return normalizedCandidateName === normalizedCriterionName
+      || normalizedCandidateName.startsWith(`${normalizedCriterionName} `)
+      || normalizedCriterionName.startsWith(`${normalizedCandidateName} `);
+  });
+
+  return matchedEntry ? matchedEntry[1] : undefined;
+};
+
+const findV3PhonePhotoGroundTruth = (family, phonePhotoSample) =>
+  family.samples.find((sample) =>
+    sample.contestantName === phonePhotoSample.contestantName
+    && sample.judgeName === phonePhotoSample.judgeName,
+  );
+
+const buildExpectedScoresByCriterion = (criteria, groundTruthSample, phonePhotoSample) => {
+  const expectedScoresByCriterion = Object.fromEntries(
+    criteria.map((criterion) => [
+      criterion.name,
+      resolveExpectedCriterionScore(groundTruthSample, criterion.name),
+    ]),
+  );
+  const missingCriteria = Object.entries(expectedScoresByCriterion)
+    .filter(([, score]) => score === undefined)
+    .map(([criterionName]) => criterionName);
+
+  if (missingCriteria.length > 0) {
+    throw new Error(
+      `Missing v3 phone-photo ground truth for ${phonePhotoSample.id}: ${missingCriteria.join(', ')}`,
+    );
+  }
+
+  return expectedScoresByCriterion;
+};
+
+const sumExpectedScores = (expectedScoresByCriterion) =>
+  Object.values(expectedScoresByCriterion).reduce((sum, score) => sum + (score || 0), 0);
+
+const evaluateV3Policy = (metrics, thresholds = V3_ASSURANCE_THRESHOLDS) => {
+  const realScannerSheetCount = metrics.captureTypeCounts.scanner_pdf || 0;
+  const realPhonePhotoSheetCount = metrics.captureTypeCounts.phone_photo || 0;
+  const operationalUatEvidence = false;
+  const reviewRequiredEligible =
+    metrics.exactRowMatchRate >= thresholds.reviewRequired.minExactRowMatchRate
+    && metrics.exactSheetMatchRate >= thresholds.reviewRequired.minExactSheetMatchRate
+    && metrics.falseHighConfidenceMarks <= thresholds.reviewRequired.maxFalseHighConfidenceMarks
+    && metrics.unexpectedRejectedRows <= thresholds.reviewRequired.maxUnexpectedRejectedRows;
+  const autoSubmitEligible =
+    reviewRequiredEligible
+    && metrics.exactRowMatchRate >= thresholds.autoSubmit.minExactRowMatchRate
+    && metrics.exactSheetMatchRate >= thresholds.autoSubmit.minExactSheetMatchRate
+    && metrics.falseHighConfidenceMarks <= thresholds.autoSubmit.maxFalseHighConfidenceMarks
+    && metrics.unexpectedRejectedRows <= thresholds.autoSubmit.maxUnexpectedRejectedRows
+    && metrics.maxRejectedRowsOnAcceptedSheet <= thresholds.autoSubmit.maxRejectedRowsPerAcceptedSheet
+    && realScannerSheetCount >= thresholds.autoSubmit.minRealScannerSheets;
+  const autoCertifyEligible =
+    autoSubmitEligible
+    && metrics.exactRowMatchRate >= thresholds.autoCertify.minExactRowMatchRate
+    && metrics.exactSheetMatchRate >= thresholds.autoCertify.minExactSheetMatchRate
+    && realScannerSheetCount >= thresholds.autoCertify.minRealScannerSheets
+    && operationalUatEvidence;
+
+  let recommendedBand = 'manual_fallback';
+  if (autoCertifyEligible) {
+    recommendedBand = 'auto_certify';
+  } else if (autoSubmitEligible) {
+    recommendedBand = 'auto_submit';
+  } else if (reviewRequiredEligible) {
+    recommendedBand = 'review_required';
+  }
+
+  return {
+    thresholds,
+    evidence: {
+      syntheticSheetCount: metrics.captureTypeCounts.synthetic_generated || 0,
+      realScannerSheetCount,
+      realPhonePhotoSheetCount,
+      operationalUatEvidence,
+    },
+    eligibleBands: {
+      reviewRequired: reviewRequiredEligible,
+      autoSubmit: autoSubmitEligible,
+      autoCertify: autoCertifyEligible,
+    },
+    recommendedBand,
+    autoSubmitEnabled: autoSubmitEligible,
+    autoCertifyEnabled: autoCertifyEligible,
+    goNoGo:
+      recommendedBand === 'review_required'
+        ? 'GO for controlled review-required v3 UAT; NO-GO for auto-submit or auto-certify until real scanner evidence meets thresholds.'
+        : 'NO-GO for v3 rollout beyond manual fallback until reliability thresholds are met.',
+  };
+};
+
+const evaluateMachineReadableV3 = async (service, groundTruth, thresholdConfig, mode) => {
+  const family = groundTruth.intendedPhase1Families.find(
+    (candidate) => candidate.templateKey === 'education_saturday_day_v1',
+  );
+  if (!family) {
+    throw new Error('Missing Education family needed to validate education_omr_v3');
+  }
+
+  const criteria = buildCriteriaForTemplate(family);
+  const template = service.resolveTemplate(
+    criteria,
+    { intent: 'SCORESHEET_IMPORT', templateKey: V3_TEMPLATE_KEY },
+    undefined,
+  );
+  const orderedCriteria = service.orderCriteriaForTemplate(criteria, template);
+  const syntheticSamples = buildV3SyntheticSamples(orderedCriteria, [...template.scoreColumns]);
+  const perPage = [];
+  const skippedPhonePhotoSamples = [];
+  let exactRowMatches = 0;
+  let exactSheetMatches = 0;
+  let totalRows = 0;
+  let ambiguousRows = 0;
+  let rejectedRows = 0;
+  let unexpectedRejectedRows = 0;
+  let incorrectRows = 0;
+  let falseHighConfidenceMarks = 0;
+  let totalDeltaSum = 0;
+  let runtimeMsTotal = 0;
+  let maxRejectedRowsOnAcceptedSheet = 0;
+  const captureTypeCounts = {};
+
+  const recordV3SampleResult = (sample, result, runtimeMs) => {
+    captureTypeCounts[sample.captureType] = (captureTypeCounts[sample.captureType] || 0) + 1;
+    runtimeMsTotal += runtimeMs;
+
+    const rejectedRowIndexes = new Set(
+      (result.payload.machineReadable?.rejectedRows || []).map((row) => row.rowIndex),
+    );
+    const rows = result.payload.criteria.map((criterion) => {
+      const expectedScore = resolveExpectedCriterionScore(sample, criterion.criterionName);
+      const exactMatch = criterion.detectedScore === expectedScore;
+      const expectedRejected = expectedScore === null
+        || (sample.expectedRejectedRows || []).includes(criterion.rowIndex);
+      const rejected = rejectedRowIndexes.has(criterion.rowIndex);
+      const unexpectedRejected = rejected && !expectedRejected;
+      const falseHighConfidenceMark = !exactMatch
+        && criterion.detectedScore !== null
+        && !criterion.ambiguous
+        && criterion.confidence >= FALSE_HIGH_CONFIDENCE_THRESHOLD;
+
+      if (exactMatch) exactRowMatches += 1;
+      if (!exactMatch) incorrectRows += 1;
+      if (criterion.ambiguous) ambiguousRows += 1;
+      if (rejected) rejectedRows += 1;
+      if (unexpectedRejected) unexpectedRejectedRows += 1;
+      if (falseHighConfidenceMark) falseHighConfidenceMarks += 1;
+      totalRows += 1;
+
+      return {
+        criterionName: criterion.criterionName,
+        expectedScore,
+        detectedScore: criterion.detectedScore,
+        exactMatch,
+        ambiguous: criterion.ambiguous,
+        confidence: criterion.confidence,
+        rejected,
+        unexpectedRejected,
+        falseHighConfidenceMark,
+      };
+    });
+
+    const exactRowCount = rows.filter((row) => row.exactMatch).length;
+    const exactSheetMatch = exactRowCount === rows.length;
+    const totalDelta = Math.abs(sample.expectedTotal - result.computedTotal);
+    const rejectedRowCount = result.payload.machineReadable?.markQuality?.rejectedRowCount || 0;
+    const acceptedSheet = (sample.expectedRejectedRows || []).length === 0;
+    if (acceptedSheet) {
+      maxRejectedRowsOnAcceptedSheet = Math.max(maxRejectedRowsOnAcceptedSheet, rejectedRowCount);
+    }
+    if (exactSheetMatch) exactSheetMatches += 1;
+    totalDeltaSum += totalDelta;
+
+    perPage.push({
+      id: sample.id,
+      label: sample.label,
+      captureType: sample.captureType,
+      templateKey: result.payload.templateKey,
+      sheetVersion: result.payload.machineReadable?.sheetVersion || null,
+      templateVersion: result.payload.machineReadable?.templateVersion || null,
+      sourcePath: sample.sourcePath || null,
+      expectedTotal: sample.expectedTotal,
+      computedTotal: result.computedTotal,
+      totalDelta,
+      exactRowCount,
+      rowCount: rows.length,
+      exactSheetMatch,
+      ambiguousRowCount: rows.filter((row) => row.ambiguous).length,
+      rejectedRowCount,
+      expectedRejectedRows: sample.expectedRejectedRows || [],
+      rejectedRows: result.payload.machineReadable?.rejectedRows || [],
+      falseHighConfidenceMarkCount: rows.filter((row) => row.falseHighConfidenceMark).length,
+      anchorQuality: result.payload.machineReadable?.anchorQuality || null,
+      markQuality: result.payload.machineReadable?.markQuality || null,
+      ignoredRegions: result.payload.machineReadable?.ignoredRegions || [],
+      runtimeMs: Number(runtimeMs.toFixed(2)),
+      rows,
+    });
+  };
+
+  for (const sample of syntheticSamples) {
+    const normalized = renderV3SyntheticSample(sample, orderedCriteria, [...template.scoreColumns]);
+    const startedAt = process.hrtime.bigint();
+    const result = service.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
+    const runtimeMs = measureRuntimeMs(startedAt);
+    recordV3SampleResult(sample, result, runtimeMs);
+  }
+
+  for (const phonePhotoSample of V3_PHONE_PHOTO_SAMPLES) {
+    const sourcePath = path.resolve(process.cwd(), phonePhotoSample.sourcePath);
+    if (!fs.existsSync(sourcePath)) {
+      skippedPhonePhotoSamples.push({
+        id: phonePhotoSample.id,
+        sourcePath: phonePhotoSample.sourcePath,
+        reason: 'source file not found',
+      });
+      continue;
+    }
+
+    const groundTruthSample = findV3PhonePhotoGroundTruth(family, phonePhotoSample);
+    if (!groundTruthSample) {
+      throw new Error(
+        `Missing v3 phone-photo ground truth for ${phonePhotoSample.id}: `
+        + `${phonePhotoSample.judgeName} / ${phonePhotoSample.contestantName}`,
+      );
+    }
+
+    const expectedScoresByCriterion = buildExpectedScoresByCriterion(
+      orderedCriteria,
+      groundTruthSample,
+      phonePhotoSample,
+    );
+    const expectedTotal = groundTruthSample.handwrittenTotal
+      ?? sumExpectedScores(expectedScoresByCriterion);
+    const sourceBuffer = fs.readFileSync(sourcePath);
+    const startedAt = process.hrtime.bigint();
+    const normalized = await service.normalizePage(sourceBuffer, {
+      preprocessingMode: 'standard',
+      thresholdStrategy: 'none',
+    });
+    const result = service.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
+    const runtimeMs = measureRuntimeMs(startedAt);
+
+    recordV3SampleResult(
+      {
+        ...phonePhotoSample,
+        expectedScoresByCriterion,
+        expectedTotal,
+      },
+      result,
+      runtimeMs,
+    );
+  }
+
+  const sheetCount = perPage.length;
+  const metrics = {
+    exactRowMatchRate: totalRows > 0 ? exactRowMatches / totalRows : 0,
+    exactSheetMatchRate: sheetCount > 0 ? exactSheetMatches / sheetCount : 0,
+    exactRowMatches,
+    totalRows,
+    exactSheetMatches,
+    totalSheets: sheetCount,
+    ambiguousRows,
+    rejectedRows,
+    unexpectedRejectedRows,
+    incorrectRows,
+    falseHighConfidenceMarks,
+    totalDeltaSum,
+    averageTotalDelta: sheetCount > 0 ? totalDeltaSum / sheetCount : 0,
+    averageRuntimeMs: sheetCount > 0 ? runtimeMsTotal / sheetCount : 0,
+    maxRejectedRowsOnAcceptedSheet,
+    captureTypeCounts,
+    skippedPhonePhotoSampleCount: skippedPhonePhotoSamples.length,
+    sameUserManualEntryRows: totalRows,
+    v3ManualAttentionRows: ambiguousRows + incorrectRows,
+    estimatedManualEntryRowReductionRate: totalRows > 0
+      ? 1 - ((ambiguousRows + incorrectRows) / totalRows)
+      : 0,
+  };
+  const rolloutPolicy = evaluateV3Policy(
+    metrics,
+    thresholdConfig.machineReadableThresholds?.[V3_TEMPLATE_KEY] || V3_ASSURANCE_THRESHOLDS,
+  );
+
+  return {
+    templateKey: V3_TEMPLATE_KEY,
+    displayName: 'Education OMR v3',
+    mode,
+    pass: rolloutPolicy.eligibleBands.reviewRequired
+      && rolloutPolicy.autoCertifyEnabled === false,
+    metrics,
+    rolloutPolicy,
+    legacyAssuranceGuard: {
+      v1TemplateKey: 'education_saturday_day_v1',
+      v3TemplateKey: V3_TEMPLATE_KEY,
+      protected: true,
+      reason: 'education_omr_v3 is explicit/detected only; criteria-only inference remains education_saturday_day_v1.',
+    },
+    perPage,
+    skippedPhonePhotoSamples,
+  };
+};
+
 const printHumanReport = (report) => {
   console.log(`Scoresheet import regression report (${report.mode})`);
   console.log(`Result: ${report.pass ? 'PASS' : 'FAIL'}`);
@@ -399,6 +972,61 @@ const printHumanReport = (report) => {
       );
     });
   }
+
+  if (report.machineReadableV3) {
+    const v3 = report.machineReadableV3;
+    console.log('');
+    console.log(`${v3.displayName} [${v3.templateKey}] assurance validation`);
+    console.log(
+      `  exact-row-match: ${(v3.metrics.exactRowMatchRate * 100).toFixed(1)}%`,
+    );
+    console.log(
+      `  exact-sheet-match: ${(v3.metrics.exactSheetMatchRate * 100).toFixed(1)}%`
+      + ` (${v3.metrics.exactSheetMatches}/${v3.metrics.totalSheets})`,
+    );
+    console.log(
+      `  ambiguous rows: ${v3.metrics.ambiguousRows}; rejected rows: ${v3.metrics.rejectedRows};`
+      + ` unexpected rejected rows: ${v3.metrics.unexpectedRejectedRows}`,
+    );
+    console.log(
+      `  false high-confidence marks: ${v3.metrics.falseHighConfidenceMarks}`,
+    );
+    console.log(
+      `  total delta sum: ${v3.metrics.totalDeltaSum}; avg runtime: ${v3.metrics.averageRuntimeMs.toFixed(2)}ms/sheet`,
+    );
+    console.log(
+      `  evidence: synthetic ${v3.rolloutPolicy.evidence.syntheticSheetCount},`
+      + ` phone-photo ${v3.rolloutPolicy.evidence.realPhonePhotoSheetCount},`
+      + ` scanner ${v3.rolloutPolicy.evidence.realScannerSheetCount}`,
+    );
+    console.log(
+      `  manual-entry comparison: ${v3.metrics.v3ManualAttentionRows}/${v3.metrics.sameUserManualEntryRows}`
+      + ` rows need attention (${(v3.metrics.estimatedManualEntryRowReductionRate * 100).toFixed(1)}% row reduction)`,
+    );
+    console.log(
+      `  policy band: ${v3.rolloutPolicy.recommendedBand}; auto-submit ${v3.rolloutPolicy.autoSubmitEnabled ? 'enabled' : 'disabled'};`
+      + ` auto-certify ${v3.rolloutPolicy.autoCertifyEnabled ? 'enabled' : 'disabled'}`,
+    );
+    console.log(`  go/no-go: ${v3.rolloutPolicy.goNoGo}`);
+    console.log(`  legacy guard: ${v3.legacyAssuranceGuard.reason}`);
+    console.log('  selected v3 samples:');
+    v3.perPage.forEach((page) => {
+      console.log(
+        `    ${page.id}: exact rows ${page.exactRowCount}/${page.rowCount},`
+        + ` sheet ${page.exactSheetMatch ? 'match' : 'mismatch'},`
+        + ` rejected ${page.rejectedRowCount}, ambiguous ${page.ambiguousRowCount},`
+        + ` false high-confidence ${page.falseHighConfidenceMarkCount},`
+        + ` total ${page.computedTotal}/${page.expectedTotal} (delta ${page.totalDelta}),`
+        + ` runtime ${page.runtimeMs}ms`,
+      );
+    });
+    if (v3.skippedPhonePhotoSamples.length > 0) {
+      console.log('  skipped phone-photo samples:');
+      v3.skippedPhonePhotoSamples.forEach((sample) => {
+        console.log(`    ${sample.id}: ${sample.reason} (${sample.sourcePath})`);
+      });
+    }
+  }
 };
 
 const main = async () => {
@@ -411,13 +1039,20 @@ const main = async () => {
   for (const family of groundTruth.intendedPhase1Families) {
     templates.push(await evaluateFamily(service, groundTruth, thresholdConfig, family, args.mode));
   }
+  const machineReadableV3 = await evaluateMachineReadableV3(
+    service,
+    groundTruth,
+    thresholdConfig,
+    args.mode,
+  );
 
   const report = {
     mode: args.mode,
     groundTruthPath: args.groundTruthPath,
     thresholdsPath: args.thresholdsPath,
-    pass: templates.every((template) => template.pass),
+    pass: templates.every((template) => template.pass) && machineReadableV3.pass,
     templates,
+    machineReadableV3,
   };
 
   if (args.json) {

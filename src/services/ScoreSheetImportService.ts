@@ -24,6 +24,18 @@ const DEFAULT_PREPROCESSING_MODE = 'standard';
 const DEFAULT_SCAN_THRESHOLD_STRATEGY = 'otsu';
 const SCORE_SHEET_IMPORT_ATTEMPT_LIMIT = 2;
 const LOW_CONFIDENCE_ROW_THRESHOLD = 0.45;
+const EDUCATION_OMR_V3_TEMPLATE_KEY: ScoreSheetTemplateKey = 'education_omr_v3';
+const EDUCATION_OMR_V3_VERSION_BITS = [1, 1, 0, 0, 0, 0, 1, 1] as const;
+const MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO = 0.12;
+const MACHINE_READABLE_VERSION_MIN_CONFIDENCE = 0.7;
+const V3_PAGE_WIDTH_INCHES = 8.5;
+const V3_PAGE_HEIGHT_INCHES = 11;
+const V3_ANCHOR_OFFSET_INCHES = 0.3;
+const V3_ANCHOR_SIZE_INCHES = 0.22;
+const V3_DIRECT_MIN_MARK_SCORE = 0.42;
+const V3_DIRECT_MULTI_MARK_SCORE = 0.42;
+const V3_DIRECT_MULTI_MARK_RATIO = 0.72;
+const V3_DIRECT_MIN_CONFIDENCE_GAP = 0.18;
 
 type CaptureQualityThresholds = {
   maxAmbiguousRowsForReview: number;
@@ -104,8 +116,97 @@ type CaptureQualityGate = {
   thresholds: CaptureQualityThresholds;
 };
 
+type MachineReadableAnchorQuality = {
+  detected: boolean;
+  minCornerDarkRatio: number;
+  cornerDarkRatios: {
+    tl: number;
+    tr: number;
+    bl: number;
+    br: number;
+  };
+  versionStripConfidence: number;
+  versionBits: number[];
+  fiducials?: MachineReadableFiducialMetadata;
+};
+
+type MachineReadableFiducialPoint = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fillRatio: number;
+};
+
+type MachineReadableFiducialMetadata = {
+  detected: boolean;
+  confidence: number;
+  perspectiveCorrected: boolean;
+  failureReasons: string[];
+  corners: {
+    tl: MachineReadableFiducialPoint;
+    tr: MachineReadableFiducialPoint;
+    bl: MachineReadableFiducialPoint;
+    br: MachineReadableFiducialPoint;
+  } | null;
+};
+
+type V3FiducialCandidate = MachineReadableFiducialPoint & {
+  area: number;
+};
+
+type V3FiducialDetection = {
+  detected: boolean;
+  confidence: number;
+  failureReasons: string[];
+  corners: {
+    tl: V3FiducialCandidate;
+    tr: V3FiducialCandidate;
+    bl: V3FiducialCandidate;
+    br: V3FiducialCandidate;
+  } | null;
+};
+
+type MachineReadableRejectedRow = {
+  rowIndex: number;
+  criterionId: string;
+  criterionName: string;
+  reason: 'missing_mark' | 'multi_mark' | 'low_confidence';
+  topCellScore: number;
+  secondCellScore: number;
+  selectedColumnIndex: number | null;
+  markedColumnIndexes: number[];
+};
+
+type MachineReadableMarkQuality = {
+  acceptedRowCount: number;
+  rejectedRowCount: number;
+  missingMarkRowCount: number;
+  multiMarkRowCount: number;
+  lowConfidenceRowCount: number;
+};
+
+type MachineReadableIgnoredRegion = {
+  name: string;
+  purpose: string;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
+type MachineReadableExtractionMetadata = {
+  sheetVersion: 'v3';
+  templateVersion: string;
+  anchorQuality: MachineReadableAnchorQuality;
+  markQuality: MachineReadableMarkQuality;
+  rejectedRows: MachineReadableRejectedRow[];
+  ignoredRegions: MachineReadableIgnoredRegion[];
+};
+
 type ExtractionPayload = {
   templateKey: string;
+  machineReadable?: MachineReadableExtractionMetadata | null;
   preprocessingMode: ScoreSheetPreprocessingMode;
   thresholdStrategy: ScoreSheetThresholdStrategy;
   qualitySignals: PreprocessingQualitySignals;
@@ -256,14 +357,14 @@ export class ScoreSheetImportService extends BaseService {
     let pageCount: number | null = null;
 
     try {
-      const template = this.resolveTemplate(criteria, metadata, options);
-      const orderedCriteria = this.orderCriteriaForTemplate(criteria, template);
       const rendered = await this.renderFirstPage(absolutePath, scoreFile.fileType);
       pageCount = rendered.pageCount;
       const normalized = await this.normalizePage(rendered.buffer, {
         preprocessingMode: options?.preprocessingMode,
         thresholdStrategy: options?.thresholdStrategy,
       });
+      const template = this.resolveTemplate(criteria, metadata, options, normalized);
+      const orderedCriteria = this.orderCriteriaForTemplate(criteria, template);
       const analysis = this.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
 
       extraction = analysis.payload;
@@ -318,6 +419,7 @@ export class ScoreSheetImportService extends BaseService {
     criteria: Array<{ id: string; name: string; maxScore: number }>,
     metadata: ScoreFileMetadata,
     options?: ProcessScoreFileOptions,
+    normalizedImage?: NormalizedImage,
   ): ScoreSheetTemplateDefinition {
     const explicitTemplateKey = options?.templateKey || metadata.templateKey || null;
 
@@ -334,6 +436,13 @@ export class ScoreSheetImportService extends BaseService {
       }
 
       return explicitTemplate;
+    }
+
+    const detectedMachineReadableTemplate = normalizedImage
+      ? this.detectMachineReadableTemplate(criteria, normalizedImage)
+      : null;
+    if (detectedMachineReadableTemplate) {
+      return detectedMachineReadableTemplate;
     }
 
     const inferredTemplate = resolveTemplateByCriteria(criteria.map((criterion) => criterion.name));
@@ -356,6 +465,358 @@ export class ScoreSheetImportService extends BaseService {
     } catch {
       return false;
     }
+  }
+
+  private detectMachineReadableTemplate(
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    image: NormalizedImage,
+  ): ScoreSheetTemplateDefinition | null {
+    const template = scoreSheetImportTemplateMap.get(EDUCATION_OMR_V3_TEMPLATE_KEY);
+    if (!template || !template.supported || !this.templateCanOrderCriteria(criteria, template)) {
+      return null;
+    }
+
+    const anchorQuality = this.measureMachineReadableAnchorQuality(image);
+    const fiducialDetection = this.detectV3Fiducials(image);
+    if (
+      fiducialDetection.detected
+      || (
+        anchorQuality.detected
+        && anchorQuality.versionStripConfidence >= MACHINE_READABLE_VERSION_MIN_CONFIDENCE
+      )
+    ) {
+      return template;
+    }
+
+    return null;
+  }
+
+  private measureMachineReadableAnchorQuality(
+    image: RawImage,
+    fiducialDetection?: V3FiducialDetection,
+    perspectiveCorrected = false,
+  ): MachineReadableAnchorQuality {
+    const cornerDarkRatios = {
+      tl: this.measureRatioRectDarkRatio(image, 0, 0, 0.06, 0.06),
+      tr: this.measureRatioRectDarkRatio(image, 0.94, 0, 0.06, 0.06),
+      bl: this.measureRatioRectDarkRatio(image, 0, 0.94, 0.06, 0.06),
+      br: this.measureRatioRectDarkRatio(image, 0.94, 0.94, 0.06, 0.06),
+    };
+    const minCornerDarkRatio = Math.min(
+      cornerDarkRatios.tl,
+      cornerDarkRatios.tr,
+      cornerDarkRatios.bl,
+      cornerDarkRatios.br,
+    );
+    const versionStrip = this.measureMachineReadableVersionStrip(image);
+
+    return {
+      detected: minCornerDarkRatio >= MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO,
+      minCornerDarkRatio: Number(minCornerDarkRatio.toFixed(4)),
+      cornerDarkRatios: {
+        tl: Number(cornerDarkRatios.tl.toFixed(4)),
+        tr: Number(cornerDarkRatios.tr.toFixed(4)),
+        bl: Number(cornerDarkRatios.bl.toFixed(4)),
+        br: Number(cornerDarkRatios.br.toFixed(4)),
+      },
+      versionStripConfidence: versionStrip.confidence,
+      versionBits: versionStrip.bits,
+      ...(fiducialDetection
+        ? {
+          fiducials: this.toMachineReadableFiducialMetadata(
+            fiducialDetection,
+            perspectiveCorrected,
+          ),
+        }
+        : {}),
+    };
+  }
+
+  private measureMachineReadableVersionStrip(image: RawImage): {
+    bits: number[];
+    confidence: number;
+  } {
+    const bitWidth = 0.016;
+    const bitHeight = 0.013;
+    const gap = 0.005;
+    const startX = 0.62;
+    const top = 0.074;
+    const observedBits: number[] = [];
+    let confidenceSum = 0;
+
+    EDUCATION_OMR_V3_VERSION_BITS.forEach((expectedBit, bitIndex) => {
+      const darkRatio = this.measureRatioRectDarkRatio(
+        image,
+        startX + (bitIndex * (bitWidth + gap)),
+        top,
+        bitWidth,
+        bitHeight,
+        0.18,
+      );
+      const observedBit = darkRatio >= 0.5 ? 1 : 0;
+      observedBits.push(observedBit);
+      confidenceSum += expectedBit === 1 ? darkRatio : (1 - darkRatio);
+    });
+
+    return {
+      bits: observedBits,
+      confidence: Number((confidenceSum / EDUCATION_OMR_V3_VERSION_BITS.length).toFixed(4)),
+    };
+  }
+
+  private measureRatioRectDarkRatio(
+    image: RawImage,
+    leftRatio: number,
+    topRatio: number,
+    widthRatio: number,
+    heightRatio: number,
+    insetRatio: number = 0,
+  ): number {
+    const left = Math.max(0, Math.round(image.width * leftRatio));
+    const top = Math.max(0, Math.round(image.height * topRatio));
+    const width = Math.max(1, Math.round(image.width * widthRatio));
+    const height = Math.max(1, Math.round(image.height * heightRatio));
+    const insetX = Math.max(0, Math.round(width * insetRatio));
+    const insetY = Math.max(0, Math.round(height * insetRatio));
+    const sampleLeft = Math.min(image.width - 1, left + insetX);
+    const sampleTop = Math.min(image.height - 1, top + insetY);
+    const sampleRight = Math.min(image.width - 1, left + width - insetX);
+    const sampleBottom = Math.min(image.height - 1, top + height - insetY);
+    let darkPixelCount = 0;
+    let totalPixelCount = 0;
+
+    for (let y = sampleTop; y <= sampleBottom; y += 1) {
+      for (let x = sampleLeft; x <= sampleRight; x += 1) {
+        if (this.isDarkPixel(image, x, y, 120)) {
+          darkPixelCount += 1;
+        }
+        totalPixelCount += 1;
+      }
+    }
+
+    return totalPixelCount > 0 ? darkPixelCount / totalPixelCount : 0;
+  }
+
+  private toMachineReadableFiducialMetadata(
+    detection: V3FiducialDetection,
+    perspectiveCorrected: boolean,
+  ): MachineReadableFiducialMetadata {
+    return {
+      detected: detection.detected,
+      confidence: Number(detection.confidence.toFixed(4)),
+      perspectiveCorrected,
+      failureReasons: [...detection.failureReasons],
+      corners: detection.corners
+        ? {
+          tl: this.toMachineReadableFiducialPoint(detection.corners.tl),
+          tr: this.toMachineReadableFiducialPoint(detection.corners.tr),
+          bl: this.toMachineReadableFiducialPoint(detection.corners.bl),
+          br: this.toMachineReadableFiducialPoint(detection.corners.br),
+        }
+        : null,
+    };
+  }
+
+  private toMachineReadableFiducialPoint(
+    candidate: V3FiducialCandidate,
+  ): MachineReadableFiducialPoint {
+    return {
+      x: Number(candidate.x.toFixed(2)),
+      y: Number(candidate.y.toFixed(2)),
+      width: candidate.width,
+      height: candidate.height,
+      fillRatio: Number(candidate.fillRatio.toFixed(4)),
+    };
+  }
+
+  private detectV3Fiducials(image: RawImage): V3FiducialDetection {
+    const candidates = this.findV3FiducialCandidates(image);
+    const failureReasons: string[] = [];
+    const chooseCorner = (
+      label: 'tl' | 'tr' | 'bl' | 'br',
+      filter: (candidate: V3FiducialCandidate) => boolean,
+      score: (candidate: V3FiducialCandidate) => number,
+    ): V3FiducialCandidate | null => {
+      const matches = candidates.filter(filter);
+      if (matches.length === 0) {
+        failureReasons.push(`Missing ${label} v3 fiducial candidate.`);
+        return null;
+      }
+
+      return matches.reduce((best, candidate) =>
+        score(candidate) < score(best) ? candidate : best,
+      );
+    };
+
+    const tl = chooseCorner(
+      'tl',
+      (candidate) => candidate.x <= image.width * 0.45 && candidate.y <= image.height * 0.45,
+      (candidate) => candidate.x + candidate.y,
+    );
+    const tr = chooseCorner(
+      'tr',
+      (candidate) => candidate.x >= image.width * 0.55 && candidate.y <= image.height * 0.45,
+      (candidate) => (image.width - candidate.x) + candidate.y,
+    );
+    const bl = chooseCorner(
+      'bl',
+      (candidate) => candidate.x <= image.width * 0.45 && candidate.y >= image.height * 0.5,
+      (candidate) => candidate.x + (image.height - candidate.y),
+    );
+    const br = chooseCorner(
+      'br',
+      (candidate) => candidate.x >= image.width * 0.55 && candidate.y >= image.height * 0.5,
+      (candidate) => (image.width - candidate.x) + (image.height - candidate.y),
+    );
+
+    if (!tl || !tr || !bl || !br) {
+      return {
+        detected: false,
+        confidence: 0,
+        failureReasons,
+        corners: null,
+      };
+    }
+
+    const topWidth = this.distanceBetweenPoints(tl, tr);
+    const bottomWidth = this.distanceBetweenPoints(bl, br);
+    const leftHeight = this.distanceBetweenPoints(tl, bl);
+    const rightHeight = this.distanceBetweenPoints(tr, br);
+    const polygonArea = Math.abs(
+      (tl.x * tr.y) - (tl.y * tr.x)
+      + (tr.x * br.y) - (tr.y * br.x)
+      + (br.x * bl.y) - (br.y * bl.x)
+      + (bl.x * tl.y) - (bl.y * tl.x)
+    ) / 2;
+    const imageArea = image.width * image.height;
+    const areaRatio = imageArea > 0 ? polygonArea / imageArea : 0;
+    const widthBalance = Math.min(topWidth, bottomWidth) / Math.max(topWidth, bottomWidth, 1);
+    const heightBalance = Math.min(leftHeight, rightHeight) / Math.max(leftHeight, rightHeight, 1);
+    const minFillRatio = Math.min(tl.fillRatio, tr.fillRatio, bl.fillRatio, br.fillRatio);
+    const sizeScore = Math.min(1, topWidth / (image.width * 0.55), bottomWidth / (image.width * 0.5));
+    const heightScore = Math.min(1, leftHeight / (image.height * 0.55), rightHeight / (image.height * 0.55));
+    const areaScore = Math.min(1, areaRatio / 0.45);
+    const confidence = Math.max(
+      0,
+      Math.min(1, (widthBalance + heightBalance + sizeScore + heightScore + areaScore + minFillRatio) / 6),
+    );
+
+    if (topWidth < image.width * 0.45 || bottomWidth < image.width * 0.4) {
+      failureReasons.push('Detected v3 fiducials are too close horizontally.');
+    }
+    if (leftHeight < image.height * 0.45 || rightHeight < image.height * 0.45) {
+      failureReasons.push('Detected v3 fiducials are too close vertically.');
+    }
+    if (areaRatio < 0.25) {
+      failureReasons.push('Detected v3 fiducials cover too little of the image.');
+    }
+    if (minFillRatio < 0.35) {
+      failureReasons.push('Detected v3 fiducials are not solid enough.');
+    }
+
+    return {
+      detected: failureReasons.length === 0,
+      confidence: Number(confidence.toFixed(4)),
+      failureReasons,
+      corners: { tl, tr, bl, br },
+    };
+  }
+
+  private findV3FiducialCandidates(image: RawImage): V3FiducialCandidate[] {
+    const visited = new Uint8Array(image.width * image.height);
+    const candidates: V3FiducialCandidate[] = [];
+    const maxArea = Math.max(600, image.width * image.height * 0.004);
+    const minArea = Math.max(45, image.width * image.height * 0.000025);
+    const maxDimension = Math.max(24, Math.round(Math.min(image.width, image.height) * 0.09));
+
+    for (let y = 0; y < image.height; y += 1) {
+      for (let x = 0; x < image.width; x += 1) {
+        const startIndex = (y * image.width) + x;
+        if (visited[startIndex] || !this.isDarkPixel(image, x, y, 120)) {
+          continue;
+        }
+
+        const stack: Array<{ x: number; y: number }> = [{ x, y }];
+        visited[startIndex] = 1;
+        let minX = x;
+        let maxX = x;
+        let minY = y;
+        let maxY = y;
+        let area = 0;
+
+        while (stack.length > 0) {
+          const point = stack.pop()!;
+          area += 1;
+          if (point.x < minX) minX = point.x;
+          if (point.x > maxX) maxX = point.x;
+          if (point.y < minY) minY = point.y;
+          if (point.y > maxY) maxY = point.y;
+
+          const neighbors = [
+            { x: point.x + 1, y: point.y },
+            { x: point.x - 1, y: point.y },
+            { x: point.x, y: point.y + 1 },
+            { x: point.x, y: point.y - 1 },
+          ];
+          neighbors.forEach((neighbor) => {
+            if (
+              neighbor.x < 0
+              || neighbor.x >= image.width
+              || neighbor.y < 0
+              || neighbor.y >= image.height
+            ) {
+              return;
+            }
+
+            const neighborIndex = (neighbor.y * image.width) + neighbor.x;
+            if (!visited[neighborIndex] && this.isDarkPixel(image, neighbor.x, neighbor.y, 120)) {
+              visited[neighborIndex] = 1;
+              stack.push(neighbor);
+            }
+          });
+        }
+
+        const width = maxX - minX + 1;
+        const height = maxY - minY + 1;
+        const fillRatio = area / Math.max(1, width * height);
+        const aspectRatio = width / Math.max(1, height);
+        const touchesImageEdge =
+          minX <= 1 || minY <= 1 || maxX >= image.width - 2 || maxY >= image.height - 2;
+
+        if (
+          touchesImageEdge
+          || area < minArea
+          || area > maxArea
+          || width < 5
+          || height < 5
+          || width > maxDimension
+          || height > maxDimension
+          || fillRatio < 0.35
+          || aspectRatio < 0.45
+          || aspectRatio > 2.2
+        ) {
+          continue;
+        }
+
+        candidates.push({
+          x: (minX + maxX) / 2,
+          y: (minY + maxY) / 2,
+          width,
+          height,
+          fillRatio,
+          area,
+        });
+      }
+    }
+
+    return candidates;
+  }
+
+  private distanceBetweenPoints(
+    left: { x: number; y: number },
+    right: { x: number; y: number },
+  ): number {
+    return Math.hypot(right.x - left.x, right.y - left.y);
   }
 
   private orderCriteriaForTemplate(
@@ -850,11 +1311,20 @@ export class ScoreSheetImportService extends BaseService {
       throw new ValidationError('Scoresheet import requires at least one criterion');
     }
 
+    if (template.machineReadable?.sheetVersion === 'v3') {
+      return this.extractV3MachineReadableScores(image, criteria, template);
+    }
+
     const gridGeometry = this.resolveGridGeometry(image, template, rowCount);
     const extractedCriteria: CriterionExtraction[] = [];
     const mismatchWarnings: string[] = [];
     let computedTotal = 0;
     let confidenceSum = 0;
+    const machineReadableConfig = template.machineReadable;
+    const rejectedRows: MachineReadableRejectedRow[] = [];
+    let missingMarkRowCount = 0;
+    let multiMarkRowCount = 0;
+    let lowConfidenceRowCount = 0;
     const gridAnchorReliable =
       gridGeometry.anchoring.horizontalAnchored && gridGeometry.anchoring.verticalAnchored;
 
@@ -889,14 +1359,47 @@ export class ScoreSheetImportService extends BaseService {
       const confidence = topCell
         ? Math.max(0, Math.min(1, (topCell.scoreValue - secondCell.scoreValue) / Math.max(topCell.scoreValue, 0.0001)))
         : 0;
-      const ambiguous = !topCell
-        || topCell.scoreValue < template.grid.minCellInkScore
-        || confidence < template.grid.minConfidenceGap;
+      const markedColumnIndexes = machineReadableConfig && topCell
+        ? cellInkScores
+          .map((scoreValue, columnIndex) => ({ scoreValue, columnIndex }))
+          .filter(({ scoreValue }) =>
+            scoreValue >= template.grid.minCellInkScore
+            && scoreValue >= (topCell.scoreValue * 0.45)
+          )
+          .map(({ columnIndex }) => columnIndex)
+        : [];
+      let rejectionReason: MachineReadableRejectedRow['reason'] | null = null;
+
+      if (!topCell || topCell.scoreValue < template.grid.minCellInkScore) {
+        rejectionReason = 'missing_mark';
+        missingMarkRowCount += 1;
+      } else if (machineReadableConfig && markedColumnIndexes.length > 1) {
+        rejectionReason = 'multi_mark';
+        multiMarkRowCount += 1;
+      } else if (confidence < template.grid.minConfidenceGap) {
+        rejectionReason = 'low_confidence';
+        lowConfidenceRowCount += 1;
+      }
+
+      const ambiguous = rejectionReason !== null;
       const resolvedScoreValue: number | null = topCell
         ? (template.scoreColumns[topCell.index] ?? null)
         : null;
       const detectedScore: number | null = ambiguous ? null : resolvedScoreValue;
       const detectedColumnLabel = ambiguous || !topCell ? null : String(template.scoreColumns[topCell.index]);
+
+      if (machineReadableConfig && rejectionReason) {
+        rejectedRows.push({
+          rowIndex,
+          criterionId: criterion.id,
+          criterionName: criterion.name,
+          reason: rejectionReason,
+          topCellScore: Number((topCell?.scoreValue ?? 0).toFixed(6)),
+          secondCellScore: Number(secondCell.scoreValue.toFixed(6)),
+          selectedColumnIndex: topCell?.index ?? null,
+          markedColumnIndexes,
+        });
+      }
 
       if (detectedScore !== null && detectedScore > Number(criterion.maxScore)) {
         mismatchWarnings.push(
@@ -934,10 +1437,27 @@ export class ScoreSheetImportService extends BaseService {
       qualitySignals: preprocessing.qualitySignals,
       reviewBurdenMetrics,
     });
+    const machineReadableMetadata: MachineReadableExtractionMetadata | null = machineReadableConfig
+      ? {
+        sheetVersion: machineReadableConfig.sheetVersion,
+        templateVersion: machineReadableConfig.templateVersion,
+        anchorQuality: this.measureMachineReadableAnchorQuality(image),
+        markQuality: {
+          acceptedRowCount: rowCount - rejectedRows.length,
+          rejectedRowCount: rejectedRows.length,
+          missingMarkRowCount,
+          multiMarkRowCount,
+          lowConfidenceRowCount,
+        },
+        rejectedRows,
+        ignoredRegions: machineReadableConfig.ignoredRegions.map((region) => ({ ...region })),
+      }
+      : null;
 
     return {
       payload: {
         templateKey: template.key,
+        machineReadable: machineReadableMetadata,
         preprocessingMode: preprocessing.preprocessingMode,
         thresholdStrategy: preprocessing.thresholdStrategy,
         qualitySignals: preprocessing.qualitySignals,
@@ -956,6 +1476,528 @@ export class ScoreSheetImportService extends BaseService {
       computedTotal,
       overallConfidence,
     };
+  }
+
+  private extractV3MachineReadableScores(
+    image: RawImage & {
+      bounds: { left: number; top: number; width: number; height: number };
+      preprocessing?: PreprocessingMetadata;
+    },
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): {
+    payload: ExtractionPayload;
+    computedTotal: number;
+    overallConfidence: number;
+  } {
+    const machineReadableConfig = template.machineReadable!;
+    const rowCount = criteria.length;
+    const prepared = this.prepareV3CanonicalImage(image);
+    const extractionImage = prepared.image;
+    const gridGeometry = this.resolveV3DirectGridGeometry(
+      extractionImage,
+      template,
+      rowCount,
+      prepared.fiducialDetection.detected,
+    );
+    const extractedCriteria: CriterionExtraction[] = [];
+    const mismatchWarnings: string[] = [];
+    const rejectedRows: MachineReadableRejectedRow[] = [];
+    let missingMarkRowCount = 0;
+    let multiMarkRowCount = 0;
+    let lowConfidenceRowCount = 0;
+    let computedTotal = 0;
+    let confidenceSum = 0;
+
+    if (!prepared.fiducialDetection.detected) {
+      mismatchWarnings.push(
+        'Scoresheet import could not detect all four v3 anchor fiducials; score rows were treated as ambiguous.',
+      );
+    }
+
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+      const criterion = criteria[rowIndex]!;
+      const cellInkScores = prepared.fiducialDetection.detected
+        ? this.measureV3DirectScoreRowInk(extractionImage, template, rowCount, rowIndex)
+        : template.scoreColumns.map(() => 0);
+      const ranked = this.rankInkScores(cellInkScores);
+      const topCell = ranked[0];
+      const secondCell = ranked[1] || { scoreValue: 0, index: topCell?.index ?? 0 };
+      const confidence = topCell
+        ? Math.max(0, Math.min(1, (topCell.scoreValue - secondCell.scoreValue) / Math.max(topCell.scoreValue, 0.0001)))
+        : 0;
+      const markedColumnIndexes = topCell
+        ? cellInkScores
+          .map((scoreValue, columnIndex) => ({ scoreValue, columnIndex }))
+          .filter(({ scoreValue }) =>
+            scoreValue >= V3_DIRECT_MULTI_MARK_SCORE
+            && scoreValue >= (topCell.scoreValue * V3_DIRECT_MULTI_MARK_RATIO)
+          )
+          .map(({ columnIndex }) => columnIndex)
+        : [];
+      let rejectionReason: MachineReadableRejectedRow['reason'] | null = null;
+
+      if (!topCell || topCell.scoreValue < V3_DIRECT_MIN_MARK_SCORE) {
+        rejectionReason = 'missing_mark';
+        missingMarkRowCount += 1;
+      } else if (markedColumnIndexes.length > 1) {
+        rejectionReason = 'multi_mark';
+        multiMarkRowCount += 1;
+      } else if (confidence < V3_DIRECT_MIN_CONFIDENCE_GAP) {
+        rejectionReason = 'low_confidence';
+        lowConfidenceRowCount += 1;
+      }
+
+      const ambiguous = rejectionReason !== null;
+      const resolvedScoreValue: number | null = topCell
+        ? (template.scoreColumns[topCell.index] ?? null)
+        : null;
+      const detectedScore: number | null = ambiguous ? null : resolvedScoreValue;
+      const detectedColumnLabel = ambiguous || !topCell ? null : String(template.scoreColumns[topCell.index]);
+
+      if (rejectionReason) {
+        rejectedRows.push({
+          rowIndex,
+          criterionId: criterion.id,
+          criterionName: criterion.name,
+          reason: rejectionReason,
+          topCellScore: Number((topCell?.scoreValue ?? 0).toFixed(6)),
+          secondCellScore: Number(secondCell.scoreValue.toFixed(6)),
+          selectedColumnIndex: topCell?.index ?? null,
+          markedColumnIndexes,
+        });
+      }
+
+      if (detectedScore !== null && detectedScore > Number(criterion.maxScore)) {
+        mismatchWarnings.push(
+          `${criterion.name} extracted score ${detectedScore} exceeds criterion max ${criterion.maxScore}`,
+        );
+      }
+
+      if (detectedScore !== null) {
+        computedTotal += detectedScore;
+      }
+      confidenceSum += confidence;
+
+      extractedCriteria.push({
+        rowIndex,
+        criterionId: criterion.id,
+        criterionName: criterion.name,
+        detectedScore,
+        detectedColumnLabel,
+        confidence,
+        ambiguous,
+        cellInkScores: cellInkScores.map((value) => Number(value.toFixed(6))),
+      });
+    }
+
+    const overallConfidence = rowCount > 0 ? Number((confidenceSum / rowCount).toFixed(4)) : 0;
+    const preprocessing = extractionImage.preprocessing;
+    const reviewBurdenMetrics = this.buildReviewBurdenMetrics(extractedCriteria, mismatchWarnings);
+    const qualityGate = this.assessCaptureQuality({
+      gridAnchoring: gridGeometry.anchoring,
+      overallConfidence,
+      qualitySignals: preprocessing.qualitySignals,
+      reviewBurdenMetrics,
+    });
+
+    return {
+      payload: {
+        templateKey: template.key,
+        machineReadable: {
+          sheetVersion: machineReadableConfig.sheetVersion,
+          templateVersion: machineReadableConfig.templateVersion,
+          anchorQuality: this.measureMachineReadableAnchorQuality(
+            extractionImage,
+            prepared.fiducialDetection,
+            prepared.perspectiveCorrected,
+          ),
+          markQuality: {
+            acceptedRowCount: rowCount - rejectedRows.length,
+            rejectedRowCount: rejectedRows.length,
+            missingMarkRowCount,
+            multiMarkRowCount,
+            lowConfidenceRowCount,
+          },
+          rejectedRows,
+          ignoredRegions: machineReadableConfig.ignoredRegions.map((region) => ({ ...region })),
+        },
+        preprocessingMode: preprocessing.preprocessingMode,
+        thresholdStrategy: preprocessing.thresholdStrategy,
+        qualitySignals: preprocessing.qualitySignals,
+        normalizedImage: {
+          width: extractionImage.width,
+          height: extractionImage.height,
+        },
+        sheetBounds: extractionImage.bounds,
+        gridAnchoring: gridGeometry.anchoring,
+        reviewBurdenMetrics,
+        qualityGate,
+        scoreValues: [...template.scoreColumns],
+        criteria: extractedCriteria,
+        mismatchWarnings,
+      },
+      computedTotal,
+      overallConfidence,
+    };
+  }
+
+  private prepareV3CanonicalImage(
+    image: RawImage & {
+      bounds: { left: number; top: number; width: number; height: number };
+      preprocessing?: PreprocessingMetadata;
+    },
+  ): {
+    image: NormalizedImage;
+    fiducialDetection: V3FiducialDetection;
+    perspectiveCorrected: boolean;
+  } {
+    const sourceImage = this.ensureNormalizedImageMetadata(image);
+    const fiducialDetection = this.detectV3Fiducials(sourceImage);
+
+    if (!fiducialDetection.detected || !fiducialDetection.corners) {
+      return {
+        image: sourceImage,
+        fiducialDetection,
+        perspectiveCorrected: false,
+      };
+    }
+
+    const warpedData = this.warpImageToV3Canonical(sourceImage, fiducialDetection);
+    const warpedImage: NormalizedImage = {
+      data: warpedData,
+      width: sourceImage.width,
+      height: sourceImage.height,
+      channels: sourceImage.channels,
+      bounds: sourceImage.bounds,
+      preprocessing: {
+        preprocessingMode: sourceImage.preprocessing.preprocessingMode,
+        thresholdStrategy: sourceImage.preprocessing.thresholdStrategy,
+        qualitySignals: this.measureImageQuality(
+          {
+            data: warpedData,
+            width: sourceImage.width,
+            height: sourceImage.height,
+            channels: sourceImage.channels,
+          },
+          sourceImage.preprocessing.qualitySignals.thresholdValue,
+          0,
+        ),
+      },
+    };
+
+    return {
+      image: warpedImage,
+      fiducialDetection,
+      perspectiveCorrected: true,
+    };
+  }
+
+  private ensureNormalizedImageMetadata(
+    image: RawImage & {
+      bounds: { left: number; top: number; width: number; height: number };
+      preprocessing?: PreprocessingMetadata;
+    },
+  ): NormalizedImage {
+    if (image.preprocessing) {
+      return {
+        data: image.data,
+        width: image.width,
+        height: image.height,
+        channels: image.channels,
+        bounds: image.bounds,
+        preprocessing: image.preprocessing,
+      };
+    }
+
+    return {
+      data: image.data,
+      width: image.width,
+      height: image.height,
+      channels: image.channels,
+      bounds: image.bounds,
+      preprocessing: {
+        preprocessingMode: DEFAULT_PREPROCESSING_MODE,
+        thresholdStrategy: 'none',
+        qualitySignals: this.measureImageQuality(image, null, 0),
+      },
+    };
+  }
+
+  private resolveV3DirectGridGeometry(
+    image: RawImage,
+    template: ScoreSheetTemplateDefinition,
+    rowCount: number,
+    anchored: boolean,
+  ): GridGeometry {
+    return {
+      horizontalBoundaries: this.buildFallbackBoundaries(
+        image.height,
+        template.grid.top,
+        template.grid.bottom,
+        rowCount,
+      ),
+      verticalBoundaries: this.buildFallbackBoundaries(
+        image.width,
+        template.grid.left,
+        template.grid.right,
+        template.scoreColumns.length,
+      ),
+      anchoring: {
+        horizontalAnchored: anchored,
+        verticalAnchored: anchored,
+        horizontalLineCount: anchored ? rowCount + 1 : 0,
+        verticalLineCount: anchored ? template.scoreColumns.length + 1 : 0,
+        usedFallback: !anchored,
+      },
+    };
+  }
+
+  private measureV3DirectScoreRowInk(
+    image: RawImage,
+    template: ScoreSheetTemplateDefinition,
+    rowCount: number,
+    rowIndex: number,
+  ): number[] {
+    const rowHeight = (template.grid.bottom - template.grid.top) * image.height / rowCount;
+    const columnWidth = (template.grid.right - template.grid.left) * image.width
+      / template.scoreColumns.length;
+    const sampleRadius = this.clampNumber(
+      Math.round(Math.min(rowHeight, columnWidth) * 0.12),
+      5,
+      8,
+    );
+    const searchRadius = this.clampNumber(
+      Math.round(Math.min(rowHeight, columnWidth) * 0.1),
+      3,
+      7,
+    );
+    const searchStep = Math.max(1, Math.floor(searchRadius / 2));
+    const rowCenterY = image.height * (
+      template.grid.top
+      + (((template.grid.bottom - template.grid.top) / rowCount) * (rowIndex + 0.5))
+    );
+
+    return template.scoreColumns.map((_scoreValue, columnIndex) => {
+      const columnCenterX = image.width * (
+        template.grid.left
+        + (((template.grid.right - template.grid.left) / template.scoreColumns.length) * (columnIndex + 0.5))
+      );
+      let bestScore = 0;
+
+      for (let dy = -searchRadius; dy <= searchRadius; dy += searchStep) {
+        for (let dx = -searchRadius; dx <= searchRadius; dx += searchStep) {
+          bestScore = Math.max(
+            bestScore,
+            this.measureV3BubbleCoreInk(
+              image,
+              Math.round(columnCenterX + dx),
+              Math.round(rowCenterY + dy),
+              sampleRadius,
+            ),
+          );
+        }
+      }
+
+      return bestScore;
+    });
+  }
+
+  private measureV3BubbleCoreInk(
+    image: RawImage,
+    centerX: number,
+    centerY: number,
+    radius: number,
+  ): number {
+    let darkPixelCount = 0;
+    let totalPixelCount = 0;
+    let darkStrengthSum = 0;
+
+    for (let y = centerY - radius; y <= centerY + radius; y += 1) {
+      for (let x = centerX - radius; x <= centerX + radius; x += 1) {
+        if (x < 0 || x >= image.width || y < 0 || y >= image.height) {
+          continue;
+        }
+
+        const normalizedX = (x - centerX) / radius;
+        const normalizedY = (y - centerY) / radius;
+        if ((normalizedX * normalizedX) + (normalizedY * normalizedY) > 1) {
+          continue;
+        }
+
+        const offset = ((y * image.width) + x) * image.channels;
+        const r = image.data[offset] ?? 255;
+        const g = image.data[offset + 1] ?? r;
+        const b = image.data[offset + 2] ?? r;
+        const luminance = (r + g + b) / 3;
+        if (luminance < 145) {
+          darkPixelCount += 1;
+        }
+        darkStrengthSum += Math.max(0, (165 - luminance) / 165);
+        totalPixelCount += 1;
+      }
+    }
+
+    if (totalPixelCount <= 0) return 0;
+
+    const darkRatio = darkPixelCount / totalPixelCount;
+    const darkStrengthRatio = darkStrengthSum / totalPixelCount;
+    return (darkRatio * 0.65) + (darkStrengthRatio * 0.35);
+  }
+
+  private warpImageToV3Canonical(
+    image: RawImage,
+    detection: V3FiducialDetection,
+  ): Buffer {
+    if (!detection.corners) {
+      return Buffer.from(image.data);
+    }
+
+    const destinationAnchors = this.getV3CanonicalAnchorCenters(image.width, image.height);
+    const coefficients = this.buildPerspectiveCoefficients(
+      [
+        destinationAnchors.tl,
+        destinationAnchors.tr,
+        destinationAnchors.bl,
+        destinationAnchors.br,
+      ],
+      [
+        detection.corners.tl,
+        detection.corners.tr,
+        detection.corners.bl,
+        detection.corners.br,
+      ],
+    );
+    const [
+      coefficientA = 0,
+      coefficientB = 0,
+      coefficientC = 0,
+      coefficientD = 0,
+      coefficientE = 0,
+      coefficientF = 0,
+      coefficientG = 0,
+      coefficientH = 0,
+    ] = coefficients;
+    const output = Buffer.alloc(image.width * image.height * image.channels, 255);
+
+    for (let y = 0; y < image.height; y += 1) {
+      for (let x = 0; x < image.width; x += 1) {
+        const denominator = (coefficientG * x) + (coefficientH * y) + 1;
+        if (Math.abs(denominator) < 0.000001) {
+          continue;
+        }
+
+        const sourceX = ((coefficientA * x) + (coefficientB * y) + coefficientC) / denominator;
+        const sourceY = ((coefficientD * x) + (coefficientE * y) + coefficientF) / denominator;
+        const nearestX = Math.round(sourceX);
+        const nearestY = Math.round(sourceY);
+        if (nearestX < 0 || nearestX >= image.width || nearestY < 0 || nearestY >= image.height) {
+          continue;
+        }
+
+        const sourceOffset = ((nearestY * image.width) + nearestX) * image.channels;
+        const outputOffset = ((y * image.width) + x) * image.channels;
+        for (let channelIndex = 0; channelIndex < image.channels; channelIndex += 1) {
+          output[outputOffset + channelIndex] = image.data[sourceOffset + channelIndex] ?? 255;
+        }
+      }
+    }
+
+    return output;
+  }
+
+  private getV3CanonicalAnchorCenters(width: number, height: number): {
+    tl: { x: number; y: number };
+    tr: { x: number; y: number };
+    bl: { x: number; y: number };
+    br: { x: number; y: number };
+  } {
+    const anchorCenterInsetX = (V3_ANCHOR_OFFSET_INCHES + (V3_ANCHOR_SIZE_INCHES / 2))
+      / V3_PAGE_WIDTH_INCHES;
+    const anchorCenterInsetY = (V3_ANCHOR_OFFSET_INCHES + (V3_ANCHOR_SIZE_INCHES / 2))
+      / V3_PAGE_HEIGHT_INCHES;
+
+    return {
+      tl: { x: width * anchorCenterInsetX, y: height * anchorCenterInsetY },
+      tr: { x: width * (1 - anchorCenterInsetX), y: height * anchorCenterInsetY },
+      bl: { x: width * anchorCenterInsetX, y: height * (1 - anchorCenterInsetY) },
+      br: { x: width * (1 - anchorCenterInsetX), y: height * (1 - anchorCenterInsetY) },
+    };
+  }
+
+  private buildPerspectiveCoefficients(
+    destinationPoints: Array<{ x: number; y: number }>,
+    sourcePoints: Array<{ x: number; y: number }>,
+  ): number[] {
+    const matrix: number[][] = [];
+    const values: number[] = [];
+
+    destinationPoints.forEach((destination, index) => {
+      const source = sourcePoints[index]!;
+      matrix.push([
+        destination.x,
+        destination.y,
+        1,
+        0,
+        0,
+        0,
+        -source.x * destination.x,
+        -source.x * destination.y,
+      ]);
+      values.push(source.x);
+      matrix.push([
+        0,
+        0,
+        0,
+        destination.x,
+        destination.y,
+        1,
+        -source.y * destination.x,
+        -source.y * destination.y,
+      ]);
+      values.push(source.y);
+    });
+
+    return this.solveLinearSystem(matrix, values);
+  }
+
+  private solveLinearSystem(matrix: number[][], values: number[]): number[] {
+    const size = values.length;
+    const augmented = matrix.map((row, index) => [...row, values[index] ?? 0]);
+
+    for (let column = 0; column < size; column += 1) {
+      let pivotRow = column;
+      for (let row = column + 1; row < size; row += 1) {
+        if (Math.abs(augmented[row]![column] ?? 0) > Math.abs(augmented[pivotRow]![column] ?? 0)) {
+          pivotRow = row;
+        }
+      }
+
+      [augmented[column], augmented[pivotRow]] = [augmented[pivotRow]!, augmented[column]!];
+      const pivot = augmented[column]![column] ?? 0;
+      if (Math.abs(pivot) < 0.000000001) {
+        throw new ValidationError('Unable to solve v3 scoresheet perspective transform');
+      }
+
+      for (let valueIndex = column; valueIndex <= size; valueIndex += 1) {
+        augmented[column]![valueIndex] = (augmented[column]![valueIndex] ?? 0) / pivot;
+      }
+
+      for (let row = 0; row < size; row += 1) {
+        if (row === column) continue;
+        const factor = augmented[row]![column] ?? 0;
+        for (let valueIndex = column; valueIndex <= size; valueIndex += 1) {
+          augmented[row]![valueIndex] = (augmented[row]![valueIndex] ?? 0)
+            - (factor * (augmented[column]![valueIndex] ?? 0));
+        }
+      }
+    }
+
+    return augmented.map((row) => row[size] ?? 0);
+  }
+
+  private clampNumber(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
   }
 
   private resolveGridGeometry(
@@ -1502,6 +2544,14 @@ export class ScoreSheetImportService extends BaseService {
     if (area <= 0) return 0;
 
     return (darkSum / area) + (activePixelCount / area) * 0.25;
+  }
+
+  private isDarkPixel(image: RawImage, x: number, y: number, threshold: number): boolean {
+    const offset = ((y * image.width) + x) * image.channels;
+    const r = image.data[offset] ?? 255;
+    const g = image.data[offset + 1] ?? r;
+    const b = image.data[offset + 2] ?? r;
+    return ((r + g + b) / 3) < threshold;
   }
 
   private formatErrorMessage(error: unknown): string {

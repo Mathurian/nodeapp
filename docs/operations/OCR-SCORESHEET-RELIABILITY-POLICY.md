@@ -106,6 +106,61 @@ The gate records:
 - `qualityGate`: decision, blocking reasons, retryability, attempt limit, and manual-entry owner
 - `reviewBurdenMetrics`: row count, ambiguous rows, low-confidence rows, missing scores, estimated correction rows, and warning count
 
+## V3 Machine-Readable Direction
+
+`TASK-34.27` through `TASK-34.31` pivot the high-assurance path away from the current handwritten-mark sheet and toward a machine-readable sheet with fixed anchors, explicit score bubbles, and an ignored commentary region.
+
+The original v2 contract is:
+
+- [OCR-SCORESHEET-V2-MACHINE-READABLE-CONTRACT.md](/srv/event-manager/dev/docs/operations/OCR-SCORESHEET-V2-MACHINE-READABLE-CONTRACT.md:1)
+
+The approved implementation target is now `education_omr_v3`, which keeps the v2 machine-readable requirements and adds a judge commentary box below the score grid. Import reads only the anchored score grid and records the commentary block as an ignored region.
+
+The current v1 extractor remains useful only as a review-required/manual-fallback calibration path. V3 work is evaluated separately so v1/current sheets are never accidentally given v3 assurance bands.
+
+## V3 Assurance Bands
+
+The v3 thresholds live in the shared threshold packet under `machineReadableThresholds.education_omr_v3`:
+
+- review-required band:
+  - exact row match rate at least `98%`
+  - exact sheet match rate at least `95%`
+  - false high-confidence marks exactly `0`
+  - unexpected rejected rows exactly `0`
+- auto-submit band:
+  - exact row match rate `100%`
+  - exact sheet match rate `100%`
+  - false high-confidence marks exactly `0`
+  - unexpected rejected rows exactly `0`
+  - rejected rows on otherwise accepted sheets exactly `0`
+  - at least `30` real scanner sheets in evidence
+- auto-certify band:
+  - all auto-submit thresholds
+  - at least `100` real scanner sheets in evidence
+  - operational UAT evidence present
+
+Auto-certification is disabled unless the auto-certify band is met. Synthetic generated samples alone are not enough to enable auto-submit or auto-certification.
+
+## Current V3 Validation Result
+
+`TASK-34.30` added v3 synthetic validation to the regression harness. The current synthetic v3 evidence reports:
+
+- exact row match: `100%`
+- exact sheet match: `100%`
+- rejected rows: `2`, both expected challenge rows
+- unexpected rejected rows: `0`
+- false high-confidence marks: `0`
+- total delta sum: `0`
+- manual-entry comparison: `2/40` rows need attention, a `95%` row-reduction estimate versus same-user manual entry
+
+Current guidance:
+
+- `GO` for controlled review-required v3 UAT.
+- `NO-GO` for auto-submit.
+- `NO-GO` for auto-certification.
+
+The blocker is evidence quality, not the synthetic v3 result: no real marked scanner samples exist yet for the v3 form.
+
 ## Operational Meaning
 
 Passing calibration mode means:
@@ -127,6 +182,7 @@ This policy does not mean:
 - phone-photo uploads are validated
 - handwritten comments are supported
 - OCR import is ready to replace delegated entry operationally
+- v1/current sheets qualify for auto-submit or auto-certification
 
 It only means:
 
@@ -144,4 +200,4 @@ See:
 
 The next architecture and operations dependency is:
 
-- [TASK-34.11](/srv/event-manager/dev/backlog/tasks/task-34.11%20-%20Define-template-versioning-and-recalibration-workflow-for-supported-scoresheet-imports.md:1)
+- [TASK-34.30](/srv/event-manager/dev/backlog/tasks/task-34.30%20-%20Validate-v3-scoresheet-assurance-and-rollout-policy.md:1)

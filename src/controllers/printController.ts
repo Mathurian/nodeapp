@@ -8,6 +8,8 @@ import {
   PrintEventReportInput,
   PrintContestResultsInput,
   PrintJudgePerformanceInput,
+  PrintScoreSheetV2Input,
+  PrintScoreSheetV3Input,
 } from '../types/print.types';
 
 /**
@@ -172,6 +174,58 @@ export class PrintController {
     }
   };
 
+  printScoreSheetV2 = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const input: PrintScoreSheetV2Input = req.body;
+      const tenantId = (req as any).tenantId || req.user.tenantId;
+      const output = await this.printService.printScoreSheetV2(input, tenantId);
+
+      res.setHeader('Content-Type', output.contentType);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${output.filename}"`
+      );
+      res.send(output.content);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  printScoreSheetV3 = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const input: PrintScoreSheetV3Input = req.body;
+      const tenantId = (req as any).tenantId || req.user.tenantId;
+      const output = await this.printService.printScoreSheetV3(input, tenantId);
+
+      res.setHeader('Content-Type', output.contentType);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${output.filename}"`
+      );
+      res.send(output.content);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
   /**
    * Print contestant report
    */
@@ -268,6 +322,8 @@ export const deletePrintTemplate = controller.deletePrintTemplate;
 export const printEventReport = controller.printEventReport;
 export const printContestResults = controller.printContestResults;
 export const printJudgePerformance = controller.printJudgePerformance;
+export const printScoreSheetV2 = controller.printScoreSheetV2;
+export const printScoreSheetV3 = controller.printScoreSheetV3;
 export const printContestantReport = controller.printContestantReport;
 export const printJudgeReport = controller.printJudgeReport;
 export const printCategoryReport = controller.printCategoryReport;

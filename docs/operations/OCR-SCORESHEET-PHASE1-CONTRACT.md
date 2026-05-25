@@ -16,6 +16,18 @@ Out of scope for Phase 1:
 
 Deferred handwritten comments work is tracked separately in [TASK-95](/srv/event-manager/dev/backlog/tasks/task-95%20-%20Add-optional-handwritten-comments-extraction-for-scoresheet-imports.md).
 
+## Machine-Readable V3 Direction
+
+The current v1 sheet import path has not reached release reliability. Scanner calibration and self-hosted contender evaluation showed that false high-confidence wrong marks remain the blocking risk.
+
+The high-assurance path now uses a machine-readable sheet contract that started as v2 and has been approved as `education_omr_v3` for implementation:
+
+- [OCR-SCORESHEET-V2-MACHINE-READABLE-CONTRACT.md](/srv/event-manager/dev/docs/operations/OCR-SCORESHEET-V2-MACHINE-READABLE-CONTRACT.md:1)
+
+V3 keeps the v2 anchor/version/bubble requirements and adds a judge commentary box below the score grid. The import path must ignore the commentary region for scoring.
+
+This does not change the Phase 1 write contract. V3 should still stage extracted scores through the same review and certification controls until validation proves a stronger assurance band.
+
 ## Why Phase 1 Is Scores-Only
 
 Based on the sample packet in [DD_Scores copy.pdf](/srv/event-manager/dev/temp/DD_Scores%20copy.pdf:1):
@@ -168,6 +180,14 @@ That makes the most logical approach:
 4. resolve which score column is marked for each criterion row
 5. stage results for review
 
+For v3 sheets, the template-driven assumption becomes stricter:
+
+1. detect the v3 registration anchors and version strip
+2. align the page from anchors, not text OCR
+3. inspect explicit bubble/box mark regions
+4. reject blank, multi-mark, low-margin, or damaged rows
+5. keep v1/current sheets on the review-required/manual-fallback path
+
 ## Sample Packet Requirements
 
 Phase 1 implementation should not proceed on a single PDF alone. The working sample packet should include:
@@ -203,6 +223,8 @@ Phase 1 does not need to:
 - eliminate all manual review
 - certify anything automatically
 
+V3 may later support auto-submit or auto-certification only if the v3 assurance validation in `TASK-34.30` proves the required empirical band. Raw extractor confidence is not enough.
+
 ## Known Implementation Gaps
 
 ### File-type gaps
@@ -227,6 +249,8 @@ For Phase 1, the primary extraction mechanism should probably be:
 - mark detection
 
 Generic OCR should be treated as optional support for printed headers, not the core scoring extractor.
+
+For v3, generic OCR should not be needed for score extraction. Anchors, fixed template geometry, filled score mark regions, and explicit ignored-region metadata are the primary primitives.
 
 ### Upload context
 
@@ -258,6 +282,15 @@ Should own:
 - correction workflow
 - mismatch warnings
 - acceptance into normal score submission flow
+
+### TASK-34.27 through TASK-34.30
+
+Should own:
+
+- minimal machine-readable v2 paper contract
+- v3 generated print output
+- v3 anchor-and-bubble OMR extraction
+- v3 assurance validation and rollout policy
 
 ### TASK-34.5
 
