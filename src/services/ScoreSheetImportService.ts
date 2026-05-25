@@ -22,6 +22,28 @@ const NORMALIZED_WIDTH = 1000;
 const NORMALIZED_HEIGHT = 1400;
 const DEFAULT_PREPROCESSING_MODE = 'standard';
 const DEFAULT_SCAN_THRESHOLD_STRATEGY = 'otsu';
+const SCORE_SHEET_IMPORT_ATTEMPT_LIMIT = 2;
+const LOW_CONFIDENCE_ROW_THRESHOLD = 0.45;
+
+type CaptureQualityThresholds = {
+  maxAmbiguousRowsForReview: number;
+  maxEstimatedCorrectionRowsForReview: number;
+  minOverallConfidenceForReview: number;
+  minContrastRange: number;
+  minDarkPixelRatio: number;
+  maxDarkPixelRatio: number;
+  maxDespeckledPixelRatio: number;
+};
+
+const QUALITY_GATE_THRESHOLDS: CaptureQualityThresholds = {
+  maxAmbiguousRowsForReview: 1,
+  maxEstimatedCorrectionRowsForReview: 3,
+  minOverallConfidenceForReview: 0.18,
+  minContrastRange: 18,
+  minDarkPixelRatio: 0.002,
+  maxDarkPixelRatio: 0.35,
+  maxDespeckledPixelRatio: 0.02,
+};
 
 type ScoreSheetPreprocessingMode = 'standard' | 'scan_bw';
 type ScoreSheetThresholdStrategy = 'none' | 'otsu' | 'fixed_150' | 'fixed_170' | 'fixed_190';
@@ -59,6 +81,29 @@ type CriterionExtraction = {
   cellInkScores: number[];
 };
 
+type ReviewBurdenMetrics = {
+  rowCount: number;
+  detectedScoreRowCount: number;
+  ambiguousRowCount: number;
+  lowConfidenceRowCount: number;
+  missingScoreRowCount: number;
+  mismatchWarningCount: number;
+  rowsRequiringReviewCount: number;
+  estimatedManualCorrectionRows: number;
+  estimatedManualCorrectionRatio: number;
+};
+
+type CaptureQualityGate = {
+  decision: 'accepted_for_review' | 'manual_entry_required';
+  reasons: string[];
+  blockingReasons: string[];
+  retryable: boolean;
+  attemptLimit: number;
+  recommendedAction: 'review_extracted_scores' | 'retry_upload_or_manual_entry';
+  manualEntryOwner: 'attempting_user';
+  thresholds: CaptureQualityThresholds;
+};
+
 type ExtractionPayload = {
   templateKey: string;
   preprocessingMode: ScoreSheetPreprocessingMode;
@@ -74,6 +119,9 @@ type ExtractionPayload = {
     width: number;
     height: number;
   };
+  gridAnchoring: GridAnchoringMetadata;
+  reviewBurdenMetrics: ReviewBurdenMetrics;
+  qualityGate: CaptureQualityGate;
   scoreValues: number[];
   criteria: CriterionExtraction[];
   mismatchWarnings: string[];
@@ -124,6 +172,21 @@ type NormalizedImage = RawImage & {
 type GridGeometry = {
   horizontalBoundaries: number[];
   verticalBoundaries: number[];
+  anchoring: GridAnchoringMetadata;
+};
+
+type GridAnchoringMetadata = {
+  horizontalAnchored: boolean;
+  verticalAnchored: boolean;
+  horizontalLineCount: number;
+  verticalLineCount: number;
+  usedFallback: boolean;
+};
+
+type LineSequenceDetection = {
+  boundaries: number[];
+  candidateCount: number;
+  score: number;
 };
 
 @injectable()
@@ -206,6 +269,10 @@ export class ScoreSheetImportService extends BaseService {
       extraction = analysis.payload;
       computedTotal = analysis.computedTotal;
       overallConfidence = analysis.overallConfidence;
+      if (extraction.qualityGate.decision === 'manual_entry_required') {
+        draftStatus = 'rejected';
+        processingError = this.formatQualityGateRejection(extraction.qualityGate);
+      }
     } catch (error) {
       draftStatus = 'failed';
       processingError = this.formatErrorMessage(error);
@@ -272,7 +339,7 @@ export class ScoreSheetImportService extends BaseService {
     const inferredTemplate = resolveTemplateByCriteria(criteria.map((criterion) => criterion.name));
     if (!inferredTemplate) {
       throw new ValidationError(
-        'Scoresheet import is not calibrated for this category yet. Use delegated entry or a manually reviewed import instead.',
+        'Scoresheet import is not calibrated for this category yet. Enter the scores manually as the attempting user.',
       );
     }
 
@@ -788,33 +855,31 @@ export class ScoreSheetImportService extends BaseService {
     const mismatchWarnings: string[] = [];
     let computedTotal = 0;
     let confidenceSum = 0;
+    const gridAnchorReliable =
+      gridGeometry.anchoring.horizontalAnchored && gridGeometry.anchoring.verticalAnchored;
+
+    if (!gridAnchorReliable) {
+      mismatchWarnings.push(
+        'Scoresheet import could not anchor both printed grid axes; score rows were treated as ambiguous.',
+      );
+    }
 
     for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
       const criterion = criteria[rowIndex]!;
-      const cellInkScores = template.scoreColumns.map((_, columnIndex) => {
-        const columnLeftBoundary = gridGeometry.verticalBoundaries[columnIndex] ?? 0;
-        const columnRightBoundary = gridGeometry.verticalBoundaries[columnIndex + 1] ?? image.width;
-        const rowTopBoundary = gridGeometry.horizontalBoundaries[rowIndex] ?? 0;
-        const rowBottomBoundary = gridGeometry.horizontalBoundaries[rowIndex + 1] ?? image.height;
-        const columnWidth = Math.max(1, columnRightBoundary - columnLeftBoundary);
-        const rowHeight = Math.max(1, rowBottomBoundary - rowTopBoundary);
-        const left = Math.round(
-          columnLeftBoundary + (columnWidth * template.grid.cellHorizontalPadding),
-        );
-        const top = Math.round(
-          rowTopBoundary + (rowHeight * template.grid.cellVerticalPadding),
-        );
-        const width = Math.max(
-          4,
-          Math.round(columnWidth * (1 - (template.grid.cellHorizontalPadding * 2))),
-        );
-        const height = Math.max(
-          4,
-          Math.round(rowHeight * (1 - (template.grid.cellVerticalPadding * 2))),
-        );
-
-        return this.measureCellInk(image.data, image.width, image.height, image.channels, left, top, width, height);
-      });
+      const rowInkScores = this.measureScoreRowInk(
+        image,
+        gridGeometry,
+        template,
+        rowIndex,
+      );
+      const windowInkScores = this.measureScoreRowWindowInk(
+        image,
+        gridGeometry,
+        template,
+        rowIndex,
+      );
+      const rowColorSignal = this.measureScoreRowColorSignal(image, gridGeometry, template, rowIndex);
+      const cellInkScores = this.selectCellInkScores(rowInkScores, windowInkScores, rowColorSignal);
 
       const ranked = cellInkScores
         .map((scoreValue, index) => ({ scoreValue, index }))
@@ -862,6 +927,13 @@ export class ScoreSheetImportService extends BaseService {
       thresholdStrategy: 'none' as const,
       qualitySignals: this.measureImageQuality(image, null, 0),
     };
+    const reviewBurdenMetrics = this.buildReviewBurdenMetrics(extractedCriteria, mismatchWarnings);
+    const qualityGate = this.assessCaptureQuality({
+      gridAnchoring: gridGeometry.anchoring,
+      overallConfidence,
+      qualitySignals: preprocessing.qualitySignals,
+      reviewBurdenMetrics,
+    });
 
     return {
       payload: {
@@ -874,6 +946,9 @@ export class ScoreSheetImportService extends BaseService {
           height: image.height,
         },
         sheetBounds: image.bounds,
+        gridAnchoring: gridGeometry.anchoring,
+        reviewBurdenMetrics,
+        qualityGate,
         scoreValues: [...template.scoreColumns],
         criteria: extractedCriteria,
         mismatchWarnings,
@@ -929,9 +1004,142 @@ export class ScoreSheetImportService extends BaseService {
       fallbackVertical[fallbackVertical.length - 1] ?? image.width,
     );
 
+    const horizontalAnchored = Boolean(detectedHorizontal);
+    const verticalAnchored = Boolean(detectedVertical);
+
     return {
-      horizontalBoundaries: detectedHorizontal ?? fallbackHorizontal,
-      verticalBoundaries: detectedVertical ?? fallbackVertical,
+      horizontalBoundaries: detectedHorizontal?.boundaries ?? fallbackHorizontal,
+      verticalBoundaries: detectedVertical?.boundaries ?? fallbackVertical,
+      anchoring: {
+        horizontalAnchored,
+        verticalAnchored,
+        horizontalLineCount: detectedHorizontal?.candidateCount ?? 0,
+        verticalLineCount: detectedVertical?.candidateCount ?? 0,
+        usedFallback: !horizontalAnchored || !verticalAnchored,
+      },
+    };
+  }
+
+  private buildReviewBurdenMetrics(
+    criteria: CriterionExtraction[],
+    mismatchWarnings: string[],
+  ): ReviewBurdenMetrics {
+    const rowCount = criteria.length;
+    const manualCorrectionCandidates = new Set<number>();
+    let detectedScoreRowCount = 0;
+    let ambiguousRowCount = 0;
+    let lowConfidenceRowCount = 0;
+    let missingScoreRowCount = 0;
+
+    criteria.forEach((criterion) => {
+      if (criterion.detectedScore !== null) {
+        detectedScoreRowCount += 1;
+      } else {
+        missingScoreRowCount += 1;
+        manualCorrectionCandidates.add(criterion.rowIndex);
+      }
+
+      if (criterion.ambiguous) {
+        ambiguousRowCount += 1;
+        manualCorrectionCandidates.add(criterion.rowIndex);
+      }
+
+      if (criterion.confidence < LOW_CONFIDENCE_ROW_THRESHOLD) {
+        lowConfidenceRowCount += 1;
+        manualCorrectionCandidates.add(criterion.rowIndex);
+      }
+    });
+
+    const estimatedManualCorrectionRows = Math.min(
+      rowCount,
+      manualCorrectionCandidates.size + mismatchWarnings.length,
+    );
+
+    return {
+      rowCount,
+      detectedScoreRowCount,
+      ambiguousRowCount,
+      lowConfidenceRowCount,
+      missingScoreRowCount,
+      mismatchWarningCount: mismatchWarnings.length,
+      rowsRequiringReviewCount: rowCount,
+      estimatedManualCorrectionRows,
+      estimatedManualCorrectionRatio: rowCount > 0
+        ? Number((estimatedManualCorrectionRows / rowCount).toFixed(4))
+        : 0,
+    };
+  }
+
+  private assessCaptureQuality(input: {
+    gridAnchoring: GridAnchoringMetadata;
+    overallConfidence: number;
+    qualitySignals: PreprocessingQualitySignals;
+    reviewBurdenMetrics: ReviewBurdenMetrics;
+  }): CaptureQualityGate {
+    const blockingReasons: string[] = [];
+    const reasons: string[] = [];
+
+    const addBlockingReason = (reason: string): void => {
+      blockingReasons.push(reason);
+      reasons.push(reason);
+    };
+
+    if (!input.gridAnchoring.horizontalAnchored || !input.gridAnchoring.verticalAnchored) {
+      addBlockingReason('The printed score grid could not be anchored on both axes.');
+    }
+
+    if (input.reviewBurdenMetrics.ambiguousRowCount > QUALITY_GATE_THRESHOLDS.maxAmbiguousRowsForReview) {
+      addBlockingReason(
+        `The draft has ${input.reviewBurdenMetrics.ambiguousRowCount} ambiguous rows; the review limit is ${QUALITY_GATE_THRESHOLDS.maxAmbiguousRowsForReview}.`,
+      );
+    }
+
+    if (
+      input.reviewBurdenMetrics.estimatedManualCorrectionRows
+        > QUALITY_GATE_THRESHOLDS.maxEstimatedCorrectionRowsForReview
+    ) {
+      addBlockingReason(
+        `The draft is estimated to need ${input.reviewBurdenMetrics.estimatedManualCorrectionRows} row corrections; the review limit is ${QUALITY_GATE_THRESHOLDS.maxEstimatedCorrectionRowsForReview}.`,
+      );
+    }
+
+    if (input.overallConfidence < QUALITY_GATE_THRESHOLDS.minOverallConfidenceForReview) {
+      addBlockingReason(
+        `Overall extraction confidence ${Math.round(input.overallConfidence * 100)}% is below the review limit.`,
+      );
+    }
+
+    if (input.qualitySignals.contrastRange < QUALITY_GATE_THRESHOLDS.minContrastRange) {
+      addBlockingReason('The upload contrast is too low for reliable score extraction.');
+    }
+
+    if (input.qualitySignals.darkPixelRatio < QUALITY_GATE_THRESHOLDS.minDarkPixelRatio) {
+      addBlockingReason('The upload has too little dark ink to identify a complete scoresheet.');
+    }
+
+    if (input.qualitySignals.darkPixelRatio > QUALITY_GATE_THRESHOLDS.maxDarkPixelRatio) {
+      addBlockingReason('The upload is too dark or shadowed for reliable score extraction.');
+    }
+
+    if (input.qualitySignals.despeckledPixelRatio > QUALITY_GATE_THRESHOLDS.maxDespeckledPixelRatio) {
+      addBlockingReason('The upload has too much speckle noise for reliable score extraction.');
+    }
+
+    if (reasons.length === 0) {
+      reasons.push('The upload passed capture-quality gates and still requires row-by-row review.');
+    }
+
+    const accepted = blockingReasons.length === 0;
+
+    return {
+      decision: accepted ? 'accepted_for_review' : 'manual_entry_required',
+      reasons,
+      blockingReasons,
+      retryable: !accepted,
+      attemptLimit: SCORE_SHEET_IMPORT_ATTEMPT_LIMIT,
+      recommendedAction: accepted ? 'review_extracted_scores' : 'retry_upload_or_manual_entry',
+      manualEntryOwner: 'attempting_user',
+      thresholds: QUALITY_GATE_THRESHOLDS,
     };
   }
 
@@ -962,7 +1170,7 @@ export class ScoreSheetImportService extends BaseService {
     expectedCount: number,
     expectedStart: number,
     expectedEnd: number,
-  ): number[] | null {
+  ): LineSequenceDetection | null {
     const lineScores: number[] = [];
 
     for (let position = scanStart; position <= scanEnd; position += 1) {
@@ -1018,7 +1226,9 @@ export class ScoreSheetImportService extends BaseService {
       centers.push(scanStart + Math.round((bandStart + lineScores.length - 1) / 2));
     }
 
-    if (centers.length < expectedCount) {
+    const candidateCount = centers.length;
+
+    if (candidateCount < expectedCount) {
       return null;
     }
 
@@ -1040,32 +1250,236 @@ export class ScoreSheetImportService extends BaseService {
       }
     }
 
-    return bestSequence;
+    return bestSequence
+      ? {
+        boundaries: bestSequence,
+        candidateCount,
+        score: bestScore,
+      }
+      : null;
+  }
+
+  private measureScoreRowWindowInk(
+    image: RawImage,
+    gridGeometry: GridGeometry,
+    template: ScoreSheetTemplateDefinition,
+    rowIndex: number,
+  ): number[] {
+    return template.scoreColumns.map((_, columnIndex) => {
+      const columnLeftBoundary = gridGeometry.verticalBoundaries[columnIndex] ?? 0;
+      const columnRightBoundary = gridGeometry.verticalBoundaries[columnIndex + 1] ?? image.width;
+      const rowTopBoundary = gridGeometry.horizontalBoundaries[rowIndex] ?? 0;
+      const rowBottomBoundary = gridGeometry.horizontalBoundaries[rowIndex + 1] ?? image.height;
+      const columnWidth = Math.max(1, columnRightBoundary - columnLeftBoundary);
+      const rowHeight = Math.max(1, rowBottomBoundary - rowTopBoundary);
+      const left = Math.round(
+        columnLeftBoundary + (columnWidth * template.grid.cellHorizontalPadding),
+      );
+      const top = Math.round(
+        rowTopBoundary + (rowHeight * template.grid.cellVerticalPadding),
+      );
+      const width = Math.max(
+        4,
+        Math.round(columnWidth * (1 - (template.grid.cellHorizontalPadding * 2))),
+      );
+      const height = Math.max(
+        4,
+        Math.round(rowHeight * (1 - (template.grid.cellVerticalPadding * 2))),
+      );
+
+      return this.measureCellInk(image, left, top, width, height);
+    });
+  }
+
+  private selectCellInkScores(
+    rowInkScores: number[],
+    windowInkScores: number[],
+    rowColorSignal: number,
+  ): number[] {
+    const rowRanked = this.rankInkScores(rowInkScores);
+    const windowRanked = this.rankInkScores(windowInkScores);
+    const rowTop = rowRanked[0]?.scoreValue ?? 0;
+    const rowSecond = rowRanked[1]?.scoreValue ?? 0;
+    const windowTop = windowRanked[0]?.scoreValue ?? 0;
+    const windowSecond = windowRanked[1]?.scoreValue ?? 0;
+    const rowConfidence = rowTop > 0 ? (rowTop - rowSecond) / rowTop : 0;
+    const windowConfidence = windowTop > 0 ? (windowTop - windowSecond) / windowTop : 0;
+    const focusedWindowMark =
+      windowConfidence >= 0.9 && windowTop >= Math.max(0.0015, rowTop * 1.2);
+    const rowIsNoisy = rowTop > 0 && rowConfidence < 0.2;
+    const coloredPenWindow = rowColorSignal >= 0.00005 && windowConfidence >= 0.35;
+
+    if (focusedWindowMark || coloredPenWindow || (windowConfidence >= 0.65 && rowIsNoisy)) {
+      return windowInkScores;
+    }
+
+    return rowInkScores;
+  }
+
+  private rankInkScores(scores: number[]): Array<{ scoreValue: number; index: number }> {
+    return scores
+      .map((scoreValue, index) => ({ scoreValue, index }))
+      .sort((a, b) => b.scoreValue - a.scoreValue);
+  }
+
+  private measureScoreRowColorSignal(
+    image: RawImage,
+    gridGeometry: GridGeometry,
+    template: ScoreSheetTemplateDefinition,
+    rowIndex: number,
+  ): number {
+    const rowTopBoundary = gridGeometry.horizontalBoundaries[rowIndex] ?? 0;
+    const rowBottomBoundary = gridGeometry.horizontalBoundaries[rowIndex + 1] ?? image.height;
+    const rowHeight = Math.max(1, rowBottomBoundary - rowTopBoundary);
+    const rowTop = Math.max(
+      0,
+      Math.round(rowTopBoundary + (rowHeight * template.grid.cellVerticalPadding)),
+    );
+    const rowBottom = Math.min(
+      image.height - 1,
+      Math.round(rowBottomBoundary - (rowHeight * template.grid.cellVerticalPadding)),
+    );
+    const leftBoundary = gridGeometry.verticalBoundaries[0] ?? 0;
+    const rightBoundary = gridGeometry.verticalBoundaries[template.scoreColumns.length] ?? image.width;
+    const width = Math.max(1, rightBoundary - leftBoundary);
+    const lineGuard = Math.max(2, Math.round(rowHeight * 0.08));
+    let colorSignal = 0;
+    let area = 0;
+
+    for (let y = rowTop; y <= rowBottom; y += 1) {
+      const rowEdgeDistance = Math.min(y - rowTopBoundary, rowBottomBoundary - y);
+      if (rowEdgeDistance <= lineGuard) continue;
+
+      for (let x = leftBoundary; x <= rightBoundary; x += 1) {
+        const onVerticalGridLine = gridGeometry.verticalBoundaries.some((boundary) =>
+          Math.abs(x - boundary) <= lineGuard,
+        );
+        if (onVerticalGridLine) continue;
+
+        const offset = ((y * image.width) + x) * image.channels;
+        const r = image.data[offset] ?? 255;
+        const g = image.data[offset + 1] ?? r;
+        const b = image.data[offset + 2] ?? r;
+        const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+        const purpleSignal = chroma >= 8
+          ? Math.max(0, (((r + b) / 2) - g - 2) / 255)
+          : 0;
+
+        if (purpleSignal > 0.01) {
+          colorSignal += purpleSignal;
+        }
+        area += 1;
+      }
+    }
+
+    return area > 0 ? colorSignal / Math.max(area, width) : 0;
+  }
+
+  private measureScoreRowInk(
+    image: RawImage,
+    gridGeometry: GridGeometry,
+    template: ScoreSheetTemplateDefinition,
+    rowIndex: number,
+  ): number[] {
+    const rowTopBoundary = gridGeometry.horizontalBoundaries[rowIndex] ?? 0;
+    const rowBottomBoundary = gridGeometry.horizontalBoundaries[rowIndex + 1] ?? image.height;
+    const rowHeight = Math.max(1, rowBottomBoundary - rowTopBoundary);
+    const rowTop = Math.max(
+      0,
+      Math.round(rowTopBoundary + (rowHeight * template.grid.cellVerticalPadding)),
+    );
+    const rowBottom = Math.min(
+      image.height - 1,
+      Math.round(rowBottomBoundary - (rowHeight * template.grid.cellVerticalPadding)),
+    );
+    const scores = template.scoreColumns.map(() => 0);
+    const activePixelCounts = template.scoreColumns.map(() => 0);
+    const columnAreas = template.scoreColumns.map((_, columnIndex) => {
+      const columnLeftBoundary = gridGeometry.verticalBoundaries[columnIndex] ?? 0;
+      const columnRightBoundary = gridGeometry.verticalBoundaries[columnIndex + 1] ?? image.width;
+      const columnWidth = Math.max(1, columnRightBoundary - columnLeftBoundary);
+      const columnLeft = Math.max(
+        0,
+        Math.round(columnLeftBoundary + (columnWidth * template.grid.cellHorizontalPadding)),
+      );
+      const columnRight = Math.min(
+        image.width - 1,
+        Math.round(columnRightBoundary - (columnWidth * template.grid.cellHorizontalPadding)),
+      );
+      const width = Math.max(1, columnRight - columnLeft + 1);
+      const height = Math.max(1, rowBottom - rowTop + 1);
+
+      return {
+        columnLeft,
+        columnRight,
+        columnWidth,
+        area: width * height,
+      };
+    });
+
+    const lineGuard = Math.max(2, Math.round(rowHeight * 0.08));
+
+    for (let y = rowTop; y <= rowBottom; y += 1) {
+      const rowEdgeDistance = Math.min(y - rowTopBoundary, rowBottomBoundary - y);
+      if (rowEdgeDistance <= lineGuard) continue;
+
+      for (let columnIndex = 0; columnIndex < template.scoreColumns.length; columnIndex += 1) {
+        const column = columnAreas[columnIndex]!;
+        const columnLeftBoundary = gridGeometry.verticalBoundaries[columnIndex] ?? 0;
+        const columnRightBoundary = gridGeometry.verticalBoundaries[columnIndex + 1] ?? image.width;
+
+        for (let x = column.columnLeft; x <= column.columnRight; x += 1) {
+          const columnEdgeDistance = Math.min(x - columnLeftBoundary, columnRightBoundary - x);
+          if (columnEdgeDistance <= lineGuard) continue;
+
+          const offset = ((y * image.width) + x) * image.channels;
+          const r = image.data[offset] ?? 255;
+          const g = image.data[offset + 1] ?? r;
+          const b = image.data[offset + 2] ?? r;
+          const luminance = (r + g + b) / 3;
+          const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+          const purpleSignal = chroma >= 8
+            ? Math.max(0, (((r + b) / 2) - g - 2) / 255)
+            : 0;
+          const darkSignal = luminance < 145 ? ((145 - luminance) / 145) : 0;
+          const neutralDarkWeight = chroma < 12 ? 0.42 : 0.2;
+          const markSignal = (purpleSignal * 2.3) + (darkSignal * neutralDarkWeight);
+
+          if (markSignal > 0.025) {
+            scores[columnIndex] = (scores[columnIndex] ?? 0) + markSignal;
+            activePixelCounts[columnIndex] = (activePixelCounts[columnIndex] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    return scores.map((score, index) => {
+      const area = columnAreas[index]?.area ?? 1;
+      const activePixelRatio = (activePixelCounts[index] ?? 0) / area;
+      return (score / area) + (activePixelRatio * 0.28);
+    });
   }
 
   private measureCellInk(
-    data: Buffer,
-    imageWidth: number,
-    imageHeight: number,
-    channels: number,
+    image: RawImage,
     left: number,
     top: number,
     width: number,
     height: number,
   ): number {
-    const boundedLeft = Math.max(0, Math.min(imageWidth - 1, left));
-    const boundedTop = Math.max(0, Math.min(imageHeight - 1, top));
-    const boundedWidth = Math.max(1, Math.min(width, imageWidth - boundedLeft));
-    const boundedHeight = Math.max(1, Math.min(height, imageHeight - boundedTop));
+    const boundedLeft = Math.max(0, Math.min(image.width - 1, left));
+    const boundedTop = Math.max(0, Math.min(image.height - 1, top));
+    const boundedWidth = Math.max(1, Math.min(width, image.width - boundedLeft));
+    const boundedHeight = Math.max(1, Math.min(height, image.height - boundedTop));
     let darkSum = 0;
     let activePixelCount = 0;
 
     for (let y = boundedTop; y < boundedTop + boundedHeight; y += 1) {
       for (let x = boundedLeft; x < boundedLeft + boundedWidth; x += 1) {
-        const offset = ((y * imageWidth) + x) * channels;
-        const r = data[offset] ?? 255;
-        const g = data[offset + 1] ?? r;
-        const b = data[offset + 2] ?? r;
+        const offset = ((y * image.width) + x) * image.channels;
+        const r = image.data[offset] ?? 255;
+        const g = image.data[offset + 1] ?? r;
+        const b = image.data[offset + 2] ?? r;
         const luminance = (r + g + b) / 3;
         const chroma = Math.max(r, g, b) - Math.min(r, g, b);
         const purpleSignal = Math.max(0, (((r + b) / 2) - g - 2) / 255);
@@ -1093,5 +1507,17 @@ export class ScoreSheetImportService extends BaseService {
   private formatErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message) return error.message;
     return 'Unknown scoresheet import error';
+  }
+
+  private formatQualityGateRejection(qualityGate: CaptureQualityGate): string {
+    const reasons = qualityGate.blockingReasons.length > 0
+      ? qualityGate.blockingReasons
+      : qualityGate.reasons;
+
+    return [
+      'Scoresheet upload did not pass import quality gates.',
+      ...reasons,
+      `Retry with a clearer scan up to ${qualityGate.attemptLimit} attempts, then enter scores manually as the attempting user.`,
+    ].join(' ');
   }
 }

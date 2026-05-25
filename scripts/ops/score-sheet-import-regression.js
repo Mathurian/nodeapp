@@ -3,11 +3,11 @@
 require('reflect-metadata');
 
 const path = require('path');
-const groundTruth = require('../../tests/examples/scoresheet-import/route66-phase1-ground-truth.json');
-const thresholdConfig = require('../../tests/examples/scoresheet-import/route66-phase1-thresholds.json');
 const { ScoreSheetImportService } = require('../../dist/services/ScoreSheetImportService');
 
 const VALID_MODES = new Set(['calibration', 'rollout']);
+const DEFAULT_GROUND_TRUTH_PATH = 'tests/examples/scoresheet-import/route66-phase1-ground-truth.json';
+const DEFAULT_THRESHOLDS_PATH = 'tests/examples/scoresheet-import/route66-phase1-thresholds.json';
 const FALSE_HIGH_CONFIDENCE_THRESHOLD = 0.75;
 const MATERIAL_EXACT_ROW_MATCH_IMPROVEMENT = 0.05;
 const PREPROCESSING_VARIANTS = [
@@ -44,7 +44,12 @@ const PREPROCESSING_VARIANTS = [
 ];
 
 const parseArgs = (argv) => {
-  const args = { mode: 'calibration', json: false };
+  const args = {
+    mode: 'calibration',
+    json: false,
+    groundTruthPath: DEFAULT_GROUND_TRUTH_PATH,
+    thresholdsPath: DEFAULT_THRESHOLDS_PATH,
+  };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -61,6 +66,28 @@ const parseArgs = (argv) => {
 
     if (arg && arg.startsWith('--mode=')) {
       args.mode = arg.slice('--mode='.length);
+      continue;
+    }
+
+    if (arg === '--ground-truth') {
+      args.groundTruthPath = argv[index + 1] || '';
+      index += 1;
+      continue;
+    }
+
+    if (arg && arg.startsWith('--ground-truth=')) {
+      args.groundTruthPath = arg.slice('--ground-truth='.length);
+      continue;
+    }
+
+    if (arg === '--thresholds') {
+      args.thresholdsPath = argv[index + 1] || '';
+      index += 1;
+      continue;
+    }
+
+    if (arg && arg.startsWith('--thresholds=')) {
+      args.thresholdsPath = arg.slice('--thresholds='.length);
     }
   }
 
@@ -70,6 +97,8 @@ const parseArgs = (argv) => {
 
   return args;
 };
+
+const loadJson = (relativePath) => require(path.resolve(process.cwd(), relativePath));
 
 const buildCriteriaForTemplate = (family) =>
   family.criterionOrder
@@ -81,7 +110,16 @@ const buildCriteriaForTemplate = (family) =>
       maxScore: 6,
     }));
 
-const evaluateFamilyVariant = async (service, pdfPath, family, mode, variant) => {
+const resolveSamplePdfPath = (groundTruth, family, sample) => {
+  const sourcePdf = sample.sourcePdf || family.sourcePdf || groundTruth.sourcePdf;
+  if (!sourcePdf) {
+    throw new Error(`Missing source PDF for ${family.templateKey} page ${sample.page}`);
+  }
+
+  return path.resolve(process.cwd(), sourcePdf);
+};
+
+const evaluateFamilyVariant = async (service, groundTruth, thresholdConfig, family, mode, variant) => {
   const criteria = buildCriteriaForTemplate(family);
   const template = service.resolveTemplate(criteria, { intent: 'SCORESHEET_IMPORT' }, undefined);
   const orderedCriteria = service.orderCriteriaForTemplate(criteria, template);
@@ -97,9 +135,12 @@ const evaluateFamilyVariant = async (service, pdfPath, family, mode, variant) =>
   let ambiguousRows = 0;
   let incorrectRows = 0;
   let falseHighConfidenceMarks = 0;
+  let qualityGateRejectedPages = 0;
+  let estimatedManualCorrectionRows = 0;
 
   for (const sample of family.samples) {
-    const rendered = await service.renderPdfPage(pdfPath, sample.page);
+    const samplePdfPath = resolveSamplePdfPath(groundTruth, family, sample);
+    const rendered = await service.renderPdfPage(samplePdfPath, sample.page);
     const normalized = await service.normalizePage(rendered.buffer, {
       preprocessingMode: variant.preprocessingMode,
       thresholdStrategy: variant.thresholdStrategy,
@@ -142,13 +183,25 @@ const evaluateFamilyVariant = async (service, pdfPath, family, mode, variant) =>
     const ambiguousRowCount = rows.filter((row) => row.ambiguous).length;
     const incorrectRowCount = rows.length - exactRowCount;
     const falseHighConfidenceMarkCount = rows.filter((row) => row.falseHighConfidenceMark).length;
+    const qualityGateDecision = result.payload.qualityGate?.decision || 'accepted_for_review';
+    const reviewBurdenMetrics = result.payload.reviewBurdenMetrics || null;
+
+    if (qualityGateDecision === 'manual_entry_required') {
+      qualityGateRejectedPages += 1;
+    }
+    estimatedManualCorrectionRows += reviewBurdenMetrics?.estimatedManualCorrectionRows || 0;
 
     perPage.push({
+      sourcePdf: sample.sourcePdf || family.sourcePdf || groundTruth.sourcePdf,
+      sourcePdfKey: sample.sourcePdfKey,
       page: sample.page,
       contestantName: sample.contestantName,
       preprocessingMode: result.payload.preprocessingMode,
       thresholdStrategy: result.payload.thresholdStrategy,
       qualitySignals: result.payload.qualitySignals,
+      gridAnchoring: result.payload.gridAnchoring,
+      qualityGate: result.payload.qualityGate,
+      reviewBurdenMetrics,
       expectedTotal: sample.handwrittenTotal,
       computedTotal: result.computedTotal,
       totalDelta,
@@ -157,6 +210,7 @@ const evaluateFamilyVariant = async (service, pdfPath, family, mode, variant) =>
       exactRowMatchRate: rows.length > 0 ? exactRowCount / rows.length : 0,
       incorrectRowCount,
       ambiguousRowCount,
+      manualCorrectionRowCount: incorrectRowCount,
       falseHighConfidenceMarkCount,
       passesModeThresholds:
         totalDelta <= thresholds.maxPageTotalDelta
@@ -198,6 +252,11 @@ const evaluateFamilyVariant = async (service, pdfPath, family, mode, variant) =>
       maxAmbiguousRowsPerPage,
       falseHighConfidenceMarks,
       averageFalseHighConfidenceMarksPerPage: pageCount > 0 ? falseHighConfidenceMarks / pageCount : 0,
+      qualityGateRejectedPages,
+      qualityGateRejectedPageRate: pageCount > 0 ? qualityGateRejectedPages / pageCount : 0,
+      estimatedManualCorrectionRows,
+      averageEstimatedManualCorrectionRowsPerPage:
+        pageCount > 0 ? estimatedManualCorrectionRows / pageCount : 0,
     },
     perPage,
   };
@@ -253,10 +312,10 @@ const selectPreprocessingVariant = (variants) => {
   };
 };
 
-const evaluateFamily = async (service, pdfPath, family, mode) => {
+const evaluateFamily = async (service, groundTruth, thresholdConfig, family, mode) => {
   const variants = [];
   for (const variant of PREPROCESSING_VARIANTS) {
-    variants.push(await evaluateFamilyVariant(service, pdfPath, family, mode, variant));
+    variants.push(await evaluateFamilyVariant(service, groundTruth, thresholdConfig, family, mode, variant));
   }
 
   const selection = selectPreprocessingVariant(variants);
@@ -305,12 +364,21 @@ const printHumanReport = (report) => {
     console.log(
       `  false high-confidence marks: ${family.metrics.falseHighConfidenceMarks}`,
     );
+    console.log(
+      `  quality-gate rejected pages: ${family.metrics.qualityGateRejectedPages}/${family.perPage.length}`
+      + ` (${(family.metrics.qualityGateRejectedPageRate * 100).toFixed(1)}%)`,
+    );
+    console.log(
+      `  avg estimated correction rows/page: ${family.metrics.averageEstimatedManualCorrectionRowsPerPage.toFixed(2)}`,
+    );
 
     family.variants.forEach((variant) => {
       console.log(
         `  - ${variant.variantLabel}: exact ${(variant.metrics.exactRowMatchRate * 100).toFixed(1)}%,`
         + ` incorrect/page ${variant.metrics.averageIncorrectRowsPerPage.toFixed(2)},`
         + ` ambiguous/page ${variant.metrics.averageAmbiguousRowsPerPage.toFixed(2)},`
+        + ` estimated corrections/page ${variant.metrics.averageEstimatedManualCorrectionRowsPerPage.toFixed(2)},`
+        + ` gate rejects ${variant.metrics.qualityGateRejectedPages}/${variant.perPage.length},`
         + ` max delta ${variant.metrics.maxPageTotalDelta},`
         + ` false high-confidence ${variant.metrics.falseHighConfidenceMarks},`
         + ` ${variant.pass ? 'pass' : 'fail'}`,
@@ -319,10 +387,13 @@ const printHumanReport = (report) => {
 
     console.log('  selected pages:');
     family.perPage.forEach((page) => {
+      const sourcePrefix = page.sourcePdfKey ? `${page.sourcePdfKey} ` : '';
       console.log(
-        `    page ${page.page}: total ${page.computedTotal}/${page.expectedTotal}`
+        `    ${sourcePrefix}page ${page.page}: total ${page.computedTotal}/${page.expectedTotal}`
         + ` (delta ${page.totalDelta}), exact rows ${page.exactRowCount}/${page.rowCount},`
         + ` incorrect ${page.incorrectRowCount}, ambiguous ${page.ambiguousRowCount},`
+        + ` estimated corrections ${page.reviewBurdenMetrics?.estimatedManualCorrectionRows ?? 'n/a'},`
+        + ` gate ${page.qualityGate?.decision ?? 'n/a'},`
         + ` false high-confidence ${page.falseHighConfidenceMarkCount},`
         + ` ${page.passesModeThresholds ? 'pass' : 'fail'}`,
       );
@@ -332,16 +403,19 @@ const printHumanReport = (report) => {
 
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
+  const groundTruth = loadJson(args.groundTruthPath);
+  const thresholdConfig = loadJson(args.thresholdsPath);
   const service = new ScoreSheetImportService({});
-  const pdfPath = path.resolve(process.cwd(), groundTruth.sourcePdf);
 
   const templates = [];
   for (const family of groundTruth.intendedPhase1Families) {
-    templates.push(await evaluateFamily(service, pdfPath, family, args.mode));
+    templates.push(await evaluateFamily(service, groundTruth, thresholdConfig, family, args.mode));
   }
 
   const report = {
     mode: args.mode,
+    groundTruthPath: args.groundTruthPath,
+    thresholdsPath: args.thresholdsPath,
     pass: templates.every((template) => template.pass),
     templates,
   };

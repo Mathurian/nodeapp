@@ -202,11 +202,16 @@ const evaluatePage = (result, sample) => {
   const ambiguousRowCount = rows.filter((row) => row.ambiguous).length;
   const incorrectRowCount = rows.length - exactRowCount;
   const falseHighConfidenceMarkCount = rows.filter((row) => row.falseHighConfidenceMark).length;
+  const qualityGateDecision = result.payload.qualityGate?.decision || 'accepted_for_review';
+  const reviewBurdenMetrics = result.payload.reviewBurdenMetrics || null;
 
   return {
     preprocessingMode: result.payload.preprocessingMode,
     thresholdStrategy: result.payload.thresholdStrategy,
     qualitySignals: result.payload.qualitySignals,
+    gridAnchoring: result.payload.gridAnchoring,
+    qualityGate: result.payload.qualityGate,
+    reviewBurdenMetrics,
     expectedTotal: sample.handwrittenTotal,
     computedTotal: result.computedTotal,
     totalDelta: Math.abs((sample.handwrittenTotal || 0) - (result.computedTotal || 0)),
@@ -214,7 +219,9 @@ const evaluatePage = (result, sample) => {
     rowCount: rows.length,
     ambiguousRowCount,
     incorrectRowCount,
+    manualCorrectionRowCount: incorrectRowCount,
     falseHighConfidenceMarkCount,
+    qualityGateRejected: qualityGateDecision === 'manual_entry_required',
     exactRowMatchRate: rows.length > 0 ? exactRowCount / rows.length : 0,
     rows,
   };
@@ -228,6 +235,8 @@ const summarizeRuns = (runs) => {
     ambiguousRowCount: 0,
     incorrectRowCount: 0,
     falseHighConfidenceMarkCount: 0,
+    qualityGateRejectedPages: 0,
+    estimatedManualCorrectionRows: 0,
     maxTotalDelta: 0,
   };
 
@@ -237,6 +246,9 @@ const summarizeRuns = (runs) => {
     aggregate.ambiguousRowCount += run.metrics.ambiguousRowCount;
     aggregate.incorrectRowCount += run.metrics.incorrectRowCount;
     aggregate.falseHighConfidenceMarkCount += run.metrics.falseHighConfidenceMarkCount;
+    aggregate.qualityGateRejectedPages += run.metrics.qualityGateRejected ? 1 : 0;
+    aggregate.estimatedManualCorrectionRows +=
+      run.metrics.reviewBurdenMetrics?.estimatedManualCorrectionRows || 0;
     aggregate.maxTotalDelta = Math.max(aggregate.maxTotalDelta, run.metrics.totalDelta);
   }
 
@@ -248,6 +260,11 @@ const summarizeRuns = (runs) => {
     averageFalseHighConfidenceMarksPerPage:
       aggregate.pages > 0 ? aggregate.falseHighConfidenceMarkCount / aggregate.pages : 0,
     falseHighConfidenceMarks: aggregate.falseHighConfidenceMarkCount,
+    qualityGateRejectedPages: aggregate.qualityGateRejectedPages,
+    qualityGateRejectedPageRate:
+      aggregate.pages > 0 ? aggregate.qualityGateRejectedPages / aggregate.pages : 0,
+    averageEstimatedManualCorrectionRowsPerPage:
+      aggregate.pages > 0 ? aggregate.estimatedManualCorrectionRows / aggregate.pages : 0,
     maxTotalDelta: aggregate.maxTotalDelta,
   };
 };
@@ -265,6 +282,8 @@ const printHumanReport = (report) => {
         `  ${variant.label}: exact-row-match ${(variant.summary.exactRowMatchRate * 100).toFixed(1)}%`
         + `, avg incorrect rows/page: ${variant.summary.averageIncorrectRowsPerPage.toFixed(2)}`
         + `, avg ambiguous rows/page: ${variant.summary.averageAmbiguousRowsPerPage.toFixed(2)}`
+        + `, avg estimated corrections/page: ${variant.summary.averageEstimatedManualCorrectionRowsPerPage.toFixed(2)}`
+        + `, gate rejects: ${variant.summary.qualityGateRejectedPages}/${variant.summary.pages}`
         + `, false high-confidence: ${variant.summary.falseHighConfidenceMarks}`
         + `, max total delta: ${variant.summary.maxTotalDelta}`,
       );
@@ -273,6 +292,8 @@ const printHumanReport = (report) => {
         console.log(
           `    - page ${page.page}: exact rows ${page.metrics.exactRowCount}/${page.metrics.rowCount},`
           + ` incorrect ${page.metrics.incorrectRowCount}, ambiguous ${page.metrics.ambiguousRowCount},`
+          + ` estimated corrections ${page.metrics.reviewBurdenMetrics?.estimatedManualCorrectionRows ?? 'n/a'},`
+          + ` gate ${page.metrics.qualityGate?.decision ?? 'n/a'},`
           + ` false high-confidence ${page.metrics.falseHighConfidenceMarkCount},`
           + ` total ${page.metrics.computedTotal}/${page.metrics.expectedTotal}`
           + ` (delta ${page.metrics.totalDelta})`,

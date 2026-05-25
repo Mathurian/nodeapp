@@ -1,0 +1,2188 @@
+{
+  "generatedAt": "2026-05-22T18:56:27.296Z",
+  "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+  "notes": [
+    "This corpus is scanner/PDF evidence only.",
+    "It must not be used to claim real phone-photo support.",
+    "PDF page order differs by judge packet; samples are matched by visible judge and contestant labels."
+  ],
+  "sourcePdfs": {
+    "brewer": {
+      "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+      "judgeName": "Brewer",
+      "pageCount": 30,
+      "educationPages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "educationPageMap": {
+        "Retro": 1,
+        "Bandit": 2,
+        "Salem": 3,
+        "Hoss": 4,
+        "Delta": 5,
+        "CubScout": 6
+      }
+    },
+    "daddie_danger": {
+      "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+      "judgeName": "Daddie Danger",
+      "pageCount": 30,
+      "educationPages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "educationPageMap": {
+        "Retro": 1,
+        "CubScout": 2,
+        "Delta": 3,
+        "Bandit": 4,
+        "Hoss": 5,
+        "Salem": 6
+      }
+    },
+    "daddy_kevin": {
+      "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+      "judgeName": "Daddy Kevin",
+      "pageCount": 30,
+      "educationPages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "educationPageMap": {
+        "Retro": 1,
+        "Bandit": 2,
+        "Salem": 3,
+        "Hoss": 4,
+        "Delta": 5,
+        "CubScout": 6
+      }
+    },
+    "daddy_zach": {
+      "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+      "judgeName": "Daddy Zach",
+      "pageCount": 30,
+      "educationPages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "educationPageMap": {
+        "Retro": 1,
+        "CubScout": 2,
+        "Bandit": 3,
+        "Hoss": 4,
+        "Salem": 5,
+        "Delta": 6
+      }
+    },
+    "euphonious_onyx": {
+      "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+      "judgeName": "Euphonious Onyx",
+      "pageCount": 30,
+      "educationPages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "educationPageMap": {
+        "Retro": 1,
+        "Bandit": 2,
+        "CubScout": 3,
+        "Delta": 4,
+        "Hoss": 5,
+        "Salem": 6
+      }
+    }
+  },
+  "packet": {
+    "pageCount": 150,
+    "pageSize": "letter portrait",
+    "pageBlocks": [
+      {
+        "templateKey": "education_saturday_day_v1",
+        "displayName": "Education",
+        "observedPages": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "notes": "Observed in every judge packet, but contestant order varies by PDF."
+      },
+      {
+        "templateKey": "unsupported_formal_wear_and_speech",
+        "displayName": "Formal Wear & Speech",
+        "observedPages": [
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "templateKey": "unsupported_hot_wear_and_pop_question",
+        "displayName": "Hot Wear & Pop-Question",
+        "observedPages": [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ]
+      },
+      {
+        "templateKey": "unsupported_personal_interview",
+        "displayName": "Personal Interview",
+        "observedPages": [
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ]
+      },
+      {
+        "templateKey": "unsupported_public_image",
+        "displayName": "Public Image",
+        "observedPages": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30
+        ]
+      }
+    ]
+  },
+  "databaseContext": {
+    "tenantName": "Kink Weekend",
+    "eventId": "cmlsla53l0054ygrq0fx7aw79",
+    "eventName": "Test - Deployed from Yearly Event Template - Min Categories Event",
+    "contestId": "cmlsla54a005iygrqhur1hxi0",
+    "contestName": "Pet",
+    "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+    "categoryName": "Education",
+    "boardApproved": false,
+    "totalsCertified": false
+  },
+  "intendedPhase1Families": [
+    {
+      "templateKey": "education_saturday_day_v1",
+      "displayName": "Education",
+      "selectedForFirstSupport": true,
+      "scoreColumns": [
+        6,
+        5,
+        4,
+        3,
+        2,
+        1,
+        0
+      ],
+      "criterionOrder": [
+        "Knowledge",
+        "Technique",
+        "Safety",
+        "Attitude",
+        "Personality Projection",
+        "Volume",
+        "Audience Engagement",
+        "Appropriate Attire",
+        "Preparation",
+        "Time Management (60 minute class)"
+      ],
+      "samples": [
+        {
+          "sourcePdfKey": "brewer",
+          "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+          "page": 1,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Retro",
+          "databaseContestantName": "Retro",
+          "contestantId": "cmoyv78z61er7hoisbcqjl9a6",
+          "judgeName": "Brewer",
+          "judgeId": "cmoyv7a911ewyhoisi9pvivla",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 54,
+          "databaseTotal": 54,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 5,
+            "Personality Projection": 4,
+            "Volume": 5,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 6,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoyveey41fn0hois6m2sjjc5",
+              "Attitude": "cmoyveexq1fmvhoisdspsxblq",
+              "Audience Engagement": "cmoyveevo1flnhois79hclneq",
+              "Knowledge": "cmoyveex61fmihoistyoau0fc",
+              "Personality Projection": "cmoyveexk1fmthoisoqt1vwfe",
+              "Preparation": "cmoyveex41fmdhoisf2cnz995",
+              "Safety": "cmoyveewt1fm7hoiszuy3rvoi",
+              "Technique": "cmoyveevo1fllhois663vofbo",
+              "Time Management (60 minute class)": "cmoyveey51fn2hois39idgswf",
+              "Volume": "cmoyveews1fm5hoisxas9ttph"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "brewer",
+          "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+          "page": 2,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Bandit",
+          "databaseContestantName": "Bandit",
+          "contestantId": "cmoyv78c21eoqhoisy6kd4xru",
+          "judgeName": "Brewer",
+          "judgeId": "cmoyv7a911ewyhoisi9pvivla",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 54,
+          "databaseTotal": 54,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 4,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 6,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5jte306c28ko8ex2s0uth",
+              "Attitude": "cmoz5jtdw06bt8ko8dg2kxc7w",
+              "Audience Engagement": "cmoz5jte006by8ko8fgquhisw",
+              "Knowledge": "cmoz5jteb06ca8ko8rncval4o",
+              "Personality Projection": "cmoz5jte306c58ko8mpl18fkx",
+              "Preparation": "cmoz5jtex06ck8ko8pkxbpytu",
+              "Safety": "cmoz5jtek06ce8ko8it5ofkrt",
+              "Technique": "cmoz5jte906c88ko8gkbjfp2d",
+              "Time Management (60 minute class)": "cmoz5jtez06cm8ko8pmm5g9ds",
+              "Volume": "cmoz5jth806dn8ko8h84gpyb7"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "brewer",
+          "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+          "page": 3,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Salem Netherworld",
+          "databaseContestantName": "Salem",
+          "contestantId": "cmoyv78rj1eqehois3vuikinw",
+          "judgeName": "Brewer",
+          "judgeId": "cmoyv7a911ewyhoisi9pvivla",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 53,
+          "databaseTotal": 53,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 6,
+            "Safety": 5,
+            "Attitude": 5,
+            "Personality Projection": 6,
+            "Volume": 5,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 5,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5lvff06iq8ko884sffk6e",
+              "Attitude": "cmoz5lve606i58ko86oe83p3a",
+              "Audience Engagement": "cmoz5lvgq06ja8ko8u3ajzrtv",
+              "Knowledge": "cmoz5lvdq06i08ko8p66mcrcg",
+              "Personality Projection": "cmoz5lvdq06hx8ko8og9a1mmp",
+              "Preparation": "cmoz5lvev06ii8ko8hfz0yaz5",
+              "Safety": "cmoz5lvgz06jc8ko82audlq0c",
+              "Technique": "cmoz5lvf406il8ko8a2nr37aj",
+              "Time Management (60 minute class)": "cmoz5lvfg06is8ko8hc7p5v0o",
+              "Volume": "cmoz5lvel06ib8ko8t0i7wpma"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "brewer",
+          "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+          "page": 4,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Hoss",
+          "databaseContestantName": "Hoss",
+          "contestantId": "cmoyv78k21epjhoisdrpqsfkw",
+          "judgeName": "Brewer",
+          "judgeId": "cmoyv7a911ewyhoisi9pvivla",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 28,
+          "databaseTotal": 28,
+          "criterionScores": {
+            "Knowledge": 3,
+            "Technique": 3,
+            "Safety": 4,
+            "Attitude": 3,
+            "Personality Projection": 3,
+            "Volume": 2,
+            "Audience Engagement": 4,
+            "Appropriate Attire": 3,
+            "Preparation": 2,
+            "Time Management (60 minute class)": 1
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5o9lw06p08ko8jstbzonx",
+              "Attitude": "cmoz5o9lm06os8ko8tellfbb2",
+              "Audience Engagement": "cmoz5o9mc06pd8ko8mfwt3xx6",
+              "Knowledge": "cmoz5o9m506p98ko83tfdro4q",
+              "Personality Projection": "cmoz5o9mm06pl8ko8j6kxe26d",
+              "Preparation": "cmoz5o9mh06pg8ko8ns7rj7a4",
+              "Safety": "cmoz5o9n206pp8ko8mm8jpfdo",
+              "Technique": "cmoz5o9m006p58ko8xs48whxr",
+              "Time Management (60 minute class)": "cmoz5o9nc06pv8ko8tncsrv9k",
+              "Volume": "cmoz5o9n706pt8ko8snn1mhk9"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "brewer",
+          "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+          "page": 5,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Delta Diogenes",
+          "databaseContestantName": "Delta",
+          "contestantId": "cmoyv783i1enxhois58vtasi4",
+          "judgeName": "Brewer",
+          "judgeId": "cmoyv7a911ewyhoisi9pvivla",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 5,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5oyot06ui8ko8czp6bacy",
+              "Attitude": "cmoz5oyp006uo8ko8nogl1y3t",
+              "Audience Engagement": "cmoz5oyp806ut8ko81bimvbvw",
+              "Knowledge": "cmoz5oyou06uk8ko8xlmuz90t",
+              "Personality Projection": "cmoz5oypn06v98ko8dfjgp9ev",
+              "Preparation": "cmoz5oypp06vb8ko85a586r37",
+              "Safety": "cmoz5oypv06vf8ko83q057gk5",
+              "Technique": "cmoz5oypi06v38ko8ksjc78vw",
+              "Time Management (60 minute class)": "cmoz5oypm06v68ko84egl827h",
+              "Volume": "cmoz5oypc06uw8ko82oxjnl65"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "brewer",
+          "sourcePdf": "temp/scoresheet-corpus-intake/Brew_Scores.pdf",
+          "page": 6,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Cub Scout",
+          "databaseContestantName": "CubScout",
+          "contestantId": "cmoyv77t21en4hoisj9vsqwn5",
+          "judgeName": "Brewer",
+          "judgeId": "cmoyv7a911ewyhoisi9pvivla",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 55,
+          "databaseTotal": 55,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 5,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 5,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 4
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5q0y3070j8ko81r7znslt",
+              "Attitude": "cmoz5q0yz071a8ko81acvzxmx",
+              "Audience Engagement": "cmoz5q0yb070t8ko8ii4hoaqc",
+              "Knowledge": "cmoz5q0yc070x8ko85c3epy1f",
+              "Personality Projection": "cmoz5q0y3070l8ko8yl6tyb6d",
+              "Preparation": "cmoz5q0zc071f8ko893c5nyjj",
+              "Safety": "cmoz5q0z0071c8ko8myp9cnav",
+              "Technique": "cmoz5q0yi07108ko8x482k9eg",
+              "Time Management (60 minute class)": "cmoz5q0yo07148ko8vuc8c63k",
+              "Volume": "cmoz5q0zc071h8ko82x9sifvh"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddie_danger",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+          "page": 1,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Retro",
+          "databaseContestantName": "Retro",
+          "contestantId": "cmoyv78z61er7hoisbcqjl9a6",
+          "judgeName": "Daddie Danger",
+          "judgeId": "cmoyv7a0v1evphoisxhbpgov7",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 48,
+          "databaseTotal": 48,
+          "criterionScores": {
+            "Knowledge": 4,
+            "Technique": 4,
+            "Safety": 4,
+            "Attitude": 5,
+            "Personality Projection": 6,
+            "Volume": 4,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 6,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoyvko1a1hc5hoisj9jnhncc",
+              "Attitude": "cmoyvko021hbuhois27b0401w",
+              "Audience Engagement": "cmoyvko1o1hcchois0aeqjjlk",
+              "Knowledge": "cmoyvko1a1hc3hoiscug1767y",
+              "Personality Projection": "cmoyvko041hbyhois0lmtljwy",
+              "Preparation": "cmoyvko1i1hcahoisbj74hjlj",
+              "Safety": "cmoyvko1f1hc7hoisftwfcs6k",
+              "Technique": "cmoyvknzp1hbhhois8ai3yu1z",
+              "Time Management (60 minute class)": "cmoyvknxw1haxhoisgd2804ry",
+              "Volume": "cmoyvknzy1hbqhoisjmgk6lrc"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddie_danger",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+          "page": 2,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Cub Scout",
+          "databaseContestantName": "CubScout",
+          "contestantId": "cmoyv77t21en4hoisj9vsqwn5",
+          "judgeName": "Daddie Danger",
+          "judgeId": "cmoyv7a0v1evphoisxhbpgov7",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 58,
+          "databaseTotal": 58,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 5,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz38f9n01d38ko8ukr6ap5q",
+              "Attitude": "cmoz38f9n01d58ko8w8i59yak",
+              "Audience Engagement": "cmoz38fa801dk8ko8eosdw4es",
+              "Knowledge": "cmoz38f9s01da8ko8xjhk6c28",
+              "Personality Projection": "cmoz38f9x01de8ko8jcjyt4qe",
+              "Preparation": "cmoz38fas01du8ko8dcfzvmen",
+              "Safety": "cmoz38fas01dw8ko82dro3915",
+              "Technique": "cmoz38faj01dq8ko8i6gfx7ie",
+              "Time Management (60 minute class)": "cmoz38faw01dy8ko8z2fpazvk",
+              "Volume": "cmoz38faz01e08ko835rcddux"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddie_danger",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+          "page": 3,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Delta Diogenes",
+          "databaseContestantName": "Delta",
+          "contestantId": "cmoyv783i1enxhois58vtasi4",
+          "judgeName": "Daddie Danger",
+          "judgeId": "cmoyv7a0v1evphoisxhbpgov7",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 5,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz398bv01ja8ko8j576i0kh",
+              "Attitude": "cmoz398bg01iz8ko8t0utsbra",
+              "Audience Engagement": "cmoz398bh01j18ko8lxaypyra",
+              "Knowledge": "cmoz398bq01j68ko8k18quuvz",
+              "Personality Projection": "cmoz398ci01js8ko8pkef7r47",
+              "Preparation": "cmoz398c801jm8ko85lfmfndm",
+              "Safety": "cmoz398c301ji8ko829wvsghm",
+              "Technique": "cmoz398c001je8ko8qggigmgz",
+              "Time Management (60 minute class)": "cmoz398cd01jp8ko8xv1rp6s1",
+              "Volume": "cmoz398co01jw8ko85m609r1v"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddie_danger",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+          "page": 4,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Bandit",
+          "databaseContestantName": "Bandit",
+          "contestantId": "cmoyv78c21eoqhoisy6kd4xru",
+          "judgeName": "Daddie Danger",
+          "judgeId": "cmoyv7a0v1evphoisxhbpgov7",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 56,
+          "databaseTotal": 56,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 5,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz3e27q025a8ko82z88n0r4",
+              "Attitude": "cmoz3e27p02588ko8ppeme2i8",
+              "Audience Engagement": "cmoz3e28r025s8ko8zxd4075i",
+              "Knowledge": "cmoz3e292025x8ko80o12chds",
+              "Personality Projection": "cmoz3e28m025q8ko86jantktc",
+              "Preparation": "cmoz3e2bc02708ko8p7rkp1x6",
+              "Safety": "cmoz3e29702618ko85mm7azbe",
+              "Technique": "cmoz3e294025z8ko8i6sen35z",
+              "Time Management (60 minute class)": "cmoz3e284025i8ko8r7ncu0d9",
+              "Volume": "cmoz3e29q02688ko8uct284nk"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddie_danger",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+          "page": 5,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Hoss",
+          "databaseContestantName": "Hoss",
+          "contestantId": "cmoyv78k21epjhoisdrpqsfkw",
+          "judgeName": "Daddie Danger",
+          "judgeId": "cmoyv7a0v1evphoisxhbpgov7",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 37,
+          "databaseTotal": 37,
+          "criterionScores": {
+            "Knowledge": 4,
+            "Technique": 4,
+            "Safety": 3,
+            "Attitude": 4,
+            "Personality Projection": 3,
+            "Volume": 4,
+            "Audience Engagement": 3,
+            "Appropriate Attire": 5,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 2
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz3i1s102dl8ko8q8nijpl9",
+              "Attitude": "cmoz3i1tk02ed8ko8mc5k1pet",
+              "Audience Engagement": "cmoz3i1sa02du8ko85lgvqybi",
+              "Knowledge": "cmoz3i1t402e68ko8smf6wty7",
+              "Personality Projection": "cmoz3i1s102dj8ko8fnnuj15x",
+              "Preparation": "cmoz3i1sl02e38ko8msv1ncfy",
+              "Safety": "cmoz3i1sc02dx8ko862ra109g",
+              "Technique": "cmoz3i1ta02ea8ko8xo0o1nfi",
+              "Time Management (60 minute class)": "cmoz3i1tl02eh8ko8axkoueat",
+              "Volume": "cmoz3i1tl02ef8ko8enqfsqqp"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddie_danger",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DD_Scores.pdf",
+          "page": 6,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Salem Netherworld",
+          "databaseContestantName": "Salem",
+          "contestantId": "cmoyv78rj1eqehois3vuikinw",
+          "judgeName": "Daddie Danger",
+          "judgeId": "cmoyv7a0v1evphoisxhbpgov7",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 57,
+          "databaseTotal": 57,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 5,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz3jaut02js8ko81c3glfvz",
+              "Attitude": "cmoz3jaut02ju8ko8iwssvfyd",
+              "Audience Engagement": "cmoz3javf02kc8ko8wh71tx3h",
+              "Knowledge": "cmoz3javw02ko8ko8jlp8321q",
+              "Personality Projection": "cmoz3jav502k58ko8s00wpk0n",
+              "Preparation": "cmoz3jaux02jy8ko8leqqxqk3",
+              "Safety": "cmoz3javs02kj8ko8ois331ck",
+              "Technique": "cmoz3javr02kh8ko8v6nm1cho",
+              "Time Management (60 minute class)": "cmoz3javw02km8ko8k0ye7oto",
+              "Volume": "cmoz3jav102k28ko8pjtqg3u1"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_kevin",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+          "page": 1,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Retro",
+          "databaseContestantName": "Retro",
+          "contestantId": "cmoyv78z61er7hoisbcqjl9a6",
+          "judgeName": "Daddy Kevin",
+          "judgeId": "cmoyv796q1es2hoisuieh8cyl",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 57,
+          "databaseTotal": 57,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 4,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoyvrsi01j72hoisfu0bqmj1",
+              "Attitude": "cmoyvrsda1j53hoisi5n7ut6x",
+              "Audience Engagement": "cmoyvrsda1j55hoisnqjibgp9",
+              "Knowledge": "cmoyvrsgq1j6ahois3btx9u51",
+              "Personality Projection": "cmoyvrshr1j6xhoisfcf6xzl2",
+              "Preparation": "cmoyvrshe1j6qhoisejj50m8e",
+              "Safety": "cmoyvrsi81j76hoisqng7d11z",
+              "Technique": "cmoyvrsid1j78hoisevkern8v",
+              "Time Management (60 minute class)": "cmoyvrsg01j5yhois8k4e5txx",
+              "Volume": "cmoyvrshb1j6lhoislm8fojzu"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_kevin",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+          "page": 2,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Bandit",
+          "databaseContestantName": "Bandit",
+          "contestantId": "cmoyv78c21eoqhoisy6kd4xru",
+          "judgeName": "Daddy Kevin",
+          "judgeId": "cmoyv796q1es2hoisuieh8cyl",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 60,
+          "databaseTotal": 60,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5t33l07o78ko8tdjem51i",
+              "Attitude": "cmoz5t33j07o38ko8rwptcbfe",
+              "Audience Engagement": "cmoz5t31x07na8ko8rg3sf99g",
+              "Knowledge": "cmoz5t33a07ny8ko8tm01fn0s",
+              "Personality Projection": "cmoz5t32e07ni8ko84lg834ad",
+              "Preparation": "cmoz5t33o07oa8ko8rr419rp5",
+              "Safety": "cmoz5t34807oh8ko81lrt33xo",
+              "Technique": "cmoz5t33k07o58ko8psgnx9tg",
+              "Time Management (60 minute class)": "cmoz5t33807nw8ko85ij49obv",
+              "Volume": "cmoz5t32f07nk8ko8weyvmalf"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_kevin",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+          "page": 3,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Salem Netherworld",
+          "databaseContestantName": "Salem",
+          "contestantId": "cmoyv78rj1eqehois3vuikinw",
+          "judgeName": "Daddy Kevin",
+          "judgeId": "cmoyv796q1es2hoisuieh8cyl",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 60,
+          "databaseTotal": 60,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5ub2007t78ko8g34rqo2n",
+              "Attitude": "cmoz5ub2n07ts8ko8pcncf34s",
+              "Audience Engagement": "cmoz5ub2707te8ko8fa4rdreq",
+              "Knowledge": "cmoz5ub2607tc8ko8e1a9ek46",
+              "Personality Projection": "cmoz5ub2e07ti8ko84ob0vcjr",
+              "Preparation": "cmoz5ub2h07tm8ko8vmmudf2z",
+              "Safety": "cmoz5ub2r07tv8ko8i2og6mv4",
+              "Technique": "cmoz5ub2z07u28ko8d4gar9p1",
+              "Time Management (60 minute class)": "cmoz5ub2v07u08ko8w8dogq42",
+              "Volume": "cmoz5ub2s07tx8ko8ytsrd86i"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_kevin",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+          "page": 4,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Hoss",
+          "databaseContestantName": "Hoss",
+          "contestantId": "cmoyv78k21epjhoisdrpqsfkw",
+          "judgeName": "Daddy Kevin",
+          "judgeId": "cmoyv796q1es2hoisuieh8cyl",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 53,
+          "databaseTotal": 53,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 4,
+            "Safety": 6,
+            "Attitude": 5,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 3,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5vqgg07z58ko8pyr5z1hb",
+              "Attitude": "cmoz5vqgn07zd8ko8qmpwaqwk",
+              "Audience Engagement": "cmoz5vqh207zm8ko89n58031z",
+              "Knowledge": "cmoz5vqgw07zh8ko88g1gg5g8",
+              "Personality Projection": "cmoz5vqhd07zx8ko86lozqaxz",
+              "Preparation": "cmoz5vqgb07yx8ko828vegu9m",
+              "Safety": "cmoz5vqh407zq8ko8odz8pegv",
+              "Technique": "cmoz5vqh307zo8ko8hzjg2z9e",
+              "Time Management (60 minute class)": "cmoz5vqgb07yz8ko8myexol1z",
+              "Volume": "cmoz5vqgk07z98ko8src9xuzr"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_kevin",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+          "page": 5,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Delta Diogenes",
+          "databaseContestantName": "Delta",
+          "contestantId": "cmoyv783i1enxhois58vtasi4",
+          "judgeName": "Daddy Kevin",
+          "judgeId": "cmoyv796q1es2hoisuieh8cyl",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5xeqd08438ko8rn7yfxme",
+              "Attitude": "cmoz5xety08548ko8xr7x9t2k",
+              "Audience Engagement": "cmoz5xequ08498ko8l408kbdt",
+              "Knowledge": "cmoz5xeup085o8ko8lyuggjuk",
+              "Personality Projection": "cmoz5xev6085y8ko8bsa4iqph",
+              "Preparation": "cmoz5xeuv085v8ko8oj52lwee",
+              "Safety": "cmoz5xev708608ko8evlgurks",
+              "Technique": "cmoz5xeuf085h8ko8h2du0hro",
+              "Time Management (60 minute class)": "cmoz5xeup085q8ko8rh62vz0a",
+              "Volume": "cmoz5xeug085j8ko8wb9wnfta"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_kevin",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DK_Scores.pdf",
+          "page": 6,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Cub Scout",
+          "databaseContestantName": "CubScout",
+          "contestantId": "cmoyv77t21en4hoisj9vsqwn5",
+          "judgeName": "Daddy Kevin",
+          "judgeId": "cmoyv796q1es2hoisuieh8cyl",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 58,
+          "databaseTotal": 58,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5zy9z08ek8ko830y0e4lp",
+              "Attitude": "cmoz5zyb808ev8ko85q97isk9",
+              "Audience Engagement": "cmoz5zyak08es8ko8gknxclja",
+              "Knowledge": "cmoz5zybl08f08ko8re0m6sni",
+              "Personality Projection": "cmoz5zybt08f78ko86b8qheju",
+              "Preparation": "cmoz5zyby08fd8ko8ll2mazyk",
+              "Safety": "cmoz5zyc508fh8ko8jgdr87hm",
+              "Technique": "cmoz5zyby08fb8ko8trfsn2em",
+              "Time Management (60 minute class)": "cmoz5zycf08fn8ko8llgvfe6a",
+              "Volume": "cmoz5zycr08fs8ko8ho2tbqtj"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_zach",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+          "page": 1,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Retro",
+          "databaseContestantName": "Retro",
+          "contestantId": "cmoyv78z61er7hoisbcqjl9a6",
+          "judgeName": "Daddy Zach",
+          "judgeId": "cmoyv79fw1et9hoishcbi8jn8",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 53,
+          "databaseTotal": 53,
+          "criterionScores": {
+            "Knowledge": 4,
+            "Technique": 5,
+            "Safety": 5,
+            "Attitude": 5,
+            "Personality Projection": 5,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoyvoetr1iqehoisexxdwvkh",
+              "Attitude": "cmoyvoetv1iqihoise9a3tafx",
+              "Audience Engagement": "cmoyvoetl1iq9hoislrxjh9gy",
+              "Knowledge": "cmoyvoety1iqmhoisdevsf4jh",
+              "Personality Projection": "cmoyvoetl1iq7hoissft30bs1",
+              "Preparation": "cmoyvoeua1iqvhoisd926nn23",
+              "Safety": "cmoyvoeu31iqphois2laq05nj",
+              "Technique": "cmoyvoeum1ir4hoisi91knh0a",
+              "Time Management (60 minute class)": "cmoyvoeub1iqxhoisoyhpq06t",
+              "Volume": "cmoyvoeue1iqzhois28dhdbdb"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_zach",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+          "page": 2,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Cub Scout",
+          "databaseContestantName": "CubScout",
+          "contestantId": "cmoyv77t21en4hoisj9vsqwn5",
+          "judgeName": "Daddy Zach",
+          "judgeId": "cmoyv79fw1et9hoishcbi8jn8",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 60,
+          "databaseTotal": 60,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz465f703lb8ko85owgoeny",
+              "Attitude": "cmoz465fd03ld8ko83t3uykjq",
+              "Audience Engagement": "cmoz465e703l28ko8vpxd82pd",
+              "Knowledge": "cmoz465fh03lf8ko833636al8",
+              "Personality Projection": "cmoz465i803lz8ko8l7iyhg5o",
+              "Preparation": "cmoz465he03lt8ko82zt5zfvd",
+              "Safety": "cmoz465ma03n78ko83srt424i",
+              "Technique": "cmoz465ml03nd8ko8b8aah8i7",
+              "Time Management (60 minute class)": "cmoz465n303nm8ko8quxnz78z",
+              "Volume": "cmoz465np03ny8ko8uxzc0m83"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_zach",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+          "page": 3,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Bandit",
+          "databaseContestantName": "Bandit",
+          "contestantId": "cmoyv78c21eoqhoisy6kd4xru",
+          "judgeName": "Daddy Zach",
+          "judgeId": "cmoyv79fw1et9hoishcbi8jn8",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 56,
+          "databaseTotal": 56,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 4,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz4bo8503th8ko8owmlbtsy",
+              "Attitude": "cmoz4boav03ug8ko8t8dkcv8n",
+              "Audience Engagement": "cmoz4bod503v88ko8dc3d9npb",
+              "Knowledge": "cmoz4boa403u88ko88brq6drk",
+              "Personality Projection": "cmoz4bobn03ut8ko8ikx146in",
+              "Preparation": "cmoz4bo9q03u18ko83p6tie9g",
+              "Safety": "cmoz4bogx03w48ko8k1jzd24x",
+              "Technique": "cmoz4boho03wf8ko8s98rrspg",
+              "Time Management (60 minute class)": "cmoz4boht03wk8ko8ugvvh6rd",
+              "Volume": "cmoz4boib03wt8ko8ajuz4ozs"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_zach",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+          "page": 4,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Hoss",
+          "databaseContestantName": "Hoss",
+          "contestantId": "cmoyv78k21epjhoisdrpqsfkw",
+          "judgeName": "Daddy Zach",
+          "judgeId": "cmoyv79fw1et9hoishcbi8jn8",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 39,
+          "databaseTotal": 39,
+          "criterionScores": {
+            "Knowledge": 4,
+            "Technique": 3,
+            "Safety": 2,
+            "Attitude": 4,
+            "Personality Projection": 3,
+            "Volume": 4,
+            "Audience Engagement": 5,
+            "Appropriate Attire": 5,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 4
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz4efgx040q8ko8gu081zia",
+              "Attitude": "cmoz4efi704148ko8xt41ldz1",
+              "Audience Engagement": "cmoz4efji041p8ko8a1f00mbx",
+              "Knowledge": "cmoz4efji041r8ko8pjlsmqho",
+              "Personality Projection": "cmoz4efk1041z8ko8rvjc0eg3",
+              "Preparation": "cmoz4efli042e8ko8id6shjrq",
+              "Safety": "cmoz4efpd043k8ko88otjod9k",
+              "Technique": "cmoz4efpg043m8ko8l1tx984s",
+              "Time Management (60 minute class)": "cmoz4efps043s8ko8mk88sb0q",
+              "Volume": "cmoz4efps043u8ko82l3fgu8n"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_zach",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+          "page": 5,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Salem Netherworld",
+          "databaseContestantName": "Salem",
+          "contestantId": "cmoyv78rj1eqehois3vuikinw",
+          "judgeName": "Daddy Zach",
+          "judgeId": "cmoyv79fw1et9hoishcbi8jn8",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 56,
+          "databaseTotal": 56,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 5,
+            "Volume": 5,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz4h28e047o8ko8a7oqbqva",
+              "Attitude": "cmoz4h2c5048y8ko8skl42t6a",
+              "Audience Engagement": "cmoz4h2b1048h8ko8myax0s0k",
+              "Knowledge": "cmoz4h2c2048v8ko8grdqp4q0",
+              "Personality Projection": "cmoz4h2be048m8ko8so2ow75o",
+              "Preparation": "cmoz4h2c804918ko8wxgrn3ae",
+              "Safety": "cmoz4h2gy04aa8ko896kd8830",
+              "Technique": "cmoz4h2hp04am8ko81g1m2y7m",
+              "Time Management (60 minute class)": "cmoz4h2i104aw8ko8jhh96bjz",
+              "Volume": "cmoz4h2iw04b78ko8u8wre09j"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "daddy_zach",
+          "sourcePdf": "temp/scoresheet-corpus-intake/DZ_Scores.pdf",
+          "page": 6,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Delta Diogenes",
+          "databaseContestantName": "Delta",
+          "contestantId": "cmoyv783i1enxhois58vtasi4",
+          "judgeName": "Daddy Zach",
+          "judgeId": "cmoyv79fw1et9hoishcbi8jn8",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 60,
+          "databaseTotal": 60,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz4hoez04du8ko81mr9ptsj",
+              "Attitude": "cmoz4hogh04ee8ko8qwmj7rhz",
+              "Audience Engagement": "cmoz4hofa04e88ko8g5za0gnm",
+              "Knowledge": "cmoz4hof504e58ko8rzfny8ky",
+              "Personality Projection": "cmoz4hof404e08ko8n00wuy6b",
+              "Preparation": "cmoz4hof404e28ko8lb3wbpq4",
+              "Safety": "cmoz4hole04g38ko8rmig9emh",
+              "Technique": "cmoz4hole04g58ko8dznu1ri3",
+              "Time Management (60 minute class)": "cmoz4holf04g78ko8hf6g9un4",
+              "Volume": "cmoz4holh04ga8ko8ni2d5ep7"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "euphonious_onyx",
+          "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+          "page": 1,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Retro",
+          "databaseContestantName": "Retro",
+          "contestantId": "cmoyv78z61er7hoisbcqjl9a6",
+          "judgeName": "Euphonious Onyx",
+          "judgeId": "cmoyv79rv1euihoiss5c7lv2w",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoyvpm7l1ixzhoisyabovbxt",
+              "Attitude": "cmoyvpm7e1ixqhois6pq4527z",
+              "Audience Engagement": "cmoyvpm7d1ixohoisd3jjyjaq",
+              "Knowledge": "cmoyvpm7x1iy7hois4yv86fi6",
+              "Personality Projection": "cmoyvpm7i1ixvhoisw26hon15",
+              "Preparation": "cmoyvpm7o1iy4hois3wyq94xo",
+              "Safety": "cmoyvpm871iychoisqprceg3i",
+              "Technique": "cmoyvpm8g1iykhoismqwibv3j",
+              "Time Management (60 minute class)": "cmoyvpm8b1iyfhoismbvfam7p",
+              "Volume": "cmoyvpm8b1iyhhoistz8exxij"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "euphonious_onyx",
+          "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+          "page": 2,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Bandit",
+          "databaseContestantName": "Bandit",
+          "contestantId": "cmoyv78c21eoqhoisy6kd4xru",
+          "judgeName": "Euphonious Onyx",
+          "judgeId": "cmoyv79rv1euihoiss5c7lv2w",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 5
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5bcbh05f68ko8z82rgdwj",
+              "Attitude": "cmoz5bcbp05ff8ko8mpcvnfc7",
+              "Audience Engagement": "cmoz5bcbg05f48ko86rluel0m",
+              "Knowledge": "cmoz5bcbl05fb8ko8amaz6v4j",
+              "Personality Projection": "cmoz5bcbx05fn8ko8uxt0oe8v",
+              "Preparation": "cmoz5bccl05fz8ko8ukn9vutw",
+              "Safety": "cmoz5bccg05ft8ko8ocivqtvl",
+              "Technique": "cmoz5bcch05fv8ko8o9vq8otb",
+              "Time Management (60 minute class)": "cmoz5bccl05fx8ko8dhia7tx5",
+              "Volume": "cmoz5bcbs05fj8ko80qmqkon9"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "euphonious_onyx",
+          "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+          "page": 3,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Cub Scout",
+          "databaseContestantName": "CubScout",
+          "contestantId": "cmoyv77t21en4hoisj9vsqwn5",
+          "judgeName": "Euphonious Onyx",
+          "judgeId": "cmoyv79rv1euihoiss5c7lv2w",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 5,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5c0am05ks8ko83n7xgwr3",
+              "Attitude": "cmoz5c0al05kq8ko8xytmqvex",
+              "Audience Engagement": "cmoz5c0b705ld8ko8cfmdwjga",
+              "Knowledge": "cmoz5c0au05l28ko8oficgzeq",
+              "Personality Projection": "cmoz5c0b305l98ko8sbzu6ft7",
+              "Preparation": "cmoz5c0ax05l58ko8zg47lxte",
+              "Safety": "cmoz5c0bj05li8ko8rmnyyj1e",
+              "Technique": "cmoz5c0aq05kx8ko8xukl6gzy",
+              "Time Management (60 minute class)": "cmoz5c0bo05ll8ko8i755pmrf",
+              "Volume": "cmoz5c0br05ln8ko8jai918zz"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "euphonious_onyx",
+          "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+          "page": 4,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Delta Diogenes",
+          "databaseContestantName": "Delta",
+          "contestantId": "cmoyv783i1enxhois58vtasi4",
+          "judgeName": "Euphonious Onyx",
+          "judgeId": "cmoyv79rv1euihoiss5c7lv2w",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 60,
+          "databaseTotal": 60,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 6,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5co0405qp8ko8vpbzmery",
+              "Attitude": "cmoz5cnzt05qc8ko8yaan3vul",
+              "Audience Engagement": "cmoz5co0f05qy8ko8qpmzce5h",
+              "Knowledge": "cmoz5co0105ql8ko8p5wwdgzo",
+              "Personality Projection": "cmoz5co0905qt8ko8j2dyjlll",
+              "Preparation": "cmoz5cnzt05qa8ko851ahoth6",
+              "Safety": "cmoz5cnzy05qh8ko8uufof0lb",
+              "Technique": "cmoz5co0t05r68ko8vedzibvs",
+              "Time Management (60 minute class)": "cmoz5co0j05r38ko8l2759s7c",
+              "Volume": "cmoz5co0j05r08ko8zk8uvhrz"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "euphonious_onyx",
+          "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+          "page": 5,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Hoss",
+          "databaseContestantName": "Hoss",
+          "contestantId": "cmoyv78k21epjhoisdrpqsfkw",
+          "judgeName": "Euphonious Onyx",
+          "judgeId": "cmoyv79rv1euihoiss5c7lv2w",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 47,
+          "databaseTotal": 47,
+          "criterionScores": {
+            "Knowledge": 5,
+            "Technique": 4,
+            "Safety": 4,
+            "Attitude": 6,
+            "Personality Projection": 5,
+            "Volume": 5,
+            "Audience Engagement": 4,
+            "Appropriate Attire": 5,
+            "Preparation": 5,
+            "Time Management (60 minute class)": 4
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5dqwg05ww8ko8qr5bvrzm",
+              "Attitude": "cmoz5dqxp05xj8ko8nkvzxymz",
+              "Audience Engagement": "cmoz5dqvs05wj8ko8bsmygcgx",
+              "Knowledge": "cmoz5dqvj05we8ko8i9112hfu",
+              "Personality Projection": "cmoz5dqv605w78ko87itr6pni",
+              "Preparation": "cmoz5dqvw05wl8ko8owe4iq1t",
+              "Safety": "cmoz5dqwg05wt8ko86qbyh5av",
+              "Technique": "cmoz5dqwn05wy8ko8ige5qfse",
+              "Time Management (60 minute class)": "cmoz5dqy305xr8ko8vm3wjj6q",
+              "Volume": "cmoz5dqx305x88ko8b7glcygj"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        },
+        {
+          "sourcePdfKey": "euphonious_onyx",
+          "sourcePdf": "temp/scoresheet-corpus-intake/EO_Scores.pdf",
+          "page": 6,
+          "contestName": "Pet",
+          "categoryName": "Education",
+          "contestantName": "Pup Salem Netherworld",
+          "databaseContestantName": "Salem",
+          "contestantId": "cmoyv78rj1eqehois3vuikinw",
+          "judgeName": "Euphonious Onyx",
+          "judgeId": "cmoyv79rv1euihoiss5c7lv2w",
+          "captureType": "pdf_scan",
+          "pageClassification": "matched_education_scanner_page",
+          "groundTruthSource": "production_database_judge_entered_scores_pending_board_approval",
+          "boardApproved": false,
+          "totalsCertified": false,
+          "handwrittenTotal": 59,
+          "databaseTotal": 59,
+          "criterionScores": {
+            "Knowledge": 6,
+            "Technique": 6,
+            "Safety": 5,
+            "Attitude": 6,
+            "Personality Projection": 6,
+            "Volume": 6,
+            "Audience Engagement": 6,
+            "Appropriate Attire": 6,
+            "Preparation": 6,
+            "Time Management (60 minute class)": 6
+          },
+          "databaseTrace": {
+            "eventId": "cmlsla53l0054ygrq0fx7aw79",
+            "contestId": "cmlsla54a005iygrqhur1hxi0",
+            "categoryId": "cmn6qqg6y1mwc10vex0fj7ku1",
+            "criterionIds": {
+              "Appropriate Attire": "cmn6qqh4h1my610ve7bp90v7b",
+              "Attitude": "cmn6qqgmu1mxa10vemg8g72t5",
+              "Audience Engagement": "cmn6qqgyk1mxy10ve13cbl916",
+              "Knowledge": "cmn6qqgaq1mwk10vev021xdrk",
+              "Personality Projection": "cmn6qqgqt1mxi10ve021nm316",
+              "Preparation": "cmn6qqh9c1mye10verbtrsgpr",
+              "Safety": "cmn6qqgja1mx010vekjoj0oxm",
+              "Technique": "cmn6qqgf81mws10vehdxrdvjr",
+              "Time Management (60 minute class)": "cmn6qqhef1mym10velpbl3s9k",
+              "Volume": "cmn6qqguc1mxq10ve1p8hdyp2"
+            },
+            "scoreIds": {
+              "Appropriate Attire": "cmoz5en8906228ko8yoxcdsn8",
+              "Attitude": "cmoz5en8v062i8ko8sil6ar93",
+              "Audience Engagement": "cmoz5en8a06248ko88szc46ma",
+              "Knowledge": "cmoz5en8n062c8ko8mpbile1w",
+              "Personality Projection": "cmoz5en8o062e8ko8wxrj5fxe",
+              "Preparation": "cmoz5en9p06328ko8ahvod9fi",
+              "Safety": "cmoz5en94062q8ko8wi96hjee",
+              "Technique": "cmoz5en97062t8ko8fdiostbd",
+              "Time Management (60 minute class)": "cmoz5en9k062y8ko8risysiqi",
+              "Volume": "cmoz5en90062m8ko862ditkgp"
+            }
+          },
+          "qualityNotes": [
+            "scanner-produced PDF page from mixed full-contest judge packet",
+            "education page classification confirmed from rendered contact sheet",
+            "ground truth exported from judge-entered production scores before board approval"
+          ]
+        }
+      ]
+    }
+  ],
+  "missingRequiredSamples": [
+    {
+      "templateKey": "education_saturday_day_v1",
+      "need": "real_phone_photo",
+      "minimumExamples": 6,
+      "notes": "No real phone-photo samples are available; synthetic stress variants may only harden rejection gates."
+    },
+    {
+      "templateKey": "education_saturday_day_v1",
+      "need": "manual_page_review",
+      "minimumExamples": 30,
+      "notes": "All promoted scanner pages should receive human spot-check before this corpus is used as a release gate."
+    }
+  ]
+}

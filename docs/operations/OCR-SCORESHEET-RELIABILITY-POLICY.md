@@ -10,6 +10,7 @@ It applies to the current Phase 1 scoresheet-import scope:
 - `template-aware`
 - `review-required`
 - `Education` is the only currently calibrated template family
+- scanner/PDF-first; real phone-photo capture is not approved
 
 The machine-readable thresholds live at:
 
@@ -87,6 +88,23 @@ That includes:
 - any page total delta above threshold
 - any page ambiguous-row count above threshold
 - unsupported or misconfigured template families that cannot be evaluated
+
+## Capture-Quality Gate
+
+The runtime import path uses a backend quality gate in addition to the regression thresholds. The gate is intentionally conservative: it blocks uploads that would otherwise create misleading review drafts.
+
+The draft status is:
+
+- `processed` when the upload passes the gate and can be reviewed row by row
+- `rejected` when the upload is supported in principle but fails capture-quality gates
+- `failed` when processing cannot complete or the template is unsupported
+
+Rejected drafts keep diagnostic extraction metadata for troubleshooting, but they are not usable as score-review drafts. Operators may retry with a clearer scanner PDF up to `2` attempts for the same physical sheet. After that, the current attempting user should enter scores manually in the same scoring context.
+
+The gate records:
+
+- `qualityGate`: decision, blocking reasons, retryability, attempt limit, and manual-entry owner
+- `reviewBurdenMetrics`: row count, ambiguous rows, low-confidence rows, missing scores, estimated correction rows, and warning count
 
 ## Operational Meaning
 

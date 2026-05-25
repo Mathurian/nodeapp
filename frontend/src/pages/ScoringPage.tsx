@@ -134,6 +134,28 @@ interface ScoreSheetImportCriterionDraft {
   ambiguous: boolean
 }
 
+interface ScoreSheetImportQualityGate {
+  decision: 'accepted_for_review' | 'manual_entry_required'
+  reasons: string[]
+  blockingReasons: string[]
+  retryable: boolean
+  attemptLimit: number
+  recommendedAction: 'review_extracted_scores' | 'retry_upload_or_manual_entry'
+  manualEntryOwner: 'attempting_user'
+}
+
+interface ScoreSheetImportReviewBurdenMetrics {
+  rowCount: number
+  detectedScoreRowCount: number
+  ambiguousRowCount: number
+  lowConfidenceRowCount: number
+  missingScoreRowCount: number
+  mismatchWarningCount: number
+  rowsRequiringReviewCount: number
+  estimatedManualCorrectionRows: number
+  estimatedManualCorrectionRatio: number
+}
+
 interface ScoreSheetImportDraft {
   id: string
   scoreFileId: string
@@ -145,6 +167,8 @@ interface ScoreSheetImportDraft {
   extraction: {
     criteria: ScoreSheetImportCriterionDraft[]
     mismatchWarnings?: string[]
+    qualityGate?: ScoreSheetImportQualityGate
+    reviewBurdenMetrics?: ScoreSheetImportReviewBurdenMetrics
   } | null
 }
 
@@ -1864,12 +1888,18 @@ const ScoringPage: React.FC = () => {
       if (fileId) {
         setSelectedScoreSheetImportFileId(fileId)
         setProcessingScoreSheetImportFileId(fileId)
-        await scoreFilesAPI.processScoresheetImport(fileId, {
+        const processResponse = await scoreFilesAPI.processScoresheetImport(fileId, {
           headers: {
             [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(`scoresheet-import-process:${fileId}`),
           },
         })
+        const draft = processResponse.data?.data ?? processResponse.data
         await queryClient.invalidateQueries(['scoresheet-import-draft', fileId])
+
+        if (draft?.status === 'rejected') {
+          toast.error('Scoresheet did not pass import quality gates')
+          return
+        }
       }
 
       toast.success('Scoresheet uploaded for review')
@@ -1902,12 +1932,17 @@ const ScoringPage: React.FC = () => {
     try {
       setSelectedScoreSheetImportFileId(fileId)
       setProcessingScoreSheetImportFileId(fileId)
-      await scoreFilesAPI.processScoresheetImport(fileId, {
+      const response = await scoreFilesAPI.processScoresheetImport(fileId, {
         headers: {
           [IDEMPOTENCY_HEADER]: createMutationIdempotencyKey(`scoresheet-import-process:${fileId}`),
         },
       })
+      const draft = response.data?.data ?? response.data
       await queryClient.invalidateQueries(['scoresheet-import-draft', fileId])
+      if (draft?.status === 'rejected') {
+        toast.error('Scoresheet did not pass import quality gates')
+        return
+      }
       toast.success('Scoresheet import processed')
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to process scoresheet import')
@@ -1944,6 +1979,11 @@ const ScoringPage: React.FC = () => {
   }
 
   const handleApplyScoresheetImportToForm = () => {
+    if (scoreSheetImportDraft?.status === 'rejected') {
+      toast.error('This scoresheet did not pass import quality gates')
+      return
+    }
+
     if (!scoreSheetImportDraft?.extraction?.criteria?.length) {
       toast.error('No processed scoresheet draft available')
       return
@@ -2736,6 +2776,37 @@ const ScoringPage: React.FC = () => {
                                   <p className="text-sm font-medium text-red-700">Import processing failed</p>
                                   <p className="text-sm text-red-600">{scoreSheetImportDraft.processingError || 'Unknown processing error'}</p>
                                 </div>
+                              ) : scoreSheetImportDraft?.status === 'rejected' ? (
+                                <div className="space-y-3">
+                                  <div>
+                                    <p className="text-sm font-medium text-red-700">Import quality gates rejected this upload</p>
+                                    <p className="text-sm text-red-600">
+                                      {scoreSheetImportDraft.processingError || 'Retry with a clearer scan or enter scores manually.'}
+                                    </p>
+                                  </div>
+                                  {scoreSheetImportDraft.extraction?.qualityGate?.blockingReasons?.length ? (
+                                    <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                                      {scoreSheetImportDraft.extraction.qualityGate.blockingReasons.join(' ')}
+                                    </div>
+                                  ) : null}
+                                  {scoreSheetImportDraft.extraction?.reviewBurdenMetrics ? (
+                                    <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                                      Estimated rows needing correction:{' '}
+                                      <span className="font-semibold">
+                                        {scoreSheetImportDraft.extraction.reviewBurdenMetrics.estimatedManualCorrectionRows}
+                                      </span>
+                                      {' / '}
+                                      {scoreSheetImportDraft.extraction.reviewBurdenMetrics.rowCount}
+                                      {' · Ambiguous rows: '}
+                                      <span className="font-semibold">
+                                        {scoreSheetImportDraft.extraction.reviewBurdenMetrics.ambiguousRowCount}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                  <p className="text-xs text-slate-600">
+                                    Retry with a clearer scanner PDF up to {scoreSheetImportDraft.extraction?.qualityGate?.attemptLimit ?? 2} attempts, then enter scores manually with your current scoring access.
+                                  </p>
+                                </div>
                               ) : scoreSheetImportDraft?.extraction?.criteria?.length ? (
                                 <div className="space-y-3">
                                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2752,6 +2823,20 @@ const ScoringPage: React.FC = () => {
                                   {scoreSheetImportDraft.extraction.mismatchWarnings && scoreSheetImportDraft.extraction.mismatchWarnings.length > 0 && (
                                     <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                                       {scoreSheetImportDraft.extraction.mismatchWarnings.join(' ')}
+                                    </div>
+                                  )}
+                                  {scoreSheetImportDraft.extraction.reviewBurdenMetrics && (
+                                    <div className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                                      Estimated rows needing correction:{' '}
+                                      <span className="font-semibold">
+                                        {scoreSheetImportDraft.extraction.reviewBurdenMetrics.estimatedManualCorrectionRows}
+                                      </span>
+                                      {' / '}
+                                      {scoreSheetImportDraft.extraction.reviewBurdenMetrics.rowCount}
+                                      {' · Ambiguous rows: '}
+                                      <span className="font-semibold">
+                                        {scoreSheetImportDraft.extraction.reviewBurdenMetrics.ambiguousRowCount}
+                                      </span>
                                     </div>
                                   )}
                                   <div className="space-y-2">
