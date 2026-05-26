@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { ScoreFileService } from '../services/ScoreFileService';
 import { ScoreDelegationService } from '../services/ScoreDelegationService';
-import { ScoreSheetImportService } from '../services/ScoreSheetImportService';
+import { ScoreSheetImportService, type ScoreSheetImportUatInput } from '../services/ScoreSheetImportService';
 import { sendSuccess, sendError, sendNoContent , sendUnauthorized} from '../utils/responseHelpers';
 import { createRequestLogger } from '../utils/logger';
 import { promises as fs } from 'fs';
@@ -375,6 +375,89 @@ export class ScoreFileController {
     }
   };
 
+  evaluateScoresheetImportUat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const log = createRequestLogger(req, 'scoreFile');
+    try {
+      if (!req.user) {
+        sendUnauthorized(res);
+        return;
+      }
+      if (!req.file?.buffer) {
+        sendError(res, 'File is required for scoresheet import UAT', 400);
+        return;
+      }
+
+      const {
+        eventId,
+        contestId,
+        categoryId,
+        contestantId,
+        templateKey,
+        representedJudgeId,
+        judgeId,
+        preprocessingMode,
+        thresholdStrategy,
+      } = req.body;
+
+      if (!eventId || !contestId || !categoryId || !contestantId) {
+        sendError(res, 'eventId, contestId, categoryId, and contestantId are required', 400);
+        return;
+      }
+
+      const actingJudge = await this.scoreDelegationService.resolveActingJudgeContext(
+        req.user,
+        req.user.tenantId,
+        categoryId,
+        representedJudgeId || judgeId,
+      );
+      const normalizedPreprocessingMode: ScoreSheetImportUatInput['preprocessingMode'] = preprocessingMode === 'scan_bw'
+        ? 'scan_bw'
+        : preprocessingMode === 'standard'
+          ? 'standard'
+          : undefined;
+      const normalizedThresholdStrategy: ScoreSheetImportUatInput['thresholdStrategy'] = [
+        'none',
+        'otsu',
+        'fixed_150',
+        'fixed_170',
+        'fixed_190',
+      ].includes(thresholdStrategy)
+        ? thresholdStrategy
+        : undefined;
+      const normalizedTemplateKey: ScoreSheetImportUatInput['templateKey'] =
+        typeof templateKey === 'string'
+          ? templateKey as ScoreSheetImportUatInput['templateKey']
+          : undefined;
+
+      const result = await this.scoreSheetImportService.evaluateScoresheetImportUat({
+        tenantId: req.user.tenantId,
+        eventId,
+        contestId,
+        categoryId,
+        judgeId: actingJudge.judgeId,
+        contestantId,
+        templateKey: normalizedTemplateKey,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileBuffer: req.file.buffer,
+        preprocessingMode: normalizedPreprocessingMode,
+        thresholdStrategy: normalizedThresholdStrategy,
+      });
+
+      log.info('Scoresheet import UAT evaluated', {
+        categoryId,
+        judgeId: actingJudge.judgeId,
+        contestantId,
+        templateKey: result.templateKey,
+        qualityDecision: result.routingRecommendation.decision,
+      });
+      sendSuccess(res, result, 'Scoresheet import UAT evaluated');
+    } catch (error) {
+      log.error('Scoresheet import UAT error', { error: (error as Error).message });
+      return next(error);
+    }
+  };
+
   processScoresheetImport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const log = createRequestLogger(req, 'scoreFile');
     try {
@@ -436,5 +519,6 @@ export const getAllScoreFiles = controller.getAllScoreFiles;
 export const updateScoreFile = controller.updateScoreFile;
 export const deleteScoreFile = controller.deleteScoreFile;
 export const downloadScoreFile = controller.downloadScoreFile;
+export const evaluateScoresheetImportUat = controller.evaluateScoresheetImportUat;
 export const processScoresheetImport = controller.processScoresheetImport;
 export const getScoresheetImportDraft = controller.getScoresheetImportDraft;

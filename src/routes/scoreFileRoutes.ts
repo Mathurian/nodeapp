@@ -13,6 +13,7 @@ import {
   updateScoreFile,
   deleteScoreFile,
   downloadScoreFile,
+  evaluateScoresheetImportUat,
   processScoresheetImport,
   getScoresheetImportDraft,
 } from '../controllers/scoreFileController';
@@ -48,6 +49,7 @@ const ALLOWED_SCORE_FILE_MIME_TYPES = [
 ];
 
 const SCORE_FILE_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const SCORE_SHEET_UAT_MAX_SIZE = 15 * 1024 * 1024; // 15 MB
 
 const scoreFileStorage = multer.diskStorage({
   destination: (req, _file, cb) => {
@@ -79,6 +81,11 @@ const scoreFileUpload = multer({
   }
 });
 
+const scoresheetImportUatUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: SCORE_SHEET_UAT_MAX_SIZE },
+});
+
 // Apply authentication to all routes
 router.use(authenticateToken);
 
@@ -99,6 +106,14 @@ router.post(
   idempotencyMiddleware,
   logActivity('UPLOAD_SCORE_FILE', 'SCORE'),
   uploadScoreFile
+);
+
+router.post(
+  '/scoresheet-import-uat',
+  requireRole(['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']),
+  requireScoreFilesProcess,
+  scoresheetImportUatUpload.single('file'),
+  evaluateScoresheetImportUat,
 );
 
 /**

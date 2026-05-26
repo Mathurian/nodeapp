@@ -27,6 +27,7 @@ export const PAGE_ACCESS_POLICIES: PageAccessPolicy[] = [
   { id: 'category-types', path: '/category-types', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD'], resource: 'categories', allowCrudReadOverride: true },
 
   { id: 'scoring', path: '/scoring', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'BOARD', 'JUDGE', 'DELEGATE'], resource: 'scores', requireResourcePermission: true },
+  { id: 'scoresheet-import-uat', path: '/scoresheet-import-uat', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'JUDGE', 'DELEGATE', 'TALLY_MASTER', 'AUDITOR'], resource: 'scores', requireResourcePermission: true },
   { id: 'tally-master', path: '/tally-master', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'], resource: 'scores', requireResourcePermission: true },
   { id: 'auditor', path: '/auditor', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'AUDITOR'], resource: 'scores', requireResourcePermission: true },
   { id: 'certifications', path: '/certifications', baseRoles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], resource: 'certifications', requireResourcePermission: true },

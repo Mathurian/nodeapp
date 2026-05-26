@@ -1,5 +1,6 @@
 import { useQuery } from 'react-query'
 import api from '../services/api'
+import { isKnownRoute } from '../utils/routeSegments'
 
 export interface AuthPermissionPayload {
   role: string
@@ -11,7 +12,8 @@ export interface AuthPermissionPayload {
 const isPublicPath = (pathname: string): boolean => {
   if (pathname === '/') return true
   if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true
-  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
+  const singleSegment = pathname.split('/').filter(Boolean)[0] || ''
+  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || (/^\/[^/]+$/.test(pathname) && !isKnownRoute(singleSegment))
 }
 
 export const useAuthPermissions = (options?: { enabled?: boolean }) => {

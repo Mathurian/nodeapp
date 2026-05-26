@@ -86,6 +86,7 @@ const NAV_SECTIONS_UNSORTED: AppNavSection[] = [
     roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'TALLY_MASTER', 'AUDITOR', 'ORGANIZER', 'BOARD'],
     items: [
       { id: 'scoring', name: 'Scoring', href: '/scoring', icon: TrophyIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'BOARD'], description: 'Enter scores and certify contestants', keywords: ['score', 'judge', 'judge scoring', 'points', 'certify'], priority: 80 },
+      { id: 'scoresheet-import-uat', name: 'Import UAT', href: '/scoresheet-import-uat', icon: BeakerIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR'], description: 'Evaluate parse-only scoresheet uploads', keywords: ['scoresheet', 'uat', 'upload', 'omr'], priority: 78 },
       { id: 'judge-schedules', name: 'Judge Schedules', href: '/judge-schedules', icon: CalendarIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'JUDGE'], description: 'Upload or view judge schedules', keywords: ['schedule', 'calendar', 'judge'], priority: 79 },
       { id: 'tally-master', name: 'Tally Dashboard', href: '/tally-master', icon: CalculatorIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'TALLY_MASTER'] },
       { id: 'board-certifications', name: 'Board Certifications', href: '/board/certifications', icon: ShieldCheckIcon, roles: ['SUPER_ADMIN', 'ADMIN', 'BOARD'] },

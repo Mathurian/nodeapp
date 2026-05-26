@@ -1,6 +1,7 @@
 import { ScoreSheetImportService } from '../../../src/services/ScoreSheetImportService';
 import { scoreSheetImportTemplateMap } from '../../../src/config/scoreSheetImportTemplates';
 import groundTruth from '../../examples/scoresheet-import/route66-phase1-ground-truth.json';
+import sharp from 'sharp';
 
 const WIDTH = 1000;
 const HEIGHT = 1400;
@@ -206,6 +207,92 @@ const buildEducationCriteria = () => [
   { id: 'criterion-preparation', name: 'Preparation', maxScore: 6 },
   { id: 'criterion-time-management', name: 'Time Management', maxScore: 6 },
 ];
+
+const buildEncodedV3Scoresheet = async (scores: readonly number[]): Promise<Buffer> => {
+  const image = createBlankImage();
+  const criteria = buildEducationCriteria();
+  paintV3MachineReadableMetadata(image);
+  paintGrid(image, criteria.length, V3_SCORE_GRID_LEFT, V3_SCORE_GRID_RIGHT, V3_SCORE_GRID_TOP, V3_SCORE_GRID_BOTTOM);
+  scores.forEach((score, rowIndex) => {
+    const columnIndex = SCORE_COLUMNS.indexOf(score as typeof SCORE_COLUMNS[number]);
+    if (columnIndex >= 0) {
+      paintV3Cell(image, rowIndex, criteria.length, columnIndex);
+    }
+  });
+
+  return sharp(image, {
+    raw: {
+      width: WIDTH,
+      height: HEIGHT,
+      channels: CHANNELS,
+    },
+  }).png().toBuffer();
+};
+
+const buildUatPrismaMock = (
+  criteria = buildEducationCriteria(),
+  scores: readonly number[] = [6, 5, 4, 3, 2, 1, 0, 6, 5, 4],
+) => ({
+  category: {
+    findFirst: jest.fn().mockResolvedValue({
+      id: 'category-1',
+      name: 'Education',
+      contestId: 'contest-1',
+      totalsCertified: true,
+      boardApproved: true,
+      contest: {
+        id: 'contest-1',
+        name: 'Pet',
+        eventId: 'event-1',
+        isLocked: false,
+        event: {
+          id: 'event-1',
+          name: 'Route 66',
+          isLocked: false,
+        },
+      },
+      criteria,
+    }),
+  },
+  judge: {
+    findFirst: jest.fn().mockResolvedValue({ id: 'judge-1', name: 'Daddie Danger' }),
+  },
+  contestant: {
+    findFirst: jest.fn().mockResolvedValue({ id: 'contestant-1', name: 'Retro' }),
+  },
+  categoryJudge: {
+    findFirst: jest.fn().mockResolvedValue({ judgeId: 'judge-1' }),
+  },
+  categoryContestant: {
+    findFirst: jest.fn().mockResolvedValue({ contestantId: 'contestant-1' }),
+  },
+  score: {
+    findMany: jest.fn().mockResolvedValue(
+      criteria.map((criterion, rowIndex) => ({
+        criterionId: criterion.id,
+        score: scores[rowIndex] ?? null,
+      })),
+    ),
+    create: jest.fn(),
+    update: jest.fn(),
+    upsert: jest.fn(),
+  },
+  scoreFile: {
+    create: jest.fn(),
+    update: jest.fn(),
+    upsert: jest.fn(),
+  },
+  scoreSheetImportDraft: {
+    create: jest.fn(),
+    update: jest.fn(),
+    upsert: jest.fn(),
+  },
+  certification: {
+    create: jest.fn(),
+    update: jest.fn(),
+    upsert: jest.fn(),
+  },
+});
 
 const buildCriteria = () => Array.from({ length: 10 }, (_value, index) => ({
   id: `criterion-${index + 1}`,
@@ -617,6 +704,103 @@ describe('ScoreSheetImportService', () => {
       reason: 'multi_mark',
       markedColumnIndexes: [0, 1],
     }));
+  });
+
+  it('evaluates a v3 phone upload in parse-only UAT mode without mutating score records', async () => {
+    const expectedScores = [6, 5, 4, 3, 2, 1, 0, 6, 5, 4] as const;
+    const criteria = buildEducationCriteria();
+    const mockPrisma = buildUatPrismaMock(criteria, expectedScores);
+    const service = new ScoreSheetImportService(mockPrisma as any);
+    const fileBuffer = await buildEncodedV3Scoresheet(expectedScores);
+
+    const result = await service.evaluateScoresheetImportUat({
+      tenantId: 'tenant-1',
+      eventId: 'event-1',
+      contestId: 'contest-1',
+      categoryId: 'category-1',
+      judgeId: 'judge-1',
+      contestantId: 'contestant-1',
+      templateKey: 'education_omr_v3',
+      fileName: 'uat-v3.png',
+      fileType: 'image/png',
+      fileBuffer,
+    });
+
+    expect(result.templateKey).toBe('education_omr_v3');
+    expect(result.context.evaluationOnly).toBe(true);
+    expect(result.context.certifiedOrLocked).toBe(true);
+    expect(result.comparison.groundTruthAvailable).toBe(true);
+    expect(result.comparison.exactRowCount).toBe(criteria.length);
+    expect(result.comparison.exactRowMatchRate).toBe(1);
+    expect(result.comparison.expectedTotal).toBe(36);
+    expect(result.comparison.computedTotal).toBe(36);
+    expect(result.comparison.totalDelta).toBe(0);
+    expect(result.comparison.rejectedRowCount).toBe(0);
+    expect(result.comparison.falseHighConfidenceMarkCount).toBe(0);
+    expect(result.extraction.anchorQuality?.fiducials?.detected).toBe(true);
+    expect(result.routingRecommendation.attemptLedgerApplied).toBe(false);
+    expect(result.rows.every((row) => row.exactMatch === true)).toBe(true);
+    expect(mockPrisma.score.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        tenantId: 'tenant-1',
+        categoryId: 'category-1',
+        judgeId: 'judge-1',
+        contestantId: 'contestant-1',
+      }),
+    }));
+    expect(mockPrisma.score.create).not.toHaveBeenCalled();
+    expect(mockPrisma.score.update).not.toHaveBeenCalled();
+    expect(mockPrisma.score.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreFile.create).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreFile.update).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreFile.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreSheetImportDraft.create).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreSheetImportDraft.update).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreSheetImportDraft.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported templates before reading scoresheet UAT context', async () => {
+    const mockPrisma = buildUatPrismaMock();
+    const service = new ScoreSheetImportService(mockPrisma as any);
+
+    await expect(service.evaluateScoresheetImportUat({
+      tenantId: 'tenant-1',
+      eventId: 'event-1',
+      contestId: 'contest-1',
+      categoryId: 'category-1',
+      judgeId: 'judge-1',
+      contestantId: 'contestant-1',
+      templateKey: 'education_saturday_day_v1',
+      fileName: 'uat-v1.png',
+      fileType: 'image/png',
+      fileBuffer: Buffer.from('not decoded because template is rejected first'),
+    })).rejects.toThrow('only education_omr_v3');
+
+    expect(mockPrisma.category.findFirst).not.toHaveBeenCalled();
+    expect(mockPrisma.score.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.scoreSheetImportDraft.upsert).not.toHaveBeenCalled();
+  });
+
+  it('returns a clear parse-only UAT conversion error for invalid HEIC uploads', async () => {
+    const mockPrisma = buildUatPrismaMock();
+    const service = new ScoreSheetImportService(mockPrisma as any);
+
+    await expect(service.evaluateScoresheetImportUat({
+      tenantId: 'tenant-1',
+      eventId: 'event-1',
+      contestId: 'contest-1',
+      categoryId: 'category-1',
+      judgeId: 'judge-1',
+      contestantId: 'contestant-1',
+      templateKey: 'education_omr_v3',
+      fileName: 'bad-upload.heic',
+      fileType: 'image/heic',
+      fileBuffer: Buffer.from('not a heic image'),
+    })).rejects.toThrow('Unable to convert HEIC/HEIF scoresheet image for UAT');
+
+    expect(mockPrisma.scoreSheetImportDraft.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.score.create).not.toHaveBeenCalled();
+    expect(mockPrisma.score.update).not.toHaveBeenCalled();
   });
 
   it('resolves the Education template from category criteria', () => {

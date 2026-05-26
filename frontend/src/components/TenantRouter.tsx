@@ -20,6 +20,7 @@ const EventsPage = lazyWithRetry(() => import('../pages/EventsPage'), 'EventsPag
 const ContestsPage = lazyWithRetry(() => import('../pages/ContestsPage'), 'ContestsPage')
 const CategoriesPage = lazyWithRetry(() => import('../pages/CategoriesPage'), 'CategoriesPage')
 const ScoringPage = lazyWithRetry(() => import('../pages/ScoringPage'), 'ScoringPage')
+const ScoreSheetImportUatPage = lazyWithRetry(() => import('../pages/ScoreSheetImportUatPage'), 'ScoreSheetImportUatPage')
 // Keep critical UAT routes eagerly loaded to avoid lazy chunk fetch flakiness.
 const WinnersPage = lazyWithRetry(() => import('../pages/WinnersPage'), 'WinnersPage')
 const UsersPage = lazyWithRetry(() => import('../pages/UsersPage'), 'UsersPage')
@@ -171,6 +172,7 @@ const ADMIN_STRICT_ROLES = ['SUPER_ADMIN', 'ADMIN']
 const MONITORING_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ORGANIZER']
 const SUPER_ADMIN_ONLY = ['SUPER_ADMIN']
 const SCORING_ROLES = ['JUDGE', 'DELEGATE', 'BOARD', 'ADMIN', 'SUPER_ADMIN']
+const SCORING_UAT_ROLES = ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'DELEGATE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']
 const EMCEE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'EMCEE', 'ORGANIZER', 'BOARD']
 const DEDUCTION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'JUDGE', 'ORGANIZER', 'BOARD', 'TALLY_MASTER', 'AUDITOR']
 
@@ -217,6 +219,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/events/:eventId/contests" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ContestsPage /></ProtectedRoute>} />
             <Route path="/contests/:contestId/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
             <Route path="/scoring" element={<ProtectedRoute requiredRole={SCORING_ROLES}><ScoringPage /></ProtectedRoute>} />
+            <Route path="/scoresheet-import-uat" element={<ProtectedRoute requiredRole={SCORING_UAT_ROLES}><ScoreSheetImportUatPage /></ProtectedRoute>} />
             <Route path="/results" element={<ResultsPage />} />
             <Route path="/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']}><WinnersPage /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />
@@ -288,6 +291,7 @@ const AppRoutes: React.FC<{ onOpenCommandPalette: () => void }> = ({ onOpenComma
             <Route path="/:slug/events/:eventId/contests" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><ContestsPage /></ProtectedRoute>} />
             <Route path="/:slug/contests/:contestId/categories" element={<ProtectedRoute requiredRole={ADMIN_STANDARD_ROLES}><CategoriesPage /></ProtectedRoute>} />
             <Route path="/:slug/scoring" element={<ProtectedRoute requiredRole={SCORING_ROLES}><ScoringPage /></ProtectedRoute>} />
+            <Route path="/:slug/scoresheet-import-uat" element={<ProtectedRoute requiredRole={SCORING_UAT_ROLES}><ScoreSheetImportUatPage /></ProtectedRoute>} />
             <Route path="/:slug/results" element={<ResultsPage />} />
             <Route path="/:slug/winners" element={<ProtectedRoute requiredRole={['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD', 'EMCEE', 'TALLY_MASTER', 'AUDITOR']}><WinnersPage /></ProtectedRoute>} />
             <Route path="/:slug/users" element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN', 'ORGANIZER', 'BOARD']}><UsersPage /></ProtectedRoute>} />

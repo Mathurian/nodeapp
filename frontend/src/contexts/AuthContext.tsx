@@ -9,6 +9,7 @@ import {
 } from '../services/offlineWorkflowStore'
 import { setActiveOfflineOwner } from '../services/offlineSessionScope'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
+import { isKnownRoute } from '../utils/routeSegments'
 import ConfirmModal from '../components/ui/ConfirmModal'
 
 interface TenantInfo {
@@ -88,7 +89,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isPublicPath = (pathname: string): boolean => {
     if (pathname === '/') return true
     if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true
-    return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
+    const singleSegment = pathname.split('/').filter(Boolean)[0] || ''
+    return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || (/^\/[^/]+$/.test(pathname) && !isKnownRoute(singleSegment))
   }
 
   const isHelpPath = (pathname: string): boolean => {

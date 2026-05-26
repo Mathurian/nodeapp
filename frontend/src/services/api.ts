@@ -2,7 +2,7 @@ import axios from 'axios'
 import { classifyNetworkError } from './networkErrorClassifier'
 import { createMutationIdempotencyKey, IDEMPOTENCY_HEADER } from './idempotency'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
-import { extractTenantSlugFromPath } from '../utils/routeSegments'
+import { extractTenantSlugFromPath, isKnownRoute } from '../utils/routeSegments'
 import type { PublicLandingContent } from '../types/publicLandingContent'
 
 /**
@@ -38,7 +38,8 @@ export const publicApi = axios.create({
 const isPublicPath = (pathname: string): boolean => {
   if (pathname === '/') return true
   if (pathname === '/login' || pathname === '/help' || pathname === '/register' || pathname === '/forgot-password') return true
-  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || /^\/[^/]+$/.test(pathname)
+  const singleSegment = pathname.split('/').filter(Boolean)[0] || ''
+  return /^\/[^/]+\/(login|help|register|forgot-password)$/.test(pathname) || (/^\/[^/]+$/.test(pathname) && !isKnownRoute(singleSegment))
 }
 
 const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete'])
@@ -297,6 +298,13 @@ export const scoreFilesAPI = {
   download: (id: string) => api.get(`/score-files/download/${id}`, { responseType: 'blob' }),
   processScoresheetImport: (id: string, config?: any) => api.post(`/score-files/${id}/process-scoresheet-import`, {}, config),
   getScoresheetImportDraft: (id: string) => api.get(`/score-files/${id}/scoresheet-import-draft`),
+  evaluateScoresheetImportUat: (formData: FormData, config?: any) => api.post('/score-files/scoresheet-import-uat', formData, {
+    ...config,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      ...(config?.headers || {}),
+    },
+  }),
   remove: (id: string, config?: any) => api.delete(`/score-files/${id}`, config)
 }
 
@@ -580,6 +588,10 @@ export const assignmentsAPI = {
     api.get('/assignments', { params }),
   getJudges: () => api.get('/assignments/judges'),
   getCategories: () => api.get('/assignments/categories'),
+  getContestantAssignments: (params?: { eventId?: string; contestId?: string; categoryId?: string }) =>
+    api.get('/assignments/contestants/assignments', { params }),
+  getCategoryContestants: (categoryId: string) =>
+    api.get(`/assignments/category/${categoryId}/contestants`),
   create: (data: any) => api.post('/assignments', data),
   update: (id: string, data: any) => api.put(`/assignments/${id}`, data),
   delete: (id: string) => api.put(`/assignments/remove/${id}`),

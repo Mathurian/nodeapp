@@ -24,6 +24,7 @@ const DEFAULT_PREPROCESSING_MODE = 'standard';
 const DEFAULT_SCAN_THRESHOLD_STRATEGY = 'otsu';
 const SCORE_SHEET_IMPORT_ATTEMPT_LIMIT = 2;
 const LOW_CONFIDENCE_ROW_THRESHOLD = 0.45;
+const FALSE_HIGH_CONFIDENCE_MARK_THRESHOLD = 0.75;
 const EDUCATION_OMR_V3_TEMPLATE_KEY: ScoreSheetTemplateKey = 'education_omr_v3';
 const EDUCATION_OMR_V3_VERSION_BITS = [1, 1, 0, 0, 0, 0, 1, 1] as const;
 const MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO = 0.12;
@@ -258,6 +259,120 @@ type ProcessScoreFileOptions = {
   thresholdStrategy?: ScoreSheetThresholdStrategy;
 };
 
+export type ScoreSheetImportUatInput = {
+  tenantId: string;
+  eventId: string;
+  contestId: string;
+  categoryId: string;
+  judgeId: string;
+  contestantId: string;
+  templateKey?: ScoreSheetTemplateKey | null;
+  fileName: string;
+  fileType: string;
+  fileBuffer: Buffer;
+  preprocessingMode?: ScoreSheetPreprocessingMode;
+  thresholdStrategy?: ScoreSheetThresholdStrategy;
+};
+
+type ScoreSheetImportUatUploadInfo = {
+  fileName: string;
+  originalFileType: string;
+  normalizedFileType: string;
+  fileSize: number;
+  converted: boolean;
+  conversionStrategy: 'none' | 'heic_to_jpeg' | 'heif_to_jpeg';
+};
+
+type ScoreSheetImportUatContext = {
+  tenantId: string;
+  eventId: string;
+  eventName: string;
+  contestId: string;
+  contestName: string;
+  categoryId: string;
+  categoryName: string;
+  judgeId: string;
+  judgeName: string;
+  contestantId: string;
+  contestantName: string;
+  evaluationOnly: true;
+  certifiedOrLocked: boolean;
+  certificationState: {
+    categoryTotalsCertified: boolean;
+    categoryBoardApproved: boolean;
+    contestLocked: boolean;
+    eventLocked: boolean;
+  };
+};
+
+type ScoreSheetImportUatRowComparison = {
+  rowIndex: number;
+  criterionId: string;
+  criterionName: string;
+  expectedScore: number | null;
+  detectedScore: number | null;
+  exactMatch: boolean | null;
+  ambiguous: boolean;
+  confidence: number;
+  rejected: boolean;
+  rejectionReason: MachineReadableRejectedRow['reason'] | null;
+  falseHighConfidenceMark: boolean;
+  cellInkScores: number[];
+};
+
+type ScoreSheetImportUatComparison = {
+  groundTruthAvailable: boolean;
+  exactRowCount: number;
+  rowCount: number;
+  exactRowMatchRate: number | null;
+  expectedTotal: number | null;
+  computedTotal: number;
+  totalDelta: number | null;
+  ambiguousRowCount: number;
+  rejectedRowCount: number;
+  falseHighConfidenceMarkCount: number;
+};
+
+type ScoreSheetImportUatRoutingRecommendation = {
+  decision: CaptureQualityGate['decision'];
+  retryable: boolean;
+  recommendedAction: CaptureQualityGate['recommendedAction'];
+  manualEntryOwner: CaptureQualityGate['manualEntryOwner'];
+  attemptLimit: number;
+  attemptLedgerApplied: false;
+  evaluationOnly: true;
+};
+
+export type ScoreSheetImportUatResult = {
+  templateKey: string;
+  sheetVersion: 'v3' | null;
+  templateVersion: string | null;
+  upload: ScoreSheetImportUatUploadInfo;
+  context: ScoreSheetImportUatContext;
+  comparison: ScoreSheetImportUatComparison;
+  routingRecommendation: ScoreSheetImportUatRoutingRecommendation;
+  extraction: {
+    preprocessingMode: ScoreSheetPreprocessingMode;
+    thresholdStrategy: ScoreSheetThresholdStrategy;
+    normalizedImage: ExtractionPayload['normalizedImage'];
+    sheetBounds: ExtractionPayload['sheetBounds'];
+    qualityGate: CaptureQualityGate;
+    reviewBurdenMetrics: ReviewBurdenMetrics;
+    anchorQuality: MachineReadableAnchorQuality | null;
+    markQuality: MachineReadableMarkQuality | null;
+    rejectedRows: MachineReadableRejectedRow[];
+    ignoredRegions: MachineReadableIgnoredRegion[];
+    mismatchWarnings: string[];
+    overallConfidence: number;
+  };
+  rows: ScoreSheetImportUatRowComparison[];
+};
+
+type PreparedUatUpload = {
+  buffer: Buffer;
+  upload: ScoreSheetImportUatUploadInfo;
+};
+
 type RawImage = {
   data: Buffer;
   width: number;
@@ -413,6 +528,259 @@ export class ScoreSheetImportService extends BaseService {
     });
 
     return this.normalizeDraft(draft);
+  }
+
+  async evaluateScoresheetImportUat(input: ScoreSheetImportUatInput): Promise<ScoreSheetImportUatResult> {
+    this.validateRequired(
+      input as unknown as Record<string, unknown>,
+      ['tenantId', 'eventId', 'contestId', 'categoryId', 'judgeId', 'contestantId', 'fileName', 'fileType'],
+    );
+
+    if (!input.fileBuffer || input.fileBuffer.length === 0) {
+      throw new ValidationError('Scoresheet UAT upload requires a non-empty image file');
+    }
+
+    const templateKey = input.templateKey || EDUCATION_OMR_V3_TEMPLATE_KEY;
+    if (templateKey !== EDUCATION_OMR_V3_TEMPLATE_KEY) {
+      throw new ValidationError('Parse-only scoresheet UAT currently supports only education_omr_v3');
+    }
+
+    const category = await this.prisma.category.findFirst({
+      where: { id: input.categoryId, tenantId: input.tenantId },
+      select: {
+        id: true,
+        name: true,
+        contestId: true,
+        totalsCertified: true,
+        boardApproved: true,
+        contest: {
+          select: {
+            id: true,
+            name: true,
+            eventId: true,
+            isLocked: true,
+            event: {
+              select: {
+                id: true,
+                name: true,
+                isLocked: true,
+              },
+            },
+          },
+        },
+        criteria: {
+          select: {
+            id: true,
+            name: true,
+            maxScore: true,
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+
+    if (!category) {
+      throw this.createNotFoundError('Category not found for scoresheet UAT');
+    }
+    if (category.contestId !== input.contestId || category.contest.id !== input.contestId) {
+      throw new ValidationError('Scoresheet UAT contestId does not match the selected category');
+    }
+    if (category.contest.eventId !== input.eventId || category.contest.event.id !== input.eventId) {
+      throw new ValidationError('Scoresheet UAT eventId does not match the selected category');
+    }
+
+    const criteria = Array.isArray(category.criteria) ? category.criteria : [];
+    if (criteria.length === 0) {
+      throw new ValidationError('Cannot evaluate scoresheet UAT for a category with no criteria');
+    }
+
+    const template = scoreSheetImportTemplateMap.get(EDUCATION_OMR_V3_TEMPLATE_KEY);
+    if (!template || !template.supported || !template.machineReadable) {
+      throw new ValidationError('education_omr_v3 is not available for scoresheet UAT');
+    }
+    if (!this.templateCanOrderCriteria(criteria, template)) {
+      throw new ValidationError('education_omr_v3 does not match this category; unsupported categories are rejected for UAT');
+    }
+
+    const [judge, contestant, categoryJudge, categoryContestant, storedScores] = await Promise.all([
+      this.prisma.judge.findFirst({
+        where: { id: input.judgeId, tenantId: input.tenantId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.contestant.findFirst({
+        where: { id: input.contestantId, tenantId: input.tenantId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.categoryJudge.findFirst({
+        where: { categoryId: input.categoryId, judgeId: input.judgeId, tenantId: input.tenantId },
+        select: { judgeId: true },
+      }),
+      this.prisma.categoryContestant.findFirst({
+        where: { categoryId: input.categoryId, contestantId: input.contestantId, tenantId: input.tenantId },
+        select: { contestantId: true },
+      }),
+      this.prisma.score.findMany({
+        where: {
+          tenantId: input.tenantId,
+          categoryId: input.categoryId,
+          judgeId: input.judgeId,
+          contestantId: input.contestantId,
+        },
+        select: {
+          criterionId: true,
+          score: true,
+        },
+      }),
+    ]);
+
+    if (!judge) {
+      throw this.createNotFoundError('Judge not found for scoresheet UAT');
+    }
+    if (!contestant) {
+      throw this.createNotFoundError('Contestant not found for scoresheet UAT');
+    }
+    if (!categoryJudge) {
+      throw new ValidationError('Selected judge is not assigned to this scoresheet UAT category');
+    }
+    if (!categoryContestant) {
+      throw new ValidationError('Selected contestant is not assigned to this scoresheet UAT category');
+    }
+
+    const preparedUpload = await this.prepareUatUpload(input);
+    const normalized = await this.normalizePage(preparedUpload.buffer, {
+      preprocessingMode: input.preprocessingMode,
+      thresholdStrategy: input.thresholdStrategy,
+    });
+    const orderedCriteria = this.orderCriteriaForTemplate(criteria, template);
+    const analysis = this.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
+    const expectedScoresByCriterionId = new Map(
+      storedScores
+        .filter((score) => score.criterionId)
+        .map((score) => [score.criterionId as string, score.score]),
+    );
+    const rejectedRowsByIndex = new Map(
+      (analysis.payload.machineReadable?.rejectedRows || [])
+        .map((row) => [row.rowIndex, row] as const),
+    );
+
+    let exactRowCount = 0;
+    let comparableRowCount = 0;
+    let expectedTotal = 0;
+    let missingStoredScoreCount = 0;
+    let falseHighConfidenceMarkCount = 0;
+    const rows = analysis.payload.criteria.map((criterion): ScoreSheetImportUatRowComparison => {
+      const expectedScore = expectedScoresByCriterionId.has(criterion.criterionId)
+        ? expectedScoresByCriterionId.get(criterion.criterionId)!
+        : null;
+      const exactMatch = expectedScore === null ? null : criterion.detectedScore === expectedScore;
+      const rejectedRow = rejectedRowsByIndex.get(criterion.rowIndex) || null;
+      const falseHighConfidenceMark = exactMatch === false
+        && criterion.detectedScore !== null
+        && !criterion.ambiguous
+        && criterion.confidence >= FALSE_HIGH_CONFIDENCE_MARK_THRESHOLD;
+
+      if (expectedScore === null) {
+        missingStoredScoreCount += 1;
+      } else {
+        comparableRowCount += 1;
+        expectedTotal += expectedScore;
+        if (exactMatch) {
+          exactRowCount += 1;
+        }
+      }
+      if (falseHighConfidenceMark) {
+        falseHighConfidenceMarkCount += 1;
+      }
+
+      return {
+        rowIndex: criterion.rowIndex,
+        criterionId: criterion.criterionId,
+        criterionName: criterion.criterionName,
+        expectedScore,
+        detectedScore: criterion.detectedScore,
+        exactMatch,
+        ambiguous: criterion.ambiguous,
+        confidence: criterion.confidence,
+        rejected: Boolean(rejectedRow),
+        rejectionReason: rejectedRow?.reason || null,
+        falseHighConfidenceMark,
+        cellInkScores: [...criterion.cellInkScores],
+      };
+    });
+
+    const groundTruthAvailable = missingStoredScoreCount === 0 && comparableRowCount === rows.length;
+    const expectedTotalOrNull = groundTruthAvailable ? expectedTotal : null;
+    const totalDelta = expectedTotalOrNull === null
+      ? null
+      : Math.abs(expectedTotalOrNull - analysis.computedTotal);
+    const qualityGate = analysis.payload.qualityGate;
+
+    return {
+      templateKey: analysis.payload.templateKey,
+      sheetVersion: analysis.payload.machineReadable?.sheetVersion || null,
+      templateVersion: analysis.payload.machineReadable?.templateVersion || null,
+      upload: preparedUpload.upload,
+      context: {
+        tenantId: input.tenantId,
+        eventId: category.contest.event.id,
+        eventName: category.contest.event.name,
+        contestId: category.contest.id,
+        contestName: category.contest.name,
+        categoryId: category.id,
+        categoryName: category.name,
+        judgeId: judge.id,
+        judgeName: judge.name,
+        contestantId: contestant.id,
+        contestantName: contestant.name,
+        evaluationOnly: true,
+        certifiedOrLocked: category.totalsCertified
+          || category.boardApproved
+          || category.contest.isLocked
+          || category.contest.event.isLocked,
+        certificationState: {
+          categoryTotalsCertified: category.totalsCertified,
+          categoryBoardApproved: category.boardApproved,
+          contestLocked: category.contest.isLocked,
+          eventLocked: category.contest.event.isLocked,
+        },
+      },
+      comparison: {
+        groundTruthAvailable,
+        exactRowCount,
+        rowCount: rows.length,
+        exactRowMatchRate: comparableRowCount > 0 ? Number((exactRowCount / comparableRowCount).toFixed(4)) : null,
+        expectedTotal: expectedTotalOrNull,
+        computedTotal: analysis.computedTotal,
+        totalDelta,
+        ambiguousRowCount: rows.filter((row) => row.ambiguous).length,
+        rejectedRowCount: analysis.payload.machineReadable?.markQuality?.rejectedRowCount || 0,
+        falseHighConfidenceMarkCount,
+      },
+      routingRecommendation: {
+        decision: qualityGate.decision,
+        retryable: qualityGate.retryable,
+        recommendedAction: qualityGate.recommendedAction,
+        manualEntryOwner: qualityGate.manualEntryOwner,
+        attemptLimit: qualityGate.attemptLimit,
+        attemptLedgerApplied: false,
+        evaluationOnly: true,
+      },
+      extraction: {
+        preprocessingMode: analysis.payload.preprocessingMode,
+        thresholdStrategy: analysis.payload.thresholdStrategy,
+        normalizedImage: analysis.payload.normalizedImage,
+        sheetBounds: analysis.payload.sheetBounds,
+        qualityGate,
+        reviewBurdenMetrics: analysis.payload.reviewBurdenMetrics,
+        anchorQuality: analysis.payload.machineReadable?.anchorQuality || null,
+        markQuality: analysis.payload.machineReadable?.markQuality || null,
+        rejectedRows: analysis.payload.machineReadable?.rejectedRows || [],
+        ignoredRegions: analysis.payload.machineReadable?.ignoredRegions || [],
+        mismatchWarnings: analysis.payload.mismatchWarnings,
+        overallConfidence: analysis.overallConfidence,
+      },
+      rows,
+    };
   }
 
   private resolveTemplate(
@@ -885,6 +1253,62 @@ export class ScoreSheetImportService extends BaseService {
     } catch {
       return {};
     }
+  }
+
+  private async prepareUatUpload(input: ScoreSheetImportUatInput): Promise<PreparedUatUpload> {
+    const fileType = this.normalizeMimeType(input.fileType);
+    const extension = path.extname(input.fileName || '').toLowerCase();
+    const isJpeg = fileType === 'image/jpeg' || fileType === 'image/jpg'
+      || extension === '.jpg' || extension === '.jpeg';
+    const isPng = fileType === 'image/png' || extension === '.png';
+    const isHeic = fileType === 'image/heic' || extension === '.heic';
+    const isHeif = fileType === 'image/heif' || extension === '.heif';
+
+    if (!isJpeg && !isPng && !isHeic && !isHeif) {
+      throw new ValidationError('Unsupported scoresheet UAT upload format. Use JPEG, PNG, HEIC, or HEIF.');
+    }
+
+    if (isJpeg || isPng) {
+      return {
+        buffer: input.fileBuffer,
+        upload: {
+          fileName: input.fileName,
+          originalFileType: input.fileType,
+          normalizedFileType: fileType || input.fileType,
+          fileSize: input.fileBuffer.length,
+          converted: false,
+          conversionStrategy: 'none',
+        },
+      };
+    }
+
+    try {
+      const converted = await sharp(input.fileBuffer)
+        .rotate()
+        .flatten({ background: '#ffffff' })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+
+      return {
+        buffer: converted,
+        upload: {
+          fileName: input.fileName,
+          originalFileType: input.fileType,
+          normalizedFileType: 'image/jpeg',
+          fileSize: input.fileBuffer.length,
+          converted: true,
+          conversionStrategy: isHeic ? 'heic_to_jpeg' : 'heif_to_jpeg',
+        },
+      };
+    } catch (error) {
+      throw new ValidationError(
+        `Unable to convert HEIC/HEIF scoresheet image for UAT. Convert it to JPEG or PNG and retry. ${this.formatErrorMessage(error)}`,
+      );
+    }
+  }
+
+  private normalizeMimeType(fileType: string): string {
+    return String(fileType || '').split(';')[0]!.trim().toLowerCase();
   }
 
   private async renderFirstPage(filePath: string, fileType: string): Promise<RenderedPage> {
