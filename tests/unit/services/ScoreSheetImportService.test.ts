@@ -263,6 +263,9 @@ const buildUatPrismaMock = (
   categoryJudge: {
     findFirst: jest.fn().mockResolvedValue({ judgeId: 'judge-1' }),
   },
+  assignment: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
   categoryContestant: {
     findFirst: jest.fn().mockResolvedValue({ contestantId: 'contestant-1' }),
   },
@@ -757,6 +760,58 @@ describe('ScoreSheetImportService', () => {
     expect(mockPrisma.scoreSheetImportDraft.create).not.toHaveBeenCalled();
     expect(mockPrisma.scoreSheetImportDraft.update).not.toHaveBeenCalled();
     expect(mockPrisma.scoreSheetImportDraft.upsert).not.toHaveBeenCalled();
+  });
+
+  it('accepts assignment-table judge coverage when no categoryJudge row exists for scoresheet UAT', async () => {
+    const mockPrisma = buildUatPrismaMock();
+    mockPrisma.categoryJudge.findFirst.mockResolvedValue(null);
+    mockPrisma.assignment.findFirst.mockResolvedValue({ id: 'assignment-1' });
+    const service = new ScoreSheetImportService(mockPrisma as any);
+
+    await expect(service.evaluateScoresheetImportUat({
+      tenantId: 'tenant-1',
+      eventId: 'event-1',
+      contestId: 'contest-1',
+      categoryId: 'category-1',
+      judgeId: 'judge-1',
+      contestantId: 'contestant-1',
+      templateKey: 'education_omr_v3',
+      fileName: 'uat-v3.txt',
+      fileType: 'text/plain',
+      fileBuffer: Buffer.from('not decoded because assignment validation passes first'),
+    })).rejects.toThrow('Unsupported scoresheet UAT upload format');
+
+    expect(mockPrisma.assignment.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        tenantId: 'tenant-1',
+        judgeId: 'judge-1',
+        status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
+        OR: [
+          { categoryId: 'category-1' },
+          { contestId: 'contest-1', categoryId: null },
+        ],
+      }),
+    }));
+  });
+
+  it('rejects scoresheet UAT when selected judge has no categoryJudge or assignment-table coverage', async () => {
+    const mockPrisma = buildUatPrismaMock();
+    mockPrisma.categoryJudge.findFirst.mockResolvedValue(null);
+    mockPrisma.assignment.findFirst.mockResolvedValue(null);
+    const service = new ScoreSheetImportService(mockPrisma as any);
+
+    await expect(service.evaluateScoresheetImportUat({
+      tenantId: 'tenant-1',
+      eventId: 'event-1',
+      contestId: 'contest-1',
+      categoryId: 'category-1',
+      judgeId: 'judge-1',
+      contestantId: 'contestant-1',
+      templateKey: 'education_omr_v3',
+      fileName: 'uat-v3.png',
+      fileType: 'image/png',
+      fileBuffer: Buffer.from('not decoded because assignment validation fails first'),
+    })).rejects.toThrow('Selected judge is not assigned to this scoresheet UAT category');
   });
 
   it('rejects unsupported templates before reading scoresheet UAT context', async () => {

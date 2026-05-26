@@ -602,7 +602,7 @@ export class ScoreSheetImportService extends BaseService {
       throw new ValidationError('education_omr_v3 does not match this category; unsupported categories are rejected for UAT');
     }
 
-    const [judge, contestant, categoryJudge, categoryContestant, storedScores] = await Promise.all([
+    const [judge, contestant, categoryJudge, judgeAssignment, categoryContestant, storedScores] = await Promise.all([
       this.prisma.judge.findFirst({
         where: { id: input.judgeId, tenantId: input.tenantId },
         select: { id: true, name: true },
@@ -614,6 +614,18 @@ export class ScoreSheetImportService extends BaseService {
       this.prisma.categoryJudge.findFirst({
         where: { categoryId: input.categoryId, judgeId: input.judgeId, tenantId: input.tenantId },
         select: { judgeId: true },
+      }),
+      this.prisma.assignment.findFirst({
+        where: {
+          tenantId: input.tenantId,
+          judgeId: input.judgeId,
+          status: { in: ['ACTIVE', 'COMPLETED', 'PENDING'] },
+          OR: [
+            { categoryId: input.categoryId },
+            { contestId: input.contestId, categoryId: null },
+          ],
+        },
+        select: { id: true },
       }),
       this.prisma.categoryContestant.findFirst({
         where: { categoryId: input.categoryId, contestantId: input.contestantId, tenantId: input.tenantId },
@@ -639,7 +651,7 @@ export class ScoreSheetImportService extends BaseService {
     if (!contestant) {
       throw this.createNotFoundError('Contestant not found for scoresheet UAT');
     }
-    if (!categoryJudge) {
+    if (!categoryJudge && !judgeAssignment) {
       throw new ValidationError('Selected judge is not assigned to this scoresheet UAT category');
     }
     if (!categoryContestant) {
