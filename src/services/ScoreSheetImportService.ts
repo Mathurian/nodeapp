@@ -60,6 +60,11 @@ const QUALITY_GATE_THRESHOLDS: CaptureQualityThresholds = {
 
 type ScoreSheetPreprocessingMode = 'standard' | 'scan_bw';
 type ScoreSheetThresholdStrategy = 'none' | 'otsu' | 'fixed_150' | 'fixed_170' | 'fixed_190';
+const V3_SCAN_FALLBACK_THRESHOLD_STRATEGIES: ScoreSheetThresholdStrategy[] = [
+  'otsu',
+  'fixed_150',
+  'fixed_170',
+];
 
 type PreprocessingQualitySignals = {
   darkPixelRatio: number;
@@ -416,6 +421,42 @@ type GridGeometry = {
   horizontalBoundaries: number[];
   verticalBoundaries: number[];
   anchoring: GridAnchoringMetadata;
+};
+
+type V3ScoredExtractionCandidate = {
+  kind: 'primary' | 'normalized_scan' | 'canonical_scan';
+  normalizedImage: NormalizedImage;
+  canonicalImage: NormalizedImage;
+  fiducialDetection: V3FiducialDetection;
+  perspectiveCorrected: boolean;
+  gridGeometry: GridGeometry;
+  criteria: CriterionExtraction[];
+  rejectedRows: MachineReadableRejectedRow[];
+  markQuality: MachineReadableMarkQuality;
+  computedTotal: number;
+  overallConfidence: number;
+};
+
+type V3ExtractionAnalysisDiagnostics = {
+  selectedCandidateKind: V3ScoredExtractionCandidate['kind'];
+  fallbackApplied: boolean;
+  baselinePreprocessing: {
+    preprocessingMode: ScoreSheetPreprocessingMode;
+    thresholdStrategy: ScoreSheetThresholdStrategy;
+  };
+  baselineRejectedRowCount: number;
+  normalizedImage: NormalizedImage;
+  canonicalImage: NormalizedImage;
+  fiducialDetection: V3FiducialDetection;
+  perspectiveCorrected: boolean;
+  gridGeometry: GridGeometry;
+};
+
+type ExtractionAnalysis = {
+  payload: ExtractionPayload;
+  computedTotal: number;
+  overallConfidence: number;
+  v3Diagnostics?: V3ExtractionAnalysisDiagnostics;
 };
 
 type GridAnchoringMetadata = {
@@ -2865,11 +2906,7 @@ export class ScoreSheetImportService extends BaseService {
     },
     criteria: Array<{ id: string; name: string; maxScore: number }>,
     template: ScoreSheetTemplateDefinition,
-  ): {
-    payload: ExtractionPayload;
-    computedTotal: number;
-    overallConfidence: number;
-  } {
+  ): ExtractionAnalysis {
     const rowCount = criteria.length;
     if (rowCount <= 0) {
       throw new ValidationError('Scoresheet import requires at least one criterion');
@@ -3049,23 +3086,186 @@ export class ScoreSheetImportService extends BaseService {
     },
     criteria: Array<{ id: string; name: string; maxScore: number }>,
     template: ScoreSheetTemplateDefinition,
-  ): {
-    payload: ExtractionPayload;
-    computedTotal: number;
-    overallConfidence: number;
-  } {
+  ): ExtractionAnalysis {
     const machineReadableConfig = template.machineReadable!;
-    const rowCount = criteria.length;
+    const mismatchWarnings: string[] = [];
+    const sourceImage = this.ensureNormalizedImageMetadata(image);
+    const candidates = this.buildV3ExtractionCandidates(sourceImage, criteria, template);
+    const baselineCandidate = candidates[0]!;
+    const selectedCandidate = this.selectPreferredV3ExtractionCandidate(candidates);
+
+    if (!selectedCandidate.fiducialDetection.detected) {
+      mismatchWarnings.push(
+        'Scoresheet import could not detect all four v3 anchor fiducials; score rows were treated as ambiguous.',
+      );
+    }
+    selectedCandidate.criteria.forEach((criterion, rowIndex) => {
+      const expectedCriterion = criteria[rowIndex]!;
+      if (
+        criterion.detectedScore !== null
+        && criterion.detectedScore > Number(expectedCriterion.maxScore)
+      ) {
+        mismatchWarnings.push(
+          `${expectedCriterion.name} extracted score ${criterion.detectedScore} exceeds criterion max ${expectedCriterion.maxScore}`,
+        );
+      }
+    });
+
+    const extractionImage = selectedCandidate.canonicalImage;
+    const preprocessing = extractionImage.preprocessing;
+    const reviewBurdenMetrics = this.buildReviewBurdenMetrics(selectedCandidate.criteria, mismatchWarnings);
+    const qualityGate = this.assessCaptureQuality({
+      gridAnchoring: selectedCandidate.gridGeometry.anchoring,
+      overallConfidence: selectedCandidate.overallConfidence,
+      qualitySignals: preprocessing.qualitySignals,
+      reviewBurdenMetrics,
+    });
+
+    return {
+      payload: {
+        templateKey: template.key,
+        machineReadable: {
+          sheetVersion: machineReadableConfig.sheetVersion,
+          templateVersion: machineReadableConfig.templateVersion,
+          anchorQuality: this.measureMachineReadableAnchorQuality(
+            extractionImage,
+            selectedCandidate.fiducialDetection,
+            selectedCandidate.perspectiveCorrected,
+          ),
+          markQuality: selectedCandidate.markQuality,
+          rejectedRows: selectedCandidate.rejectedRows,
+          ignoredRegions: machineReadableConfig.ignoredRegions.map((region) => ({ ...region })),
+        },
+        preprocessingMode: preprocessing.preprocessingMode,
+        thresholdStrategy: preprocessing.thresholdStrategy,
+        qualitySignals: preprocessing.qualitySignals,
+        normalizedImage: {
+          width: extractionImage.width,
+          height: extractionImage.height,
+        },
+        sheetBounds: extractionImage.bounds,
+        gridAnchoring: selectedCandidate.gridGeometry.anchoring,
+        reviewBurdenMetrics,
+        qualityGate,
+        scoreValues: [...template.scoreColumns],
+        criteria: selectedCandidate.criteria,
+        mismatchWarnings,
+      },
+      computedTotal: selectedCandidate.computedTotal,
+      overallConfidence: selectedCandidate.overallConfidence,
+      v3Diagnostics: {
+        selectedCandidateKind: selectedCandidate.kind,
+        fallbackApplied: selectedCandidate !== baselineCandidate,
+        baselinePreprocessing: {
+          preprocessingMode: baselineCandidate.canonicalImage.preprocessing.preprocessingMode,
+          thresholdStrategy: baselineCandidate.canonicalImage.preprocessing.thresholdStrategy,
+        },
+        baselineRejectedRowCount: baselineCandidate.rejectedRows.length,
+        normalizedImage: selectedCandidate.normalizedImage,
+        canonicalImage: selectedCandidate.canonicalImage,
+        fiducialDetection: selectedCandidate.fiducialDetection,
+        perspectiveCorrected: selectedCandidate.perspectiveCorrected,
+        gridGeometry: selectedCandidate.gridGeometry,
+      },
+    };
+  }
+
+  private buildV3ExtractionCandidates(
+    image: NormalizedImage,
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): V3ScoredExtractionCandidate[] {
+    const baselineCandidate = this.scoreV3NormalizedImageCandidate(image, criteria, template, 'primary');
+    const candidates: V3ScoredExtractionCandidate[] = [baselineCandidate];
+
+    if (image.preprocessing.preprocessingMode === 'standard') {
+      V3_SCAN_FALLBACK_THRESHOLD_STRATEGIES.forEach((thresholdStrategy) => {
+        const scanNormalizedImage = this.applyScanNormalization(image, thresholdStrategy);
+        candidates.push(
+          this.scoreV3NormalizedImageCandidate(
+            scanNormalizedImage,
+            criteria,
+            template,
+            'normalized_scan',
+          ),
+        );
+      });
+
+      if (baselineCandidate.fiducialDetection.detected) {
+        V3_SCAN_FALLBACK_THRESHOLD_STRATEGIES.forEach((thresholdStrategy) => {
+          const canonicalScanImage = this.applyScanNormalization(
+            baselineCandidate.canonicalImage,
+            thresholdStrategy,
+          );
+          candidates.push(
+            this.scoreV3CanonicalImageCandidate(
+              baselineCandidate.normalizedImage,
+              canonicalScanImage,
+              baselineCandidate.fiducialDetection,
+              criteria,
+              template,
+            ),
+          );
+        });
+      }
+    }
+
+    return candidates;
+  }
+
+  private scoreV3NormalizedImageCandidate(
+    image: NormalizedImage,
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+    kind: V3ScoredExtractionCandidate['kind'],
+  ): V3ScoredExtractionCandidate {
     const prepared = this.prepareV3CanonicalImage(image);
-    const extractionImage = prepared.image;
+    return this.scorePreparedV3Candidate(
+      kind,
+      image,
+      prepared.image,
+      prepared.fiducialDetection,
+      prepared.perspectiveCorrected,
+      criteria,
+      template,
+    );
+  }
+
+  private scoreV3CanonicalImageCandidate(
+    normalizedImage: NormalizedImage,
+    canonicalImage: NormalizedImage,
+    fiducialDetection: V3FiducialDetection,
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): V3ScoredExtractionCandidate {
+    return this.scorePreparedV3Candidate(
+      'canonical_scan',
+      normalizedImage,
+      canonicalImage,
+      fiducialDetection,
+      true,
+      criteria,
+      template,
+    );
+  }
+
+  private scorePreparedV3Candidate(
+    kind: V3ScoredExtractionCandidate['kind'],
+    normalizedImage: NormalizedImage,
+    canonicalImage: NormalizedImage,
+    fiducialDetection: V3FiducialDetection,
+    perspectiveCorrected: boolean,
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): V3ScoredExtractionCandidate {
+    const rowCount = criteria.length;
     const gridGeometry = this.resolveV3DirectGridGeometry(
-      extractionImage,
+      canonicalImage,
       template,
       rowCount,
-      prepared.fiducialDetection.detected,
+      fiducialDetection.detected,
     );
     const extractedCriteria: CriterionExtraction[] = [];
-    const mismatchWarnings: string[] = [];
     const rejectedRows: MachineReadableRejectedRow[] = [];
     let missingMarkRowCount = 0;
     let multiMarkRowCount = 0;
@@ -3073,16 +3273,10 @@ export class ScoreSheetImportService extends BaseService {
     let computedTotal = 0;
     let confidenceSum = 0;
 
-    if (!prepared.fiducialDetection.detected) {
-      mismatchWarnings.push(
-        'Scoresheet import could not detect all four v3 anchor fiducials; score rows were treated as ambiguous.',
-      );
-    }
-
     for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
       const criterion = criteria[rowIndex]!;
-      const cellInkScores = prepared.fiducialDetection.detected
-        ? this.measureV3DirectScoreRowInk(extractionImage, template, rowCount, rowIndex)
+      const cellInkScores = fiducialDetection.detected
+        ? this.measureV3DirectScoreRowInk(canonicalImage, template, rowCount, rowIndex)
         : template.scoreColumns.map(() => 0);
       const ranked = this.rankInkScores(cellInkScores);
       const topCell = ranked[0];
@@ -3132,12 +3326,6 @@ export class ScoreSheetImportService extends BaseService {
         });
       }
 
-      if (detectedScore !== null && detectedScore > Number(criterion.maxScore)) {
-        mismatchWarnings.push(
-          `${criterion.name} extracted score ${detectedScore} exceeds criterion max ${criterion.maxScore}`,
-        );
-      }
-
       if (detectedScore !== null) {
         computedTotal += detectedScore;
       }
@@ -3155,55 +3343,117 @@ export class ScoreSheetImportService extends BaseService {
       });
     }
 
-    const overallConfidence = rowCount > 0 ? Number((confidenceSum / rowCount).toFixed(4)) : 0;
-    const preprocessing = extractionImage.preprocessing;
-    const reviewBurdenMetrics = this.buildReviewBurdenMetrics(extractedCriteria, mismatchWarnings);
-    const qualityGate = this.assessCaptureQuality({
-      gridAnchoring: gridGeometry.anchoring,
-      overallConfidence,
-      qualitySignals: preprocessing.qualitySignals,
-      reviewBurdenMetrics,
-    });
-
     return {
-      payload: {
-        templateKey: template.key,
-        machineReadable: {
-          sheetVersion: machineReadableConfig.sheetVersion,
-          templateVersion: machineReadableConfig.templateVersion,
-          anchorQuality: this.measureMachineReadableAnchorQuality(
-            extractionImage,
-            prepared.fiducialDetection,
-            prepared.perspectiveCorrected,
-          ),
-          markQuality: {
-            acceptedRowCount: rowCount - rejectedRows.length,
-            rejectedRowCount: rejectedRows.length,
-            missingMarkRowCount,
-            multiMarkRowCount,
-            lowConfidenceRowCount,
-          },
-          rejectedRows,
-          ignoredRegions: machineReadableConfig.ignoredRegions.map((region) => ({ ...region })),
-        },
-        preprocessingMode: preprocessing.preprocessingMode,
-        thresholdStrategy: preprocessing.thresholdStrategy,
-        qualitySignals: preprocessing.qualitySignals,
-        normalizedImage: {
-          width: extractionImage.width,
-          height: extractionImage.height,
-        },
-        sheetBounds: extractionImage.bounds,
-        gridAnchoring: gridGeometry.anchoring,
-        reviewBurdenMetrics,
-        qualityGate,
-        scoreValues: [...template.scoreColumns],
-        criteria: extractedCriteria,
-        mismatchWarnings,
+      kind,
+      normalizedImage,
+      canonicalImage,
+      fiducialDetection,
+      perspectiveCorrected,
+      gridGeometry,
+      criteria: extractedCriteria,
+      rejectedRows,
+      markQuality: {
+        acceptedRowCount: rowCount - rejectedRows.length,
+        rejectedRowCount: rejectedRows.length,
+        missingMarkRowCount,
+        multiMarkRowCount,
+        lowConfidenceRowCount,
       },
       computedTotal,
-      overallConfidence,
+      overallConfidence: rowCount > 0 ? Number((confidenceSum / rowCount).toFixed(4)) : 0,
     };
+  }
+
+  private selectPreferredV3ExtractionCandidate(
+    candidates: V3ScoredExtractionCandidate[],
+  ): V3ScoredExtractionCandidate {
+    const baselineCandidate = candidates[0]!;
+    const scoreSupport = this.buildV3CandidateScoreSupport(candidates);
+    let selectedCandidate = baselineCandidate;
+
+    candidates.slice(1).forEach((candidate) => {
+      if (!this.isSafeV3CandidateUpgrade(candidate, baselineCandidate, scoreSupport)) {
+        return;
+      }
+
+      if (this.isBetterV3ExtractionCandidate(candidate, selectedCandidate)) {
+        selectedCandidate = candidate;
+      }
+    });
+
+    return selectedCandidate;
+  }
+
+  private buildV3CandidateScoreSupport(
+    candidates: V3ScoredExtractionCandidate[],
+  ): Map<number, Map<number, number>> {
+    const support = new Map<number, Map<number, number>>();
+
+    candidates.forEach((candidate) => {
+      candidate.criteria.forEach((criterion) => {
+        if (criterion.detectedScore === null) {
+          return;
+        }
+
+        const rowSupport = support.get(criterion.rowIndex) ?? new Map<number, number>();
+        rowSupport.set(
+          criterion.detectedScore,
+          (rowSupport.get(criterion.detectedScore) ?? 0) + 1,
+        );
+        support.set(criterion.rowIndex, rowSupport);
+      });
+    });
+
+    return support;
+  }
+
+  private isSafeV3CandidateUpgrade(
+    candidate: V3ScoredExtractionCandidate,
+    baselineCandidate: V3ScoredExtractionCandidate,
+    scoreSupport: Map<number, Map<number, number>>,
+  ): boolean {
+    for (let rowIndex = 0; rowIndex < baselineCandidate.criteria.length; rowIndex += 1) {
+      const baselineScore = baselineCandidate.criteria[rowIndex]?.detectedScore ?? null;
+      const candidateScore = candidate.criteria[rowIndex]?.detectedScore ?? null;
+
+      if (baselineScore !== null) {
+        if (candidateScore !== baselineScore) {
+          return false;
+        }
+        continue;
+      }
+
+      if (candidateScore === null) {
+        continue;
+      }
+
+      const rowSupport = scoreSupport.get(rowIndex);
+      const agreementCount = rowSupport?.get(candidateScore) ?? 0;
+      if (agreementCount < 2) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private isBetterV3ExtractionCandidate(
+    candidate: V3ScoredExtractionCandidate,
+    current: V3ScoredExtractionCandidate,
+  ): boolean {
+    if (candidate.rejectedRows.length !== current.rejectedRows.length) {
+      return candidate.rejectedRows.length < current.rejectedRows.length;
+    }
+
+    if (candidate.markQuality.multiMarkRowCount !== current.markQuality.multiMarkRowCount) {
+      return candidate.markQuality.multiMarkRowCount < current.markQuality.multiMarkRowCount;
+    }
+
+    if (candidate.markQuality.missingMarkRowCount !== current.markQuality.missingMarkRowCount) {
+      return candidate.markQuality.missingMarkRowCount < current.markQuality.missingMarkRowCount;
+    }
+
+    return candidate.overallConfidence > current.overallConfidence;
   }
 
   private buildV3DiagnosticReport(
@@ -3214,25 +3464,26 @@ export class ScoreSheetImportService extends BaseService {
     criteria: Array<{ id: string; name: string; maxScore: number }>,
     template: ScoreSheetTemplateDefinition,
   ): ScoreSheetV3DiagnosticReport {
-    const rowCount = criteria.length;
-    const normalizedImage = this.ensureNormalizedImageMetadata(image);
-    const prepared = this.prepareV3CanonicalImage(normalizedImage);
-    const extractionImage = prepared.image;
-    const analysis = this.extractScoresFromNormalizedImage(normalizedImage, criteria, template);
+    const analysis = this.extractScoresFromNormalizedImage(image, criteria, template);
     const machineReadable = analysis.payload.machineReadable;
 
     if (!machineReadable || machineReadable.sheetVersion !== 'v3') {
       throw new ValidationError('V3 scoresheet diagnostics require a machine-readable v3 template');
     }
 
-    const gridGeometry = this.resolveV3DirectGridGeometry(
-      extractionImage,
-      template,
-      rowCount,
-      prepared.fiducialDetection.detected,
-    );
+    const diagnostics = analysis.v3Diagnostics;
+    if (!diagnostics) {
+      throw new ValidationError('V3 scoresheet diagnostics require v3 extraction context');
+    }
+
+    const normalizedImage = diagnostics.normalizedImage;
+    const extractionImage = diagnostics.canonicalImage;
+    const gridGeometry = diagnostics.gridGeometry;
     const fiducials = machineReadable.anchorQuality.fiducials
-      ?? this.toMachineReadableFiducialMetadata(prepared.fiducialDetection, prepared.perspectiveCorrected);
+      ?? this.toMachineReadableFiducialMetadata(
+        diagnostics.fiducialDetection,
+        diagnostics.perspectiveCorrected,
+      );
     const geometryWarnings = this.buildV3GeometryWarnings(fiducials, machineReadable.anchorQuality);
     const rows = this.buildV3DiagnosticRows(
       extractionImage,
@@ -3241,7 +3492,7 @@ export class ScoreSheetImportService extends BaseService {
       machineReadable.rejectedRows,
     );
     const failureClassification = this.resolveV3DiagnosticFailureClassification(
-      prepared.fiducialDetection,
+      diagnostics.fiducialDetection,
       gridGeometry,
       machineReadable.rejectedRows,
       analysis.payload.qualityGate,
@@ -3256,12 +3507,12 @@ export class ScoreSheetImportService extends BaseService {
       normalizedImage: this.toV3DiagnosticImage(normalizedImage),
       canonicalImage: this.toV3DiagnosticImage(extractionImage),
       sheetBounds: analysis.payload.sheetBounds,
-      perspectiveCorrected: prepared.perspectiveCorrected,
+      perspectiveCorrected: diagnostics.perspectiveCorrected,
       failureClassification,
       geometryWarnings,
       diagnosticNotes: this.buildV3DiagnosticNotes(
         failureClassification,
-        prepared.fiducialDetection,
+        diagnostics,
         geometryWarnings,
         machineReadable.rejectedRows,
         analysis.payload.qualityGate,
@@ -3427,7 +3678,7 @@ export class ScoreSheetImportService extends BaseService {
 
   private buildV3DiagnosticNotes(
     failureClassification: ScoreSheetV3DiagnosticReport['failureClassification'],
-    fiducialDetection: V3FiducialDetection,
+    diagnostics: V3ExtractionAnalysisDiagnostics,
     geometryWarnings: string[],
     rejectedRows: MachineReadableRejectedRow[],
     qualityGate: CaptureQualityGate,
@@ -3436,13 +3687,19 @@ export class ScoreSheetImportService extends BaseService {
 
     if (failureClassification === 'geometry') {
       notes.push('Geometry failure: v3 fiducials or canonical grid anchoring were not reliable.');
-      notes.push(...fiducialDetection.failureReasons);
+      notes.push(...diagnostics.fiducialDetection.failureReasons);
     } else if (failureClassification === 'mark_scoring') {
       notes.push(`Mark scoring failure: ${rejectedRows.length} row(s) were rejected after geometry was accepted.`);
     } else if (failureClassification === 'quality_gate') {
       notes.push('Quality gate failure: rows were extracted, but capture-quality thresholds still blocked review.');
     } else {
       notes.push('No diagnostic failure detected.');
+    }
+
+    if (diagnostics.fallbackApplied) {
+      notes.push(
+        `Selected ${diagnostics.selectedCandidateKind} scoring fallback ${diagnostics.canonicalImage.preprocessing.preprocessingMode}/${diagnostics.canonicalImage.preprocessing.thresholdStrategy} after the baseline ${diagnostics.baselinePreprocessing.preprocessingMode}/${diagnostics.baselinePreprocessing.thresholdStrategy} candidate rejected ${diagnostics.baselineRejectedRowCount} row(s).`,
+      );
     }
 
     notes.push(...geometryWarnings);

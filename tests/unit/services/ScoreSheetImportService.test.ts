@@ -714,6 +714,228 @@ describe('ScoreSheetImportService', () => {
     expect(report.qualityGate.decision).toBe('accepted_for_review');
   });
 
+  it('selects a supported v3 fallback candidate when it preserves baseline rows and reduces rejections', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const buildCriterion = (rowIndex: number, detectedScore: number | null) => ({
+      rowIndex,
+      criterionId: `criterion-${rowIndex + 1}`,
+      criterionName: `Criterion ${rowIndex + 1}`,
+      detectedScore,
+      detectedColumnLabel: detectedScore === null ? null : String(detectedScore),
+      confidence: detectedScore === null ? 0.08 : 0.78,
+      ambiguous: detectedScore === null,
+      cellInkScores: [0, 0, 0, 0, 0, 0, 0],
+    });
+    const buildCandidate = (
+      kind: 'primary' | 'normalized_scan' | 'canonical_scan',
+      detectedScores: Array<number | null>,
+    ) => ({
+      kind,
+      normalizedImage: {
+        data: Buffer.alloc(WIDTH * HEIGHT * CHANNELS, 255),
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+        preprocessing: {
+          preprocessingMode: kind === 'primary' ? 'standard' : 'scan_bw',
+          thresholdStrategy: kind === 'primary' ? 'none' : 'fixed_150',
+          qualitySignals: {
+            darkPixelRatio: 0.01,
+            midtonePixelRatio: 0.2,
+            contrastRange: 80,
+            thresholdValue: kind === 'primary' ? null : 150,
+            despeckledPixelRatio: 0,
+          },
+        },
+      },
+      canonicalImage: {
+        data: Buffer.alloc(WIDTH * HEIGHT * CHANNELS, 255),
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+        preprocessing: {
+          preprocessingMode: kind === 'primary' ? 'standard' : 'scan_bw',
+          thresholdStrategy: kind === 'primary' ? 'none' : 'fixed_150',
+          qualitySignals: {
+            darkPixelRatio: 0.01,
+            midtonePixelRatio: 0.2,
+            contrastRange: 80,
+            thresholdValue: kind === 'primary' ? null : 150,
+            despeckledPixelRatio: 0,
+          },
+        },
+      },
+      fiducialDetection: {
+        detected: true,
+        confidence: 1,
+        failureReasons: [],
+        corners: null,
+        captureQualityRejection: null,
+      },
+      perspectiveCorrected: true,
+      gridGeometry: {
+        horizontalBoundaries: [],
+        verticalBoundaries: [],
+        anchoring: {
+          horizontalAnchored: true,
+          verticalAnchored: true,
+          horizontalLineCount: 11,
+          verticalLineCount: 8,
+          usedFallback: false,
+        },
+      },
+      criteria: detectedScores.map(buildCriterion),
+      rejectedRows: detectedScores
+        .map((detectedScore, rowIndex) => (detectedScore === null
+          ? {
+            rowIndex,
+            criterionId: `criterion-${rowIndex + 1}`,
+            criterionName: `Criterion ${rowIndex + 1}`,
+            reason: 'missing_mark',
+            topCellScore: 0.1,
+            secondCellScore: 0.08,
+            selectedColumnIndex: null,
+            markedColumnIndexes: [],
+          }
+          : null))
+        .filter(Boolean),
+      markQuality: {
+        acceptedRowCount: detectedScores.filter((score) => score !== null).length,
+        rejectedRowCount: detectedScores.filter((score) => score === null).length,
+        missingMarkRowCount: detectedScores.filter((score) => score === null).length,
+        multiMarkRowCount: 0,
+        lowConfidenceRowCount: 0,
+      },
+      computedTotal: detectedScores.reduce((sum, score) => sum + (score ?? 0), 0),
+      overallConfidence: detectedScores.every((score) => score !== null) ? 0.82 : 0.21,
+    });
+
+    const baselineCandidate = buildCandidate('primary', [4, null, null]) as any;
+    const supportedCanonicalCandidate = buildCandidate('canonical_scan', [4, 5, 6]) as any;
+    const supportingNormalizedCandidate = buildCandidate('normalized_scan', [4, 5, 6]) as any;
+
+    const selected = (service as any).selectPreferredV3ExtractionCandidate([
+      baselineCandidate,
+      supportedCanonicalCandidate,
+      supportingNormalizedCandidate,
+    ]);
+
+    expect(selected).toBe(supportedCanonicalCandidate);
+  });
+
+  it('rejects an unsupported v3 fallback candidate that changes or invents baseline rows', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const buildCriterion = (rowIndex: number, detectedScore: number | null) => ({
+      rowIndex,
+      criterionId: `criterion-${rowIndex + 1}`,
+      criterionName: `Criterion ${rowIndex + 1}`,
+      detectedScore,
+      detectedColumnLabel: detectedScore === null ? null : String(detectedScore),
+      confidence: detectedScore === null ? 0.08 : 0.78,
+      ambiguous: detectedScore === null,
+      cellInkScores: [0, 0, 0, 0, 0, 0, 0],
+    });
+    const buildCandidate = (
+      kind: 'primary' | 'normalized_scan' | 'canonical_scan',
+      detectedScores: Array<number | null>,
+    ) => ({
+      kind,
+      normalizedImage: {
+        data: Buffer.alloc(WIDTH * HEIGHT * CHANNELS, 255),
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+        preprocessing: {
+          preprocessingMode: kind === 'primary' ? 'standard' : 'scan_bw',
+          thresholdStrategy: kind === 'primary' ? 'none' : 'fixed_170',
+          qualitySignals: {
+            darkPixelRatio: 0.01,
+            midtonePixelRatio: 0.2,
+            contrastRange: 80,
+            thresholdValue: kind === 'primary' ? null : 170,
+            despeckledPixelRatio: 0,
+          },
+        },
+      },
+      canonicalImage: {
+        data: Buffer.alloc(WIDTH * HEIGHT * CHANNELS, 255),
+        width: WIDTH,
+        height: HEIGHT,
+        channels: CHANNELS,
+        bounds: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
+        preprocessing: {
+          preprocessingMode: kind === 'primary' ? 'standard' : 'scan_bw',
+          thresholdStrategy: kind === 'primary' ? 'none' : 'fixed_170',
+          qualitySignals: {
+            darkPixelRatio: 0.01,
+            midtonePixelRatio: 0.2,
+            contrastRange: 80,
+            thresholdValue: kind === 'primary' ? null : 170,
+            despeckledPixelRatio: 0,
+          },
+        },
+      },
+      fiducialDetection: {
+        detected: true,
+        confidence: 1,
+        failureReasons: [],
+        corners: null,
+        captureQualityRejection: null,
+      },
+      perspectiveCorrected: true,
+      gridGeometry: {
+        horizontalBoundaries: [],
+        verticalBoundaries: [],
+        anchoring: {
+          horizontalAnchored: true,
+          verticalAnchored: true,
+          horizontalLineCount: 11,
+          verticalLineCount: 8,
+          usedFallback: false,
+        },
+      },
+      criteria: detectedScores.map(buildCriterion),
+      rejectedRows: detectedScores
+        .map((detectedScore, rowIndex) => (detectedScore === null
+          ? {
+            rowIndex,
+            criterionId: `criterion-${rowIndex + 1}`,
+            criterionName: `Criterion ${rowIndex + 1}`,
+            reason: 'missing_mark',
+            topCellScore: 0.1,
+            secondCellScore: 0.08,
+            selectedColumnIndex: null,
+            markedColumnIndexes: [],
+          }
+          : null))
+        .filter(Boolean),
+      markQuality: {
+        acceptedRowCount: detectedScores.filter((score) => score !== null).length,
+        rejectedRowCount: detectedScores.filter((score) => score === null).length,
+        missingMarkRowCount: detectedScores.filter((score) => score === null).length,
+        multiMarkRowCount: 0,
+        lowConfidenceRowCount: 0,
+      },
+      computedTotal: detectedScores.reduce((sum, score) => sum + (score ?? 0), 0),
+      overallConfidence: 0.82,
+    });
+
+    const baselineCandidate = buildCandidate('primary', [4, null, null]) as any;
+    const conflictingCanonicalCandidate = buildCandidate('canonical_scan', [5, 5, 6]) as any;
+    const unsupportedNormalizedCandidate = buildCandidate('normalized_scan', [4, null, 6]) as any;
+
+    const selected = (service as any).selectPreferredV3ExtractionCandidate([
+      baselineCandidate,
+      conflictingCanonicalCandidate,
+      unsupportedNormalizedCandidate,
+    ]);
+
+    expect(selected).toBe(baselineCandidate);
+  });
+
   it('prefers real v3 fiducials over nearby false dark corner candidates', () => {
     const service = new ScoreSheetImportService({} as any);
     const criteria = buildEducationCriteria();

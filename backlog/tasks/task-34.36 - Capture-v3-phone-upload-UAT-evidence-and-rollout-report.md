@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-05-25 23:47'
-updated_date: '2026-05-26 04:07'
+updated_date: '2026-05-26 20:45'
 labels:
   - scoring
   - ocr
@@ -47,6 +47,10 @@ Turn parse-only phone uploads into structured evidence for rollout decisions. Th
 
 <!-- SECTION:NOTES:BEGIN -->
 Evaluated IMG_5152.jpeg through IMG_5159.jpeg from temp/scoresheet-corpus-intake with standard, scan_bw_otsu, fixed_150, fixed_170, and fixed_190 variants. All eight remained manual_entry_required. Best accepted-row counts were 6/10, 3/10, 1/10, 4/10, 6/10, 0/10, 3/10, and 1/10 respectively. Dominant parser rejection reason was missing_mark; variant-level failures also showed unstable v3 fiducial detection under phone capture conditions.
+
+- TASK-34.41 added a conservative multi-candidate v3 scorer: standard remains primary, while scan-normalized fallback candidates can win only if they preserve baseline accepted rows and any newly accepted rows are confirmed by another candidate.
+- Updated phone-photo calibration result: IMG_5155 now reaches 10/10 exact rows in standard mode with total delta 0 and zero false high-confidence marks, but the eight-photo corpus remains far below reviewed-import readiness.
+- Current recommendation remains parse-only. Do not promote v3 phone uploads into reviewed import integration yet; more capture/template changes or stronger upload guidance are still required.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
