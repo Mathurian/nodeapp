@@ -424,12 +424,12 @@ const paintV3MachineReadableMetadata = (buffer) => {
   paintRatioRect(buffer, V3_ANCHOR.left, V3_ANCHOR.bottom, V3_ANCHOR.width, V3_ANCHOR.height);
   paintRatioRect(buffer, V3_ANCHOR.right, V3_ANCHOR.bottom, V3_ANCHOR.width, V3_ANCHOR.height);
 
-  const bitWidth = 0.016;
-  const bitHeight = 0.013;
-  const gap = 0.005;
+  const bitWidth = 0.12 / 8.5;
+  const bitHeight = 0.12 / 11;
+  const gap = 0.035 / 8.5;
   V3_VERSION_BITS.forEach((bit, bitIndex) => {
     if (bit === 1) {
-      paintRatioRect(buffer, 0.62 + (bitIndex * (bitWidth + gap)), 0.074, bitWidth, bitHeight);
+      paintRatioRect(buffer, 0.68 + (bitIndex * (bitWidth + gap)), 0.085, bitWidth, bitHeight);
     }
   });
 };

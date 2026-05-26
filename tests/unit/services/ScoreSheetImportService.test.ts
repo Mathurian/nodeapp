@@ -111,12 +111,12 @@ const paintV3MachineReadableMetadata = (buffer: Buffer): void => {
   paintRatioRect(buffer, V3_ANCHOR_LEFT, V3_ANCHOR_BOTTOM, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
   paintRatioRect(buffer, V3_ANCHOR_RIGHT, V3_ANCHOR_BOTTOM, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
 
-  const bitWidth = 0.016;
-  const bitHeight = 0.013;
-  const gap = 0.005;
+  const bitWidth = 0.12 / 8.5;
+  const bitHeight = 0.12 / 11;
+  const gap = 0.035 / 8.5;
   V3_VERSION_BITS.forEach((bit, bitIndex) => {
     if (bit === 1) {
-      paintRatioRect(buffer, 0.62 + (bitIndex * (bitWidth + gap)), 0.074, bitWidth, bitHeight);
+      paintRatioRect(buffer, 0.68 + (bitIndex * (bitWidth + gap)), 0.085, bitWidth, bitHeight);
     }
   });
 };
@@ -672,6 +672,123 @@ describe('ScoreSheetImportService', () => {
     expect(result.payload.criteria[1].detectedScore).toBe(5);
     expect(result.payload.criteria[6].detectedScore).toBe(0);
     expect(result.payload.criteria.every((criterion: any) => criterion.ambiguous === false)).toBe(true);
+  });
+
+  it('builds v3 diagnostic geometry and row overlays without mutating import behavior', async () => {
+    const expectedScores = [6, 5, 4, 3, 2, 1, 0, 6, 5, 4] as const;
+    const service = new ScoreSheetImportService({} as any);
+    const criteria = buildEducationCriteria();
+    const template = scoreSheetImportTemplateMap.get('education_omr_v3')!;
+    const fileBuffer = await buildEncodedV3Scoresheet(expectedScores);
+
+    const report = await service.buildV3PhonePhotoDiagnosticReport({
+      fileBuffer,
+      criteria,
+      template,
+    });
+
+    expect(Buffer.isBuffer(report.normalizedImage.data)).toBe(true);
+    expect(Buffer.isBuffer(report.canonicalImage.data)).toBe(true);
+    expect(report.templateKey).toBe('education_omr_v3');
+    expect(report.sheetVersion).toBe('v3');
+    expect(report.fiducials.detected).toBe(true);
+    expect(report.perspectiveCorrected).toBe(true);
+    expect(report.failureClassification).toBe('none');
+    expect(report.geometryWarnings).toEqual([]);
+    expect(report.rows).toHaveLength(criteria.length);
+    expect(report.rows[0]).toEqual(expect.objectContaining({
+      detectedScore: 6,
+      ambiguous: false,
+      selectedColumnIndex: 0,
+      rejectionReason: null,
+    }));
+    expect(report.rows[0].cells).toHaveLength(SCORE_COLUMNS.length);
+    expect(report.rows[0].cells[0]).toEqual(expect.objectContaining({
+      scoreValue: 6,
+      selected: true,
+      markedAsMultiMark: false,
+    }));
+    expect(report.rows[0].cells[0].bounds.width).toBeGreaterThan(0);
+    expect(report.rows[0].cells[0].sample.radius).toBeGreaterThan(0);
+    expect(report.markQuality.rejectedRowCount).toBe(0);
+    expect(report.qualityGate.decision).toBe('accepted_for_review');
+  });
+
+  it('prefers real v3 fiducials over nearby false dark corner candidates', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const criteria = buildEducationCriteria();
+    const image = createBlankImage();
+    paintV3MachineReadableMetadata(image);
+    paintGrid(image, criteria.length, V3_SCORE_GRID_LEFT, V3_SCORE_GRID_RIGHT, V3_SCORE_GRID_TOP, V3_SCORE_GRID_BOTTOM);
+
+    paintRatioRect(image, 0.1, 0.08, 0.035, 0.035);
+    paintRatioRect(image, 0.82, 0.1, 0.035, 0.035);
+    paintRatioRect(image, 0.16, 0.86, 0.035, 0.035);
+    paintRatioRect(image, 0.8, 0.84, 0.035, 0.035);
+
+    const detection = (service as any).detectV3Fiducials({
+      data: image,
+      width: WIDTH,
+      height: HEIGHT,
+      channels: CHANNELS,
+    });
+
+    expect(detection.detected).toBe(true);
+    expect(detection.failureReasons).toEqual([]);
+    expect(Math.abs(detection.corners.tl.x - (WIDTH * (V3_ANCHOR_LEFT + (V3_ANCHOR_WIDTH / 2)))))
+      .toBeLessThan(18);
+    expect(Math.abs(detection.corners.tr.x - (WIDTH * (V3_ANCHOR_RIGHT + (V3_ANCHOR_WIDTH / 2)))))
+      .toBeLessThan(18);
+    expect(Math.abs(detection.corners.bl.y - (HEIGHT * (V3_ANCHOR_BOTTOM + (V3_ANCHOR_HEIGHT / 2)))))
+      .toBeLessThan(22);
+    expect(Math.abs(detection.corners.br.y - (HEIGHT * (V3_ANCHOR_BOTTOM + (V3_ANCHOR_HEIGHT / 2)))))
+      .toBeLessThan(22);
+  });
+
+  it('reports a specific low-light rejection when v3 page geometry is unreadable', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const image = Buffer.alloc(WIDTH * HEIGHT * CHANNELS, 20);
+
+    const detection = (service as any).detectV3Fiducials({
+      data: image,
+      width: WIDTH,
+      height: HEIGHT,
+      channels: CHANNELS,
+    });
+
+    expect(detection.detected).toBe(false);
+    expect(detection.captureQualityRejection).toEqual(expect.objectContaining({
+      code: 'low_light_unreadable',
+    }));
+    expect(detection.failureReasons).toContain(
+      'Capture quality rejection: low-light/unreadable image; the normalized page is dominated by dark pixels, so v3 anchors and version metadata cannot be trusted.',
+    );
+  });
+
+  it('reports a specific version-strip rejection when v3 anchors are present but metadata is unreadable', () => {
+    const service = new ScoreSheetImportService({} as any);
+    const image = createBlankImage();
+
+    paintRatioRect(image, V3_ANCHOR_LEFT, V3_ANCHOR_TOP, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+    paintRatioRect(image, V3_ANCHOR_RIGHT, V3_ANCHOR_TOP, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+    paintRatioRect(image, V3_ANCHOR_LEFT, V3_ANCHOR_BOTTOM, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+    paintRatioRect(image, V3_ANCHOR_RIGHT, V3_ANCHOR_BOTTOM, V3_ANCHOR_WIDTH, V3_ANCHOR_HEIGHT);
+
+    const detection = (service as any).detectV3Fiducials({
+      data: image,
+      width: WIDTH,
+      height: HEIGHT,
+      channels: CHANNELS,
+    });
+
+    expect(detection.detected).toBe(false);
+    expect(detection.corners).not.toBeNull();
+    expect(detection.captureQualityRejection).toEqual(expect.objectContaining({
+      code: 'version_strip_unreadable',
+    }));
+    expect(detection.failureReasons).toContain(
+      'Capture quality rejection: v3 anchors were found, but rotation, perspective, blur, or shadow prevented reliable version-strip validation.',
+    );
   });
 
   it('rejects v3 rows with multiple marked score cells', () => {

@@ -120,16 +120,13 @@ type CaptureQualityGate = {
 type MachineReadableAnchorQuality = {
   detected: boolean;
   minCornerDarkRatio: number;
-  cornerDarkRatios: {
-    tl: number;
-    tr: number;
-    bl: number;
-    br: number;
-  };
+  cornerDarkRatios: MachineReadableCornerDarkRatios;
   versionStripConfidence: number;
   versionBits: number[];
   fiducials?: MachineReadableFiducialMetadata;
 };
+
+type MachineReadableCornerDarkRatios = Record<V3FiducialCornerLabel, number>;
 
 type MachineReadableFiducialPoint = {
   x: number;
@@ -144,6 +141,7 @@ type MachineReadableFiducialMetadata = {
   confidence: number;
   perspectiveCorrected: boolean;
   failureReasons: string[];
+  captureQualityRejection: V3CaptureQualityRejection | null;
   corners: {
     tl: MachineReadableFiducialPoint;
     tr: MachineReadableFiducialPoint;
@@ -156,16 +154,45 @@ type V3FiducialCandidate = MachineReadableFiducialPoint & {
   area: number;
 };
 
+type V3FiducialCornerLabel = 'tl' | 'tr' | 'bl' | 'br';
+
+type V3FiducialCornerSet = Record<V3FiducialCornerLabel, V3FiducialCandidate>;
+
 type V3FiducialDetection = {
   detected: boolean;
   confidence: number;
   failureReasons: string[];
-  corners: {
-    tl: V3FiducialCandidate;
-    tr: V3FiducialCandidate;
-    bl: V3FiducialCandidate;
-    br: V3FiducialCandidate;
-  } | null;
+  corners: V3FiducialCornerSet | null;
+  captureQualityRejection: V3CaptureQualityRejection | null;
+};
+
+type V3FiducialGeometryAssessment = {
+  confidence: number;
+  failureReasons: string[];
+  score: number;
+};
+
+type MachineReadableVersionStrip = {
+  bits: number[];
+  confidence: number;
+};
+
+type V3FiducialValidationAttempt = {
+  corners: V3FiducialCornerSet;
+  geometry: V3FiducialGeometryAssessment;
+  version: MachineReadableVersionStrip;
+  minAnchorDarkRatio: number;
+  score: number;
+};
+
+type V3CaptureQualityRejection = {
+  code:
+    | 'missing_fiducials'
+    | 'low_light_unreadable'
+    | 'page_geometry_unreadable'
+    | 'canonical_anchor_unreadable'
+    | 'version_strip_unreadable';
+  reason: string;
 };
 
 type MachineReadableRejectedRow = {
@@ -403,6 +430,90 @@ type LineSequenceDetection = {
   boundaries: number[];
   candidateCount: number;
   score: number;
+};
+
+type ScoreSheetV3DiagnosticImage = {
+  data: Buffer;
+  width: number;
+  height: number;
+  channels: number;
+  bounds: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  preprocessing: PreprocessingMetadata;
+};
+
+type ScoreSheetV3DiagnosticCell = {
+  rowIndex: number;
+  columnIndex: number;
+  scoreValue: number;
+  bounds: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  sample: {
+    centerX: number;
+    centerY: number;
+    radius: number;
+    searchRadius: number;
+  };
+  inkScore: number;
+  selected: boolean;
+  markedAsMultiMark: boolean;
+};
+
+type ScoreSheetV3DiagnosticRow = {
+  rowIndex: number;
+  criterionId: string;
+  criterionName: string;
+  detectedScore: number | null;
+  detectedColumnLabel: string | null;
+  confidence: number;
+  ambiguous: boolean;
+  rejectionReason: MachineReadableRejectedRow['reason'] | null;
+  selectedColumnIndex: number | null;
+  topCellScore: number;
+  secondCellScore: number;
+  cells: ScoreSheetV3DiagnosticCell[];
+};
+
+export type ScoreSheetV3DiagnosticReport = {
+  templateKey: string;
+  sheetVersion: 'v3';
+  templateVersion: string;
+  preprocessingMode: ScoreSheetPreprocessingMode;
+  thresholdStrategy: ScoreSheetThresholdStrategy;
+  normalizedImage: ScoreSheetV3DiagnosticImage;
+  canonicalImage: ScoreSheetV3DiagnosticImage;
+  sheetBounds: ExtractionPayload['sheetBounds'];
+  perspectiveCorrected: boolean;
+  failureClassification: 'none' | 'geometry' | 'mark_scoring' | 'quality_gate';
+  geometryWarnings: string[];
+  diagnosticNotes: string[];
+  captureQualityRejection: V3CaptureQualityRejection | null;
+  fiducials: MachineReadableFiducialMetadata;
+  canonicalAnchors: {
+    tl: { x: number; y: number };
+    tr: { x: number; y: number };
+    bl: { x: number; y: number };
+    br: { x: number; y: number };
+  };
+  gridGeometry: GridGeometry;
+  anchorQuality: MachineReadableAnchorQuality;
+  markQuality: MachineReadableMarkQuality;
+  qualityGate: CaptureQualityGate;
+  reviewBurdenMetrics: ReviewBurdenMetrics;
+  rejectedRows: MachineReadableRejectedRow[];
+  ignoredRegions: MachineReadableIgnoredRegion[];
+  rows: ScoreSheetV3DiagnosticRow[];
+  computedTotal: number;
+  overallConfidence: number;
+  mismatchWarnings: string[];
 };
 
 @injectable()
@@ -795,6 +906,29 @@ export class ScoreSheetImportService extends BaseService {
     };
   }
 
+  async buildV3PhonePhotoDiagnosticReport(input: {
+    fileBuffer: Buffer;
+    criteria: Array<{ id: string; name: string; maxScore: number }>;
+    template: ScoreSheetTemplateDefinition;
+    preprocessingMode?: ScoreSheetPreprocessingMode;
+    thresholdStrategy?: ScoreSheetThresholdStrategy;
+  }): Promise<ScoreSheetV3DiagnosticReport> {
+    if (!input.fileBuffer || input.fileBuffer.length === 0) {
+      throw new ValidationError('V3 scoresheet diagnostics require a non-empty image file');
+    }
+    if (input.template.key !== EDUCATION_OMR_V3_TEMPLATE_KEY || !input.template.machineReadable) {
+      throw new ValidationError('V3 scoresheet diagnostics currently support only education_omr_v3');
+    }
+
+    const normalized = await this.normalizePage(input.fileBuffer, {
+      preprocessingMode: input.preprocessingMode,
+      thresholdStrategy: input.thresholdStrategy,
+    });
+    const orderedCriteria = this.orderCriteriaForTemplate(input.criteria, input.template);
+
+    return this.buildV3DiagnosticReport(normalized, orderedCriteria, input.template);
+  }
+
   private resolveTemplate(
     criteria: Array<{ id: string; name: string; maxScore: number }>,
     metadata: ScoreFileMetadata,
@@ -876,12 +1010,7 @@ export class ScoreSheetImportService extends BaseService {
     fiducialDetection?: V3FiducialDetection,
     perspectiveCorrected = false,
   ): MachineReadableAnchorQuality {
-    const cornerDarkRatios = {
-      tl: this.measureRatioRectDarkRatio(image, 0, 0, 0.06, 0.06),
-      tr: this.measureRatioRectDarkRatio(image, 0.94, 0, 0.06, 0.06),
-      bl: this.measureRatioRectDarkRatio(image, 0, 0.94, 0.06, 0.06),
-      br: this.measureRatioRectDarkRatio(image, 0.94, 0.94, 0.06, 0.06),
-    };
+    const cornerDarkRatios = this.measureMachineReadableCornerDarkRatios(image);
     const minCornerDarkRatio = Math.min(
       cornerDarkRatios.tl,
       cornerDarkRatios.tr,
@@ -912,35 +1041,56 @@ export class ScoreSheetImportService extends BaseService {
     };
   }
 
-  private measureMachineReadableVersionStrip(image: RawImage): {
-    bits: number[];
-    confidence: number;
-  } {
-    const bitWidth = 0.016;
-    const bitHeight = 0.013;
-    const gap = 0.005;
-    const startX = 0.62;
-    const top = 0.074;
-    const observedBits: number[] = [];
-    let confidenceSum = 0;
+  private measureMachineReadableCornerDarkRatios(image: RawImage): MachineReadableCornerDarkRatios {
+    return {
+      tl: this.measureRatioRectDarkRatio(image, 0, 0, 0.06, 0.06),
+      tr: this.measureRatioRectDarkRatio(image, 0.94, 0, 0.06, 0.06),
+      bl: this.measureRatioRectDarkRatio(image, 0, 0.94, 0.06, 0.06),
+      br: this.measureRatioRectDarkRatio(image, 0.94, 0.94, 0.06, 0.06),
+    };
+  }
 
-    EDUCATION_OMR_V3_VERSION_BITS.forEach((expectedBit, bitIndex) => {
-      const darkRatio = this.measureRatioRectDarkRatio(
-        image,
-        startX + (bitIndex * (bitWidth + gap)),
-        top,
-        bitWidth,
-        bitHeight,
-        0.18,
-      );
-      const observedBit = darkRatio >= 0.5 ? 1 : 0;
-      observedBits.push(observedBit);
-      confidenceSum += expectedBit === 1 ? darkRatio : (1 - darkRatio);
+  private measureMachineReadableVersionStrip(image: RawImage): MachineReadableVersionStrip {
+    const bitWidth = 0.12 / V3_PAGE_WIDTH_INCHES;
+    const bitHeight = 0.12 / V3_PAGE_HEIGHT_INCHES;
+    const gap = 0.035 / V3_PAGE_WIDTH_INCHES;
+    const startXOptions = [0.67, 0.675, 0.68, 0.685];
+    const topOptions = [0.08, 0.085, 0.09];
+    let bestVersionStrip: MachineReadableVersionStrip | null = null;
+
+    startXOptions.forEach((startX) => {
+      topOptions.forEach((top) => {
+        const observedBits: number[] = [];
+        let confidenceSum = 0;
+
+        EDUCATION_OMR_V3_VERSION_BITS.forEach((expectedBit, bitIndex) => {
+          const darkRatio = this.measureRatioRectDarkRatio(
+            image,
+            startX + (bitIndex * (bitWidth + gap)),
+            top,
+            bitWidth,
+            bitHeight,
+            0.25,
+            85,
+          );
+          const observedBit = darkRatio >= 0.5 ? 1 : 0;
+          observedBits.push(observedBit);
+          confidenceSum += expectedBit === 1 ? darkRatio : (1 - darkRatio);
+        });
+
+        const candidate = {
+          bits: observedBits,
+          confidence: Number((confidenceSum / EDUCATION_OMR_V3_VERSION_BITS.length).toFixed(4)),
+        };
+        if (!bestVersionStrip || candidate.confidence > bestVersionStrip.confidence) {
+          bestVersionStrip = candidate;
+        }
+      });
     });
 
-    return {
-      bits: observedBits,
-      confidence: Number((confidenceSum / EDUCATION_OMR_V3_VERSION_BITS.length).toFixed(4)),
+    return bestVersionStrip ?? {
+      bits: [],
+      confidence: 0,
     };
   }
 
@@ -951,6 +1101,7 @@ export class ScoreSheetImportService extends BaseService {
     widthRatio: number,
     heightRatio: number,
     insetRatio: number = 0,
+    threshold: number = 120,
   ): number {
     const left = Math.max(0, Math.round(image.width * leftRatio));
     const top = Math.max(0, Math.round(image.height * topRatio));
@@ -967,7 +1118,7 @@ export class ScoreSheetImportService extends BaseService {
 
     for (let y = sampleTop; y <= sampleBottom; y += 1) {
       for (let x = sampleLeft; x <= sampleRight; x += 1) {
-        if (this.isDarkPixel(image, x, y, 120)) {
+        if (this.isDarkPixel(image, x, y, threshold)) {
           darkPixelCount += 1;
         }
         totalPixelCount += 1;
@@ -986,6 +1137,9 @@ export class ScoreSheetImportService extends BaseService {
       confidence: Number(detection.confidence.toFixed(4)),
       perspectiveCorrected,
       failureReasons: [...detection.failureReasons],
+      captureQualityRejection: detection.captureQualityRejection
+        ? { ...detection.captureQualityRejection }
+        : null,
       corners: detection.corners
         ? {
           tl: this.toMachineReadableFiducialPoint(detection.corners.tl),
@@ -1010,52 +1164,265 @@ export class ScoreSheetImportService extends BaseService {
   }
 
   private detectV3Fiducials(image: RawImage): V3FiducialDetection {
-    const candidates = this.findV3FiducialCandidates(image);
-    const failureReasons: string[] = [];
-    const chooseCorner = (
-      label: 'tl' | 'tr' | 'bl' | 'br',
-      filter: (candidate: V3FiducialCandidate) => boolean,
-      score: (candidate: V3FiducialCandidate) => number,
-    ): V3FiducialCandidate | null => {
-      const matches = candidates.filter(filter);
-      if (matches.length === 0) {
-        failureReasons.push(`Missing ${label} v3 fiducial candidate.`);
-        return null;
-      }
-
-      return matches.reduce((best, candidate) =>
-        score(candidate) < score(best) ? candidate : best,
-      );
-    };
-
-    const tl = chooseCorner(
-      'tl',
-      (candidate) => candidate.x <= image.width * 0.45 && candidate.y <= image.height * 0.45,
-      (candidate) => candidate.x + candidate.y,
-    );
-    const tr = chooseCorner(
-      'tr',
-      (candidate) => candidate.x >= image.width * 0.55 && candidate.y <= image.height * 0.45,
-      (candidate) => (image.width - candidate.x) + candidate.y,
-    );
-    const bl = chooseCorner(
-      'bl',
-      (candidate) => candidate.x <= image.width * 0.45 && candidate.y >= image.height * 0.5,
-      (candidate) => candidate.x + (image.height - candidate.y),
-    );
-    const br = chooseCorner(
-      'br',
-      (candidate) => candidate.x >= image.width * 0.55 && candidate.y >= image.height * 0.5,
-      (candidate) => (image.width - candidate.x) + (image.height - candidate.y),
-    );
-
-    if (!tl || !tr || !bl || !br) {
+    const earlyCaptureQualityRejection = this.buildV3CaptureQualityRejection(image, {});
+    if (earlyCaptureQualityRejection?.code === 'low_light_unreadable') {
       return {
         detected: false,
         confidence: 0,
-        failureReasons,
+        failureReasons: [earlyCaptureQualityRejection.reason],
         corners: null,
+        captureQualityRejection: earlyCaptureQualityRejection,
       };
+    }
+
+    const candidates = this.findV3FiducialCandidates(image);
+    const failureReasons: string[] = [];
+    const cornerCandidates: Record<V3FiducialCornerLabel, V3FiducialCandidate[]> = {
+      tl: this.selectV3CornerCandidates(candidates, 'tl', image),
+      tr: this.selectV3CornerCandidates(candidates, 'tr', image),
+      bl: this.selectV3CornerCandidates(candidates, 'bl', image),
+      br: this.selectV3CornerCandidates(candidates, 'br', image),
+    };
+
+    this.augmentV3ProjectedBottomCornerCandidates(cornerCandidates, image);
+
+    const missingCornerLabels: V3FiducialCornerLabel[] = [];
+    (Object.keys(cornerCandidates) as V3FiducialCornerLabel[]).forEach((label) => {
+      if (cornerCandidates[label].length === 0) {
+        missingCornerLabels.push(label);
+        failureReasons.push(`Missing ${label} v3 fiducial candidate.`);
+      }
+    });
+
+    if (failureReasons.length > 0) {
+      const captureQualityRejection = this.buildV3CaptureQualityRejection(image, {
+        missingCornerLabels,
+      });
+      return {
+        detected: false,
+        confidence: 0,
+        failureReasons: captureQualityRejection
+          ? [...failureReasons, captureQualityRejection.reason]
+          : failureReasons,
+        corners: null,
+        captureQualityRejection,
+      };
+    }
+
+    const geometryCandidates: Array<{
+      corners: V3FiducialCornerSet;
+      geometry: V3FiducialGeometryAssessment;
+    }> = [];
+
+    cornerCandidates.tl.forEach((tl) => {
+      cornerCandidates.tr.forEach((tr) => {
+        cornerCandidates.bl.forEach((bl) => {
+          cornerCandidates.br.forEach((br) => {
+            const uniqueCandidates = new Set([tl, tr, bl, br]);
+            if (uniqueCandidates.size !== 4) {
+              return;
+            }
+
+            const corners = { tl, tr, bl, br };
+            const geometry = this.assessV3FiducialGeometry(corners, image);
+            geometryCandidates.push({ corners, geometry });
+          });
+        });
+      });
+    });
+
+    const rankedGeometry = geometryCandidates
+      .sort((left, right) => right.geometry.score - left.geometry.score)
+      .slice(0, 20);
+    let bestAttempt: V3FiducialValidationAttempt | null = null;
+    let bestAccepted: V3FiducialValidationAttempt | null = null;
+
+    for (const { corners, geometry } of rankedGeometry) {
+      const detection: V3FiducialDetection = {
+        detected: true,
+        confidence: geometry.confidence,
+        failureReasons: [],
+        corners,
+        captureQualityRejection: null,
+      };
+      const warpedData = this.warpImageToV3Canonical(image, detection);
+      const warpedImage = {
+        data: warpedData,
+        width: image.width,
+        height: image.height,
+        channels: image.channels,
+      };
+      const version = this.measureMachineReadableVersionStrip(warpedImage);
+      const cornerDarkRatios = this.measureMachineReadableCornerDarkRatios(warpedImage);
+      const minAnchorDarkRatio = Math.min(
+        cornerDarkRatios.tl,
+        cornerDarkRatios.tr,
+        cornerDarkRatios.bl,
+        cornerDarkRatios.br,
+      );
+      const versionMatches = version.bits.join('') === EDUCATION_OMR_V3_VERSION_BITS.join('');
+      const validationScore = geometry.score
+        + (version.confidence * 0.35)
+        + (Math.min(1, minAnchorDarkRatio / MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO) * 0.2)
+        + (versionMatches ? 0.35 : 0);
+      const attempt = {
+        corners,
+        geometry,
+        version,
+        minAnchorDarkRatio,
+        score: validationScore,
+      };
+
+      if (!bestAttempt || attempt.score > bestAttempt.score) {
+        bestAttempt = attempt;
+      }
+      if (
+        geometry.failureReasons.length === 0
+        && versionMatches
+        && version.confidence >= MACHINE_READABLE_VERSION_MIN_CONFIDENCE
+        && minAnchorDarkRatio >= MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO
+        && (!bestAccepted || attempt.score > bestAccepted.score)
+      ) {
+        bestAccepted = attempt;
+        if (version.confidence >= 0.95) {
+          break;
+        }
+      }
+    }
+
+    const selected = bestAccepted || bestAttempt;
+    if (!selected) {
+      const captureQualityRejection = this.buildV3CaptureQualityRejection(image, {
+        failureReasons: ['Unable to assemble four v3 fiducials into a valid page quadrilateral.'],
+      });
+      return {
+        detected: false,
+        confidence: 0,
+        failureReasons: [
+          'Unable to assemble four v3 fiducials into a valid page quadrilateral.',
+          ...(captureQualityRejection ? [captureQualityRejection.reason] : []),
+        ],
+        corners: null,
+        captureQualityRejection,
+      };
+    }
+
+    const versionMatches = selected.version.bits.join('') === EDUCATION_OMR_V3_VERSION_BITS.join('');
+    const selectedFailureReasons = [...selected.geometry.failureReasons];
+    if (!versionMatches) {
+      selectedFailureReasons.push(
+        `Detected v3 version bits ${selected.version.bits.join('')} do not match expected ${EDUCATION_OMR_V3_VERSION_BITS.join('')}.`,
+      );
+    }
+    if (selected.version.confidence < MACHINE_READABLE_VERSION_MIN_CONFIDENCE) {
+      selectedFailureReasons.push(
+        `Detected v3 version strip confidence ${selected.version.confidence} is below ${MACHINE_READABLE_VERSION_MIN_CONFIDENCE}.`,
+      );
+    }
+    if (selected.minAnchorDarkRatio < MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO) {
+      selectedFailureReasons.push(
+        `Detected canonical v3 anchor confidence ${Number(selected.minAnchorDarkRatio.toFixed(4))} is below ${MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO}.`,
+      );
+    }
+    const captureQualityRejection = selectedFailureReasons.length > 0
+      ? this.buildV3CaptureQualityRejection(image, {
+        selected,
+        failureReasons: selectedFailureReasons,
+      })
+      : null;
+    if (captureQualityRejection && !selectedFailureReasons.includes(captureQualityRejection.reason)) {
+      selectedFailureReasons.push(captureQualityRejection.reason);
+    }
+
+    return {
+      detected: selectedFailureReasons.length === 0,
+      confidence: Number(Math.min(1, selected.score).toFixed(4)),
+      failureReasons: selectedFailureReasons,
+      corners: selected.corners,
+      captureQualityRejection,
+    };
+  }
+
+  private buildV3CaptureQualityRejection(
+    image: RawImage,
+    input: {
+      selected?: V3FiducialValidationAttempt | null;
+      failureReasons?: string[];
+      missingCornerLabels?: V3FiducialCornerLabel[];
+    },
+  ): V3CaptureQualityRejection | null {
+    const qualitySignals = (image as Partial<NormalizedImage>).preprocessing?.qualitySignals
+      ?? this.measureImageQuality(image, null, 0);
+    const selected = input.selected ?? null;
+    const failureReasons = input.failureReasons ?? selected?.geometry.failureReasons ?? [];
+
+    if (
+      qualitySignals.darkPixelRatio >= 0.95
+      && qualitySignals.midtonePixelRatio <= 0.05
+    ) {
+      return {
+        code: 'low_light_unreadable',
+        reason: 'Capture quality rejection: low-light/unreadable image; the normalized page is dominated by dark pixels, so v3 anchors and version metadata cannot be trusted.',
+      };
+    }
+
+    if (input.missingCornerLabels?.length) {
+      return {
+        code: 'missing_fiducials',
+        reason: `Capture quality rejection: missing v3 page anchors (${input.missingCornerLabels.join(', ')}); keep all four black corner anchors visible and inside the photo.`,
+      };
+    }
+
+    if (selected?.minAnchorDarkRatio !== undefined
+      && selected.minAnchorDarkRatio < MACHINE_READABLE_ANCHOR_MIN_DARK_RATIO) {
+      return {
+        code: 'canonical_anchor_unreadable',
+        reason: 'Capture quality rejection: v3 anchors were found, but shadow, cropping, or excessive off-axis angle made the canonical anchors unreadable after page normalization.',
+      };
+    }
+
+    if (
+      failureReasons.some((reason) =>
+        reason.includes('too close')
+        || reason.includes('too little')
+        || reason.includes('not in page-corner order')
+        || reason.includes('not solid enough'),
+      )
+    ) {
+      return {
+        code: 'page_geometry_unreadable',
+        reason: 'Capture quality rejection: page geometry is too cropped, skewed, or off-axis for reliable v3 normalization.',
+      };
+    }
+
+    if (selected) {
+      const versionMatches = selected.version.bits.join('') === EDUCATION_OMR_V3_VERSION_BITS.join('');
+      if (!versionMatches || selected.version.confidence < MACHINE_READABLE_VERSION_MIN_CONFIDENCE) {
+        return {
+          code: 'version_strip_unreadable',
+          reason: 'Capture quality rejection: v3 anchors were found, but rotation, perspective, blur, or shadow prevented reliable version-strip validation.',
+        };
+      }
+    }
+
+    if (failureReasons.length > 0) {
+      return {
+        code: 'page_geometry_unreadable',
+        reason: 'Capture quality rejection: v3 page normalization could not produce reliable geometry for this upload.',
+      };
+    }
+
+    return null;
+  }
+
+  private assessV3FiducialGeometry(
+    corners: V3FiducialCornerSet,
+    image: RawImage,
+  ): V3FiducialGeometryAssessment {
+    const { tl, tr, bl, br } = corners;
+    const failureReasons: string[] = [];
+    if (!(tl.x < tr.x && bl.x < br.x && tl.y < bl.y && tr.y < br.y)) {
+      failureReasons.push('Detected v3 fiducials are not in page-corner order.');
     }
 
     const topWidth = this.distanceBetweenPoints(tl, tr);
@@ -1076,10 +1443,31 @@ export class ScoreSheetImportService extends BaseService {
     const sizeScore = Math.min(1, topWidth / (image.width * 0.55), bottomWidth / (image.width * 0.5));
     const heightScore = Math.min(1, leftHeight / (image.height * 0.55), rightHeight / (image.height * 0.55));
     const areaScore = Math.min(1, areaRatio / 0.45);
+    const expectedAspectRatio = V3_PAGE_WIDTH_INCHES / V3_PAGE_HEIGHT_INCHES;
+    const observedAspectRatio = ((topWidth + bottomWidth) / 2) / Math.max(1, ((leftHeight + rightHeight) / 2));
+    const aspectScore = Math.max(
+      0,
+      1 - (Math.abs(observedAspectRatio - expectedAspectRatio) / expectedAspectRatio),
+    );
+    const cornerFillScore = Math.min(1, minFillRatio / 0.7);
     const confidence = Math.max(
       0,
-      Math.min(1, (widthBalance + heightBalance + sizeScore + heightScore + areaScore + minFillRatio) / 6),
+      Math.min(
+        1,
+        (
+          widthBalance
+          + heightBalance
+          + sizeScore
+          + heightScore
+          + areaScore
+          + aspectScore
+          + cornerFillScore
+        ) / 7,
+      ),
     );
+    const score = confidence
+      + (Math.max(0, Math.min(1, areaRatio / 0.55)) * 0.2)
+      + (minFillRatio * 0.15);
 
     if (topWidth < image.width * 0.45 || bottomWidth < image.width * 0.4) {
       failureReasons.push('Detected v3 fiducials are too close horizontally.');
@@ -1095,14 +1483,26 @@ export class ScoreSheetImportService extends BaseService {
     }
 
     return {
-      detected: failureReasons.length === 0,
       confidence: Number(confidence.toFixed(4)),
       failureReasons,
-      corners: { tl, tr, bl, br },
+      score,
     };
   }
 
   private findV3FiducialCandidates(image: RawImage): V3FiducialCandidate[] {
+    return this.mergeV3FiducialCandidates([
+      ...this.findV3ConnectedFiducialCandidates(image, 70),
+      ...this.findV3ConnectedFiducialCandidates(image, 120),
+      ...this.findV3FiducialTemplateCandidates(image, 70),
+      ...this.findV3FiducialTemplateCandidates(image, 110),
+      ...this.findV3FiducialTemplateCandidates(image, 165),
+    ]);
+  }
+
+  private findV3ConnectedFiducialCandidates(
+    image: RawImage,
+    darkPixelThreshold: number,
+  ): V3FiducialCandidate[] {
     const visited = new Uint8Array(image.width * image.height);
     const candidates: V3FiducialCandidate[] = [];
     const maxArea = Math.max(600, image.width * image.height * 0.004);
@@ -1112,7 +1512,7 @@ export class ScoreSheetImportService extends BaseService {
     for (let y = 0; y < image.height; y += 1) {
       for (let x = 0; x < image.width; x += 1) {
         const startIndex = (y * image.width) + x;
-        if (visited[startIndex] || !this.isDarkPixel(image, x, y, 120)) {
+        if (visited[startIndex] || !this.isDarkPixel(image, x, y, darkPixelThreshold)) {
           continue;
         }
 
@@ -1149,7 +1549,10 @@ export class ScoreSheetImportService extends BaseService {
             }
 
             const neighborIndex = (neighbor.y * image.width) + neighbor.x;
-            if (!visited[neighborIndex] && this.isDarkPixel(image, neighbor.x, neighbor.y, 120)) {
+            if (
+              !visited[neighborIndex]
+              && this.isDarkPixel(image, neighbor.x, neighbor.y, darkPixelThreshold)
+            ) {
               visited[neighborIndex] = 1;
               stack.push(neighbor);
             }
@@ -1190,6 +1593,731 @@ export class ScoreSheetImportService extends BaseService {
     }
 
     return candidates;
+  }
+
+  private findV3FiducialTemplateCandidates(
+    image: RawImage,
+    darkPixelThreshold: number,
+  ): V3FiducialCandidate[] {
+    const integral = this.buildDarkPixelIntegral(image, darkPixelThreshold);
+    const expectedWidth = image.width * (V3_ANCHOR_SIZE_INCHES / V3_PAGE_WIDTH_INCHES);
+    const expectedHeight = image.height * (V3_ANCHOR_SIZE_INCHES / V3_PAGE_HEIGHT_INCHES);
+    const baseSize = Math.max(10, Math.round((expectedWidth + expectedHeight) / 2));
+    const sizes = Array.from(new Set([
+      Math.round(baseSize * 0.55),
+      Math.round(baseSize * 0.7),
+      Math.round(baseSize * 0.85),
+      baseSize,
+      Math.round(baseSize * 1.15),
+      Math.round(baseSize * 1.3),
+    ])).filter((size) => size >= 8 && size <= Math.round(Math.min(image.width, image.height) * 0.08));
+    const labels: V3FiducialCornerLabel[] = ['tl', 'tr', 'bl', 'br'];
+    const pageAnchorTargets = this.estimateV3PageAnchorTargets(image);
+
+    return labels.flatMap((label) => {
+      const region = this.getV3FiducialTemplateSearchRegion(image, label);
+      const target = pageAnchorTargets?.[label] ?? this.getV3CornerTarget(image, label);
+      const maxTargetDistance = Math.hypot(image.width * 0.32, image.height * 0.32);
+      const scoredCandidates: Array<{
+        candidate: V3FiducialCandidate;
+        distanceToTarget: number;
+        score: number;
+      }> = [];
+      const step = 6;
+
+      sizes.forEach((size) => {
+        const halfSize = Math.round(size / 2);
+        for (let y = region.top + halfSize; y <= region.bottom - halfSize; y += step) {
+          for (let x = region.left + halfSize; x <= region.right - halfSize; x += step) {
+            const left = x - halfSize;
+            const top = y - halfSize;
+            const innerDarkRatio = this.measureIntegralRectDarkRatio(
+              integral,
+              image.width,
+              image.height,
+              left,
+              top,
+              size,
+              size,
+            );
+            if (innerDarkRatio < 0.24) {
+              continue;
+            }
+
+            const outerSize = Math.round(size * 1.9);
+            const outerLeft = x - Math.round(outerSize / 2);
+            const outerTop = y - Math.round(outerSize / 2);
+            const outerDarkRatio = this.measureIntegralRingDarkRatio(
+              integral,
+              image.width,
+              image.height,
+              outerLeft,
+              outerTop,
+              outerSize,
+              outerSize,
+              left,
+              top,
+              size,
+              size,
+            );
+            const contrastScore = Math.max(0, innerDarkRatio - outerDarkRatio);
+            const candidate: V3FiducialCandidate = {
+              x,
+              y,
+              width: size,
+              height: size,
+              fillRatio: Number(innerDarkRatio.toFixed(4)),
+              area: Math.round(innerDarkRatio * size * size),
+            };
+            const cornerScore = this.scoreV3CornerCandidate(candidate, label, image, target);
+            const centerSideDarkRatio = this.measureV3FiducialCenterSideDarkRatio(
+              integral,
+              image.width,
+              image.height,
+              candidate,
+              label,
+            );
+            const centerPaperScore = Math.max(0, 1 - centerSideDarkRatio);
+            const distanceToTarget = this.distanceBetweenPoints(candidate, target);
+            const expectedPositionScore = Math.max(
+              0,
+              1 - (distanceToTarget / Math.max(1, maxTargetDistance)),
+            );
+            const hasLocalContrast = contrastScore >= (darkPixelThreshold <= 80 ? 0.035 : 0.055);
+            const isNearExpectedAnchor = expectedPositionScore >= 0.48 || cornerScore >= 0.82;
+            const isTopAnchor = label === 'tl' || label === 'tr';
+            if (
+              (!hasLocalContrast && centerPaperScore < 0.2 && !isNearExpectedAnchor)
+              || (centerSideDarkRatio > 0.94 && contrastScore < 0.01 && cornerScore < 0.82)
+              || (innerDarkRatio < 0.48 && contrastScore < 0.1)
+            ) {
+              continue;
+            }
+
+            const templateScore = isTopAnchor
+              ? (innerDarkRatio * 0.12)
+                + (contrastScore * 0.2)
+                + (cornerScore * 0.3)
+                + (centerPaperScore * 0.3)
+                + (expectedPositionScore * 0.08)
+              : (innerDarkRatio * 0.18)
+                + (contrastScore * 0.18)
+                + (cornerScore * 0.42)
+                + (centerPaperScore * 0.12)
+                + (expectedPositionScore * 0.1);
+            scoredCandidates.push({ candidate, distanceToTarget, score: templateScore });
+          }
+        }
+      });
+
+      const bestByScore = scoredCandidates
+        .slice()
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 8)
+        .map(({ candidate }) => candidate);
+      const bestByTarget = scoredCandidates
+        .slice()
+        .sort((left, right) =>
+          left.distanceToTarget - right.distanceToTarget
+          || right.score - left.score,
+        )
+        .slice(0, 6)
+        .map(({ candidate }) => candidate);
+
+      return this.dedupeV3CandidatesPreservingOrder([...bestByScore, ...bestByTarget]);
+    });
+  }
+
+  private mergeV3FiducialCandidates(candidates: V3FiducialCandidate[]): V3FiducialCandidate[] {
+    const ranked = candidates
+      .slice()
+      .sort((left, right) =>
+        (right.fillRatio * right.area) - (left.fillRatio * left.area),
+      );
+    const merged: V3FiducialCandidate[] = [];
+
+    ranked.forEach((candidate) => {
+      const duplicate = merged.some((existing) =>
+        Math.abs(existing.x - candidate.x) <= Math.max(existing.width, candidate.width) * 0.45
+        && Math.abs(existing.y - candidate.y) <= Math.max(existing.height, candidate.height) * 0.45,
+      );
+      if (!duplicate) {
+        merged.push(candidate);
+      }
+    });
+
+    return merged;
+  }
+
+  private dedupeV3CandidatesPreservingOrder(
+    candidates: V3FiducialCandidate[],
+  ): V3FiducialCandidate[] {
+    const deduped: V3FiducialCandidate[] = [];
+
+    candidates.forEach((candidate) => {
+      const duplicate = deduped.some((existing) =>
+        Math.abs(existing.x - candidate.x) <= Math.max(existing.width, candidate.width) * 0.45
+        && Math.abs(existing.y - candidate.y) <= Math.max(existing.height, candidate.height) * 0.45,
+      );
+      if (!duplicate) {
+        deduped.push(candidate);
+      }
+    });
+
+    return deduped;
+  }
+
+  private selectV3CornerCandidates(
+    candidates: V3FiducialCandidate[],
+    label: V3FiducialCornerLabel,
+    image: RawImage,
+  ): V3FiducialCandidate[] {
+    const target = this.estimateV3PageAnchorTargets(image)?.[label]
+      ?? this.getV3CornerTarget(image, label);
+    const scoredCandidates = candidates
+      .filter((candidate) => this.isV3CandidateInCornerRegion(candidate, label, image))
+      .map((candidate) => ({
+        candidate,
+        distanceToTarget: this.distanceBetweenPoints(candidate, target),
+        score: this.scoreV3CornerCandidate(candidate, label, image, target),
+      }));
+    const bestByScore = scoredCandidates
+      .slice()
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 6)
+      .map(({ candidate }) => candidate);
+    const bestByTarget = scoredCandidates
+      .slice()
+      .sort((left, right) =>
+        left.distanceToTarget - right.distanceToTarget
+        || right.score - left.score,
+      )
+      .slice(0, 4)
+      .map(({ candidate }) => candidate);
+
+    return this.dedupeV3CandidatesPreservingOrder([...bestByScore, ...bestByTarget]).slice(0, 8);
+  }
+
+  private augmentV3ProjectedBottomCornerCandidates(
+    cornerCandidates: Record<V3FiducialCornerLabel, V3FiducialCandidate[]>,
+    image: RawImage,
+  ): void {
+    const pageAnchorTargets = this.estimateV3PageAnchorTargets(image);
+    if (!pageAnchorTargets) {
+      return;
+    }
+
+    const projections: Array<{
+      bottomLabel: 'bl' | 'br';
+      topLabel: 'tl' | 'tr';
+    }> = [
+      { bottomLabel: 'bl', topLabel: 'tl' },
+      { bottomLabel: 'br', topLabel: 'tr' },
+    ];
+
+    projections.forEach(({ bottomLabel, topLabel }) => {
+      const projectedCandidates = cornerCandidates[topLabel]
+        .slice(0, 2)
+        .flatMap((topCandidate) =>
+          this.findV3LocalFiducialCandidatesNear(
+            image,
+            bottomLabel,
+            {
+              x: topCandidate.x,
+              y: pageAnchorTargets[bottomLabel].y,
+            },
+          ),
+        );
+
+      cornerCandidates[bottomLabel] = this.dedupeV3CandidatesPreservingOrder([
+        ...projectedCandidates,
+        ...cornerCandidates[bottomLabel],
+      ]).slice(0, 8);
+    });
+  }
+
+  private findV3LocalFiducialCandidatesNear(
+    image: RawImage,
+    label: V3FiducialCornerLabel,
+    target: { x: number; y: number },
+  ): V3FiducialCandidate[] {
+    const integral = this.buildDarkPixelIntegral(image, 70);
+    const expectedWidth = image.width * (V3_ANCHOR_SIZE_INCHES / V3_PAGE_WIDTH_INCHES);
+    const expectedHeight = image.height * (V3_ANCHOR_SIZE_INCHES / V3_PAGE_HEIGHT_INCHES);
+    const baseSize = Math.max(10, Math.round((expectedWidth + expectedHeight) / 2));
+    const sizes = Array.from(new Set([
+      Math.round(baseSize * 0.7),
+      Math.round(baseSize * 0.85),
+      baseSize,
+      Math.round(baseSize * 1.15),
+      Math.round(baseSize * 1.3),
+    ])).filter((size) => size >= 8 && size <= Math.round(Math.min(image.width, image.height) * 0.08));
+    const radiusX = Math.max(80, Math.round(image.width * 0.13));
+    const radiusY = Math.max(80, Math.round(image.height * 0.08));
+    const scoredCandidates: Array<{
+      candidate: V3FiducialCandidate;
+      distanceToTarget: number;
+      score: number;
+    }> = [];
+
+    sizes.forEach((size) => {
+      const halfSize = Math.round(size / 2);
+      const leftBound = Math.max(halfSize, Math.round(target.x - radiusX));
+      const rightBound = Math.min(image.width - halfSize, Math.round(target.x + radiusX));
+      const topBound = Math.max(halfSize, Math.round(target.y - radiusY));
+      const bottomBound = Math.min(image.height - halfSize, Math.round(target.y + radiusY));
+
+      for (let y = topBound; y <= bottomBound; y += 4) {
+        for (let x = leftBound; x <= rightBound; x += 4) {
+          const left = x - halfSize;
+          const top = y - halfSize;
+          const innerDarkRatio = this.measureIntegralRectDarkRatio(
+            integral,
+            image.width,
+            image.height,
+            left,
+            top,
+            size,
+            size,
+          );
+          if (innerDarkRatio < 0.3) {
+            continue;
+          }
+
+          const outerSize = Math.round(size * 1.9);
+          const outerDarkRatio = this.measureIntegralRingDarkRatio(
+            integral,
+            image.width,
+            image.height,
+            x - Math.round(outerSize / 2),
+            y - Math.round(outerSize / 2),
+            outerSize,
+            outerSize,
+            left,
+            top,
+            size,
+            size,
+          );
+          const contrastScore = Math.max(0, innerDarkRatio - outerDarkRatio);
+          const candidate: V3FiducialCandidate = {
+            x,
+            y,
+            width: size,
+            height: size,
+            fillRatio: Number(innerDarkRatio.toFixed(4)),
+            area: Math.round(innerDarkRatio * size * size),
+          };
+          const distanceToTarget = this.distanceBetweenPoints(candidate, target);
+          const distanceScore = Math.max(0, 1 - (distanceToTarget / Math.max(radiusX, radiusY, 1)));
+          const shapeScore = this.scoreV3CornerCandidate(candidate, label, image, target);
+          const score = (distanceScore * 0.55)
+            + (shapeScore * 0.25)
+            + (innerDarkRatio * 0.12)
+            + (contrastScore * 0.08);
+
+          scoredCandidates.push({ candidate, distanceToTarget, score });
+        }
+      }
+    });
+
+    const bestByScore = scoredCandidates
+      .slice()
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5)
+      .map(({ candidate }) => candidate);
+    const bestByTarget = scoredCandidates
+      .slice()
+      .sort((left, right) =>
+        left.distanceToTarget - right.distanceToTarget
+        || right.score - left.score,
+      )
+      .slice(0, 3)
+      .map(({ candidate }) => candidate);
+
+    return this.dedupeV3CandidatesPreservingOrder([...bestByScore, ...bestByTarget]);
+  }
+
+  private isV3CandidateInCornerRegion(
+    candidate: V3FiducialCandidate,
+    label: V3FiducialCornerLabel,
+    image: RawImage,
+  ): boolean {
+    const marginX = image.width * 0.005;
+    const marginY = image.height * 0.005;
+    if (
+      candidate.x < marginX
+      || candidate.x > image.width - marginX
+      || candidate.y < marginY
+      || candidate.y > image.height - marginY
+    ) {
+      return false;
+    }
+
+    const leftSide = candidate.x <= image.width * 0.42;
+    const rightSide = candidate.x >= image.width * 0.58;
+    const topSide = candidate.y <= image.height * 0.38;
+    const bottomSide = candidate.y >= image.height * 0.62;
+
+    if (label === 'tl') return leftSide && topSide;
+    if (label === 'tr') return rightSide && topSide;
+    if (label === 'bl') return leftSide && bottomSide;
+    return rightSide && bottomSide;
+  }
+
+  private scoreV3CornerCandidate(
+    candidate: V3FiducialCandidate,
+    label: V3FiducialCornerLabel,
+    image: RawImage,
+    targetOverride?: { x: number; y: number },
+  ): number {
+    const expectedWidth = image.width * (V3_ANCHOR_SIZE_INCHES / V3_PAGE_WIDTH_INCHES);
+    const expectedHeight = image.height * (V3_ANCHOR_SIZE_INCHES / V3_PAGE_HEIGHT_INCHES);
+    const expectedAspectRatio = expectedWidth / Math.max(1, expectedHeight);
+    const aspectRatio = candidate.width / Math.max(1, candidate.height);
+    const sizeScore = Math.max(
+      0,
+      Math.min(
+        1,
+        Math.min(candidate.width, expectedWidth) / Math.max(candidate.width, expectedWidth, 1),
+        Math.min(candidate.height, expectedHeight) / Math.max(candidate.height, expectedHeight, 1),
+      ),
+    );
+    const shapeScore = Math.max(
+      0,
+      1 - (Math.abs(aspectRatio - expectedAspectRatio) / Math.max(expectedAspectRatio, 0.0001)),
+    );
+    const target = targetOverride ?? this.getV3CornerTarget(image, label);
+    const distance = this.distanceBetweenPoints(candidate, target);
+    const maxDistance = Math.hypot(image.width * 0.42, image.height * 0.38);
+    const cornerScore = Math.max(0, 1 - (distance / Math.max(1, maxDistance)));
+    const fillScore = Math.min(1, candidate.fillRatio / 0.75);
+
+    return (cornerScore * 0.55)
+      + (fillScore * 0.2)
+      + (sizeScore * 0.15)
+      + (shapeScore * 0.1);
+  }
+
+  private estimateV3PageAnchorTargets(
+    image: RawImage,
+  ): Record<V3FiducialCornerLabel, { x: number; y: number }> | null {
+    const rowStep = 4;
+    const xStep = 3;
+    const maxGap = Math.max(12, Math.round(image.width * 0.025));
+    const luminanceThreshold = this.resolveV3PaperLuminanceThreshold(image);
+    const samples: Array<{ y: number; left: number; right: number; width: number }> = [];
+
+    for (let y = 0; y < image.height; y += rowStep) {
+      let currentStart: number | null = null;
+      let currentEnd = 0;
+      let currentGap = 0;
+      let bestStart = 0;
+      let bestEnd = 0;
+      let bestWidth = 0;
+
+      for (let x = 0; x < image.width; x += xStep) {
+        if (this.getPixelLuminance(image, x, y) >= luminanceThreshold) {
+          if (currentStart === null) {
+            currentStart = x;
+          }
+          currentEnd = x;
+          currentGap = 0;
+        } else if (currentStart !== null && currentGap < maxGap) {
+          currentGap += xStep;
+        } else if (currentStart !== null) {
+          const runEnd = Math.max(currentStart, currentEnd - currentGap);
+          const runWidth = runEnd - currentStart;
+          if (runWidth > bestWidth) {
+            bestStart = currentStart;
+            bestEnd = runEnd;
+            bestWidth = runWidth;
+          }
+          currentStart = null;
+          currentGap = 0;
+        }
+      }
+
+      if (currentStart !== null) {
+        const runEnd = Math.max(currentStart, currentEnd - currentGap);
+        const runWidth = runEnd - currentStart;
+        if (runWidth > bestWidth) {
+          bestStart = currentStart;
+          bestEnd = runEnd;
+          bestWidth = runWidth;
+        }
+      }
+
+      if (bestWidth >= image.width * 0.42) {
+        samples.push({ y, left: bestStart, right: bestEnd, width: bestWidth });
+      }
+    }
+
+    if (samples.length < 10) {
+      return null;
+    }
+
+    const sortedWidths = samples.map((sample) => sample.width).sort((left, right) => left - right);
+    const medianWidth = sortedWidths[Math.floor(sortedWidths.length / 2)] ?? 0;
+    const pageSamples = samples.filter((sample) => sample.width >= medianWidth * 0.72);
+    if (pageSamples.length < 8) {
+      return null;
+    }
+
+    const edgeSampleCount = Math.min(10, Math.max(4, Math.floor(pageSamples.length * 0.08)));
+    const topSamples = pageSamples.slice(0, edgeSampleCount);
+    const bottomSamples = pageSamples.slice(-edgeSampleCount);
+    const topLeft = {
+      x: this.medianNumber(topSamples.map((sample) => sample.left)),
+      y: this.medianNumber(topSamples.map((sample) => sample.y)),
+    };
+    const topRight = {
+      x: this.medianNumber(topSamples.map((sample) => sample.right)),
+      y: this.medianNumber(topSamples.map((sample) => sample.y)),
+    };
+    const bottomLeft = {
+      x: this.medianNumber(bottomSamples.map((sample) => sample.left)),
+      y: this.medianNumber(bottomSamples.map((sample) => sample.y)),
+    };
+    const bottomRight = {
+      x: this.medianNumber(bottomSamples.map((sample) => sample.right)),
+      y: this.medianNumber(bottomSamples.map((sample) => sample.y)),
+    };
+
+    const anchorCenterInsetX = (V3_ANCHOR_OFFSET_INCHES + (V3_ANCHOR_SIZE_INCHES / 2))
+      / V3_PAGE_WIDTH_INCHES;
+    const anchorCenterInsetY = (V3_ANCHOR_OFFSET_INCHES + (V3_ANCHOR_SIZE_INCHES / 2))
+      / V3_PAGE_HEIGHT_INCHES;
+
+    return {
+      tl: this.interpolateV3PagePoint(topLeft, topRight, bottomLeft, bottomRight, anchorCenterInsetX, anchorCenterInsetY),
+      tr: this.interpolateV3PagePoint(topLeft, topRight, bottomLeft, bottomRight, 1 - anchorCenterInsetX, anchorCenterInsetY),
+      bl: this.interpolateV3PagePoint(topLeft, topRight, bottomLeft, bottomRight, anchorCenterInsetX, 1 - anchorCenterInsetY),
+      br: this.interpolateV3PagePoint(topLeft, topRight, bottomLeft, bottomRight, 1 - anchorCenterInsetX, 1 - anchorCenterInsetY),
+    };
+  }
+
+  private resolveV3PaperLuminanceThreshold(image: RawImage): number {
+    const sampleStep = Math.max(1, Math.floor(Math.sqrt((image.width * image.height) / 8000)));
+    const luminanceSamples: number[] = [];
+
+    for (let y = 0; y < image.height; y += sampleStep) {
+      for (let x = 0; x < image.width; x += sampleStep) {
+        luminanceSamples.push(this.getPixelLuminance(image, x, y));
+      }
+    }
+
+    luminanceSamples.sort((left, right) => left - right);
+    const percentile70 = luminanceSamples[Math.floor(luminanceSamples.length * 0.7)] ?? 120;
+    return this.clampNumber(Math.round(percentile70 * 0.34), 35, 70);
+  }
+
+  private interpolateV3PagePoint(
+    topLeft: { x: number; y: number },
+    topRight: { x: number; y: number },
+    bottomLeft: { x: number; y: number },
+    bottomRight: { x: number; y: number },
+    u: number,
+    v: number,
+  ): { x: number; y: number } {
+    return {
+      x: (topLeft.x * (1 - u) * (1 - v))
+        + (topRight.x * u * (1 - v))
+        + (bottomLeft.x * (1 - u) * v)
+        + (bottomRight.x * u * v),
+      y: (topLeft.y * (1 - u) * (1 - v))
+        + (topRight.y * u * (1 - v))
+        + (bottomLeft.y * (1 - u) * v)
+        + (bottomRight.y * u * v),
+    };
+  }
+
+  private medianNumber(values: number[]): number {
+    if (values.length === 0) return 0;
+    const sortedValues = values.slice().sort((left, right) => left - right);
+    return sortedValues[Math.floor(sortedValues.length / 2)] ?? 0;
+  }
+
+  private getV3CornerTarget(image: RawImage, label: V3FiducialCornerLabel): { x: number; y: number } {
+    const anchorCenterInsetX = (V3_ANCHOR_OFFSET_INCHES + (V3_ANCHOR_SIZE_INCHES / 2))
+      / V3_PAGE_WIDTH_INCHES;
+    const anchorCenterInsetY = (V3_ANCHOR_OFFSET_INCHES + (V3_ANCHOR_SIZE_INCHES / 2))
+      / V3_PAGE_HEIGHT_INCHES;
+    const x = label === 'tl' || label === 'bl'
+      ? image.width * anchorCenterInsetX
+      : image.width * (1 - anchorCenterInsetX);
+    const y = label === 'tl' || label === 'tr'
+      ? image.height * anchorCenterInsetY
+      : image.height * (1 - anchorCenterInsetY);
+
+    return { x, y };
+  }
+
+  private measureV3FiducialCenterSideDarkRatio(
+    integral: Uint32Array,
+    imageWidth: number,
+    imageHeight: number,
+    candidate: V3FiducialCandidate,
+    label: V3FiducialCornerLabel,
+  ): number {
+    const size = Math.max(candidate.width, candidate.height);
+    const halfWidth = candidate.width / 2;
+    const halfHeight = candidate.height / 2;
+    const horizontalDirection = label === 'tl' || label === 'bl' ? 1 : -1;
+    const verticalDirection = label === 'tl' || label === 'tr' ? 1 : -1;
+    const horizontalLeft = horizontalDirection > 0
+      ? candidate.x + halfWidth
+      : candidate.x - halfWidth - size;
+    const verticalTop = verticalDirection > 0
+      ? candidate.y + halfHeight
+      : candidate.y - halfHeight - size;
+    const horizontalDarkRatio = this.measureIntegralRectDarkRatio(
+      integral,
+      imageWidth,
+      imageHeight,
+      horizontalLeft,
+      candidate.y - (size / 2),
+      size,
+      size,
+    );
+    const verticalDarkRatio = this.measureIntegralRectDarkRatio(
+      integral,
+      imageWidth,
+      imageHeight,
+      candidate.x - (size / 2),
+      verticalTop,
+      size,
+      size,
+    );
+
+    return (horizontalDarkRatio + verticalDarkRatio) / 2;
+  }
+
+  private getV3FiducialTemplateSearchRegion(
+    image: RawImage,
+    label: V3FiducialCornerLabel,
+  ): { left: number; top: number; right: number; bottom: number } {
+    const horizontalLimit = Math.round(image.width * 0.32);
+    const verticalLimit = Math.round(image.height * 0.32);
+
+    return {
+      left: label === 'tl' || label === 'bl' ? 0 : image.width - horizontalLimit,
+      right: label === 'tl' || label === 'bl' ? horizontalLimit : image.width - 1,
+      top: label === 'tl' || label === 'tr' ? 0 : image.height - verticalLimit,
+      bottom: label === 'tl' || label === 'tr' ? verticalLimit : image.height - 1,
+    };
+  }
+
+  private buildDarkPixelIntegral(image: RawImage, threshold: number): Uint32Array {
+    const integralWidth = image.width + 1;
+    const integral = new Uint32Array((image.width + 1) * (image.height + 1));
+
+    for (let y = 0; y < image.height; y += 1) {
+      let rowSum = 0;
+      for (let x = 0; x < image.width; x += 1) {
+        rowSum += this.isDarkPixel(image, x, y, threshold) ? 1 : 0;
+        const integralIndex = ((y + 1) * integralWidth) + x + 1;
+        integral[integralIndex] = (integral[integralIndex - integralWidth] ?? 0) + rowSum;
+      }
+    }
+
+    return integral;
+  }
+
+  private measureIntegralRectDarkCount(
+    integral: Uint32Array,
+    imageWidth: number,
+    imageHeight: number,
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+  ): number {
+    const boundedLeft = this.clampNumber(Math.round(left), 0, imageWidth);
+    const boundedTop = this.clampNumber(Math.round(top), 0, imageHeight);
+    const boundedRight = this.clampNumber(Math.round(left + width), boundedLeft, imageWidth);
+    const boundedBottom = this.clampNumber(Math.round(top + height), boundedTop, imageHeight);
+    const integralWidth = imageWidth + 1;
+    const topLeft = (boundedTop * integralWidth) + boundedLeft;
+    const topRight = (boundedTop * integralWidth) + boundedRight;
+    const bottomLeft = (boundedBottom * integralWidth) + boundedLeft;
+    const bottomRight = (boundedBottom * integralWidth) + boundedRight;
+
+    return (integral[bottomRight] ?? 0)
+      - (integral[bottomLeft] ?? 0)
+      - (integral[topRight] ?? 0)
+      + (integral[topLeft] ?? 0);
+  }
+
+  private measureIntegralRectDarkRatio(
+    integral: Uint32Array,
+    imageWidth: number,
+    imageHeight: number,
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+  ): number {
+    const boundedLeft = this.clampNumber(Math.round(left), 0, imageWidth);
+    const boundedTop = this.clampNumber(Math.round(top), 0, imageHeight);
+    const boundedRight = this.clampNumber(Math.round(left + width), boundedLeft, imageWidth);
+    const boundedBottom = this.clampNumber(Math.round(top + height), boundedTop, imageHeight);
+    const area = Math.max(1, (boundedRight - boundedLeft) * (boundedBottom - boundedTop));
+
+    return this.measureIntegralRectDarkCount(
+      integral,
+      imageWidth,
+      imageHeight,
+      boundedLeft,
+      boundedTop,
+      boundedRight - boundedLeft,
+      boundedBottom - boundedTop,
+    ) / area;
+  }
+
+  private measureIntegralRingDarkRatio(
+    integral: Uint32Array,
+    imageWidth: number,
+    imageHeight: number,
+    outerLeft: number,
+    outerTop: number,
+    outerWidth: number,
+    outerHeight: number,
+    innerLeft: number,
+    innerTop: number,
+    innerWidth: number,
+    innerHeight: number,
+  ): number {
+    const outerCount = this.measureIntegralRectDarkCount(
+      integral,
+      imageWidth,
+      imageHeight,
+      outerLeft,
+      outerTop,
+      outerWidth,
+      outerHeight,
+    );
+    const innerCount = this.measureIntegralRectDarkCount(
+      integral,
+      imageWidth,
+      imageHeight,
+      innerLeft,
+      innerTop,
+      innerWidth,
+      innerHeight,
+    );
+    const boundedOuterLeft = this.clampNumber(Math.round(outerLeft), 0, imageWidth);
+    const boundedOuterTop = this.clampNumber(Math.round(outerTop), 0, imageHeight);
+    const boundedOuterRight = this.clampNumber(Math.round(outerLeft + outerWidth), boundedOuterLeft, imageWidth);
+    const boundedOuterBottom = this.clampNumber(Math.round(outerTop + outerHeight), boundedOuterTop, imageHeight);
+    const boundedInnerLeft = this.clampNumber(Math.round(innerLeft), 0, imageWidth);
+    const boundedInnerTop = this.clampNumber(Math.round(innerTop), 0, imageHeight);
+    const boundedInnerRight = this.clampNumber(Math.round(innerLeft + innerWidth), boundedInnerLeft, imageWidth);
+    const boundedInnerBottom = this.clampNumber(Math.round(innerTop + innerHeight), boundedInnerTop, imageHeight);
+    const outerArea = Math.max(1, (boundedOuterRight - boundedOuterLeft) * (boundedOuterBottom - boundedOuterTop));
+    const innerArea = Math.max(0, (boundedInnerRight - boundedInnerLeft) * (boundedInnerBottom - boundedInnerTop));
+    const ringArea = Math.max(1, outerArea - innerArea);
+
+    return Math.max(0, outerCount - innerCount) / ringArea;
   }
 
   private distanceBetweenPoints(
@@ -2076,6 +3204,276 @@ export class ScoreSheetImportService extends BaseService {
       computedTotal,
       overallConfidence,
     };
+  }
+
+  private buildV3DiagnosticReport(
+    image: RawImage & {
+      bounds: { left: number; top: number; width: number; height: number };
+      preprocessing?: PreprocessingMetadata;
+    },
+    criteria: Array<{ id: string; name: string; maxScore: number }>,
+    template: ScoreSheetTemplateDefinition,
+  ): ScoreSheetV3DiagnosticReport {
+    const rowCount = criteria.length;
+    const normalizedImage = this.ensureNormalizedImageMetadata(image);
+    const prepared = this.prepareV3CanonicalImage(normalizedImage);
+    const extractionImage = prepared.image;
+    const analysis = this.extractScoresFromNormalizedImage(normalizedImage, criteria, template);
+    const machineReadable = analysis.payload.machineReadable;
+
+    if (!machineReadable || machineReadable.sheetVersion !== 'v3') {
+      throw new ValidationError('V3 scoresheet diagnostics require a machine-readable v3 template');
+    }
+
+    const gridGeometry = this.resolveV3DirectGridGeometry(
+      extractionImage,
+      template,
+      rowCount,
+      prepared.fiducialDetection.detected,
+    );
+    const fiducials = machineReadable.anchorQuality.fiducials
+      ?? this.toMachineReadableFiducialMetadata(prepared.fiducialDetection, prepared.perspectiveCorrected);
+    const geometryWarnings = this.buildV3GeometryWarnings(fiducials, machineReadable.anchorQuality);
+    const rows = this.buildV3DiagnosticRows(
+      extractionImage,
+      template,
+      analysis.payload.criteria,
+      machineReadable.rejectedRows,
+    );
+    const failureClassification = this.resolveV3DiagnosticFailureClassification(
+      prepared.fiducialDetection,
+      gridGeometry,
+      machineReadable.rejectedRows,
+      analysis.payload.qualityGate,
+    );
+
+    return {
+      templateKey: template.key,
+      sheetVersion: machineReadable.sheetVersion,
+      templateVersion: machineReadable.templateVersion,
+      preprocessingMode: analysis.payload.preprocessingMode,
+      thresholdStrategy: analysis.payload.thresholdStrategy,
+      normalizedImage: this.toV3DiagnosticImage(normalizedImage),
+      canonicalImage: this.toV3DiagnosticImage(extractionImage),
+      sheetBounds: analysis.payload.sheetBounds,
+      perspectiveCorrected: prepared.perspectiveCorrected,
+      failureClassification,
+      geometryWarnings,
+      diagnosticNotes: this.buildV3DiagnosticNotes(
+        failureClassification,
+        prepared.fiducialDetection,
+        geometryWarnings,
+        machineReadable.rejectedRows,
+        analysis.payload.qualityGate,
+      ),
+      captureQualityRejection: fiducials.captureQualityRejection,
+      fiducials,
+      canonicalAnchors: this.getV3CanonicalAnchorCenters(extractionImage.width, extractionImage.height),
+      gridGeometry,
+      anchorQuality: machineReadable.anchorQuality,
+      markQuality: machineReadable.markQuality,
+      qualityGate: analysis.payload.qualityGate,
+      reviewBurdenMetrics: analysis.payload.reviewBurdenMetrics,
+      rejectedRows: machineReadable.rejectedRows,
+      ignoredRegions: machineReadable.ignoredRegions,
+      rows,
+      computedTotal: analysis.computedTotal,
+      overallConfidence: analysis.overallConfidence,
+      mismatchWarnings: analysis.payload.mismatchWarnings,
+    };
+  }
+
+  private toV3DiagnosticImage(image: NormalizedImage): ScoreSheetV3DiagnosticImage {
+    return {
+      data: Buffer.from(image.data),
+      width: image.width,
+      height: image.height,
+      channels: image.channels,
+      bounds: { ...image.bounds },
+      preprocessing: {
+        preprocessingMode: image.preprocessing.preprocessingMode,
+        thresholdStrategy: image.preprocessing.thresholdStrategy,
+        qualitySignals: { ...image.preprocessing.qualitySignals },
+      },
+    };
+  }
+
+  private buildV3DiagnosticRows(
+    image: RawImage,
+    template: ScoreSheetTemplateDefinition,
+    criteria: CriterionExtraction[],
+    rejectedRows: MachineReadableRejectedRow[],
+  ): ScoreSheetV3DiagnosticRow[] {
+    const rejectedRowsByIndex = new Map(rejectedRows.map((row) => [row.rowIndex, row] as const));
+    const rowCount = criteria.length;
+
+    return criteria.map((criterion) => {
+      const ranked = this.rankInkScores(criterion.cellInkScores);
+      const topCell = ranked[0] ?? null;
+      const secondCell = ranked[1] ?? null;
+      const rejectedRow = rejectedRowsByIndex.get(criterion.rowIndex) || null;
+      const selectedColumnIndex = topCell && topCell.scoreValue > 0 ? topCell.index : null;
+      const markedColumnIndexes = new Set(rejectedRow?.markedColumnIndexes ?? []);
+      const cells = template.scoreColumns.map((scoreValue, columnIndex): ScoreSheetV3DiagnosticCell => ({
+        rowIndex: criterion.rowIndex,
+        columnIndex,
+        scoreValue,
+        bounds: this.getV3DirectScoreCellBounds(image, template, rowCount, criterion.rowIndex, columnIndex),
+        sample: this.getV3DirectScoreSample(image, template, rowCount, criterion.rowIndex, columnIndex),
+        inkScore: Number((criterion.cellInkScores[columnIndex] ?? 0).toFixed(6)),
+        selected: selectedColumnIndex === columnIndex,
+        markedAsMultiMark: markedColumnIndexes.has(columnIndex),
+      }));
+
+      return {
+        rowIndex: criterion.rowIndex,
+        criterionId: criterion.criterionId,
+        criterionName: criterion.criterionName,
+        detectedScore: criterion.detectedScore,
+        detectedColumnLabel: criterion.detectedColumnLabel,
+        confidence: criterion.confidence,
+        ambiguous: criterion.ambiguous,
+        rejectionReason: rejectedRow?.reason || null,
+        selectedColumnIndex,
+        topCellScore: Number((topCell?.scoreValue ?? 0).toFixed(6)),
+        secondCellScore: Number((secondCell?.scoreValue ?? 0).toFixed(6)),
+        cells,
+      };
+    });
+  }
+
+  private getV3DirectScoreCellBounds(
+    image: RawImage,
+    template: ScoreSheetTemplateDefinition,
+    rowCount: number,
+    rowIndex: number,
+    columnIndex: number,
+  ): {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } {
+    const gridLeft = image.width * template.grid.left;
+    const gridTop = image.height * template.grid.top;
+    const rowHeight = (template.grid.bottom - template.grid.top) * image.height / rowCount;
+    const columnWidth = (template.grid.right - template.grid.left) * image.width
+      / template.scoreColumns.length;
+
+    return {
+      left: Number((gridLeft + (columnWidth * columnIndex)).toFixed(2)),
+      top: Number((gridTop + (rowHeight * rowIndex)).toFixed(2)),
+      width: Number(columnWidth.toFixed(2)),
+      height: Number(rowHeight.toFixed(2)),
+    };
+  }
+
+  private getV3DirectScoreSample(
+    image: RawImage,
+    template: ScoreSheetTemplateDefinition,
+    rowCount: number,
+    rowIndex: number,
+    columnIndex: number,
+  ): {
+    centerX: number;
+    centerY: number;
+    radius: number;
+    searchRadius: number;
+  } {
+    const rowHeight = (template.grid.bottom - template.grid.top) * image.height / rowCount;
+    const columnWidth = (template.grid.right - template.grid.left) * image.width
+      / template.scoreColumns.length;
+    const centerX = image.width * (
+      template.grid.left
+      + (((template.grid.right - template.grid.left) / template.scoreColumns.length) * (columnIndex + 0.5))
+    );
+    const centerY = image.height * (
+      template.grid.top
+      + (((template.grid.bottom - template.grid.top) / rowCount) * (rowIndex + 0.5))
+    );
+
+    return {
+      centerX: Number(centerX.toFixed(2)),
+      centerY: Number(centerY.toFixed(2)),
+      radius: this.clampNumber(Math.round(Math.min(rowHeight, columnWidth) * 0.12), 5, 8),
+      searchRadius: this.clampNumber(Math.round(Math.min(rowHeight, columnWidth) * 0.1), 3, 7),
+    };
+  }
+
+  private resolveV3DiagnosticFailureClassification(
+    fiducialDetection: V3FiducialDetection,
+    gridGeometry: GridGeometry,
+    rejectedRows: MachineReadableRejectedRow[],
+    qualityGate: CaptureQualityGate,
+  ): ScoreSheetV3DiagnosticReport['failureClassification'] {
+    if (
+      !fiducialDetection.detected
+      || !gridGeometry.anchoring.horizontalAnchored
+      || !gridGeometry.anchoring.verticalAnchored
+    ) {
+      return 'geometry';
+    }
+
+    if (rejectedRows.length > 0) {
+      return 'mark_scoring';
+    }
+
+    if (qualityGate.decision === 'manual_entry_required') {
+      return 'quality_gate';
+    }
+
+    return 'none';
+  }
+
+  private buildV3DiagnosticNotes(
+    failureClassification: ScoreSheetV3DiagnosticReport['failureClassification'],
+    fiducialDetection: V3FiducialDetection,
+    geometryWarnings: string[],
+    rejectedRows: MachineReadableRejectedRow[],
+    qualityGate: CaptureQualityGate,
+  ): string[] {
+    const notes: string[] = [];
+
+    if (failureClassification === 'geometry') {
+      notes.push('Geometry failure: v3 fiducials or canonical grid anchoring were not reliable.');
+      notes.push(...fiducialDetection.failureReasons);
+    } else if (failureClassification === 'mark_scoring') {
+      notes.push(`Mark scoring failure: ${rejectedRows.length} row(s) were rejected after geometry was accepted.`);
+    } else if (failureClassification === 'quality_gate') {
+      notes.push('Quality gate failure: rows were extracted, but capture-quality thresholds still blocked review.');
+    } else {
+      notes.push('No diagnostic failure detected.');
+    }
+
+    notes.push(...geometryWarnings);
+    notes.push(...qualityGate.blockingReasons);
+    return Array.from(new Set(notes));
+  }
+
+  private buildV3GeometryWarnings(
+    fiducials: MachineReadableFiducialMetadata,
+    anchorQuality: MachineReadableAnchorQuality,
+  ): string[] {
+    const warnings: string[] = [];
+
+    if (!fiducials.detected) {
+      warnings.push('V3 fiducials were not accepted by the detector.');
+    }
+    if (!fiducials.perspectiveCorrected) {
+      warnings.push('The image was not perspective-corrected before scoring.');
+    }
+    if (anchorQuality.versionStripConfidence < MACHINE_READABLE_VERSION_MIN_CONFIDENCE) {
+      warnings.push(
+        `Canonical version strip confidence ${anchorQuality.versionStripConfidence} is below ${MACHINE_READABLE_VERSION_MIN_CONFIDENCE}; the accepted fiducial quadrilateral may be wrong.`,
+      );
+    }
+    if (anchorQuality.versionBits.join('') !== EDUCATION_OMR_V3_VERSION_BITS.join('')) {
+      warnings.push(
+        `Canonical version bits ${anchorQuality.versionBits.join('')} do not match expected ${EDUCATION_OMR_V3_VERSION_BITS.join('')}.`,
+      );
+    }
+
+    return warnings;
   }
 
   private prepareV3CanonicalImage(
@@ -2983,11 +4381,15 @@ export class ScoreSheetImportService extends BaseService {
   }
 
   private isDarkPixel(image: RawImage, x: number, y: number, threshold: number): boolean {
+    return this.getPixelLuminance(image, x, y) < threshold;
+  }
+
+  private getPixelLuminance(image: RawImage, x: number, y: number): number {
     const offset = ((y * image.width) + x) * image.channels;
     const r = image.data[offset] ?? 255;
     const g = image.data[offset + 1] ?? r;
     const b = image.data[offset + 2] ?? r;
-    return ((r + g + b) / 3) < threshold;
+    return (r + g + b) / 3;
   }
 
   private formatErrorMessage(error: unknown): string {
