@@ -140,6 +140,40 @@ export class ContestService extends BaseService {
     await this.cacheService.invalidatePattern('categories:*');
   }
 
+  private async syncInheritedCategoryCommentarySettings(
+    existing: Contest,
+    data: UpdateContestDto,
+  ): Promise<number> {
+    const nextCommentaryMode = data.commentaryMode;
+    const nextCommentaryScope = data.commentaryScope;
+    const commentaryModeChanged =
+      nextCommentaryMode !== undefined && nextCommentaryMode !== existing.commentaryMode;
+    const commentaryScopeChanged =
+      nextCommentaryScope !== undefined && nextCommentaryScope !== existing.commentaryScope;
+
+    if (!commentaryModeChanged && !commentaryScopeChanged) {
+      return 0;
+    }
+
+    const where: Prisma.CategoryWhereInput = {
+      contestId: existing.id,
+      tenantId: existing.tenantId,
+      deletedAt: null,
+      ...(commentaryModeChanged ? { commentaryMode: existing.commentaryMode } : {}),
+      ...(commentaryScopeChanged ? { commentaryScope: existing.commentaryScope } : {}),
+    };
+
+    const updateData: Prisma.CategoryUpdateManyMutationInput = {
+      ...(commentaryModeChanged ? { commentaryMode: nextCommentaryMode } : {}),
+      ...(commentaryScopeChanged ? { commentaryScope: nextCommentaryScope } : {}),
+    };
+
+    return this.categoryRepo.updateMany(
+      where as unknown as Record<string, unknown>,
+      updateData as unknown as Record<string, unknown>,
+    );
+  }
+
   /**
    * Create a new contest
    */
@@ -334,11 +368,22 @@ export class ContestService extends BaseService {
 
       // Update contest
       const contest = await this.contestRepo.update(id, data);
+      const synchronizedCategoryCount = await this.syncInheritedCategoryCommentarySettings(existing, data);
 
       // Invalidate caches
       await this.invalidateContestCache(id, existing.eventId);
+      if (synchronizedCategoryCount > 0) {
+        await this.invalidateCategoryCaches(id);
+      }
 
-      this.logInfo('Contest updated', { contestId: id });
+      this.logInfo('Contest updated', {
+        contestId: id,
+        synchronizedCategoryCount,
+        commentaryModeChanged:
+          data.commentaryMode !== undefined && data.commentaryMode !== existing.commentaryMode,
+        commentaryScopeChanged:
+          data.commentaryScope !== undefined && data.commentaryScope !== existing.commentaryScope,
+      });
       return contest;
     } catch (error) {
       return this.handleError(error, { operation: 'updateContest', id, data });

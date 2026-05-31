@@ -43,6 +43,7 @@ describe('ContestService', () => {
     } as any;
 
     mockCategoryRepo = {
+      updateMany: jest.fn(),
       softDeleteByContestId: jest.fn(),
       restoreByContestIdAndDeletedAt: jest.fn(),
     } as any;
@@ -265,6 +266,9 @@ describe('ContestService', () => {
         id: '1',
         name: 'Old Name',
         eventId: 'event-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'PER_CRITERION',
+        commentaryScope: 'CATEGORY',
       };
       const updateData = { name: 'New Name' };
       const updatedContest = { ...existingContest, ...updateData };
@@ -272,6 +276,7 @@ describe('ContestService', () => {
       mockCacheService.get.mockResolvedValue(null);
       mockContestRepo.findById.mockResolvedValue(existingContest as any);
       mockContestRepo.update.mockResolvedValue(updatedContest as any);
+      mockCategoryRepo.updateMany.mockResolvedValue(0);
 
       const result = await contestService.updateContest('1', updateData);
 
@@ -280,6 +285,46 @@ describe('ContestService', () => {
       expect(mockCacheService.del).toHaveBeenCalledWith('contest:details:1');
       expect(mockCacheService.del).toHaveBeenCalledWith('contests:event:event-1');
       expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('contests:*');
+    });
+
+    it('should cascade contest commentary changes to inherited categories only', async () => {
+      const existingContest = {
+        id: '1',
+        name: 'Contest',
+        eventId: 'event-1',
+        tenantId: 'tenant-1',
+        commentaryMode: 'PER_CRITERION',
+        commentaryScope: 'CATEGORY',
+      };
+      const updateData = {
+        commentaryMode: 'PER_CATEGORY' as const,
+        commentaryScope: 'CONTEST' as const,
+      };
+      const updatedContest = { ...existingContest, ...updateData };
+
+      mockCacheService.get.mockResolvedValue(null);
+      mockContestRepo.findById.mockResolvedValue(existingContest as any);
+      mockContestRepo.update.mockResolvedValue(updatedContest as any);
+      mockCategoryRepo.updateMany.mockResolvedValue(5);
+
+      const result = await contestService.updateContest('1', updateData);
+
+      expect(result).toEqual(updatedContest);
+      expect(mockCategoryRepo.updateMany).toHaveBeenCalledWith(
+        {
+          contestId: '1',
+          tenantId: 'tenant-1',
+          deletedAt: null,
+          commentaryMode: 'PER_CRITERION',
+          commentaryScope: 'CATEGORY',
+        },
+        {
+          commentaryMode: 'PER_CATEGORY',
+          commentaryScope: 'CONTEST',
+        },
+      );
+      expect(mockCacheService.del).toHaveBeenCalledWith('categories:contest:1');
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith('categories:*');
     });
 
     it('should throw error if contest not found', async () => {

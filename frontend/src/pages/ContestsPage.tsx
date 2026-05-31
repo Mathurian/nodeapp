@@ -358,6 +358,7 @@ const ContestsPage: React.FC = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('contests')
+        queryClient.invalidateQueries('categories')
         resetForm()
         toast.success('Contest updated successfully!')
       },
