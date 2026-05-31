@@ -1388,16 +1388,37 @@ export class ScoringController {
           });
         });
 
-        // Remove deletedAt fields from response
-        if (cat.contest) {
-          delete cat.contest.deletedAt;
-          if (cat.contest.event) {
-            delete cat.contest.event.deletedAt;
+        const contest = cat.contest
+          ? {
+              ...cat.contest,
+              event: cat.contest.event
+                ? {
+                    ...cat.contest.event,
+                  }
+                : cat.contest.event,
+            }
+          : cat.contest;
+
+        if (contest) {
+          delete contest.deletedAt;
+          if (contest.event) {
+            delete contest.event.deletedAt;
           }
         }
-        delete cat.categoryContestants;
-        cat.contestants = contestants;
-        return cat;
+
+        const {
+          categoryContestants: _categoryContestants,
+          contest: _contest,
+          ...categoryFields
+        } = cat;
+
+        return {
+          ...categoryFields,
+          commentaryMode: cat.commentaryMode,
+          commentaryScope: cat.commentaryScope,
+          contest,
+          contestants,
+        };
       });
 
       return sendSuccess(res, filteredCategories);

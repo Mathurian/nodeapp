@@ -56,16 +56,17 @@ const V3_ASSURANCE_THRESHOLDS = {
   },
 };
 const V3_PHONE_PHOTO_SAMPLES = [
-  {
-    id: 'v3-phone-img-5145',
-    label: 'V3 phone photo IMG_5145',
-    captureType: 'phone_photo',
-    sourcePath: 'temp/scoresheet-corpus-intake/IMG_5145.jpeg',
-    contestantName: 'Retro',
-    judgeName: 'Daddie Danger',
-    expectedRejectedRows: [],
-  },
-];
+  'IMG_5145.jpeg',
+  ...Array.from({ length: 8 }, (_value, index) => `IMG_${5152 + index}.jpeg`),
+].map((fileName) => ({
+  id: `v3-phone-${fileName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+  label: `V3 phone photo ${fileName.replace('.jpeg', '')}`,
+  captureType: 'phone_photo',
+  sourcePath: `temp/scoresheet-corpus-intake/${fileName}`,
+  contestantName: 'Retro',
+  judgeName: 'Daddie Danger',
+  expectedRejectedRows: [],
+}));
 const PREPROCESSING_VARIANTS = [
   {
     id: 'standard',
@@ -617,6 +618,66 @@ const findV3PhonePhotoGroundTruth = (family, phonePhotoSample) =>
     && sample.judgeName === phonePhotoSample.judgeName,
   );
 
+const inferUploadFileType = (sourcePath) => {
+  const extension = path.extname(sourcePath || '').toLowerCase();
+  if (extension === '.jpg' || extension === '.jpeg') return 'image/jpeg';
+  if (extension === '.png') return 'image/png';
+  if (extension === '.heic') return 'image/heic';
+  if (extension === '.heif') return 'image/heif';
+  if (extension === '.pdf') return 'application/pdf';
+  return 'application/octet-stream';
+};
+
+const classifyPhonePhotoSkipCategory = (reason, sourcePath) => {
+  const normalizedReason = String(reason || '').toLowerCase();
+  if (normalizedReason.includes('source file not found')) return 'source_file_missing';
+  if (normalizedReason.includes('missing v3 phone-photo ground truth')) return 'missing_ground_truth';
+  if (
+    normalizedReason.includes('convert')
+    || normalizedReason.includes('unsupported')
+    || normalizedReason.includes('invalid image')
+  ) {
+    return 'upload_conversion_failure';
+  }
+  if (sourcePath && !['.jpg', '.jpeg', '.png', '.heic', '.heif', '.pdf'].includes(path.extname(sourcePath).toLowerCase())) {
+    return 'upload_conversion_failure';
+  }
+  return 'parser_or_runtime_failure';
+};
+
+const classifyV3SampleOutcome = (result, rows) => {
+  const categories = [];
+  const reasons = [];
+  const machineReadable = result.payload.machineReadable || null;
+  const anchorQuality = machineReadable?.anchorQuality || null;
+  const fiducials = anchorQuality?.fiducials || null;
+  const rejectedRows = machineReadable?.rejectedRows || [];
+  const qualityGate = result.payload.qualityGate;
+
+  if (qualityGate.blockingReasons.length > 0) {
+    categories.push('quality_gate');
+    reasons.push(...qualityGate.blockingReasons);
+  }
+  if ((fiducials && !fiducials.detected) || (anchorQuality && !anchorQuality.detected)) {
+    categories.push('parser_geometry');
+    reasons.push(...(fiducials?.failureReasons || []));
+  }
+  if (rejectedRows.length > 0) {
+    categories.push('mark_rejections');
+  }
+  if (rows.some((row) => row.unexpectedRejected)) {
+    categories.push('unexpected_rejection');
+  }
+  if (rows.some((row) => !row.exactMatch && !row.ambiguous)) {
+    categories.push('extraction_mismatch');
+  }
+
+  return {
+    failureCategories: categories.length > 0 ? Array.from(new Set(categories)) : ['none'],
+    failureReasons: Array.from(new Set(reasons)),
+  };
+};
+
 const buildExpectedScoresByCriterion = (criteria, groundTruthSample, phonePhotoSample) => {
   const expectedScoresByCriterion = Object.fromEntries(
     criteria.map((criterion) => [
@@ -725,6 +786,7 @@ const evaluateMachineReadableV3 = async (service, groundTruth, thresholdConfig, 
   let totalDeltaSum = 0;
   let runtimeMsTotal = 0;
   let maxRejectedRowsOnAcceptedSheet = 0;
+  let manualAttentionRows = 0;
   const captureTypeCounts = {};
 
   const recordV3SampleResult = (sample, result, runtimeMs) => {
@@ -772,34 +834,60 @@ const evaluateMachineReadableV3 = async (service, groundTruth, thresholdConfig, 
     const totalDelta = Math.abs(sample.expectedTotal - result.computedTotal);
     const rejectedRowCount = result.payload.machineReadable?.markQuality?.rejectedRowCount || 0;
     const acceptedSheet = (sample.expectedRejectedRows || []).length === 0;
+    const manualAttentionRowCount = rows.filter((row) =>
+      row.ambiguous
+      || row.rejected
+      || !row.exactMatch,
+    ).length;
+    manualAttentionRows += manualAttentionRowCount;
     if (acceptedSheet) {
       maxRejectedRowsOnAcceptedSheet = Math.max(maxRejectedRowsOnAcceptedSheet, rejectedRowCount);
     }
     if (exactSheetMatch) exactSheetMatches += 1;
     totalDeltaSum += totalDelta;
+    const sampleOutcome = classifyV3SampleOutcome(result, rows);
 
     perPage.push({
       id: sample.id,
       label: sample.label,
       captureType: sample.captureType,
+      context: {
+        contestantName: sample.contestantName || null,
+        judgeName: sample.judgeName || null,
+      },
+      upload: {
+        sourcePath: sample.sourcePath || null,
+        originalFileType: sample.sourcePath ? inferUploadFileType(sample.sourcePath) : 'synthetic/generated',
+        normalizedFileType: 'image/raw-rgb-normalized',
+        conversionRequired: false,
+        converted: false,
+        conversionFailure: null,
+      },
       templateKey: result.payload.templateKey,
       sheetVersion: result.payload.machineReadable?.sheetVersion || null,
       templateVersion: result.payload.machineReadable?.templateVersion || null,
+      parserVersion: result.payload.machineReadable?.templateVersion || null,
+      preprocessingMode: result.payload.preprocessingMode,
+      thresholdStrategy: result.payload.thresholdStrategy,
       sourcePath: sample.sourcePath || null,
       expectedTotal: sample.expectedTotal,
       computedTotal: result.computedTotal,
       totalDelta,
       exactRowCount,
       rowCount: rows.length,
+      exactRowMatchRate: rows.length > 0 ? exactRowCount / rows.length : 0,
       exactSheetMatch,
       ambiguousRowCount: rows.filter((row) => row.ambiguous).length,
       rejectedRowCount,
       expectedRejectedRows: sample.expectedRejectedRows || [],
       rejectedRows: result.payload.machineReadable?.rejectedRows || [],
       falseHighConfidenceMarkCount: rows.filter((row) => row.falseHighConfidenceMark).length,
+      failureCategories: sampleOutcome.failureCategories,
+      failureReasons: sampleOutcome.failureReasons,
       anchorQuality: result.payload.machineReadable?.anchorQuality || null,
       markQuality: result.payload.machineReadable?.markQuality || null,
       ignoredRegions: result.payload.machineReadable?.ignoredRegions || [],
+      qualityGate: result.payload.qualityGate,
       runtimeMs: Number(runtimeMs.toFixed(2)),
       rows,
     });
@@ -819,44 +907,63 @@ const evaluateMachineReadableV3 = async (service, groundTruth, thresholdConfig, 
       skippedPhonePhotoSamples.push({
         id: phonePhotoSample.id,
         sourcePath: phonePhotoSample.sourcePath,
+        upload: {
+          originalFileType: inferUploadFileType(phonePhotoSample.sourcePath),
+          conversionRequired: false,
+        },
+        skipCategory: 'source_file_missing',
         reason: 'source file not found',
       });
       continue;
     }
 
-    const groundTruthSample = findV3PhonePhotoGroundTruth(family, phonePhotoSample);
-    if (!groundTruthSample) {
-      throw new Error(
-        `Missing v3 phone-photo ground truth for ${phonePhotoSample.id}: `
-        + `${phonePhotoSample.judgeName} / ${phonePhotoSample.contestantName}`,
+    try {
+      const groundTruthSample = findV3PhonePhotoGroundTruth(family, phonePhotoSample);
+      if (!groundTruthSample) {
+        throw new Error(
+          `Missing v3 phone-photo ground truth for ${phonePhotoSample.id}: `
+          + `${phonePhotoSample.judgeName} / ${phonePhotoSample.contestantName}`,
+        );
+      }
+
+      const expectedScoresByCriterion = buildExpectedScoresByCriterion(
+        orderedCriteria,
+        groundTruthSample,
+        phonePhotoSample,
       );
+      const expectedTotal = groundTruthSample.handwrittenTotal
+        ?? sumExpectedScores(expectedScoresByCriterion);
+      const sourceBuffer = fs.readFileSync(sourcePath);
+      const startedAt = process.hrtime.bigint();
+      const normalized = await service.normalizePage(sourceBuffer, {
+        preprocessingMode: 'standard',
+        thresholdStrategy: 'none',
+      });
+      const result = service.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
+      const runtimeMs = measureRuntimeMs(startedAt);
+
+      recordV3SampleResult(
+        {
+          ...phonePhotoSample,
+          expectedScoresByCriterion,
+          expectedTotal,
+        },
+        result,
+        runtimeMs,
+      );
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      skippedPhonePhotoSamples.push({
+        id: phonePhotoSample.id,
+        sourcePath: phonePhotoSample.sourcePath,
+        upload: {
+          originalFileType: inferUploadFileType(phonePhotoSample.sourcePath),
+          conversionRequired: false,
+        },
+        skipCategory: classifyPhonePhotoSkipCategory(reason, phonePhotoSample.sourcePath),
+        reason,
+      });
     }
-
-    const expectedScoresByCriterion = buildExpectedScoresByCriterion(
-      orderedCriteria,
-      groundTruthSample,
-      phonePhotoSample,
-    );
-    const expectedTotal = groundTruthSample.handwrittenTotal
-      ?? sumExpectedScores(expectedScoresByCriterion);
-    const sourceBuffer = fs.readFileSync(sourcePath);
-    const startedAt = process.hrtime.bigint();
-    const normalized = await service.normalizePage(sourceBuffer, {
-      preprocessingMode: 'standard',
-      thresholdStrategy: 'none',
-    });
-    const result = service.extractScoresFromNormalizedImage(normalized, orderedCriteria, template);
-    const runtimeMs = measureRuntimeMs(startedAt);
-
-    recordV3SampleResult(
-      {
-        ...phonePhotoSample,
-        expectedScoresByCriterion,
-        expectedTotal,
-      },
-      result,
-      runtimeMs,
-    );
   }
 
   const sheetCount = perPage.length;
@@ -879,9 +986,9 @@ const evaluateMachineReadableV3 = async (service, groundTruth, thresholdConfig, 
     captureTypeCounts,
     skippedPhonePhotoSampleCount: skippedPhonePhotoSamples.length,
     sameUserManualEntryRows: totalRows,
-    v3ManualAttentionRows: ambiguousRows + incorrectRows,
+    v3ManualAttentionRows: manualAttentionRows,
     estimatedManualEntryRowReductionRate: totalRows > 0
-      ? 1 - ((ambiguousRows + incorrectRows) / totalRows)
+      ? 1 - (manualAttentionRows / totalRows)
       : 0,
   };
   const rolloutPolicy = evaluateV3Policy(
@@ -1016,6 +1123,8 @@ const printHumanReport = (report) => {
         + ` sheet ${page.exactSheetMatch ? 'match' : 'mismatch'},`
         + ` rejected ${page.rejectedRowCount}, ambiguous ${page.ambiguousRowCount},`
         + ` false high-confidence ${page.falseHighConfidenceMarkCount},`
+        + ` failure ${page.failureCategories.join('/')},`
+        + ` upload ${page.upload.originalFileType},`
         + ` total ${page.computedTotal}/${page.expectedTotal} (delta ${page.totalDelta}),`
         + ` runtime ${page.runtimeMs}ms`,
       );
@@ -1023,7 +1132,7 @@ const printHumanReport = (report) => {
     if (v3.skippedPhonePhotoSamples.length > 0) {
       console.log('  skipped phone-photo samples:');
       v3.skippedPhonePhotoSamples.forEach((sample) => {
-        console.log(`    ${sample.id}: ${sample.reason} (${sample.sourcePath})`);
+        console.log(`    ${sample.id}: ${sample.skipCategory} - ${sample.reason} (${sample.sourcePath})`);
       });
     }
   }
