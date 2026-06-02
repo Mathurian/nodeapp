@@ -462,18 +462,41 @@ export class UsersController {
         if (data.role === 'JUDGE') {
           log.debug('Creating judge record', { userId: user.id });
 
-          // Use transaction for judge creation and user linkage
+          // Use transaction for judge creation/adoption and user linkage
           await this.prisma.$transaction(async (tx) => {
-            const judge = await tx.judge.create({
-              data: {
+            const existingJudge = await tx.judge.findFirst({
+              where: {
                 tenantId,
-                name: data.name,
-                email: data.email,
-                gender: data.gender || null,
-                pronouns: data.pronouns || null,
-                isHeadJudge: data.isHeadJudge || false
-              }
+                email: { equals: data.email, mode: 'insensitive' }
+              },
+              select: { id: true }
             });
+
+            const judge = existingJudge
+              ? await tx.judge.update({
+                  where: { id: existingJudge.id },
+                  data: {
+                    name: data.name,
+                    email: data.email,
+                    gender: data.gender || null,
+                    pronouns: data.pronouns || null,
+                    bio: data.bio || null,
+                    isHeadJudge: data.isHeadJudge || false
+                  },
+                  select: { id: true }
+                })
+              : await tx.judge.create({
+                  data: {
+                    tenantId,
+                    name: data.name,
+                    email: data.email,
+                    gender: data.gender || null,
+                    pronouns: data.pronouns || null,
+                    bio: data.bio || null,
+                    isHeadJudge: data.isHeadJudge || false
+                  },
+                  select: { id: true }
+                });
 
             await tx.user.update({
               where: { id: user.id },
@@ -481,22 +504,45 @@ export class UsersController {
             });
           });
 
-          log.info('Judge record created and linked', { userId: user.id });
+          log.info('Judge record linked', { userId: user.id });
         } else if (data.role === 'CONTESTANT') {
           log.debug('Creating contestant record', { userId: user.id });
 
-          // Use transaction for contestant creation and user linkage
+          // Use transaction for contestant creation/adoption and user linkage
           await this.prisma.$transaction(async (tx) => {
-            const contestant = await tx.contestant.create({
-              data: {
+            const existingContestant = await tx.contestant.findFirst({
+              where: {
                 tenantId,
-                name: data.name,
-                email: data.email,
-                contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
-                gender: data.gender || null,
-                pronouns: data.pronouns || null
-              }
+                email: { equals: data.email, mode: 'insensitive' }
+              },
+              select: { id: true }
             });
+
+            const contestant = existingContestant
+              ? await tx.contestant.update({
+                  where: { id: existingContestant.id },
+                  data: {
+                    name: data.name,
+                    email: data.email,
+                    contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
+                    gender: data.gender || null,
+                    pronouns: data.pronouns || null,
+                    bio: data.bio || null
+                  },
+                  select: { id: true }
+                })
+              : await tx.contestant.create({
+                  data: {
+                    tenantId,
+                    name: data.name,
+                    email: data.email,
+                    contestantNumber: data.contestantNumber ? parseInt(String(data.contestantNumber)) : null,
+                    gender: data.gender || null,
+                    pronouns: data.pronouns || null,
+                    bio: data.bio || null
+                  },
+                  select: { id: true }
+                });
 
             await tx.user.update({
               where: { id: user.id },
@@ -504,7 +550,7 @@ export class UsersController {
             });
           });
 
-          log.info('Contestant record created and linked', { userId: user.id });
+          log.info('Contestant record linked', { userId: user.id });
         }
       } catch (roleError) {
         // Cleanup: delete the user if role-specific record creation failed

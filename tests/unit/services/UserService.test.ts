@@ -359,6 +359,15 @@ describe('UserService', () => {
       expect(mockUserRepository.delete).toHaveBeenCalledWith('user-123');
     });
 
+    it('should throw ConflictError when deleting a linked judge or contestant user', async () => {
+      mockUserRepository.findById.mockResolvedValue(
+        createMockUser({ judgeId: 'judge-123' }) as any
+      );
+
+      await expect(userService.deleteUser('user-123')).rejects.toThrow(ConflictError);
+      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+    });
+
     it('should throw NotFoundError when user does not exist', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
 

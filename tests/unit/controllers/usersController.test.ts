@@ -316,7 +316,10 @@ describe('UsersController', () => {
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         // Simulate transaction context with mock tx object
         const mockTx = {
-          judge: { create: jest.fn().mockResolvedValue({ id: 'judge-1' }) },
+          judge: {
+            findFirst: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockResolvedValue({ id: 'judge-1' }),
+          },
           user: { update: jest.fn().mockResolvedValue({ id: 'user-1', judgeId: 'judge-1' }) }
         };
         return await callback(mockTx);
@@ -332,6 +335,60 @@ describe('UsersController', () => {
 
       // Verify transaction was called (judge creation happens inside transaction)
       expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockSendCreated).toHaveBeenCalledWith(mockRes, expect.any(Object));
+    });
+
+    it('should adopt an existing judge record when creating a judge user', async () => {
+      const judgeData = {
+        ...validUserData,
+        role: 'JUDGE',
+        email: 'J2@Test.com',
+        bio: 'Experienced judge',
+      };
+
+      const existingJudge = { id: 'judge-existing' };
+      const judgeUpdate = jest.fn().mockResolvedValue(existingJudge);
+      const judgeCreate = jest.fn();
+      const userUpdate = jest.fn().mockResolvedValue({ id: 'user-1', judgeId: existingJudge.id });
+
+      mockReq.body = judgeData;
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+      mockUserService.createUser.mockResolvedValue({ id: 'user-1' } as any);
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        const mockTx = {
+          judge: {
+            findFirst: jest.fn().mockResolvedValue(existingJudge),
+            update: judgeUpdate,
+            create: judgeCreate,
+          },
+          user: { update: userUpdate }
+        };
+        return await callback(mockTx);
+      });
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        id: 'user-1',
+        judgeId: existingJudge.id,
+        judge: { id: existingJudge.id },
+      } as any);
+
+      await controller.createUser(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(judgeUpdate).toHaveBeenCalledWith({
+        where: { id: existingJudge.id },
+        data: expect.objectContaining({
+          name: judgeData.name,
+          email: judgeData.email,
+          bio: judgeData.bio,
+        }),
+        select: { id: true },
+      });
+      expect(judgeCreate).not.toHaveBeenCalled();
+      expect(userUpdate).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { judgeId: existingJudge.id },
+      });
       expect(mockSendCreated).toHaveBeenCalledWith(mockRes, expect.any(Object));
     });
 
@@ -351,7 +408,10 @@ describe('UsersController', () => {
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         // Simulate transaction context with mock tx object
         const mockTx = {
-          contestant: { create: jest.fn().mockResolvedValue({ id: 'contestant-1' }) },
+          contestant: {
+            findFirst: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockResolvedValue({ id: 'contestant-1' }),
+          },
           user: { update: jest.fn().mockResolvedValue({ id: 'user-1', contestantId: 'contestant-1' }) }
         };
         return await callback(mockTx);

@@ -544,6 +544,12 @@ export class UserService extends BaseService {
       const user = await this.userRepository.findById(userId);
       this.assertExists(user, 'User', userId);
 
+      if (user.judgeId || user.contestantId) {
+        throw this.conflictError(
+          'Cannot delete a user linked to a judge or contestant profile. Deactivate the account or change the role instead.'
+        );
+      }
+
       await this.userRepository.delete(userId);
 
       this.logInfo('User deleted', { userId });
