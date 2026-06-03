@@ -8,9 +8,11 @@ import { test, expect, Browser } from '@playwright/test';
 import { PrismaClient } from '@prisma/client';
 import { TestDataFactory } from '../helpers/TestDataFactory';
 import {
+  closeOpenModals,
   createAuthContext,
   cleanupContexts,
   navigateAndWait,
+  waitForPageLoad,
 } from '../helpers/playwrightAuthHelpers';
 
 let browser: Browser;
@@ -80,14 +82,33 @@ test.describe('Report Generation E2E Tests', () => {
     });
   });
 
-  test('should generate a report', async () => {
+  test('should generate a scoped report and open email delivery options', async () => {
     const { page } = authContext;
-    // Simplified: Just verify reports page is accessible
-    await navigateAndWait(page, '/reports');
+    await page.goto('/reports');
+    await waitForPageLoad(page);
+    await closeOpenModals(page);
 
-    const reportsPage = page.locator('h1, h2, body').first();
-    await expect(reportsPage).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain('/reports');
+    const eventSelect = page.locator('[data-testid="reports-event-select"]');
+    await eventSelect.selectOption({ index: 1 });
+
+    const generateResponsePromise = page.waitForResponse((response) =>
+      response.url().includes('/reports/generate') &&
+      response.request().method() === 'POST' &&
+      response.ok(),
+    );
+    await page.getByRole('button', { name: 'Generate Report' }).click();
+    const generateResponse = await generateResponsePromise;
+    expect(generateResponse.ok()).toBeTruthy();
+
+    const generatedItem = page.locator('[data-testid="reports-generated-item"]').first();
+    await expect(generatedItem).toBeVisible({ timeout: 10000 });
+
+    await generatedItem.getByRole('button', { name: 'Email' }).click();
+
+    const emailFormatSelect = page.locator('[data-testid="reports-email-format-select"]');
+    await expect(emailFormatSelect).toBeVisible({ timeout: 5000 });
+    await emailFormatSelect.selectOption('csv');
+    await expect(emailFormatSelect).toHaveValue('csv');
   });
 
   test('should support event to contest drill-in scope controls', async () => {
@@ -102,6 +123,9 @@ test.describe('Report Generation E2E Tests', () => {
       await expect(activeScope).toContainText(/all contests/i);
 
       const contestScopeOptions = page.locator('[data-testid="reports-contest-scope-options"]');
+      await expect
+        .poll(async () => contestScopeOptions.locator('input[type="checkbox"]').count(), { timeout: 10000 })
+        .toBeGreaterThan(0);
       await expect(contestScopeOptions).toBeVisible({ timeout: 5000 });
 
       const typeSelect = page.locator('[data-testid="reports-type-select"]');
@@ -116,6 +140,96 @@ test.describe('Report Generation E2E Tests', () => {
       await contestSelect.selectOption({ index: 1 });
       await expect(activeScope).not.toContainText(/all contests/i);
     }
+  });
+
+  test('should preview contestant and judge drilldown for certified contest results', async () => {
+    const { page } = authContext;
+    const primaryCategory = testData.categories[0];
+    const primaryContest = testData.contests[0];
+    const firstCriterion = testData.criteria.category1[0];
+
+    await prisma.category.update({
+      where: { id: primaryCategory.id },
+      data: {
+        totalsCertified: true,
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'CONTEST',
+      },
+    });
+
+    const seededScores = await prisma.score.findMany({
+      where: {
+        categoryId: primaryCategory.id,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    await prisma.score.updateMany({
+      where: {
+        id: { in: seededScores.map((score) => score.id) },
+      },
+      data: {
+        isCertified: true,
+        certifiedAt: new Date(),
+        certifiedBy: testData.users.admin.id,
+      },
+    });
+
+    await prisma.scoreComment.create({
+      data: {
+        scoreId: seededScores[0].id,
+        criterionId: firstCriterion.id,
+        contestantId: testData.contestant.id,
+        judgeId: testData.judge.id,
+        comment: 'Stage control held throughout.',
+        tenantId: testData.tenant.id,
+      },
+    });
+
+    await prisma.judgeComment.create({
+      data: {
+        scope: 'CONTEST',
+        scopeKey: primaryContest.id,
+        contestId: primaryContest.id,
+        contestantId: testData.contestant.id,
+        judgeId: testData.judge.id,
+        comment: 'Excellent presentation.',
+        tenantId: testData.tenant.id,
+      },
+    });
+
+    await navigateAndWait(page, '/reports');
+    await closeOpenModals(page);
+
+    const typeSelect = page.locator('[data-testid="reports-type-select"]');
+    await typeSelect.selectOption('contest');
+
+    const eventSelect = page.locator('[data-testid="reports-event-select"]');
+    await expect(eventSelect.locator(`option[value="${testData.event.id}"]`)).toHaveCount(1, { timeout: 10000 });
+    await eventSelect.selectOption(testData.event.id);
+
+    const contestSelect = page.locator('[data-testid="reports-contest-select"]');
+    await expect(contestSelect).toBeVisible({ timeout: 5000 });
+    await expect(contestSelect.locator(`option[value="${primaryContest.id}"]`)).toHaveCount(1, { timeout: 10000 });
+    await contestSelect.selectOption(primaryContest.id);
+
+    const generateResponsePromise = page.waitForResponse((response) =>
+      response.url().includes('/reports/generate') &&
+      response.request().method() === 'POST' &&
+      response.ok(),
+    );
+    await page.getByRole('button', { name: 'Generate Report' }).click();
+    await generateResponsePromise;
+
+    const generatedItem = page.locator('[data-testid="reports-generated-item"]').first();
+    await expect(generatedItem).toBeVisible({ timeout: 10000 });
+    await generatedItem.getByRole('button', { name: 'View' }).click();
+
+    const drilldownPreview = page.locator('[data-testid="reports-drilldown-preview"]');
+    await expect(drilldownPreview).toBeVisible({ timeout: 10000 });
+    await expect(drilldownPreview).toContainText(testData.contestant.name);
+    await expect(drilldownPreview).toContainText('Excellent presentation.');
+    await expect(drilldownPreview).toContainText('Stage control held throughout.');
   });
 
   test('should export report to PDF', async () => {
@@ -155,24 +269,16 @@ test.describe('Report Generation E2E Tests', () => {
     const { page } = authContext;
     await navigateAndWait(page, '/reports');
 
-    // Find date filter inputs
-    const dateInputs = page.locator('input[type="date"]');
-    const dateCount = await dateInputs.count();
+    const startDate = page.locator('[data-testid="reports-start-date-filter"]');
+    const endDate = page.locator('[data-testid="reports-end-date-filter"]');
 
-    if (dateCount >= 2) {
-      const startDate = dateInputs.nth(0);
-      const endDate = dateInputs.nth(1);
+    await expect(startDate).toBeVisible({ timeout: 5000 });
+    await expect(endDate).toBeVisible({ timeout: 5000 });
 
-      await startDate.fill('2024-01-01');
-      await endDate.fill('2024-12-31');
-      await page.waitForTimeout(1000);
+    await startDate.fill('2024-01-01');
+    await endDate.fill('2024-12-31');
 
-      // Check that reports are filtered
-      const applyButton = page.locator('button:has-text("Apply"), button:has-text("Filter")').first();
-      if (await applyButton.isVisible()) {
-        await applyButton.click();
-        await page.waitForTimeout(2000);
-      }
-    }
+    await expect(startDate).toHaveValue('2024-01-01');
+    await expect(endDate).toHaveValue('2024-12-31');
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { contestsAPI, eventsAPI, reportsAPI } from '../services/api'
 import useAuthPermissions from '../hooks/useAuthPermissions'
 import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
@@ -59,6 +59,63 @@ interface ReportDetail {
   generatedAt: string
   scopeSummary?: ReportScopeSummary | null
   data?: Record<string, any> | null
+}
+
+type CommentaryMode = 'PER_CRITERION' | 'PER_CATEGORY' | 'HYBRID'
+type CommentaryScope = 'CATEGORY' | 'CONTEST' | 'EVENT'
+
+interface ReportCriterionDrilldown {
+  scoreId: string
+  criterionId: string | null
+  criterionName: string
+  score: number | null
+  maxScore: number | null
+  commentary: string | null
+  commentaryUpdatedAt: string | null
+}
+
+interface ReportJudgeCategoryDrilldown {
+  categoryId: string
+  categoryName: string
+  commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
+  totalScore: number
+  totalPossibleScore: number | null
+  commentary: string | null
+  commentaryCreatedAt: string | null
+  criteria: ReportCriterionDrilldown[]
+}
+
+interface ReportContestantJudgeDrilldown {
+  judgeId: string
+  judgeName: string
+  totalScore: number
+  totalPossibleScore: number | null
+  categories: ReportJudgeCategoryDrilldown[]
+}
+
+interface ReportContestantDrilldown {
+  contestantId: string
+  contestantName: string
+  contestantNumber: number | null
+  totalScore: number
+  totalPossibleScore: number | null
+  judgeCount: number
+  judges: ReportContestantJudgeDrilldown[]
+}
+
+interface ReportContestDrilldown {
+  contestId: string
+  contestName: string
+  eventId: string
+  eventName: string
+  contestantCount: number
+  contestants: ReportContestantDrilldown[]
+}
+
+interface ReportDrilldown {
+  certifiedOnly: boolean
+  contests: ReportContestDrilldown[]
 }
 
 const looksLikeHtml = (value: unknown): value is string =>
@@ -159,23 +216,162 @@ const buildScopeDescription = (scopeSummary: ReportScopeSummary | null, fallback
   return `${eventLabel} • ${scopeSummary.contestNames.join(', ')}`
 }
 
+const normalizeCriterionDrilldown = (value: unknown): ReportCriterionDrilldown | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const criterion = value as Record<string, unknown>
+  return {
+    scoreId: criterion.scoreId ? String(criterion.scoreId) : '',
+    criterionId: criterion.criterionId ? String(criterion.criterionId) : null,
+    criterionName: criterion.criterionName ? String(criterion.criterionName) : 'Criterion',
+    score: typeof criterion.score === 'number' ? criterion.score : null,
+    maxScore: typeof criterion.maxScore === 'number' ? criterion.maxScore : null,
+    commentary: criterion.commentary ? String(criterion.commentary) : null,
+    commentaryUpdatedAt: criterion.commentaryUpdatedAt ? String(criterion.commentaryUpdatedAt) : null,
+  }
+}
+
+const normalizeJudgeCategoryDrilldown = (value: unknown): ReportJudgeCategoryDrilldown | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const category = value as Record<string, unknown>
+  const commentaryMode: CommentaryMode =
+    category.commentaryMode === 'PER_CRITERION' ||
+    category.commentaryMode === 'PER_CATEGORY' ||
+    category.commentaryMode === 'HYBRID'
+      ? category.commentaryMode
+      : 'PER_CRITERION'
+  const commentaryScope: CommentaryScope =
+    category.commentaryScope === 'CATEGORY' ||
+    category.commentaryScope === 'CONTEST' ||
+    category.commentaryScope === 'EVENT'
+      ? category.commentaryScope
+      : 'CATEGORY'
+
+  return {
+    categoryId: category.categoryId ? String(category.categoryId) : '',
+    categoryName: category.categoryName ? String(category.categoryName) : 'Category',
+    commentaryMode,
+    commentaryScope,
+    totalScore: typeof category.totalScore === 'number' ? category.totalScore : 0,
+    totalPossibleScore: typeof category.totalPossibleScore === 'number' ? category.totalPossibleScore : null,
+    commentary: category.commentary ? String(category.commentary) : null,
+    commentaryCreatedAt: category.commentaryCreatedAt ? String(category.commentaryCreatedAt) : null,
+    criteria: Array.isArray(category.criteria)
+      ? category.criteria
+          .map((criterion) => normalizeCriterionDrilldown(criterion))
+          .filter((criterion): criterion is ReportCriterionDrilldown => Boolean(criterion))
+      : [],
+  }
+}
+
+const normalizeContestantJudgeDrilldown = (value: unknown): ReportContestantJudgeDrilldown | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const judge = value as Record<string, unknown>
+  return {
+    judgeId: judge.judgeId ? String(judge.judgeId) : '',
+    judgeName: judge.judgeName ? String(judge.judgeName) : 'Judge',
+    totalScore: typeof judge.totalScore === 'number' ? judge.totalScore : 0,
+    totalPossibleScore: typeof judge.totalPossibleScore === 'number' ? judge.totalPossibleScore : null,
+    categories: Array.isArray(judge.categories)
+      ? judge.categories
+          .map((category) => normalizeJudgeCategoryDrilldown(category))
+          .filter((category): category is ReportJudgeCategoryDrilldown => Boolean(category))
+      : [],
+  }
+}
+
+const normalizeContestantDrilldown = (value: unknown): ReportContestantDrilldown | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const contestant = value as Record<string, unknown>
+  return {
+    contestantId: contestant.contestantId ? String(contestant.contestantId) : '',
+    contestantName: contestant.contestantName ? String(contestant.contestantName) : 'Contestant',
+    contestantNumber: typeof contestant.contestantNumber === 'number' ? contestant.contestantNumber : null,
+    totalScore: typeof contestant.totalScore === 'number' ? contestant.totalScore : 0,
+    totalPossibleScore: typeof contestant.totalPossibleScore === 'number' ? contestant.totalPossibleScore : null,
+    judgeCount: typeof contestant.judgeCount === 'number' ? contestant.judgeCount : 0,
+    judges: Array.isArray(contestant.judges)
+      ? contestant.judges
+          .map((judge) => normalizeContestantJudgeDrilldown(judge))
+          .filter((judge): judge is ReportContestantJudgeDrilldown => Boolean(judge))
+      : [],
+  }
+}
+
+const extractReportDrilldown = (reportData?: Record<string, any> | null): ReportDrilldown | null => {
+  if (!reportData?.drilldown || typeof reportData.drilldown !== 'object') {
+    return null
+  }
+
+  const drilldown = reportData.drilldown as Record<string, unknown>
+  if (!Array.isArray(drilldown.contests)) {
+    return null
+  }
+
+  return {
+    certifiedOnly: drilldown.certifiedOnly === true,
+    contests: drilldown.contests
+      .map((contest) => {
+        if (!contest || typeof contest !== 'object') {
+          return null
+        }
+
+        const contestRecord = contest as Record<string, unknown>
+        return {
+          contestId: contestRecord.contestId ? String(contestRecord.contestId) : '',
+          contestName: contestRecord.contestName ? String(contestRecord.contestName) : 'Contest',
+          eventId: contestRecord.eventId ? String(contestRecord.eventId) : '',
+          eventName: contestRecord.eventName ? String(contestRecord.eventName) : 'Event',
+          contestantCount: typeof contestRecord.contestantCount === 'number' ? contestRecord.contestantCount : 0,
+          contestants: Array.isArray(contestRecord.contestants)
+            ? contestRecord.contestants
+                .map((contestant) => normalizeContestantDrilldown(contestant))
+                .filter((contestant): contestant is ReportContestantDrilldown => Boolean(contestant))
+            : [],
+        }
+      })
+      .filter((contest): contest is ReportContestDrilldown => Boolean(contest)),
+  }
+}
+
+const formatScoreTotal = (score: number, totalPossibleScore: number | null): string =>
+  totalPossibleScore === null ? `${score}` : `${score} / ${totalPossibleScore}`
+
 const ReportsPage: React.FC = () => {
+  const hasCompletedInitialHistoryLoad = useRef(false)
+  const latestInstancesRequestId = useRef(0)
   const { data: permissionsPayload } = useAuthPermissions()
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
   const [selectedContestIds, setSelectedContestIds] = useState<string[]>([])
   const [events, setEvents] = useState<BasicOption[]>([])
   const [contests, setContests] = useState<ContestOption[]>([])
+  const [isLoadingContests, setIsLoadingContests] = useState(false)
   const [instances, setInstances] = useState<ReportInstance[]>([])
+  const [historyStartDate, setHistoryStartDate] = useState('')
+  const [historyEndDate, setHistoryEndDate] = useState('')
   const [sendingReportId, setSendingReportId] = useState<string | null>(null)
   const [viewingReport, setViewingReport] = useState<ReportDetail | null>(null)
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null)
   const [isLoadingView, setIsLoadingView] = useState(false)
+  const [isLoadingInstances, setIsLoadingInstances] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewText, setPreviewText] = useState<string | null>(null)
   const [emailRecipients, setEmailRecipients] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailMessage, setEmailMessage] = useState('')
+  const [emailFormat, setEmailFormat] = useState<ExportFormat>('pdf')
   const [useStyledEmail, setUseStyledEmail] = useState(false)
   const [emailStylePreset, setEmailStylePreset] = useState<string>('default')
   const [emailStyle, setEmailStyle] = useState<EmailStyleConfig>({
@@ -196,7 +392,7 @@ const ReportsPage: React.FC = () => {
     [eventId, events],
   )
   const eventScopedContests = useMemo(
-    () => (eventId ? contests.filter((contest) => contest.eventId === eventId) : []),
+    () => (eventId ? contests : []),
     [contests, eventId],
   )
   const selectedContests = useMemo(
@@ -231,36 +427,29 @@ const ReportsPage: React.FC = () => {
           : 'all_contests_in_event',
     }
   }, [activeEvent, selectedContests, type])
-  const visibleInstances = useMemo(() => {
-    const normalizedInstances = instances.map((instance) => ({
-      ...instance,
-      scopeSummary: normalizeScopeSummary(instance.scopeSummary),
-    }))
-
-    if (type === 'system') {
-      return normalizedInstances.filter((instance) => instance.scopeSummary?.filterMode === 'system')
-    }
-
-    if (!eventId) {
-      return normalizedInstances
-    }
-
-    return normalizedInstances.filter((instance) => {
-      const scopeSummary = instance.scopeSummary
-      if (!scopeSummary?.eventId || scopeSummary.eventId !== eventId) {
-        return false
-      }
-
-      if (selectedContestIds.length === 0) {
-        return true
-      }
-
-      return selectedContestIds.some((contestId) => scopeSummary.contestIds.includes(contestId))
-    })
-  }, [eventId, instances, selectedContestIds, type])
+  const visibleInstances = useMemo(
+    () =>
+      instances.map((instance) => ({
+        ...instance,
+        scopeSummary: normalizeScopeSummary(instance.scopeSummary),
+      })),
+    [instances],
+  )
   const viewingScopeSummary = useMemo(
     () => normalizeScopeSummary(viewingReport?.scopeSummary) || extractScopeSummaryFromReportData(viewingReport?.data),
     [viewingReport],
+  )
+  const viewingDrilldown = useMemo(
+    () => extractReportDrilldown(viewingReport?.data),
+    [viewingReport],
+  )
+  const selectedEmailReport = useMemo(
+    () => visibleInstances.find((instance) => instance.id === sendingReportId) || null,
+    [sendingReportId, visibleInstances],
+  )
+  const selectedEmailScopeDescription = useMemo(
+    () => buildScopeDescription(selectedEmailReport?.scopeSummary || null),
+    [selectedEmailReport],
   )
   const activeScopeDescription = useMemo(() => {
     if (type === 'system') {
@@ -277,48 +466,98 @@ const ReportsPage: React.FC = () => {
 
     return `${activeEvent.name} • ${selectedContests.map((contest) => contest.name).join(', ')}`
   }, [activeEvent, selectedContests, type])
+  const reportHistoryQuery = useMemo(() => {
+    const params: {
+      type: ReportType
+      eventId?: string
+      contestId?: string | string[]
+      startDate?: string
+      endDate?: string
+    } = {
+      type,
+      ...(historyStartDate ? { startDate: historyStartDate } : {}),
+      ...(historyEndDate ? { endDate: historyEndDate } : {}),
+    }
+
+    if (type !== 'system' && eventId) {
+      params.eventId = eventId
+    }
+
+    if (selectedContestIds.length > 0) {
+      params.contestId = type === 'contest' ? selectedContestIds[0] : selectedContestIds
+    }
+
+    return params
+  }, [eventId, historyEndDate, historyStartDate, selectedContestIds, type])
 
   const loadOptions = async () => {
-    const [eventResponse, contestResponse] = await Promise.all([
-      eventsAPI.getAll().catch(() => ({ data: { data: [] } })),
-      contestsAPI.getAll().catch(() => ({ data: { data: [] } })),
-    ])
+    const eventResponse = await eventsAPI.getAll().catch(() => ({ data: { data: [] } }))
 
     const eventData = eventResponse.data?.data || eventResponse.data || []
-    const contestData = contestResponse.data?.data || contestResponse.data || []
 
     const normalizedEvents = Array.isArray(eventData)
       ? eventData.map((e: any) => ({ id: e.id, name: e.name }))
       : []
-    const normalizedContests = Array.isArray(contestData)
-      ? contestData
-          .map((contest: any) => ({
-            id: contest.id,
-            name: contest.name,
-            eventId: contest.eventId || contest.event?.id || '',
-          }))
-          .filter((contest: ContestOption) => Boolean(contest.id && contest.eventId))
-      : []
 
     setEvents(normalizedEvents.sort((a, b) => a.name.localeCompare(b.name)))
-    setContests(
-      normalizedContests.sort((left, right) =>
-        left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
-      ),
-    )
   }
 
-  const loadInstances = async () => {
-    const response = await reportsAPI.getAll()
-    const payload = response.data?.data || response.data || []
-    setInstances(Array.isArray(payload) ? payload : [])
+  const loadContestsForEvent = async (selectedEventId: string) => {
+    if (!selectedEventId) {
+      setContests([])
+      setIsLoadingContests(false)
+      return
+    }
+
+    setIsLoadingContests(true)
+    try {
+      const contestResponse = await contestsAPI.getByEvent(selectedEventId).catch(() => ({ data: { data: [] } }))
+      const contestData = contestResponse.data?.data || contestResponse.data || []
+      const normalizedContests = Array.isArray(contestData)
+        ? contestData
+            .map((contest: any) => ({
+              id: contest.id,
+              name: contest.name,
+              eventId: contest.eventId || contest.event?.id || selectedEventId,
+            }))
+            .filter((contest: ContestOption) => Boolean(contest.id && contest.eventId))
+        : []
+
+      setContests(
+        normalizedContests.sort((left, right) =>
+          left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
+        ),
+      )
+    } finally {
+      setIsLoadingContests(false)
+    }
+  }
+
+  const loadInstances = async (
+    query: { type: ReportType; eventId?: string; contestId?: string | string[]; startDate?: string; endDate?: string },
+  ) => {
+    const requestId = latestInstancesRequestId.current + 1
+    latestInstancesRequestId.current = requestId
+    setIsLoadingInstances(true)
+    try {
+      const response = await reportsAPI.getAll(query)
+      const payload = response.data?.data || response.data || []
+      if (latestInstancesRequestId.current === requestId) {
+        setInstances(Array.isArray(payload) ? payload : [])
+      }
+    } finally {
+      if (latestInstancesRequestId.current === requestId) {
+        setIsLoadingInstances(false)
+      }
+    }
   }
 
   useEffect(() => {
     ;(async () => {
       try {
         setIsLoading(true)
-        await Promise.all([loadOptions(), loadInstances()])
+        await Promise.all([loadOptions(), loadInstances(reportHistoryQuery)])
+        hasCompletedInitialHistoryLoad.current = true
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load reports data')
       } finally {
@@ -326,6 +565,29 @@ const ReportsPage: React.FC = () => {
       }
     })()
   }, [])
+
+  useEffect(() => {
+    if (isLoading || !hasCompletedInitialHistoryLoad.current) {
+      return
+    }
+
+    void loadInstances(reportHistoryQuery).catch((err: any) => {
+      setError(err.response?.data?.error || 'Failed to load reports data')
+    })
+  }, [isLoading, reportHistoryQuery])
+
+  useEffect(() => {
+    if (!eventId) {
+      setContests([])
+      setIsLoadingContests(false)
+      return
+    }
+
+    void loadContestsForEvent(eventId).catch(() => {
+      setContests([])
+      setIsLoadingContests(false)
+    })
+  }, [eventId])
 
   useEffect(() => {
     setSelectedContestIds((previous) => {
@@ -371,7 +633,7 @@ const ReportsPage: React.FC = () => {
         ...(type === 'contest' ? { eventId, contestId: selectedContestIds[0] } : {}),
       })
       setMessage('Report generated successfully')
-      await loadInstances()
+      await loadInstances(reportHistoryQuery)
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Report generation failed')
     } finally {
@@ -381,6 +643,8 @@ const ReportsPage: React.FC = () => {
 
   const handleExport = async (id: string, format: ExportFormat) => {
     try {
+      setError(null)
+      setMessage(null)
       const response =
         format === 'pdf'
           ? await reportsAPI.exportPdf(id)
@@ -403,6 +667,10 @@ const ReportsPage: React.FC = () => {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
+      const selectedReport = visibleInstances.find((instance) => instance.id === id)
+      const reportLabel = selectedReport?.name || `${selectedReport?.type || 'Report'} report`
+      const attachmentLabel = format === 'excel' ? 'Excel' : format.toUpperCase()
+      setMessage(`${attachmentLabel} export started for ${reportLabel}`)
     } catch (err: any) {
       setError(err.response?.data?.error || `Failed to export ${format.toUpperCase()}`)
     }
@@ -410,7 +678,7 @@ const ReportsPage: React.FC = () => {
 
   const handleSend = async () => {
     if (!sendingReportId) return
-    const selectedReport = instances.find((instance) => instance.id === sendingReportId)
+    const selectedReport = selectedEmailReport
     const recipients = Array.from(new Set(emailRecipients
       .split(/[,\n;]+/)
       .map((v) => v.trim())
@@ -434,6 +702,7 @@ const ReportsPage: React.FC = () => {
       const reportLabel = selectedReport?.name || `${selectedReport?.type || 'Report'} report`
       const generatedAt = selectedReport?.generatedAt || new Date().toISOString()
       const normalizedStyle = normalizeEmailStyle(emailStyle)
+      const attachmentLabel = emailFormat === 'excel' ? 'Excel' : emailFormat.toUpperCase()
       const html = useStyledEmail
         ? buildBrandedEmailHtml({
             subject: trimmedSubject || `${reportLabel} delivery`,
@@ -444,6 +713,8 @@ const ReportsPage: React.FC = () => {
             detailRows: [
               { label: 'Generated', value: new Date(generatedAt).toLocaleString() },
               { label: 'Report', value: reportLabel },
+              { label: 'Scope', value: selectedEmailScopeDescription },
+              { label: 'Attachment', value: attachmentLabel },
             ],
             style: normalizedStyle,
           })
@@ -454,6 +725,7 @@ const ReportsPage: React.FC = () => {
         recipients,
         subject: trimmedSubject || undefined,
         message: trimmedMessage || undefined,
+        format: emailFormat,
         html,
       })
       const payload = response.data?.data || {}
@@ -461,17 +733,22 @@ const ReportsPage: React.FC = () => {
       const failed = Number(payload.failed ?? 0)
       const skipped = Number(payload.skipped ?? 0)
       const responseMessage = response.data?.message || 'Report email request completed'
-      setMessage(`${responseMessage} (Sent: ${sent}, Skipped: ${skipped}, Failed: ${failed})`)
-      setSendingReportId(null)
-      setEmailRecipients('')
-      setEmailSubject('')
-      setEmailMessage('')
-      setUseStyledEmail(false)
+      setMessage(`${responseMessage} (${attachmentLabel}; Sent: ${sent}, Skipped: ${skipped}, Failed: ${failed})`)
+      resetEmailComposer()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send report email')
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to send report email')
     } finally {
       setIsSendingEmail(false)
     }
+  }
+
+  const resetEmailComposer = () => {
+    setSendingReportId(null)
+    setEmailRecipients('')
+    setEmailSubject('')
+    setEmailMessage('')
+    setEmailFormat('pdf')
+    setUseStyledEmail(false)
   }
 
   const applyEmailStylePreset = (presetId: string) => {
@@ -502,6 +779,9 @@ const ReportsPage: React.FC = () => {
       const response = await reportsAPI.getById(id)
       const payload = response.data?.data || response.data || null
       setViewingReport(payload)
+      if (extractReportDrilldown(payload?.data)) {
+        return
+      }
       try {
         // Prefer a rendered preview (PDF) even when stored format metadata is missing/inaccurate.
         const blobResponse = await reportsAPI.exportPdf(id)
@@ -540,7 +820,7 @@ const ReportsPage: React.FC = () => {
         setViewingReport(null)
       }
       setMessage('Report deleted successfully')
-      await loadInstances()
+      await loadInstances(reportHistoryQuery)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete report')
     } finally {
@@ -646,7 +926,11 @@ const ReportsPage: React.FC = () => {
                 )}
               </div>
 
-              {eventScopedContests.length === 0 ? (
+              {isLoadingContests ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Loading contests for the selected event...
+                </p>
+              ) : eventScopedContests.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   No contests are available for the selected event.
                 </p>
@@ -725,6 +1009,50 @@ const ReportsPage: React.FC = () => {
                     : 'Showing all generated reports'}
               </p>
             </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:items-end">
+              <div>
+                <label htmlFor="pages-reportspage-10" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Generated after
+                </label>
+                <input
+                  id="pages-reportspage-10"
+                  data-testid="reports-start-date-filter"
+                  type="date"
+                  value={historyStartDate}
+                  onChange={(e) => setHistoryStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                />
+              </div>
+              <div>
+                <label htmlFor="pages-reportspage-11" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Generated before
+                </label>
+                <input
+                  id="pages-reportspage-11"
+                  data-testid="reports-end-date-filter"
+                  type="date"
+                  value={historyEndDate}
+                  onChange={(e) => setHistoryEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHistoryStartDate('')
+                    setHistoryEndDate('')
+                  }}
+                  disabled={!historyStartDate && !historyEndDate}
+                  className="px-3 py-2 text-xs rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+                >
+                  Clear dates
+                </button>
+                {isLoadingInstances && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Refreshing…</span>
+                )}
+              </div>
+            </div>
           </div>
           {visibleInstances.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -786,6 +1114,30 @@ const ReportsPage: React.FC = () => {
           <div className="cgr-modal-overlay">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Report</h3>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {selectedEmailReport?.name || 'Selected report'}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {selectedEmailReport?.type || 'report'} • {selectedEmailScopeDescription}
+                </p>
+              </div>
+              <div>
+                <label htmlFor="pages-reportspage-12" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Attachment format
+                </label>
+                <select
+                  id="pages-reportspage-12"
+                  data-testid="reports-email-format-select"
+                  value={emailFormat}
+                  onChange={(e) => setEmailFormat(e.target.value as ExportFormat)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                >
+                  <option value="pdf">PDF</option>
+                  <option value="excel">Excel</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
               <input
                 type="text"
                 value={emailSubject}
@@ -906,13 +1258,7 @@ const ReportsPage: React.FC = () => {
                   {isSendingEmail ? 'Sending...' : 'Send'}
                 </button>
                 <button
-                  onClick={() => {
-                    setSendingReportId(null)
-                    setEmailRecipients('')
-                    setEmailSubject('')
-                    setEmailMessage('')
-                    setUseStyledEmail(false)
-                  }}
+                  onClick={resetEmailComposer}
                   className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
                 >
                   Cancel
@@ -1007,6 +1353,148 @@ const ReportsPage: React.FC = () => {
                       sandbox="allow-same-origin"
                       srcDoc={String(viewingReport.data?.['html'])}
                     />
+                  ) : viewingDrilldown ? (
+                    <div className="space-y-4" data-testid="reports-drilldown-preview">
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                        {viewingDrilldown.certifiedOnly
+                          ? 'Certified scores only. Commentary reflects the most recent applicable saved comments.'
+                          : 'Structured report preview.'}
+                      </div>
+                      {viewingDrilldown.contests.length === 0 ||
+                      viewingDrilldown.contests.every((contest) => contest.contestants.length === 0) ? (
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-6 text-sm text-gray-600 dark:text-gray-300">
+                          No certified contestant results are available in this report scope yet.
+                        </div>
+                      ) : (
+                        viewingDrilldown.contests.map((contest) => (
+                          <section
+                            key={contest.contestId}
+                            data-testid="reports-drilldown-contest"
+                            className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {contest.contestName}
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                {contest.eventName} • {contest.contestantCount} contestant{contest.contestantCount === 1 ? '' : 's'}
+                              </div>
+                            </div>
+                            <div className="space-y-3 p-4">
+                              {contest.contestants.map((contestant) => (
+                                <details
+                                  key={contestant.contestantId}
+                                  className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+                                >
+                                  <summary className="cursor-pointer list-none px-4 py-3">
+                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                      <div>
+                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                          {contestant.contestantNumber !== null
+                                            ? `#${contestant.contestantNumber} ${contestant.contestantName}`
+                                            : contestant.contestantName}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {contestant.judgeCount} judge{contestant.judgeCount === 1 ? '' : 's'}
+                                        </div>
+                                      </div>
+                                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        {formatScoreTotal(contestant.totalScore, contestant.totalPossibleScore)}
+                                      </div>
+                                    </div>
+                                  </summary>
+                                  <div className="space-y-3 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+                                    {contestant.judges.map((judge) => (
+                                      <details
+                                        key={judge.judgeId}
+                                        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                                      >
+                                        <summary className="cursor-pointer list-none px-4 py-3">
+                                          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                              {judge.judgeName}
+                                            </div>
+                                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                              {formatScoreTotal(judge.totalScore, judge.totalPossibleScore)}
+                                            </div>
+                                          </div>
+                                        </summary>
+                                        <div className="space-y-3 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+                                          {judge.categories.map((category) => (
+                                            <div
+                                              key={`${judge.judgeId}-${category.categoryId}`}
+                                              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4"
+                                            >
+                                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                <div>
+                                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                    {category.categoryName}
+                                                  </div>
+                                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {category.commentaryMode.replace(/_/g, ' ')} • {category.commentaryScope.toLowerCase()} scoped
+                                                  </div>
+                                                </div>
+                                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                  {formatScoreTotal(category.totalScore, category.totalPossibleScore)}
+                                                </div>
+                                              </div>
+                                              {category.commentary && (
+                                                <div className="mt-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2">
+                                                  <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                    Category Commentary
+                                                  </div>
+                                                  <div className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                                    {category.commentary}
+                                                  </div>
+                                                  {category.commentaryCreatedAt && (
+                                                    <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                      Saved {safeLocaleString(category.commentaryCreatedAt)}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
+                                              <div className="mt-3 space-y-2">
+                                                {category.criteria.map((criterion) => (
+                                                  <div
+                                                    key={criterion.scoreId}
+                                                    className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2"
+                                                  >
+                                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                      <div className="text-sm text-gray-900 dark:text-white">
+                                                        {criterion.criterionName}
+                                                      </div>
+                                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                        {criterion.score === null
+                                                          ? 'No score'
+                                                          : formatScoreTotal(criterion.score, criterion.maxScore)}
+                                                      </div>
+                                                    </div>
+                                                    {criterion.commentary && (
+                                                      <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                                        {criterion.commentary}
+                                                      </div>
+                                                    )}
+                                                    {criterion.commentaryUpdatedAt && (
+                                                      <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                        Saved {safeLocaleString(criterion.commentaryUpdatedAt)}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </details>
+                                    ))}
+                                  </div>
+                                </details>
+                              ))}
+                            </div>
+                          </section>
+                        ))
+                      )}
+                    </div>
                   ) : viewingReport.data && Object.keys(viewingReport.data).length > 0 ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">

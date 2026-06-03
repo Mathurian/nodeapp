@@ -85,6 +85,10 @@ export class ReportExportService extends BaseService {
           doc.fontSize(10);
           doc.text(`Generated: ${reportData.metadata.generatedAt}`);
           doc.text(`Report Type: ${reportData.metadata.reportType}`);
+          const scopeLabel = this.getScopeLabel(reportData);
+          if (scopeLabel) {
+            doc.text(`Scope: ${scopeLabel}`);
+          }
           doc.moveDown();
         }
 
@@ -177,6 +181,10 @@ export class ReportExportService extends BaseService {
       if (reportData.metadata) {
         worksheet.addRow(['Generated:', reportData.metadata.generatedAt]);
         worksheet.addRow(['Report Type:', reportData.metadata.reportType]);
+        const scopeLabel = this.getScopeLabel(reportData);
+        if (scopeLabel) {
+          worksheet.addRow(['Scope:', scopeLabel]);
+        }
         worksheet.addRow([]);
       }
 
@@ -262,6 +270,10 @@ export class ReportExportService extends BaseService {
       if (reportData.metadata) {
         rows.push({ field: 'Generated', value: reportData.metadata.generatedAt });
         rows.push({ field: 'Report Type', value: reportData.metadata.reportType });
+        const scopeLabel = this.getScopeLabel(reportData);
+        if (scopeLabel) {
+          rows.push({ field: 'Scope', value: scopeLabel });
+        }
         rows.push({ field: '', value: '' });
       }
 
@@ -319,6 +331,35 @@ export class ReportExportService extends BaseService {
 
   private toReadableLabel(key: string): string {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+  }
+
+  private getScopeLabel(reportData: ReportData): string | null {
+    const scope = reportData.metadata?.scope;
+    if (scope) {
+      if (scope.filterMode === 'system') {
+        return 'System-wide';
+      }
+
+      const eventLabel = scope.eventName || (scope.eventId ? 'Event scope' : '');
+      if (Array.isArray(scope.contestNames) && scope.contestNames.length > 0) {
+        return `${eventLabel || 'Event scope'} • ${scope.contestNames.join(', ')}`;
+      }
+
+      if (eventLabel) {
+        return `${eventLabel} • all contests`;
+      }
+    }
+
+    if (reportData.contest?.id) {
+      const eventLabel = reportData.contest.event?.name || 'Event scope';
+      return `${eventLabel} • ${reportData.contest.name}`;
+    }
+
+    if (reportData.event?.id) {
+      return `${reportData.event.name} • all contests`;
+    }
+
+    return null;
   }
 
   private getContestSummaries(reportData: ReportData): ContestSummary[] {

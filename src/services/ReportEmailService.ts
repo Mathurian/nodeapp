@@ -69,7 +69,9 @@ export class ReportEmailService extends BaseService {
       const emailTemplate = this.renderEmailTemplate({
         reportType: data.reportData.metadata?.reportType || 'Report',
         message: data.message || 'Please find the attached report.',
-        generatedAt: data.reportData.metadata?.generatedAt || new Date().toISOString()
+        generatedAt: data.reportData.metadata?.generatedAt || new Date().toISOString(),
+        scopeLabel: this.getScopeLabel(data.reportData),
+        attachmentFormat: data.format === 'excel' ? 'Excel' : data.format.toUpperCase(),
       }, data.html);
 
       // Log email attempt
@@ -161,6 +163,8 @@ export class ReportEmailService extends BaseService {
       reportType: string;
       message: string;
       generatedAt: string;
+      scopeLabel?: string | null;
+      attachmentFormat?: string;
     },
     customHtml?: string
   ): EmailTemplate {
@@ -186,6 +190,8 @@ export class ReportEmailService extends BaseService {
       bodyHtml: `
         <p style="margin:0 0 12px 0;">${messageWithBreaks}</p>
         <p style="margin:0 0 12px 0;"><strong>Generated:</strong> ${escapeHtml(generatedAtLabel)}</p>
+        ${variables.scopeLabel ? `<p style="margin:0 0 12px 0;"><strong>Scope:</strong> ${escapeHtml(variables.scopeLabel)}</p>` : ''}
+        ${variables.attachmentFormat ? `<p style="margin:0 0 12px 0;"><strong>Attachment:</strong> ${escapeHtml(variables.attachmentFormat)}</p>` : ''}
         <p style="margin:0;">The requested report is attached to this email.</p>
       `,
       footerText: 'This is an automated Event Manager message. Please do not reply to this email.',
@@ -212,6 +218,8 @@ ${variables.reportType}
 ${variables.message}
 
 Generated: ${new Date(variables.generatedAt).toLocaleString()}
+${variables.scopeLabel ? `\nScope: ${variables.scopeLabel}` : ''}
+${variables.attachmentFormat ? `\nAttachment: ${variables.attachmentFormat}` : ''}
 
 The report is attached to this email.
 
@@ -229,6 +237,35 @@ Please do not reply to this email.
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  private getScopeLabel(reportData: ReportData): string | null {
+    const scope = reportData.metadata?.scope;
+    if (scope) {
+      if (scope.filterMode === 'system') {
+        return 'System-wide';
+      }
+
+      const eventLabel = scope.eventName || (scope.eventId ? 'Event scope' : '');
+      if (Array.isArray(scope.contestNames) && scope.contestNames.length > 0) {
+        return `${eventLabel || 'Event scope'} • ${scope.contestNames.join(', ')}`;
+      }
+
+      if (eventLabel) {
+        return `${eventLabel} • all contests`;
+      }
+    }
+
+    if (reportData.contest?.id) {
+      const eventLabel = reportData.contest.event?.name || 'Event scope';
+      return `${eventLabel} • ${reportData.contest.name}`;
+    }
+
+    if (reportData.event?.id) {
+      return `${reportData.event.name} • all contests`;
+    }
+
+    return null;
   }
 
   /**

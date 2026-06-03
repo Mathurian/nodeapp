@@ -304,6 +304,26 @@ describe('ReportExportService', () => {
 
       expect(buffer).toBeInstanceOf(Buffer);
     });
+
+    it('includes scope metadata rows when scope is present', async () => {
+      await service.generateExcelBuffer(
+        buildReportData({
+          metadata: {
+            ...BASE_METADATA,
+            scope: {
+              eventName: 'Annual Gala',
+              contestNames: ['Regional Competition'],
+              filterMode: 'selected_contests',
+            },
+          },
+        })
+      );
+
+      expect(mockWorksheet.addRow).toHaveBeenCalledWith([
+        'Scope:',
+        'Annual Gala • Regional Competition',
+      ]);
+    });
   });
 
   describe('generateCSVBuffer', () => {
@@ -351,6 +371,25 @@ describe('ReportExportService', () => {
       ).toString('utf-8');
 
       expect(content).toContain('N/A');
+    });
+
+    it('includes scope metadata in CSV exports', async () => {
+      const content = (
+        await service.generateCSVBuffer(
+          buildReportData({
+            metadata: {
+              ...BASE_METADATA,
+              scope: {
+                eventName: 'Annual Gala',
+                contestNames: ['Regional Competition'],
+                filterMode: 'selected_contests',
+              },
+            },
+          })
+        )
+      ).toString('utf-8');
+
+      expect(content).toContain('"Scope","Annual Gala • Regional Competition"');
     });
   });
 

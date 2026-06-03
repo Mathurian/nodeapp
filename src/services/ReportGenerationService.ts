@@ -4,7 +4,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { CommentaryMode, CommentaryScope, PrismaClient, Prisma } from '@prisma/client';
 import { BaseService } from './BaseService';
 
 // Prisma payload types for complex queries
@@ -215,56 +215,6 @@ type JudgeWithScores = Prisma.JudgeGetPayload<{
   };
 }>;
 
-type EventWithContests = Prisma.EventGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    startDate: true;
-    endDate: true;
-    contests: {
-      select: {
-        id: true;
-        name: true;
-        categories: {
-          select: {
-            id: true;
-            name: true;
-            scoreCap: true;
-            scores: {
-              select: {
-                id: true;
-                contestantId: true;
-                judgeId: true;
-                categoryId: true;
-                score: true;
-                contestant: {
-                  select: {
-                    id: true;
-                    name: true;
-                    contestantNumber: true;
-                  };
-                };
-                judge: {
-                  select: {
-                    id: true;
-                    name: true;
-                  };
-                };
-                criterion: {
-                  select: {
-                    id: true;
-                    maxScore: true;
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
-
 type CategoryWithCriteria = Prisma.CategoryGetPayload<{
   select: {
     id: true;
@@ -302,6 +252,164 @@ type JudgeScoreForReport = Prisma.ScoreGetPayload<{
       select: {
         id: true;
         maxScore: true;
+      };
+    };
+  };
+}>;
+
+type ReportScoreComment = Prisma.ScoreCommentGetPayload<{
+  select: {
+    comment: true;
+    createdAt: true;
+    updatedAt: true;
+    isPrivate: true;
+  };
+}>;
+
+type ReportJudgeComment = Prisma.JudgeCommentGetPayload<{
+  select: {
+    scope: true;
+    scopeKey: true;
+    contestantId: true;
+    judgeId: true;
+    comment: true;
+    createdAt: true;
+  };
+}>;
+
+type ReportCategoryContext = Prisma.CategoryGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    scoreCap: true;
+    commentaryMode: true;
+    commentaryScope: true;
+    totalsCertified: true;
+    tenantId: true;
+    criteria: {
+      select: {
+        id: true;
+        name: true;
+        maxScore: true;
+      };
+    };
+    scores: {
+      select: {
+        id: true;
+        contestantId: true;
+        judgeId: true;
+        categoryId: true;
+        criterionId: true;
+        score: true;
+        isCertified: true;
+        certifiedAt: true;
+        certifiedBy: true;
+        contestant: {
+          select: {
+            id: true;
+            name: true;
+            contestantNumber: true;
+          };
+        };
+        judge: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
+        criterion: {
+          select: {
+            id: true;
+            name: true;
+            maxScore: true;
+            categoryId: true;
+          };
+        };
+        scoreComments: {
+          select: {
+            comment: true;
+            createdAt: true;
+            updatedAt: true;
+            isPrivate: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type ContestReportContext = Prisma.ContestGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    eventId: true;
+    tenantId: true;
+    event: {
+      select: {
+        id: true;
+        name: true;
+        startDate: true;
+        endDate: true;
+      };
+    };
+    categories: {
+      select: {
+        id: true;
+        name: true;
+        scoreCap: true;
+        commentaryMode: true;
+        commentaryScope: true;
+        totalsCertified: true;
+        tenantId: true;
+        criteria: {
+          select: {
+            id: true;
+            name: true;
+            maxScore: true;
+          };
+        };
+        scores: {
+          select: {
+            id: true;
+            contestantId: true;
+            judgeId: true;
+            categoryId: true;
+            criterionId: true;
+            score: true;
+            isCertified: true;
+            certifiedAt: true;
+            certifiedBy: true;
+            contestant: {
+              select: {
+                id: true;
+                name: true;
+                contestantNumber: true;
+              };
+            };
+            judge: {
+              select: {
+                id: true;
+                name: true;
+              };
+            };
+            criterion: {
+              select: {
+                id: true;
+                name: true;
+                maxScore: true;
+                categoryId: true;
+              };
+            };
+            scoreComments: {
+              select: {
+                comment: true;
+                createdAt: true;
+                updatedAt: true;
+                isPrivate: true;
+              };
+            };
+          };
+        };
       };
     };
   };
@@ -360,6 +468,7 @@ export interface ReportData {
   scores?: JudgeScoreForReport[];
   winners?: ContestantScore[];
   statistics?: SystemStatistics | JudgeStatistics | Record<string, string | number>;
+  drilldown?: ReportDrilldown;
   metadata?: {
     generatedAt: string;
     generatedBy?: string;
@@ -382,8 +491,66 @@ interface ContestantTotals {
   categoryJudgePairs: Set<string>;
 }
 
+export interface ReportCriterionDrilldown {
+  scoreId: string;
+  criterionId: string | null;
+  criterionName: string;
+  score: number | null;
+  maxScore: number | null;
+  commentary: string | null;
+  commentaryUpdatedAt: string | null;
+}
+
+export interface ReportJudgeCategoryDrilldown {
+  categoryId: string;
+  categoryName: string;
+  commentaryMode: CommentaryMode;
+  commentaryScope: CommentaryScope;
+  totalScore: number;
+  totalPossibleScore: number | null;
+  commentary: string | null;
+  commentaryCreatedAt: string | null;
+  criteria: ReportCriterionDrilldown[];
+}
+
+export interface ReportContestantJudgeDrilldown {
+  judgeId: string;
+  judgeName: string;
+  totalScore: number;
+  totalPossibleScore: number | null;
+  categories: ReportJudgeCategoryDrilldown[];
+}
+
+export interface ReportContestantDrilldown {
+  contestantId: string;
+  contestantName: string;
+  contestantNumber: number | null;
+  totalScore: number;
+  totalPossibleScore: number | null;
+  judgeCount: number;
+  judges: ReportContestantJudgeDrilldown[];
+}
+
+export interface ReportContestDrilldown {
+  contestId: string;
+  contestName: string;
+  eventId: string;
+  eventName: string;
+  contestantCount: number;
+  contestants: ReportContestantDrilldown[];
+}
+
+export interface ReportDrilldown {
+  certifiedOnly: boolean;
+  contests: ReportContestDrilldown[];
+}
+
 export interface GenerateEventReportOptions {
   contestIds?: string[];
+}
+
+interface CalculateContestWinnersOptions {
+  certifiedOnly?: boolean;
 }
 
 @injectable()
@@ -397,7 +564,10 @@ export class ReportGenerationService extends BaseService {
   /**
    * Calculate winners for a contest
    */
-  async calculateContestWinners(contest: ContestWithCategories): Promise<ContestantScore[]> {
+  async calculateContestWinners(
+    contest: ContestWithCategories,
+    options?: CalculateContestWinnersOptions,
+  ): Promise<ContestantScore[]> {
     try {
       // Get all criteria for all categories to calculate total possible scores
       const allCriteria: CriterionWithMaxScore[] = await this.prisma.criterion.findMany({
@@ -431,7 +601,15 @@ export class ReportGenerationService extends BaseService {
       // P2-2 OPTIMIZATION: Selective field loading
       const allScores = await this.prisma.score.findMany({
         where: {
-          categoryId: { in: contest.categories.map((c) => c.id) }
+          categoryId: { in: contest.categories.map((c) => c.id) },
+          ...(options?.certifiedOnly
+            ? {
+                isCertified: true,
+                category: {
+                  totalsCertified: true,
+                },
+              }
+            : {}),
         },
         select: {
           id: true,
@@ -544,6 +722,370 @@ export class ReportGenerationService extends BaseService {
     }
   }
 
+  private getCategoryTotalPossibleFromCriteria(
+    category: Pick<ReportCategoryContext, 'scoreCap' | 'criteria'>,
+  ): number | null {
+    const criteriaSum = category.criteria.reduce((sum, criterion) => sum + (criterion.maxScore || 0), 0);
+    if (criteriaSum > 0) {
+      return criteriaSum;
+    }
+
+    return category.scoreCap || null;
+  }
+
+  private buildCertifiedContestContext(contest: ContestReportContext): ContestReportContext {
+    return {
+      ...contest,
+      categories: contest.categories
+        .filter((category) => category.totalsCertified)
+        .map((category) => ({
+          ...category,
+          scores: category.scores.filter((score) => score.isCertified),
+        })),
+    };
+  }
+
+  private getJudgeCommentLookupKey(
+    scope: CommentaryScope,
+    scopeKey: string,
+    contestantId: string,
+    judgeId: string,
+  ): string {
+    return `${scope}:${scopeKey}:${contestantId}:${judgeId}`;
+  }
+
+  private getJudgeCommentScopeKey(
+    category: Pick<ReportCategoryContext, 'id' | 'commentaryScope'>,
+    contest: Pick<ContestReportContext, 'id' | 'eventId'>,
+  ): { scope: CommentaryScope; scopeKey: string } {
+    switch (category.commentaryScope) {
+      case CommentaryScope.EVENT:
+        return {
+          scope: CommentaryScope.EVENT,
+          scopeKey: contest.eventId,
+        };
+      case CommentaryScope.CONTEST:
+        return {
+          scope: CommentaryScope.CONTEST,
+          scopeKey: contest.id,
+        };
+      case CommentaryScope.CATEGORY:
+      default:
+        return {
+          scope: CommentaryScope.CATEGORY,
+          scopeKey: category.id,
+        };
+    }
+  }
+
+  private getLatestScoreComment(scoreComments: ReportScoreComment[]): ReportScoreComment | null {
+    if (!Array.isArray(scoreComments) || scoreComments.length === 0) {
+      return null;
+    }
+
+    return [...scoreComments].sort((left, right) => {
+      const leftTime = new Date(left.updatedAt || left.createdAt).getTime();
+      const rightTime = new Date(right.updatedAt || right.createdAt).getTime();
+      return rightTime - leftTime;
+    })[0] || null;
+  }
+
+  private async loadJudgeCommentsForDrilldown(
+    contests: ContestReportContext[],
+  ): Promise<Map<string, ReportJudgeComment>> {
+    const tenantIds = Array.from(new Set(contests.map((contest) => contest.tenantId).filter(Boolean)));
+    const contestantIds = Array.from(
+      new Set(
+        contests.flatMap((contest) =>
+          contest.categories.flatMap((category) => category.scores.map((score) => score.contestantId)),
+        ),
+      ),
+    );
+    const judgeIds = Array.from(
+      new Set(
+        contests.flatMap((contest) =>
+          contest.categories.flatMap((category) => category.scores.map((score) => score.judgeId)),
+        ),
+      ),
+    );
+
+    if (tenantIds.length === 0 || contestantIds.length === 0 || judgeIds.length === 0) {
+      return new Map();
+    }
+
+    const categoryScopeKeys = Array.from(
+      new Set(
+        contests.flatMap((contest) =>
+          contest.categories
+            .filter((category) => category.commentaryScope === CommentaryScope.CATEGORY)
+            .map((category) => category.id),
+        ),
+      ),
+    );
+    const contestScopeKeys = Array.from(
+      new Set(
+        contests
+          .flatMap((contest) =>
+            contest.categories
+              .filter((category) => category.commentaryScope === CommentaryScope.CONTEST)
+              .map(() => contest.id),
+          )
+          .filter(Boolean),
+      ),
+    );
+    const eventScopeKeys = Array.from(
+      new Set(
+        contests
+          .flatMap((contest) =>
+            contest.categories
+              .filter((category) => category.commentaryScope === CommentaryScope.EVENT)
+              .map(() => contest.eventId),
+          )
+          .filter(Boolean),
+      ),
+    );
+
+    const scopeFilters: Prisma.JudgeCommentWhereInput[] = [];
+    if (categoryScopeKeys.length > 0) {
+      scopeFilters.push({
+        scope: CommentaryScope.CATEGORY,
+        scopeKey: { in: categoryScopeKeys },
+      });
+    }
+    if (contestScopeKeys.length > 0) {
+      scopeFilters.push({
+        scope: CommentaryScope.CONTEST,
+        scopeKey: { in: contestScopeKeys },
+      });
+    }
+    if (eventScopeKeys.length > 0) {
+      scopeFilters.push({
+        scope: CommentaryScope.EVENT,
+        scopeKey: { in: eventScopeKeys },
+      });
+    }
+
+    if (scopeFilters.length === 0) {
+      return new Map();
+    }
+
+    const judgeComments = await this.prisma.judgeComment.findMany({
+      where: {
+        tenantId: { in: tenantIds },
+        contestantId: { in: contestantIds },
+        judgeId: { in: judgeIds },
+        OR: scopeFilters,
+      },
+      select: {
+        scope: true,
+        scopeKey: true,
+        contestantId: true,
+        judgeId: true,
+        comment: true,
+        createdAt: true,
+      },
+    });
+
+    return new Map(
+      judgeComments.map((judgeComment) => [
+        this.getJudgeCommentLookupKey(
+          judgeComment.scope,
+          judgeComment.scopeKey,
+          judgeComment.contestantId,
+          judgeComment.judgeId,
+        ),
+        judgeComment,
+      ]),
+    );
+  }
+
+  private async buildReportDrilldown(contests: ContestReportContext[]): Promise<ReportDrilldown> {
+    const filteredContests = contests.map((contest) => this.buildCertifiedContestContext(contest));
+    const judgeCommentsByKey = await this.loadJudgeCommentsForDrilldown(filteredContests);
+
+    const contestDrilldowns: ReportContestDrilldown[] = filteredContests.map((contest) => {
+      const contestantMap = new Map<
+        string,
+        {
+          contestantId: string;
+          contestantName: string;
+          contestantNumber: number | null;
+          judges: Map<
+            string,
+            {
+              judgeId: string;
+              judgeName: string;
+              categories: Map<string, ReportJudgeCategoryDrilldown>;
+            }
+          >;
+        }
+      >();
+
+      contest.categories.forEach((category) => {
+        const categoryTotalPossible = this.getCategoryTotalPossibleFromCriteria(category);
+
+        category.scores.forEach((score) => {
+          const contestantEntry = contestantMap.get(score.contestantId) || {
+            contestantId: score.contestant.id,
+            contestantName: score.contestant.name,
+            contestantNumber: score.contestant.contestantNumber,
+            judges: new Map(),
+          };
+          contestantMap.set(score.contestantId, contestantEntry);
+
+          const judgeEntry = contestantEntry.judges.get(score.judgeId) || {
+            judgeId: score.judge.id,
+            judgeName: score.judge.name,
+            categories: new Map(),
+          };
+          contestantEntry.judges.set(score.judgeId, judgeEntry);
+
+          const scopeContext = this.getJudgeCommentScopeKey(category, contest);
+          const judgeComment =
+            category.commentaryMode === CommentaryMode.PER_CRITERION
+              ? null
+              : judgeCommentsByKey.get(
+                  this.getJudgeCommentLookupKey(
+                    scopeContext.scope,
+                    scopeContext.scopeKey,
+                    score.contestantId,
+                    score.judgeId,
+                  ),
+                ) || null;
+
+          const categoryEntry = judgeEntry.categories.get(category.id) || {
+            categoryId: category.id,
+            categoryName: category.name,
+            commentaryMode: category.commentaryMode,
+            commentaryScope: category.commentaryScope,
+            totalScore: 0,
+            totalPossibleScore: categoryTotalPossible,
+            commentary: judgeComment?.comment?.trim() || null,
+            commentaryCreatedAt: judgeComment?.createdAt ? judgeComment.createdAt.toISOString() : null,
+            criteria: [],
+          };
+
+          if (score.score !== null) {
+            categoryEntry.totalScore += score.score;
+          }
+
+          const latestScoreComment =
+            category.commentaryMode === CommentaryMode.PER_CATEGORY
+              ? null
+              : this.getLatestScoreComment(score.scoreComments);
+
+          categoryEntry.criteria.push({
+            scoreId: score.id,
+            criterionId: score.criterionId,
+            criterionName: score.criterion?.name || 'Criterion',
+            score: score.score,
+            maxScore: score.criterion?.maxScore || null,
+            commentary: latestScoreComment?.comment || null,
+            commentaryUpdatedAt: latestScoreComment?.updatedAt
+              ? latestScoreComment.updatedAt.toISOString()
+              : latestScoreComment?.createdAt
+                ? latestScoreComment.createdAt.toISOString()
+                : null,
+          });
+
+          judgeEntry.categories.set(category.id, categoryEntry);
+        });
+      });
+
+      const contestants = Array.from(contestantMap.values())
+        .map<ReportContestantDrilldown>((contestantEntry) => {
+          const judges = Array.from(contestantEntry.judges.values())
+            .map<ReportContestantJudgeDrilldown>((judgeEntry) => {
+              const categories = Array.from(judgeEntry.categories.values())
+                .map((categoryEntry) => ({
+                  ...categoryEntry,
+                  criteria: [...categoryEntry.criteria].sort((left, right) =>
+                    left.criterionName.localeCompare(right.criterionName, undefined, {
+                      sensitivity: 'base',
+                      numeric: true,
+                    }),
+                  ),
+                }))
+                .sort((left, right) =>
+                  left.categoryName.localeCompare(right.categoryName, undefined, {
+                    sensitivity: 'base',
+                    numeric: true,
+                  }),
+                );
+
+              const totalScore = categories.reduce((sum, categoryEntry) => sum + categoryEntry.totalScore, 0);
+              const totalPossibleValues = categories
+                .map((categoryEntry) => categoryEntry.totalPossibleScore)
+                .filter((value): value is number => typeof value === 'number' && value > 0);
+
+              return {
+                judgeId: judgeEntry.judgeId,
+                judgeName: judgeEntry.judgeName,
+                totalScore,
+                totalPossibleScore:
+                  totalPossibleValues.length > 0
+                    ? totalPossibleValues.reduce((sum, value) => sum + value, 0)
+                    : null,
+                categories,
+              };
+            })
+            .sort((left, right) =>
+              left.judgeName.localeCompare(right.judgeName, undefined, {
+                sensitivity: 'base',
+                numeric: true,
+              }),
+            );
+
+          const totalScore = judges.reduce((sum, judgeEntry) => sum + judgeEntry.totalScore, 0);
+          const totalPossibleValues = judges
+            .map((judgeEntry) => judgeEntry.totalPossibleScore)
+            .filter((value): value is number => typeof value === 'number' && value > 0);
+
+          return {
+            contestantId: contestantEntry.contestantId,
+            contestantName: contestantEntry.contestantName,
+            contestantNumber: contestantEntry.contestantNumber,
+            totalScore,
+            totalPossibleScore:
+              totalPossibleValues.length > 0
+                ? totalPossibleValues.reduce((sum, value) => sum + value, 0)
+                : null,
+            judgeCount: judges.length,
+            judges,
+          };
+        })
+        .sort((left, right) => {
+          if (left.contestantNumber !== null && right.contestantNumber !== null) {
+            return left.contestantNumber - right.contestantNumber;
+          }
+          if (left.contestantNumber !== null) {
+            return -1;
+          }
+          if (right.contestantNumber !== null) {
+            return 1;
+          }
+          return left.contestantName.localeCompare(right.contestantName, undefined, {
+            sensitivity: 'base',
+            numeric: true,
+          });
+        });
+
+      return {
+        contestId: contest.id,
+        contestName: contest.name,
+        eventId: contest.event.id,
+        eventName: contest.event.name,
+        contestantCount: contestants.length,
+        contestants,
+      };
+    });
+
+    return {
+      certifiedOnly: true,
+      contests: contestDrilldowns,
+    };
+  }
+
   /**
    * Generate comprehensive event report data
    */
@@ -578,18 +1120,43 @@ export class ReportGenerationService extends BaseService {
             select: {
               id: true,
               name: true,
+              eventId: true,
+              tenantId: true,
+              event: {
+                select: {
+                  id: true,
+                  name: true,
+                  startDate: true,
+                  endDate: true,
+                },
+              },
               categories: {
                 select: {
                   id: true,
                   name: true,
                   scoreCap: true,
+                  commentaryMode: true,
+                  commentaryScope: true,
+                  totalsCertified: true,
+                  tenantId: true,
+                  criteria: {
+                    select: {
+                      id: true,
+                      name: true,
+                      maxScore: true,
+                    },
+                  },
                   scores: {
                     select: {
                       id: true,
                       contestantId: true,
                       judgeId: true,
                       categoryId: true,
+                      criterionId: true,
                       score: true,
+                      isCertified: true,
+                      certifiedAt: true,
+                      certifiedBy: true,
                       contestant: {
                         select: {
                           id: true,
@@ -606,9 +1173,19 @@ export class ReportGenerationService extends BaseService {
                       criterion: {
                         select: {
                           id: true,
-                          maxScore: true
+                          name: true,
+                          maxScore: true,
+                          categoryId: true,
                         }
-                      }
+                      },
+                      scoreComments: {
+                        select: {
+                          comment: true,
+                          createdAt: true,
+                          updatedAt: true,
+                          isPrivate: true,
+                        },
+                      },
                     }
                   }
                 }
@@ -620,16 +1197,29 @@ export class ReportGenerationService extends BaseService {
 
       this.assertExists(event, 'Event', eventId);
 
+      const typedEvent = event as unknown as {
+        id: string;
+        name: string;
+        startDate: Date;
+        endDate: Date | null;
+        contests: ContestReportContext[];
+      };
+
       // Calculate winners for each contest
       const contestsWithWinners: ContestWithWinners[] = await Promise.all(
-        (event as unknown as EventWithContests).contests.map(async (contest) => {
-          const winners = await this.calculateContestWinners(contest);
+        typedEvent.contests.map(async (contest) => {
+          const certifiedContest = this.buildCertifiedContestContext(contest);
+          const winners = await this.calculateContestWinners(certifiedContest as unknown as ContestWithCategories, {
+            certifiedOnly: true,
+          });
           return {
-            ...contest,
+            ...certifiedContest,
             winners
           };
         })
       );
+
+      const drilldown = await this.buildReportDrilldown(typedEvent.contests);
 
       const totalCategories = contestsWithWinners.reduce(
         (sum, contest) => sum + (Array.isArray(contest.categories) ? contest.categories.length : 0),
@@ -662,7 +1252,7 @@ export class ReportGenerationService extends BaseService {
 
       return {
         event: {
-          ...event,
+          ...typedEvent,
           contests: contestsWithWinners
         },
         statistics: {
@@ -672,6 +1262,7 @@ export class ReportGenerationService extends BaseService {
           uniqueContestants: uniqueContestants.size,
           totalWinners: winnersCount,
         },
+        drilldown,
         metadata: {
           generatedAt: new Date().toISOString(),
           generatedBy: userId,
@@ -706,6 +1297,7 @@ export class ReportGenerationService extends BaseService {
           id: true,
           name: true,
           eventId: true,
+          tenantId: true,
           event: {
             select: {
               id: true,
@@ -719,13 +1311,28 @@ export class ReportGenerationService extends BaseService {
               id: true,
               name: true,
               scoreCap: true,
+              commentaryMode: true,
+              commentaryScope: true,
+              totalsCertified: true,
+              tenantId: true,
+              criteria: {
+                select: {
+                  id: true,
+                  name: true,
+                  maxScore: true,
+                },
+              },
               scores: {
                 select: {
                   id: true,
                   contestantId: true,
                   judgeId: true,
                   categoryId: true,
+                  criterionId: true,
                   score: true,
+                  isCertified: true,
+                  certifiedAt: true,
+                  certifiedBy: true,
                   contestant: {
                     select: {
                       id: true,
@@ -742,9 +1349,19 @@ export class ReportGenerationService extends BaseService {
                   criterion: {
                     select: {
                       id: true,
-                      maxScore: true
+                      name: true,
+                      maxScore: true,
+                      categoryId: true,
                     }
-                  }
+                  },
+                  scoreComments: {
+                    select: {
+                      comment: true,
+                      createdAt: true,
+                      updatedAt: true,
+                      isPrivate: true,
+                    },
+                  },
                 }
               }
             }
@@ -754,14 +1371,23 @@ export class ReportGenerationService extends BaseService {
 
       this.assertExists(contest, 'Contest', contestId);
 
-      const winners = await this.calculateContestWinners(contest as unknown as ContestWithEventAndCategories);
+      const typedContest = contest as unknown as ContestReportContext;
+      const certifiedContest = this.buildCertifiedContestContext(typedContest);
+      const winners = await this.calculateContestWinners(
+        certifiedContest as unknown as ContestWithEventAndCategories,
+        {
+          certifiedOnly: true,
+        },
+      );
+      const drilldown = await this.buildReportDrilldown([typedContest]);
 
       return {
         contest: {
-          ...(contest as unknown as ContestWithEventAndCategories),
+          ...(certifiedContest as unknown as ContestWithEventAndCategories),
           winners
         },
         winners,
+        drilldown,
         metadata: {
           generatedAt: new Date().toISOString(),
           generatedBy: userId,

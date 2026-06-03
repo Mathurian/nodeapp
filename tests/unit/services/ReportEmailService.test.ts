@@ -250,6 +250,34 @@ describe('ReportEmailService', () => {
 
       await expect(service.sendReportEmail(mixedEmails)).rejects.toThrow('invalid1, invalid2@');
     });
+
+    it('should include scope and attachment format in the default email content', async () => {
+      const scopedEmailData = buildEmailData({
+        format: 'csv',
+        reportData: {
+          metadata: {
+            generatedAt: '2024-01-01T00:00:00.000Z',
+            reportType: 'Event Summary',
+            scope: {
+              eventName: 'Annual Gala',
+              contestNames: ['Solo', 'Talent'],
+              filterMode: 'selected_contests',
+            },
+          },
+        },
+      });
+
+      await service.sendReportEmail(scopedEmailData);
+
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        'test@example.com',
+        expect.any(String),
+        expect.stringContaining('Scope: Annual Gala • Solo, Talent'),
+        expect.objectContaining({
+          html: expect.stringContaining('Attachment:</strong> CSV'),
+        }),
+      );
+    });
   });
 
   describe('sendBatchReportEmails', () => {

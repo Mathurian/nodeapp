@@ -63,6 +63,9 @@ describe('ReportsController', () => {
 
     mockExportService = {
       exportReport: jest.fn(),
+      generateFilename: jest.fn((reportType: string, format: string) =>
+        `generated-${reportType}.${format === 'excel' ? 'xlsx' : format}`
+      ),
     } as any;
 
     mockTemplateService = {
@@ -668,7 +671,7 @@ describe('ReportsController', () => {
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        'attachment; filename=report-report-1.pdf'
+        'attachment; filename=generated-report-report-1.pdf'
       );
       expect(mockRes.send).toHaveBeenCalledWith(mockBuffer);
     });
@@ -682,14 +685,15 @@ describe('ReportsController', () => {
       expect(mockRes.json).toHaveBeenCalledWith({ error: 'Report ID is required' });
     });
 
-    it('should call next with error when report not found', async () => {
+    it('should return 404 when report is not found', async () => {
       mockReq.params = { id: 'nonexistent' };
 
       mockPrisma.reportInstance.findFirst.mockResolvedValue(null);
 
       await controller.exportToPDF(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Report not found' });
     });
   });
 
@@ -716,7 +720,7 @@ describe('ReportsController', () => {
       );
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        'attachment; filename=report-report-2.xlsx'
+        'attachment; filename=generated-report-report-2.xlsx'
       );
       expect(mockRes.send).toHaveBeenCalledWith(mockBuffer);
     });
@@ -751,7 +755,7 @@ describe('ReportsController', () => {
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv');
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        'attachment; filename=report-report-3.csv'
+        'attachment; filename=generated-report-report-3.csv'
       );
       expect(mockRes.send).toHaveBeenCalledWith(mockBuffer);
     });
@@ -802,8 +806,11 @@ describe('ReportsController', () => {
         tenantId: 'tenant-1',
       });
       expect(mockRes.json).toHaveBeenCalledWith({
-        message: 'Report emailed successfully',
-        data: dispatchSummary,
+        message: 'PDF report emailed successfully',
+        data: {
+          ...dispatchSummary,
+          format: 'pdf',
+        },
       });
     });
 
@@ -829,6 +836,36 @@ describe('ReportsController', () => {
           format: 'pdf',
         })
       );
+    });
+
+    it('should reject unsupported report email formats', async () => {
+      mockReq.body = {
+        reportId: 'report-1',
+        recipients: ['user@example.com'],
+        format: 'zip',
+      };
+
+      await controller.sendReportEmail(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockEmailService.sendReportEmail).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Invalid report format',
+        message: 'Supported delivery formats: pdf, excel, csv',
+      });
+    });
+
+    it('should reject email sending when recipients are missing', async () => {
+      mockReq.body = {
+        reportId: 'report-1',
+        recipients: [],
+      };
+
+      await controller.sendReportEmail(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockEmailService.sendReportEmail).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'At least one email recipient is required' });
     });
 
     it('should reject email sending when user is not authenticated', async () => {

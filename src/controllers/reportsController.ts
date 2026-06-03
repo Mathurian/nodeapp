@@ -8,7 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { ReportGenerationService } from '../services/ReportGenerationService';
-import { ReportExportService } from '../services/ReportExportService';
+import { ExportFormat, ReportExportService } from '../services/ReportExportService';
 import { ReportTemplateService } from '../services/ReportTemplateService';
 import { ReportEmailService, ReportEmailDispatchSummary } from '../services/ReportEmailService';
 import { ReportInstanceService } from '../services/ReportInstanceService';
@@ -22,6 +22,8 @@ type ReportScopeSummary = {
   contestNames: string[];
   filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system' | null;
 };
+
+const SUPPORTED_REPORT_EXPORT_FORMATS: ExportFormat[] = ['pdf', 'excel', 'csv'];
 
 /**
  * Reports Controller Class
@@ -108,6 +110,17 @@ export class ReportsController {
           .filter(Boolean),
       ),
     );
+  }
+
+  private normalizeExportFormat(rawValue: unknown): ExportFormat | null {
+    if (typeof rawValue !== 'string') {
+      return null;
+    }
+
+    const normalized = rawValue.trim().toLowerCase();
+    return SUPPORTED_REPORT_EXPORT_FORMATS.includes(normalized as ExportFormat)
+      ? (normalized as ExportFormat)
+      : null;
   }
 
   private parseStoredReportData(data: unknown): Record<string, any> {
@@ -225,6 +238,30 @@ export class ReportsController {
     }
 
     return normalizedContestIds.some((contestId) => scopeSummary.contestIds.includes(contestId));
+  }
+
+  private async getReportInstance(prisma: PrismaClient, instanceId: string, tenantId: string) {
+    return prisma.reportInstance.findFirst({
+      where: {
+        id: instanceId,
+        tenantId,
+      },
+    });
+  }
+
+  private parseReportInstancePayload(
+    reportInstance: { data: unknown; type: string; generatedAt: Date },
+  ): Record<string, any> {
+    const parsedData = this.parseStoredReportData(reportInstance.data);
+    if (parsedData && Object.keys(parsedData).length > 0) {
+      return parsedData;
+    }
+
+    return {
+      message: 'No report data available',
+      reportType: reportInstance.type,
+      generatedAt: reportInstance.generatedAt,
+    };
   }
 
   /**
@@ -565,12 +602,25 @@ export class ReportsController {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const reportData = await this.getReportData(access.requestPrisma, id, access.tenantId);
+      const reportInstance = await this.getReportInstance(access.requestPrisma, id, access.tenantId);
+      if (!reportInstance) {
+        res.status(404).json({ error: 'Report not found' });
+        return;
+      }
+      const reportData = this.parseReportInstancePayload(reportInstance);
+      const metadata =
+        reportData['metadata'] && typeof reportData['metadata'] === 'object'
+          ? (reportData['metadata'] as Record<string, unknown>)
+          : null;
 
       const buffer = await this.exportService.exportReport(reportData, 'pdf');
+      const filename = this.exportService.generateFilename(
+        typeof metadata?.['reportType'] === 'string' ? String(metadata['reportType']) : `report-${id}`,
+        'pdf',
+      );
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=report-${id}.pdf`);
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
       res.send(buffer);
     } catch (error) {
       return next(error);
@@ -591,12 +641,25 @@ export class ReportsController {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const reportData = await this.getReportData(access.requestPrisma, id, access.tenantId);
+      const reportInstance = await this.getReportInstance(access.requestPrisma, id, access.tenantId);
+      if (!reportInstance) {
+        res.status(404).json({ error: 'Report not found' });
+        return;
+      }
+      const reportData = this.parseReportInstancePayload(reportInstance);
+      const metadata =
+        reportData['metadata'] && typeof reportData['metadata'] === 'object'
+          ? (reportData['metadata'] as Record<string, unknown>)
+          : null;
 
       const buffer = await this.exportService.exportReport(reportData, 'excel');
+      const filename = this.exportService.generateFilename(
+        typeof metadata?.['reportType'] === 'string' ? String(metadata['reportType']) : `report-${id}`,
+        'excel',
+      );
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=report-${id}.xlsx`);
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
       res.send(buffer);
     } catch (error) {
       return next(error);
@@ -617,34 +680,30 @@ export class ReportsController {
         res.status(400).json({ error: 'Report ID is required' });
         return;
       }
-      const reportData = await this.getReportData(access.requestPrisma, id, access.tenantId);
+      const reportInstance = await this.getReportInstance(access.requestPrisma, id, access.tenantId);
+      if (!reportInstance) {
+        res.status(404).json({ error: 'Report not found' });
+        return;
+      }
+      const reportData = this.parseReportInstancePayload(reportInstance);
+      const metadata =
+        reportData['metadata'] && typeof reportData['metadata'] === 'object'
+          ? (reportData['metadata'] as Record<string, unknown>)
+          : null;
 
       const buffer = await this.exportService.exportReport(reportData, 'csv');
+      const filename = this.exportService.generateFilename(
+        typeof metadata?.['reportType'] === 'string' ? String(metadata['reportType']) : `report-${id}`,
+        'csv',
+      );
 
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=report-${id}.csv`);
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
       res.send(buffer);
     } catch (error) {
       return next(error);
     }
   };
-
-  /**
-   * Helper to get report data from instance ID
-   * SECURITY FIX: Now validates tenant access to report instances
-   */
-  private async getReportData(prisma: PrismaClient, instanceId: string, tenantId: string): Promise<any> {
-    const instance = await prisma.reportInstance.findFirst({
-      where: {
-        id: instanceId,
-        tenantId
-      }
-    });
-    if (!instance) {
-      throw new Error('Report instance not found or access denied');
-    }
-    return typeof instance.data === 'string' ? JSON.parse(instance.data) : instance.data;
-  }
 
   /**
    * Send report via email
@@ -656,9 +715,30 @@ export class ReportsController {
       if (!access) return;
 
       const { reportId, recipients, subject, message, format, html } = req.body;
+      if (!reportId) {
+        res.status(400).json({ error: 'Report ID is required' });
+        return;
+      }
+      if (!Array.isArray(recipients) || recipients.length === 0) {
+        res.status(400).json({ error: 'At least one email recipient is required' });
+        return;
+      }
+      const normalizedFormat = format == null ? 'pdf' : this.normalizeExportFormat(format);
+      if (!normalizedFormat) {
+        res.status(400).json({
+          error: 'Invalid report format',
+          message: `Supported delivery formats: ${SUPPORTED_REPORT_EXPORT_FORMATS.join(', ')}`,
+        });
+        return;
+      }
       const userId = access.userId || 'system';
       const tenantId = access.tenantId;
-      const reportData = await this.getReportData(access.requestPrisma, reportId, tenantId);
+      const reportInstance = await this.getReportInstance(access.requestPrisma, reportId, tenantId);
+      if (!reportInstance) {
+        res.status(404).json({ error: 'Report not found' });
+        return;
+      }
+      const reportData = this.parseReportInstancePayload(reportInstance);
 
       const dispatchSummary: ReportEmailDispatchSummary = await this.emailService.sendReportEmail({
         recipients,
@@ -666,20 +746,24 @@ export class ReportsController {
         message,
         html,
         reportData,
-        format: format || 'pdf',
+        format: normalizedFormat,
         userId,
         tenantId
       });
 
+      const attachmentLabel = normalizedFormat === 'excel' ? 'Excel' : normalizedFormat.toUpperCase();
       const responseMessage = dispatchSummary.skipped === dispatchSummary.total
-        ? 'Report email skipped because SMTP is disabled for this environment'
+        ? `${attachmentLabel} report email skipped because SMTP is disabled for this environment`
         : dispatchSummary.failed > 0
-          ? 'Report email processed with partial failures'
-          : 'Report emailed successfully';
+          ? `${attachmentLabel} report email processed with partial failures`
+          : `${attachmentLabel} report emailed successfully`;
 
       res.json({
         message: responseMessage,
-        data: dispatchSummary
+        data: {
+          ...dispatchSummary,
+          format: normalizedFormat,
+        }
       });
     } catch (error) {
       return next(error);
@@ -709,14 +793,7 @@ export class ReportsController {
         return;
       }
 
-      let parsedData = this.parseStoredReportData(reportInstance.data);
-      if (!parsedData || Object.keys(parsedData).length === 0) {
-        parsedData = {
-          message: 'No report data available',
-          reportType: reportInstance.type,
-          generatedAt: reportInstance.generatedAt,
-        };
-      }
+      const parsedData = this.parseReportInstancePayload(reportInstance);
       const scopeSummary = this.extractReportScopeSummary(parsedData, reportInstance.type);
 
       res.json({

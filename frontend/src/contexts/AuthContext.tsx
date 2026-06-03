@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { clearOfflineSyncTelemetry } from '../services/offlineSyncTelemetry'
+import { clearStoredTenantSlug, setStoredTenantSlug } from '../utils/tenantSession'
 import {
   discardOfflineWorkflowDataForOwner,
   getOfflineWorkSummary,
@@ -122,9 +123,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await api.get('/auth/profile')
         // Backend wraps response in { success, message, data, timestamp }
         const profileData = response.data.data || response.data
+        setStoredTenantSlug(profileData?.tenant?.slug || null)
         setUser(profileData)
       } catch (error) {
         // Cookie might be expired or invalid, user is not authenticated
+        clearStoredTenantSlug()
         setUser(null)
       }
       setIsLoading(false)
@@ -181,6 +184,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setShowLogoutGuard(false)
     setPendingOfflineSummary(null)
+    clearStoredTenantSlug()
     setUser(null)
     navigate(logoutLoginPath, { replace: true })
   }
@@ -221,6 +225,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // No need to store token - it's in httpOnly cookie
       // Cookie is automatically sent with subsequent requests
+      setStoredTenantSlug(userData?.tenant?.slug || tenantSlug || null)
       setUser(userData)
 
       // Return user data so caller can handle navigation based on tenant
@@ -263,6 +268,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('MFA completion failed')
       }
 
+      setStoredTenantSlug(userData?.tenant?.slug || null)
       setUser(userData)
       return userData
     } catch (error: any) {
@@ -290,10 +296,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await api.get('/auth/profile')
       const profileData = response.data.data || response.data
+      setStoredTenantSlug(profileData?.tenant?.slug || null)
       setUser(profileData)
     } catch (error) {
       console.error('Failed to refresh user:', error)
       // If refresh fails, user might be logged out
+      clearStoredTenantSlug()
       setUser(null)
     }
   }

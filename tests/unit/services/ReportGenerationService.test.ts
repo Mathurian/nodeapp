@@ -10,7 +10,7 @@ import {
   type ReportData,
   type SystemStatistics,
 } from '../../../src/services/ReportGenerationService';
-import { PrismaClient } from '@prisma/client';
+import { CommentaryMode, CommentaryScope, PrismaClient } from '@prisma/client';
 import { DeepMockProxy, mockDeep, mockReset } from 'jest-mock-extended';
 import { NotFoundError } from '../../../src/services/BaseService';
 
@@ -49,10 +49,19 @@ describe('ReportGenerationService', () => {
     categoryId: string;
     criterionId: string;
     score: number | null;
+    isCertified: boolean;
+    certifiedAt: Date | null;
+    certifiedBy: string | null;
     contestant: ContestantFixture;
     judge: JudgeFixture;
     criterion: CriterionFixture;
     category: { id: string; name: string } | null;
+    scoreComments: Array<{
+      comment: string;
+      createdAt: Date;
+      updatedAt: Date;
+      isPrivate: boolean;
+    }>;
   };
 
   const buildContestant = (
@@ -87,15 +96,28 @@ describe('ReportGenerationService', () => {
       id: string;
       name: string;
       scoreCap: number | null;
+      commentaryMode: CommentaryMode;
+      commentaryScope: CommentaryScope;
+      totalsCertified: boolean;
+      tenantId: string;
+      criteria: CriterionFixture[];
       scores: ReportScoreFixture[];
     }> = {}
-  ) => ({
-    id: 'category-1',
-    name: 'Dance',
-    scoreCap: 300,
-    scores: [],
-    ...overrides,
-  });
+  ) => {
+    const categoryId = overrides.id ?? 'category-1';
+    return {
+      id: categoryId,
+      name: 'Dance',
+      scoreCap: 300,
+      commentaryMode: CommentaryMode.PER_CRITERION,
+      commentaryScope: CommentaryScope.CATEGORY,
+      totalsCertified: true,
+      tenantId: TEST_TENANT_ID,
+      criteria: [buildCriterion({ categoryId })],
+      scores: [],
+      ...overrides,
+    };
+  };
 
   const buildScore = (
     overrides: Partial<{
@@ -105,10 +127,14 @@ describe('ReportGenerationService', () => {
       categoryId: string;
       criterionId: string;
       score: number | null;
+      isCertified: boolean;
+      certifiedAt: Date | null;
+      certifiedBy: string | null;
       contestant: ReturnType<typeof buildContestant>;
       judge: ReturnType<typeof buildJudge>;
       criterion: ReturnType<typeof buildCriterion>;
       category: ReportScoreFixture['category'];
+      scoreComments: ReportScoreFixture['scoreComments'];
     }> = {}
   ): ReportScoreFixture => {
     const contestantId = overrides.contestantId ?? 'contestant-1';
@@ -123,10 +149,14 @@ describe('ReportGenerationService', () => {
       categoryId,
       criterionId,
       score: 85,
+      isCertified: true,
+      certifiedAt: BASE_TIME,
+      certifiedBy: 'user-1',
       contestant: buildContestant({ id: contestantId }),
       judge: buildJudge({ id: judgeId }),
       criterion: buildCriterion({ id: criterionId, categoryId }),
       category: { id: categoryId, name: categoryId === 'category-2' ? 'Vocal' : 'Dance' },
+      scoreComments: [],
       ...overrides,
     };
   };
@@ -136,12 +166,28 @@ describe('ReportGenerationService', () => {
       id: string;
       name: string;
       description: string;
+      eventId: string;
+      tenantId: string;
+      event: {
+        id: string;
+        name: string;
+        startDate: Date;
+        endDate: Date | null;
+      };
       categories: ReturnType<typeof buildCategory>[];
     }> = {}
   ) => ({
     id: 'contest-1',
     name: 'Regional Competition',
     description: 'Annual regional dance competition',
+    eventId: 'event-1',
+    tenantId: TEST_TENANT_ID,
+    event: {
+      id: 'event-1',
+      name: 'Annual Gala',
+      startDate: BASE_TIME,
+      endDate: null,
+    },
     categories: [buildCategory()],
     ...overrides,
   });
@@ -212,6 +258,7 @@ describe('ReportGenerationService', () => {
   beforeEach(() => {
     mockPrisma = mockDeep<PrismaClient>();
     service = new ReportGenerationService(mockPrisma as any);
+    mockPrisma.judgeComment.findMany.mockResolvedValue([]);
     jest.clearAllMocks();
   });
 
@@ -702,6 +749,124 @@ describe('ReportGenerationService', () => {
       const report = await service.generateContestResultsData('contest-1');
 
       expect(report.winners).toEqual([]);
+    });
+
+    it('should build certified-only contestant and judge drilldown with scoped commentary', async () => {
+      const certifiedScore = buildScore({
+        id: 'score-certified',
+        contestantId: 'contestant-1',
+        judgeId: 'judge-1',
+        categoryId: 'category-1',
+        criterionId: 'criterion-1',
+        score: 92,
+        scoreComments: [
+          {
+            comment: 'Strong stage presence',
+            createdAt: BASE_TIME,
+            updatedAt: new Date(BASE_TIME.getTime() + 60_000),
+            isPrivate: false,
+          },
+        ],
+      });
+      const uncertifiedScore = buildScore({
+        id: 'score-uncertified',
+        contestantId: 'contestant-2',
+        judgeId: 'judge-2',
+        categoryId: 'category-2',
+        criterionId: 'criterion-2',
+        score: 77,
+        isCertified: false,
+        category: { id: 'category-2', name: 'Vocal' },
+        contestant: buildContestant({ id: 'contestant-2', name: 'Jane Doe', contestantNumber: 2 }),
+        judge: buildJudge({ id: 'judge-2', name: 'Judge Two', judgeNumber: 2 }),
+        criterion: buildCriterion({ id: 'criterion-2', categoryId: 'category-2', name: 'Technique' }),
+      });
+
+      mockPrisma.contest.findUnique.mockResolvedValue({
+        ...mockContest,
+        event: mockEvent,
+        categories: [
+          buildCategory({
+            id: 'category-1',
+            name: 'Dance',
+            commentaryMode: CommentaryMode.HYBRID,
+            commentaryScope: CommentaryScope.CONTEST,
+            totalsCertified: true,
+            criteria: [buildCriterion({ id: 'criterion-1', categoryId: 'category-1', name: 'Performance' })],
+            scores: [certifiedScore],
+          }),
+          buildCategory({
+            id: 'category-2',
+            name: 'Vocal',
+            totalsCertified: false,
+            criteria: [buildCriterion({ id: 'criterion-2', categoryId: 'category-2', name: 'Technique' })],
+            scores: [uncertifiedScore],
+          }),
+        ],
+      } as any);
+
+      mockPrisma.criterion.findMany.mockResolvedValue([
+        { ...mockCriterion, categoryId: 'category-1', maxScore: 100 },
+        { ...mockCriterion, id: 'criterion-2', categoryId: 'category-2', maxScore: 100 },
+      ]);
+      mockPrisma.score.findMany.mockResolvedValue([certifiedScore] as any);
+      mockPrisma.judgeComment.findMany.mockResolvedValue([
+        {
+          scope: CommentaryScope.CONTEST,
+          scopeKey: 'contest-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          comment: 'Excellent energy throughout.',
+          createdAt: new Date(BASE_TIME.getTime() + 120_000),
+        },
+      ] as any);
+
+      const report = await service.generateContestResultsData('contest-1', 'user-1');
+
+      expect(report.drilldown).toMatchObject({
+        certifiedOnly: true,
+        contests: [
+          {
+            contestId: 'contest-1',
+            contestants: [
+              {
+                contestantId: 'contestant-1',
+                judges: [
+                  {
+                    judgeId: 'judge-1',
+                    categories: [
+                      {
+                        categoryId: 'category-1',
+                        commentary: 'Excellent energy throughout.',
+                        criteria: [
+                          expect.objectContaining({
+                            scoreId: 'score-certified',
+                            commentary: 'Strong stage presence',
+                          }),
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      expect(report.drilldown?.contests[0]?.contestants).toHaveLength(1);
+      expect(report.drilldown?.contests[0]?.contestants[0]?.judges[0]?.categories).toHaveLength(1);
+      expect(report.winners).toHaveLength(1);
+      expect(report.winners?.[0]?.contestant.id).toBe('contestant-1');
+      expect(mockPrisma.score.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isCertified: true,
+            category: {
+              totalsCertified: true,
+            },
+          }),
+        }),
+      );
     });
   });
 
