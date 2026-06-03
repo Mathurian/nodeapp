@@ -364,6 +364,13 @@ export interface ReportData {
     generatedAt: string;
     generatedBy?: string;
     reportType: string;
+    scope?: {
+      eventId?: string;
+      eventName?: string;
+      contestIds?: string[];
+      contestNames?: string[];
+      filterMode?: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system';
+    };
   };
 }
 
@@ -373,6 +380,10 @@ interface ContestantTotals {
   totalPossibleScore: number;
   categories: Set<string>;
   categoryJudgePairs: Set<string>;
+}
+
+export interface GenerateEventReportOptions {
+  contestIds?: string[];
 }
 
 @injectable()
@@ -536,8 +547,16 @@ export class ReportGenerationService extends BaseService {
   /**
    * Generate comprehensive event report data
    */
-  async generateEventReportData(eventId: string, userId?: string): Promise<ReportData> {
+  async generateEventReportData(
+    eventId: string,
+    userId?: string,
+    options?: GenerateEventReportOptions,
+  ): Promise<ReportData> {
     try {
+      const normalizedContestIds = Array.from(
+        new Set((options?.contestIds || []).map((contestId) => String(contestId || '').trim()).filter(Boolean)),
+      );
+
       // P2-2 OPTIMIZATION: Selective field loading
       const event = await this.prisma.event.findUnique({
         where: { id: eventId },
@@ -547,6 +566,15 @@ export class ReportGenerationService extends BaseService {
           startDate: true,
           endDate: true,
           contests: {
+            ...(normalizedContestIds.length > 0
+              ? {
+                  where: {
+                    id: {
+                      in: normalizedContestIds,
+                    },
+                  },
+                }
+              : {}),
             select: {
               id: true,
               name: true,
@@ -629,6 +657,8 @@ export class ReportGenerationService extends BaseService {
         (sum, contest) => sum + (Array.isArray(contest.winners) ? contest.winners.length : 0),
         0
       );
+      const scopedContestIds = contestsWithWinners.map((contest) => contest.id);
+      const scopedContestNames = contestsWithWinners.map((contest) => contest.name);
 
       return {
         event: {
@@ -645,11 +675,22 @@ export class ReportGenerationService extends BaseService {
         metadata: {
           generatedAt: new Date().toISOString(),
           generatedBy: userId,
-          reportType: 'event_comprehensive'
+          reportType: 'event_comprehensive',
+          scope: {
+            eventId: event.id,
+            eventName: event.name,
+            contestIds: scopedContestIds,
+            contestNames: scopedContestNames,
+            filterMode: normalizedContestIds.length > 0 ? 'selected_contests' : 'all_contests_in_event',
+          },
         }
       };
     } catch (error) {
-      this.handleError(error, { method: 'generateEventReportData', eventId });
+      this.handleError(error, {
+        method: 'generateEventReportData',
+        eventId,
+        contestIds: options?.contestIds,
+      });
     }
   }
 
@@ -724,7 +765,14 @@ export class ReportGenerationService extends BaseService {
         metadata: {
           generatedAt: new Date().toISOString(),
           generatedBy: userId,
-          reportType: 'contest_results'
+          reportType: 'contest_results',
+          scope: {
+            eventId: contest.event.id,
+            eventName: contest.event.name,
+            contestIds: [contest.id],
+            contestNames: [contest.name],
+            filterMode: 'single_contest',
+          },
         }
       };
     } catch (error) {
@@ -852,7 +900,10 @@ export class ReportGenerationService extends BaseService {
         metadata: {
           generatedAt: new Date().toISOString(),
           generatedBy: userId,
-          reportType: 'system_analytics'
+          reportType: 'system_analytics',
+          scope: {
+            filterMode: 'system',
+          },
         }
       };
     } catch (error) {

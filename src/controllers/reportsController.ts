@@ -15,6 +15,14 @@ import { ReportInstanceService } from '../services/ReportInstanceService';
 import { sendUnauthorized } from '../utils/responseHelpers';
 import { PermissionScopeService } from '../services/PermissionScopeService';
 
+type ReportScopeSummary = {
+  eventId: string | null;
+  eventName: string | null;
+  contestIds: string[];
+  contestNames: string[];
+  filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system' | null;
+};
+
 /**
  * Reports Controller Class
  */
@@ -86,6 +94,137 @@ export class ReportsController {
       userRole: req.user.role,
       requestPrisma,
     };
+  }
+
+  private normalizeContestIds(rawValue: unknown): string[] {
+    if (!Array.isArray(rawValue)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        rawValue
+          .map((contestId) => String(contestId || '').trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
+  private parseStoredReportData(data: unknown): Record<string, any> {
+    if (typeof data === 'string') {
+      const trimmed = data.trim();
+      if (!trimmed || trimmed === '{}') {
+        return {};
+      }
+
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return {};
+      }
+    }
+
+    if (data && typeof data === 'object') {
+      return data as Record<string, any>;
+    }
+
+    return {};
+  }
+
+  private extractReportScopeSummary(reportData: Record<string, any>, reportType?: string): ReportScopeSummary | null {
+    const metadata = reportData['metadata'];
+    const metadataScope =
+      metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>)['scope'] : null;
+
+    if (metadataScope && typeof metadataScope === 'object') {
+      const scope = metadataScope as Record<string, unknown>;
+      return {
+        eventId: scope['eventId'] ? String(scope['eventId']) : null,
+        eventName: scope['eventName'] ? String(scope['eventName']) : null,
+        contestIds: Array.isArray(scope['contestIds'])
+          ? scope['contestIds'].map((contestId: unknown) => String(contestId || '')).filter(Boolean)
+          : [],
+        contestNames: Array.isArray(scope['contestNames'])
+          ? scope['contestNames'].map((contestName: unknown) => String(contestName || '')).filter(Boolean)
+          : [],
+        filterMode: (scope['filterMode'] as ReportScopeSummary['filterMode']) || null,
+      };
+    }
+
+    const contest = reportData['contest'];
+    if (contest && typeof contest === 'object' && (contest as Record<string, unknown>)['id']) {
+      const contestRecord = contest as Record<string, unknown>;
+      const contestEvent =
+        contestRecord['event'] && typeof contestRecord['event'] === 'object'
+          ? (contestRecord['event'] as Record<string, unknown>)
+          : null;
+      return {
+        eventId: contestEvent?.['id'] ? String(contestEvent['id']) : null,
+        eventName: contestEvent?.['name'] ? String(contestEvent['name']) : null,
+        contestIds: [String(contestRecord['id'])],
+        contestNames: contestRecord['name'] ? [String(contestRecord['name'])] : [],
+        filterMode: 'single_contest',
+      };
+    }
+
+    const event = reportData['event'];
+    if (event && typeof event === 'object' && (event as Record<string, unknown>)['id']) {
+      const eventRecord = event as Record<string, unknown>;
+      const contests = Array.isArray(eventRecord['contests']) ? eventRecord['contests'] : [];
+      return {
+        eventId: String(eventRecord['id']),
+        eventName: eventRecord['name'] ? String(eventRecord['name']) : null,
+        contestIds: contests
+          .map((contest: Record<string, unknown>) => String(contest['id'] || ''))
+          .filter(Boolean),
+        contestNames: contests
+          .map((contest: Record<string, unknown>) => String(contest['name'] || ''))
+          .filter(Boolean),
+        filterMode: 'all_contests_in_event',
+      };
+    }
+
+    if (
+      reportType === 'system' ||
+      (metadata && typeof metadata === 'object' && (metadata as Record<string, unknown>)['reportType'] === 'system_analytics')
+    ) {
+      return {
+        eventId: null,
+        eventName: null,
+        contestIds: [],
+        contestNames: [],
+        filterMode: 'system',
+      };
+    }
+
+    return null;
+  }
+
+  private matchesRequestedScope(
+    scopeSummary: ReportScopeSummary | null,
+    eventId?: string | null,
+    contestIds?: string[],
+  ): boolean {
+    const normalizedEventId = eventId ? String(eventId) : '';
+    const normalizedContestIds = Array.from(new Set((contestIds || []).map((contestId) => String(contestId || '')).filter(Boolean)));
+
+    if (!normalizedEventId && normalizedContestIds.length === 0) {
+      return true;
+    }
+
+    if (!scopeSummary?.eventId) {
+      return false;
+    }
+
+    if (normalizedEventId && scopeSummary.eventId !== normalizedEventId) {
+      return false;
+    }
+
+    if (normalizedContestIds.length === 0) {
+      return true;
+    }
+
+    return normalizedContestIds.some((contestId) => scopeSummary.contestIds.includes(contestId));
   }
 
   /**
@@ -180,6 +319,7 @@ export class ReportsController {
       if (!access) return;
 
       const { type, eventId, contestId } = req.body;
+      const contestIds = this.normalizeContestIds(req.body?.contestIds);
       const userId = access.userId;
       const tenantId = access.tenantId;
       const requestPrisma = access.requestPrisma;
@@ -202,13 +342,39 @@ export class ReportsController {
           return;
         }
 
-        reportData = await this.generationService.generateEventReportData(eventId, userId);
+        if (contestIds.length > 0) {
+          const scopedContests = await requestPrisma.contest.findMany({
+            where: {
+              id: {
+                in: contestIds,
+              },
+              eventId,
+              tenantId,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          if (scopedContests.length !== contestIds.length) {
+            res.status(400).json({
+              error: 'Invalid contest scope',
+              message: 'One or more selected contests are not part of the selected event',
+            });
+            return;
+          }
+        }
+
+        reportData = await this.generationService.generateEventReportData(eventId, userId, {
+          contestIds: contestIds.length > 0 ? contestIds : undefined,
+        });
         reportName = 'Event Summary Report';
       } else if (type === 'contest' && contestId) {
         const contest = await requestPrisma.contest.findFirst({
           where: {
             id: contestId,
             tenantId,
+            ...(eventId ? { eventId } : {}),
           }
         });
 
@@ -302,6 +468,15 @@ export class ReportsController {
       if (!access) return;
 
       const { type, format, startDate, endDate } = req.query;
+      const eventId = typeof req.query['eventId'] === 'string' ? req.query['eventId'] : null;
+      const contestIds = Array.from(
+        new Set(
+          (Array.isArray(req.query['contestId']) ? req.query['contestId'] : [req.query['contestId']])
+            .flatMap((contestId) => String(contestId || '').split(','))
+            .map((contestId) => contestId.trim())
+            .filter(Boolean),
+        ),
+      );
       const tenantId = access.tenantId;
       const requestPrisma = access.requestPrisma;
 
@@ -320,7 +495,18 @@ export class ReportsController {
         orderBy: { generatedAt: 'desc' }
       });
 
-      res.json({ data: instances });
+      const normalizedInstances = instances
+        .map((instance) => {
+          const reportData = this.parseStoredReportData(instance.data);
+          const scopeSummary = this.extractReportScopeSummary(reportData, instance.type);
+          return {
+            ...instance,
+            scopeSummary,
+          };
+        })
+        .filter((instance) => this.matchesRequestedScope(instance.scopeSummary, eventId, contestIds));
+
+      res.json({ data: normalizedInstances });
     } catch (error) {
       return next(error);
     }
@@ -523,24 +709,15 @@ export class ReportsController {
         return;
       }
 
-      let parsedData: any = {};
-      try {
-        if (typeof reportInstance.data === 'string' && reportInstance.data !== '{}' && reportInstance.data.trim() !== '') {
-          parsedData = JSON.parse(reportInstance.data);
-        } else if (reportInstance.data && typeof reportInstance.data === 'object') {
-          parsedData = reportInstance.data;
-        } else {
-          parsedData = {
-            message: 'No report data available',
-            reportType: reportInstance.type,
-            generatedAt: reportInstance.generatedAt,
-          };
-        }
-      } catch (_parseError) {
+      let parsedData = this.parseStoredReportData(reportInstance.data);
+      if (!parsedData || Object.keys(parsedData).length === 0) {
         parsedData = {
-          error: 'Failed to parse report data',
+          message: 'No report data available',
+          reportType: reportInstance.type,
+          generatedAt: reportInstance.generatedAt,
         };
       }
+      const scopeSummary = this.extractReportScopeSummary(parsedData, reportInstance.type);
 
       res.json({
         data: {
@@ -550,6 +727,7 @@ export class ReportsController {
           format: reportInstance.format || 'PDF',
           generatedAt: reportInstance.generatedAt,
           generatedBy: reportInstance.generatedById || 'System',
+          scopeSummary,
           data: parsedData,
         },
       });

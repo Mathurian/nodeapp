@@ -90,6 +90,34 @@ test.describe('Report Generation E2E Tests', () => {
     expect(page.url()).toContain('/reports');
   });
 
+  test('should support event to contest drill-in scope controls', async () => {
+    const { page } = authContext;
+    await navigateAndWait(page, '/reports');
+
+    const eventSelect = page.locator('[data-testid="reports-event-select"]');
+    if (await eventSelect.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await eventSelect.selectOption({ index: 1 });
+
+      const activeScope = page.locator('[data-testid="reports-active-scope"]');
+      await expect(activeScope).toContainText(/all contests/i);
+
+      const contestScopeOptions = page.locator('[data-testid="reports-contest-scope-options"]');
+      await expect(contestScopeOptions).toBeVisible({ timeout: 5000 });
+
+      const typeSelect = page.locator('[data-testid="reports-type-select"]');
+      await typeSelect.selectOption('contest');
+
+      const contestSelect = page.locator('[data-testid="reports-contest-select"]');
+      await expect(contestSelect).toBeVisible({ timeout: 5000 });
+
+      const optionCount = await contestSelect.locator('option').count();
+      expect(optionCount).toBeGreaterThan(1);
+
+      await contestSelect.selectOption({ index: 1 });
+      await expect(activeScope).not.toContainText(/all contests/i);
+    }
+  });
+
   test('should export report to PDF', async () => {
     const { page } = authContext;
     await navigateAndWait(page, '/reports');

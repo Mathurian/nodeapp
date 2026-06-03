@@ -327,48 +327,73 @@ export class AuthService {
       throw new Error('Tenant context is required');
     }
 
+    const normalizedEmail = email.trim();
+    const loginUserSelect = {
+      id: true,
+      name: true,
+      preferredName: true,
+      email: true,
+      password: true,
+      role: true,
+      boardRole: true,
+      sessionVersion: true,
+      isActive: true,
+      judgeId: true,
+      contestantId: true,
+      gender: true,
+      pronouns: true,
+      tenantId: true,
+      imagePath: true,
+      mfaEnabled: true,
+      mfaSecret: true,
+      mfaMethod: true,
+      phone: true,
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          slug: true
+        }
+      }
+    } satisfies Prisma.UserSelect;
+
     // Find user with related data including tenant info and MFA fields
     // If logging in from default tenant context (e.g., /login without slug),
     // first try to find the user by email in any tenant
-    let user = await authPrisma.user.findFirst({
+    const sameTenantCandidates = await authPrisma.user.findMany({
       where: {
-        email,
+        email: { equals: normalizedEmail, mode: 'insensitive' },
         tenantId
       },
-      // Explicitly select MFA fields
-      select: {
-        id: true,
-        name: true,
-        preferredName: true,
-        email: true,
-        password: true,
-        role: true,
-        boardRole: true,
-        sessionVersion: true,
-        isActive: true,
-        judgeId: true,
-        contestantId: true,
-        gender: true,
-        pronouns: true,
-        tenantId: true,
-        imagePath: true,
-        mfaEnabled: true,
-        mfaSecret: true,
-        mfaMethod: true,
-        phone: true,
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-            slug: true
-          }
+      select: loginUserSelect,
+    });
+    let user = sameTenantCandidates.length === 1 ? sameTenantCandidates[0] : null;
+
+    if (!user && sameTenantCandidates.length > 1) {
+      const matchedCandidates: typeof sameTenantCandidates = [];
+      for (const candidate of sameTenantCandidates) {
+        if (await bcrypt.compare(password, candidate.password)) {
+          matchedCandidates.push(candidate);
         }
       }
-    });
+
+      if (matchedCandidates.length === 1) {
+        const matchedCandidate = matchedCandidates[0];
+        if (matchedCandidate) {
+          user = matchedCandidate;
+        }
+      } else if (matchedCandidates.length > 1) {
+        logger.error('Multiple same-tenant users matched case-insensitive login email and password', {
+          tenantId,
+          normalizedEmail,
+          candidateIds: matchedCandidates.map((candidate) => candidate.id),
+        });
+      }
+    }
 
     // If not found in specified tenant, try to find user by email in any active tenant
     // This enables automatic tenant discovery based on email
-    if (!user) {
+    if (!user && sameTenantCandidates.length === 0) {
       let defaultTenantId: string | null = null;
       try {
         defaultTenantId = await resolveDefaultTenantId(authPrisma);
@@ -383,38 +408,11 @@ export class AuthService {
       if (defaultTenantId && tenantId === defaultTenantId) {
         const candidates = await authPrisma.user.findMany({
           where: {
-            email,
+            email: { equals: normalizedEmail, mode: 'insensitive' },
             isActive: true,
             tenant: { isActive: true }
           },
-          select: {
-            id: true,
-            name: true,
-            preferredName: true,
-            email: true,
-            password: true,
-            role: true,
-            boardRole: true,
-            sessionVersion: true,
-            isActive: true,
-            judgeId: true,
-            contestantId: true,
-            gender: true,
-            pronouns: true,
-            tenantId: true,
-            imagePath: true,
-            mfaEnabled: true,
-            mfaSecret: true,
-            mfaMethod: true,
-            phone: true,
-            tenant: {
-              select: {
-                id: true,
-                name: true,
-                slug: true
-              }
-            }
-          }
+          select: loginUserSelect,
         });
 
         if (candidates.length === 1) {
@@ -448,39 +446,12 @@ export class AuthService {
       } else if (defaultTenantId) {
         const superAdminCandidates = await authPrisma.user.findMany({
           where: {
-            email,
+            email: { equals: normalizedEmail, mode: 'insensitive' },
             role: 'SUPER_ADMIN',
             isActive: true,
             tenant: { isActive: true }
           },
-          select: {
-            id: true,
-            name: true,
-            preferredName: true,
-            email: true,
-            password: true,
-            role: true,
-            boardRole: true,
-            sessionVersion: true,
-            isActive: true,
-            judgeId: true,
-            contestantId: true,
-            gender: true,
-            pronouns: true,
-            tenantId: true,
-            imagePath: true,
-            mfaEnabled: true,
-            mfaSecret: true,
-            mfaMethod: true,
-            phone: true,
-            tenant: {
-              select: {
-                id: true,
-                name: true,
-                slug: true
-              }
-            }
-          }
+          select: loginUserSelect,
         });
 
         if (superAdminCandidates.length === 1) {

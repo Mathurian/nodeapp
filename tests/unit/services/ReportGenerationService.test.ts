@@ -485,7 +485,59 @@ describe('ReportGenerationService', () => {
           generatedAt: expect.any(String),
           generatedBy: 'user-1',
           reportType: 'event_comprehensive',
+          scope: expect.objectContaining({
+            eventId: 'event-1',
+            eventName: 'Annual Gala',
+            filterMode: 'all_contests_in_event',
+          }),
         }),
+      });
+    });
+
+    it('should limit event reports to selected contests when contest scope is provided', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...mockEvent,
+        contests: [
+          {
+            ...buildContest({
+              id: 'contest-1',
+              name: 'Contest 1',
+              categories: [{ ...mockCategory, scores: [mockScore] }],
+            }),
+          },
+        ],
+      } as any);
+
+      mockPrisma.criterion.findMany.mockResolvedValue([mockCriterion]);
+      mockPrisma.score.findMany.mockResolvedValue([mockScore] as any);
+
+      const report = await service.generateEventReportData('event-1', 'user-1', {
+        contestIds: ['contest-1'],
+      });
+      const event = requireEvent(report);
+      const metadata = requireMetadata(report);
+
+      expect(mockPrisma.event.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'event-1' },
+          select: expect.objectContaining({
+            contests: expect.objectContaining({
+              where: {
+                id: {
+                  in: ['contest-1'],
+                },
+              },
+            }),
+          }),
+        }),
+      );
+      expect(event.contests).toHaveLength(1);
+      expect(event.contests[0]?.id).toBe('contest-1');
+      expect(metadata.scope).toMatchObject({
+        eventId: 'event-1',
+        contestIds: ['contest-1'],
+        contestNames: ['Contest 1'],
+        filterMode: 'selected_contests',
       });
     });
 
@@ -584,6 +636,12 @@ describe('ReportGenerationService', () => {
           generatedAt: expect.any(String),
           generatedBy: 'user-1',
           reportType: 'contest_results',
+          scope: expect.objectContaining({
+            eventId: 'event-1',
+            contestIds: ['contest-1'],
+            contestNames: ['Regional Competition'],
+            filterMode: 'single_contest',
+          }),
         }),
       });
     });

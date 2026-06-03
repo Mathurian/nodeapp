@@ -11,6 +11,7 @@ import { ReportExportService } from '../../../src/services/ReportExportService';
 import { ReportTemplateService } from '../../../src/services/ReportTemplateService';
 import { ReportEmailService } from '../../../src/services/ReportEmailService';
 import { ReportInstanceService } from '../../../src/services/ReportInstanceService';
+import { PermissionScopeService } from '../../../src/services/PermissionScopeService';
 import { container } from 'tsyringe';
 
 // Mock dependencies
@@ -23,7 +24,7 @@ jest.mock('../../../src/services/ReportInstanceService');
 // Mock the database module used by the controller for authorization checks
 const mockPrisma = {
   event: { findFirst: jest.fn() },
-  contest: { findFirst: jest.fn() },
+  contest: { findFirst: jest.fn(), findMany: jest.fn() },
   reportInstance: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
@@ -45,6 +46,7 @@ describe('ReportsController', () => {
   let mockTemplateService: jest.Mocked<ReportTemplateService>;
   let mockEmailService: jest.Mocked<ReportEmailService>;
   let mockInstanceService: jest.Mocked<ReportInstanceService>;
+  let mockPermissionScopeService: jest.Mocked<PermissionScopeService>;
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
   let mockNext: jest.MockedFunction<NextFunction>;
@@ -80,6 +82,12 @@ describe('ReportsController', () => {
       deleteInstance: jest.fn(),
     } as any;
 
+    mockPermissionScopeService = {
+      resolveUserScope: jest.fn().mockResolvedValue({
+        tenantWide: true,
+      }),
+    } as any;
+
     // Mock container resolution
     (container.resolve as jest.Mock) = jest.fn((service) => {
       if (service === ReportGenerationService) return mockGenerationService;
@@ -87,6 +95,7 @@ describe('ReportsController', () => {
       if (service === ReportTemplateService) return mockTemplateService;
       if (service === ReportEmailService) return mockEmailService;
       if (service === ReportInstanceService) return mockInstanceService;
+      if (service === PermissionScopeService) return mockPermissionScopeService;
       return {};
     });
 
@@ -274,7 +283,8 @@ describe('ReportsController', () => {
 
       expect(mockGenerationService.generateEventReportData).toHaveBeenCalledWith(
         'event-1',
-        'user-1'
+        'user-1',
+        { contestIds: undefined }
       );
       expect(mockInstanceService.createInstance).toHaveBeenCalledWith({
         type: 'event',
@@ -322,6 +332,51 @@ describe('ReportsController', () => {
           instance: { id: 'inst-2' },
           preview: mockReportData,
         },
+      });
+    });
+
+    it('should generate an event report scoped to selected contests', async () => {
+      const mockReportData = { eventId: 'event-1', data: { participants: 20 } };
+
+      mockReq.body = { type: 'event', eventId: 'event-1', contestIds: ['contest-1', 'contest-2'] };
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1', tenantId: 'tenant-1' });
+      mockPrisma.contest.findMany.mockResolvedValue([
+        { id: 'contest-1' },
+        { id: 'contest-2' },
+      ]);
+      mockGenerationService.generateEventReportData.mockResolvedValue(mockReportData as any);
+      mockInstanceService.createInstance.mockResolvedValue({ id: 'inst-scoped' } as any);
+
+      await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.contest.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['contest-1', 'contest-2'] },
+          eventId: 'event-1',
+          tenantId: 'tenant-1',
+        },
+        select: {
+          id: true,
+        },
+      });
+      expect(mockGenerationService.generateEventReportData).toHaveBeenCalledWith(
+        'event-1',
+        'user-1',
+        { contestIds: ['contest-1', 'contest-2'] }
+      );
+    });
+
+    it('should return 400 when a scoped event report includes contests outside the event', async () => {
+      mockReq.body = { type: 'event', eventId: 'event-1', contestIds: ['contest-1', 'contest-2'] };
+      mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-1', tenantId: 'tenant-1' });
+      mockPrisma.contest.findMany.mockResolvedValue([{ id: 'contest-1' }]);
+
+      await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Invalid contest scope',
+        message: 'One or more selected contests are not part of the selected event',
       });
     });
 
@@ -422,8 +477,23 @@ describe('ReportsController', () => {
   describe('getReportInstances', () => {
     it('should return all report instances with filters', async () => {
       const mockInstances = [
-        { id: 'inst-1', type: 'event', format: 'pdf' },
-        { id: 'inst-2', type: 'contest', format: 'excel' },
+        {
+          id: 'inst-1',
+          type: 'event',
+          format: 'pdf',
+          data: JSON.stringify({
+            metadata: {
+              scope: {
+                eventId: 'event-1',
+                eventName: 'Event 1',
+                contestIds: ['contest-1'],
+                contestNames: ['Contest 1'],
+                filterMode: 'selected_contests',
+              },
+            },
+          }),
+        },
+        { id: 'inst-2', type: 'contest', format: 'excel', data: '{}' },
       ];
 
       mockReq.query = {
@@ -448,7 +518,71 @@ describe('ReportsController', () => {
           orderBy: { generatedAt: 'desc' },
         })
       );
-      expect(mockRes.json).toHaveBeenCalledWith({ data: mockInstances });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            id: 'inst-1',
+            scopeSummary: expect.objectContaining({
+              eventId: 'event-1',
+              contestIds: ['contest-1'],
+            }),
+          }),
+          expect.objectContaining({
+            id: 'inst-2',
+          }),
+        ],
+      });
+    });
+
+    it('should filter report instances by requested event and contest scope', async () => {
+      mockReq.query = {
+        eventId: 'event-1',
+        contestId: 'contest-2',
+      };
+      mockPrisma.reportInstance.findMany.mockResolvedValue([
+        {
+          id: 'inst-1',
+          type: 'event',
+          format: 'PDF',
+          data: JSON.stringify({
+            metadata: {
+              scope: {
+                eventId: 'event-1',
+                eventName: 'Event 1',
+                contestIds: ['contest-2'],
+                contestNames: ['Contest 2'],
+                filterMode: 'selected_contests',
+              },
+            },
+          }),
+        },
+        {
+          id: 'inst-2',
+          type: 'event',
+          format: 'PDF',
+          data: JSON.stringify({
+            metadata: {
+              scope: {
+                eventId: 'event-2',
+                eventName: 'Event 2',
+                contestIds: ['contest-9'],
+                contestNames: ['Contest 9'],
+                filterMode: 'selected_contests',
+              },
+            },
+          }),
+        },
+      ]);
+
+      await controller.getReportInstances(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockRes.json).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            id: 'inst-1',
+          }),
+        ],
+      });
     });
 
     it('should handle query without filters', async () => {
@@ -697,7 +831,7 @@ describe('ReportsController', () => {
       );
     });
 
-    it('should use system userId when user not authenticated', async () => {
+    it('should reject email sending when user is not authenticated', async () => {
       mockReq.user = undefined;
       mockReq.body = {
         reportId: 'report-1',
@@ -715,11 +849,8 @@ describe('ReportsController', () => {
 
       await controller.sendReportEmail(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockEmailService.sendReportEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: 'system',
-        })
-      );
+      expect(mockEmailService.sendReportEmail).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(401);
     });
 
     it('should call next with error when service throws', async () => {

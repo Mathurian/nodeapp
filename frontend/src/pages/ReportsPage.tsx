@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { reportsAPI, api } from '../services/api'
+import React, { useEffect, useMemo, useState } from 'react'
+import { contestsAPI, eventsAPI, reportsAPI } from '../services/api'
 import useAuthPermissions from '../hooks/useAuthPermissions'
 import { hasPermissionAction, permissionSetFromList } from '../utils/pageAccess'
 import {
@@ -30,12 +30,25 @@ interface BasicOption {
   name: string
 }
 
+interface ContestOption extends BasicOption {
+  eventId: string
+}
+
+interface ReportScopeSummary {
+  eventId: string | null
+  eventName: string | null
+  contestIds: string[]
+  contestNames: string[]
+  filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system' | null
+}
+
 interface ReportInstance {
   id: string
   name: string
   type: string
   format?: string | null
   generatedAt: string
+  scopeSummary?: ReportScopeSummary | null
 }
 
 interface ReportDetail {
@@ -44,6 +57,7 @@ interface ReportDetail {
   type: string
   format?: string | null
   generatedAt: string
+  scopeSummary?: ReportScopeSummary | null
   data?: Record<string, any> | null
 }
 
@@ -59,13 +73,99 @@ const parseCsvRows = (value: string): string[][] => {
     .map((line) => line.split(',').map((cell) => cell.trim()))
 }
 
+const normalizeScopeSummary = (value: unknown): ReportScopeSummary | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const scope = value as Record<string, unknown>
+  return {
+    eventId: scope.eventId ? String(scope.eventId) : null,
+    eventName: scope.eventName ? String(scope.eventName) : null,
+    contestIds: Array.isArray(scope.contestIds)
+      ? scope.contestIds.map((contestId) => String(contestId || '')).filter(Boolean)
+      : [],
+    contestNames: Array.isArray(scope.contestNames)
+      ? scope.contestNames.map((contestName) => String(contestName || '')).filter(Boolean)
+      : [],
+    filterMode:
+      scope.filterMode === 'all_contests_in_event' ||
+      scope.filterMode === 'selected_contests' ||
+      scope.filterMode === 'single_contest' ||
+      scope.filterMode === 'system'
+        ? scope.filterMode
+        : null,
+  }
+}
+
+const extractScopeSummaryFromReportData = (reportData?: Record<string, any> | null): ReportScopeSummary | null => {
+  const metadataScope = normalizeScopeSummary(reportData?.metadata?.scope)
+  if (metadataScope) {
+    return metadataScope
+  }
+
+  if (reportData?.contest?.id) {
+    return {
+      eventId: reportData?.contest?.event?.id ? String(reportData.contest.event.id) : null,
+      eventName: reportData?.contest?.event?.name ? String(reportData.contest.event.name) : null,
+      contestIds: [String(reportData.contest.id)],
+      contestNames: reportData?.contest?.name ? [String(reportData.contest.name)] : [],
+      filterMode: 'single_contest',
+    }
+  }
+
+  if (reportData?.event?.id) {
+    const contests = Array.isArray(reportData.event.contests) ? reportData.event.contests : []
+    return {
+      eventId: String(reportData.event.id),
+      eventName: reportData?.event?.name ? String(reportData.event.name) : null,
+      contestIds: contests
+        .map((contest: Record<string, unknown>) => String(contest?.id || ''))
+        .filter(Boolean),
+      contestNames: contests
+        .map((contest: Record<string, unknown>) => String(contest?.name || ''))
+        .filter(Boolean),
+      filterMode: 'all_contests_in_event',
+    }
+  }
+
+  if (reportData?.metadata?.reportType === 'system_analytics') {
+    return {
+      eventId: null,
+      eventName: null,
+      contestIds: [],
+      contestNames: [],
+      filterMode: 'system',
+    }
+  }
+
+  return null
+}
+
+const buildScopeDescription = (scopeSummary: ReportScopeSummary | null, fallbackEventName?: string | null): string => {
+  if (!scopeSummary) {
+    return fallbackEventName ? `${fallbackEventName} • all contests` : 'All reports'
+  }
+
+  if (scopeSummary.filterMode === 'system') {
+    return 'System-wide'
+  }
+
+  const eventLabel = scopeSummary.eventName || fallbackEventName || 'Event scope'
+  if (scopeSummary.contestNames.length === 0) {
+    return `${eventLabel} • all contests`
+  }
+
+  return `${eventLabel} • ${scopeSummary.contestNames.join(', ')}`
+}
+
 const ReportsPage: React.FC = () => {
   const { data: permissionsPayload } = useAuthPermissions()
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
-  const [contestId, setContestId] = useState('')
+  const [selectedContestIds, setSelectedContestIds] = useState<string[]>([])
   const [events, setEvents] = useState<BasicOption[]>([])
-  const [contests, setContests] = useState<BasicOption[]>([])
+  const [contests, setContests] = useState<ContestOption[]>([])
   const [instances, setInstances] = useState<ReportInstance[]>([])
   const [sendingReportId, setSendingReportId] = useState<string | null>(null)
   const [viewingReport, setViewingReport] = useState<ReportDetail | null>(null)
@@ -91,11 +191,97 @@ const ReportsPage: React.FC = () => {
   const styleContrast = getEmailContrastStatus(emailStyle)
   const permissionSet = permissionSetFromList(permissionsPayload?.permissions || [])
   const canWriteReports = hasPermissionAction(permissionSet, 'reports:write')
+  const activeEvent = useMemo(
+    () => events.find((event) => event.id === eventId) || null,
+    [eventId, events],
+  )
+  const eventScopedContests = useMemo(
+    () => (eventId ? contests.filter((contest) => contest.eventId === eventId) : []),
+    [contests, eventId],
+  )
+  const selectedContests = useMemo(
+    () => eventScopedContests.filter((contest) => selectedContestIds.includes(contest.id)),
+    [eventScopedContests, selectedContestIds],
+  )
+  const activeScopeSummary = useMemo<ReportScopeSummary | null>(() => {
+    if (type === 'system') {
+      return {
+        eventId: null,
+        eventName: null,
+        contestIds: [],
+        contestNames: [],
+        filterMode: 'system',
+      }
+    }
+
+    if (!activeEvent) {
+      return null
+    }
+
+    return {
+      eventId: activeEvent.id,
+      eventName: activeEvent.name,
+      contestIds: selectedContests.map((contest) => contest.id),
+      contestNames: selectedContests.map((contest) => contest.name),
+      filterMode:
+        selectedContests.length > 0
+          ? type === 'contest'
+            ? 'single_contest'
+            : 'selected_contests'
+          : 'all_contests_in_event',
+    }
+  }, [activeEvent, selectedContests, type])
+  const visibleInstances = useMemo(() => {
+    const normalizedInstances = instances.map((instance) => ({
+      ...instance,
+      scopeSummary: normalizeScopeSummary(instance.scopeSummary),
+    }))
+
+    if (type === 'system') {
+      return normalizedInstances.filter((instance) => instance.scopeSummary?.filterMode === 'system')
+    }
+
+    if (!eventId) {
+      return normalizedInstances
+    }
+
+    return normalizedInstances.filter((instance) => {
+      const scopeSummary = instance.scopeSummary
+      if (!scopeSummary?.eventId || scopeSummary.eventId !== eventId) {
+        return false
+      }
+
+      if (selectedContestIds.length === 0) {
+        return true
+      }
+
+      return selectedContestIds.some((contestId) => scopeSummary.contestIds.includes(contestId))
+    })
+  }, [eventId, instances, selectedContestIds, type])
+  const viewingScopeSummary = useMemo(
+    () => normalizeScopeSummary(viewingReport?.scopeSummary) || extractScopeSummaryFromReportData(viewingReport?.data),
+    [viewingReport],
+  )
+  const activeScopeDescription = useMemo(() => {
+    if (type === 'system') {
+      return 'System-wide reports'
+    }
+
+    if (!activeEvent) {
+      return 'Select an event to scope report generation and report history'
+    }
+
+    if (selectedContests.length === 0) {
+      return `${activeEvent.name} • all contests`
+    }
+
+    return `${activeEvent.name} • ${selectedContests.map((contest) => contest.name).join(', ')}`
+  }, [activeEvent, selectedContests, type])
 
   const loadOptions = async () => {
     const [eventResponse, contestResponse] = await Promise.all([
-      api.get('/events').catch(() => ({ data: { data: [] } })),
-      api.get('/contests').catch(() => ({ data: { data: [] } })),
+      eventsAPI.getAll().catch(() => ({ data: { data: [] } })),
+      contestsAPI.getAll().catch(() => ({ data: { data: [] } })),
     ])
 
     const eventData = eventResponse.data?.data || eventResponse.data || []
@@ -105,11 +291,21 @@ const ReportsPage: React.FC = () => {
       ? eventData.map((e: any) => ({ id: e.id, name: e.name }))
       : []
     const normalizedContests = Array.isArray(contestData)
-      ? contestData.map((c: any) => ({ id: c.id, name: c.name }))
+      ? contestData
+          .map((contest: any) => ({
+            id: contest.id,
+            name: contest.name,
+            eventId: contest.eventId || contest.event?.id || '',
+          }))
+          .filter((contest: ContestOption) => Boolean(contest.id && contest.eventId))
       : []
 
     setEvents(normalizedEvents.sort((a, b) => a.name.localeCompare(b.name)))
-    setContests(normalizedContests.sort((a, b) => a.name.localeCompare(b.name)))
+    setContests(
+      normalizedContests.sort((left, right) =>
+        left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
+      ),
+    )
   }
 
   const loadInstances = async () => {
@@ -131,14 +327,37 @@ const ReportsPage: React.FC = () => {
     })()
   }, [])
 
+  useEffect(() => {
+    setSelectedContestIds((previous) => {
+      if (!eventId) {
+        return previous.length === 0 ? previous : []
+      }
+
+      const allowedContestIds = new Set(eventScopedContests.map((contest) => contest.id))
+      const next = previous.filter((contestId) => allowedContestIds.has(contestId))
+      if (next.length === previous.length && next.every((contestId, index) => contestId === previous[index])) {
+        return previous
+      }
+      return next
+    })
+  }, [eventId, eventScopedContests])
+
+  useEffect(() => {
+    if (type !== 'contest' || selectedContestIds.length <= 1) {
+      return
+    }
+
+    setSelectedContestIds((previous) => previous.slice(0, 1))
+  }, [selectedContestIds, type])
+
   const handleGenerateReport = async () => {
     try {
-      if (type === 'event' && !eventId) {
-        setError('Select an event for event report generation')
+      if (type !== 'system' && !eventId) {
+        setError('Select an event before generating an event or contest report')
         return
       }
-      if (type === 'contest' && !contestId) {
-        setError('Select a contest for contest report generation')
+      if (type === 'contest' && selectedContestIds.length !== 1) {
+        setError('Select exactly one contest within the active event for contest report generation')
         return
       }
 
@@ -148,7 +367,8 @@ const ReportsPage: React.FC = () => {
       await reportsAPI.generate({
         type,
         ...(type === 'event' ? { eventId } : {}),
-        ...(type === 'contest' ? { contestId } : {}),
+        ...(type === 'event' && selectedContestIds.length > 0 ? { contestIds: selectedContestIds } : {}),
+        ...(type === 'contest' ? { eventId, contestId: selectedContestIds[0] } : {}),
       })
       setMessage('Report generated successfully')
       await loadInstances()
@@ -350,10 +570,11 @@ const ReportsPage: React.FC = () => {
 
         <Card className="rounded-lg p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generate Report</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="pages-reportspage-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
               <select id="pages-reportspage-1"
+                data-testid="reports-type-select"
                 value={type}
                 onChange={(e) => setType(e.target.value as ReportType)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
@@ -364,10 +585,11 @@ const ReportsPage: React.FC = () => {
               </select>
             </div>
 
-            {type === 'event' && (
+            {type !== 'system' && (
               <div>
                 <label htmlFor="pages-reportspage-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event</label>
                 <select id="pages-reportspage-2"
+                  data-testid="reports-event-select"
                   value={eventId}
                   onChange={(e) => setEventId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
@@ -379,23 +601,106 @@ const ReportsPage: React.FC = () => {
                 </select>
               </div>
             )}
-
-            {type === 'contest' && (
-              <div>
-                <label htmlFor="pages-reportspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contest</label>
-                <select id="pages-reportspage-3"
-                  value={contestId}
-                  onChange={(e) => setContestId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
-                >
-                  <option value="">Select contest...</option>
-                  {contests.map((contest) => (
-                    <option key={contest.id} value={contest.id}>{contest.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
+
+          <div
+            data-testid="reports-active-scope"
+            className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Active Scope
+            </p>
+            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+              {activeScopeDescription}
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {type === 'system'
+                ? 'System analytics ignore event and contest drill-in.'
+                : type === 'contest'
+                  ? 'Contest reports require one contest inside the selected event.'
+                  : 'Leave all contests unselected to include the full selected event.'}
+            </p>
+          </div>
+
+          {type !== 'system' && activeEvent && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {type === 'contest' ? 'Contest Selection' : 'Contest Scope'}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {type === 'contest'
+                      ? 'Select one contest inside the active event.'
+                      : 'Optional: select one or more contests to narrow the event report and report history.'}
+                  </p>
+                </div>
+                {selectedContestIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedContestIds([])}
+                    className="px-3 py-1 text-xs rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {eventScopedContests.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No contests are available for the selected event.
+                </p>
+              ) : type === 'contest' ? (
+                <div>
+                  <label htmlFor="pages-reportspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Contest
+                  </label>
+                  <select
+                    id="pages-reportspage-3"
+                    data-testid="reports-contest-select"
+                    value={selectedContestIds[0] || ''}
+                    onChange={(e) => setSelectedContestIds(e.target.value ? [e.target.value] : [])}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                  >
+                    <option value="">Select contest...</option>
+                    {eventScopedContests.map((contest) => (
+                      <option key={contest.id} value={contest.id}>{contest.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div
+                  data-testid="reports-contest-scope-options"
+                  className="max-h-48 overflow-y-auto space-y-2"
+                >
+                  {eventScopedContests.map((contest) => {
+                    const isChecked = selectedContestIds.includes(contest.id)
+                    return (
+                      <label
+                        key={contest.id}
+                        className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            setSelectedContestIds((previous) => {
+                              if (e.target.checked) {
+                                return Array.from(new Set([...previous, contest.id]))
+                              }
+                              return previous.filter((contestId) => contestId !== contest.id)
+                            })
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                        />
+                        <span>{contest.name}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {canWriteReports && (
             <Button
@@ -409,13 +714,28 @@ const ReportsPage: React.FC = () => {
         </Card>
 
         <Card className="rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Generated Reports</h2>
-          {instances.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No reports generated yet.</p>
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generated Reports</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {type === 'system'
+                  ? 'Showing system reports'
+                  : eventId
+                    ? `Showing ${visibleInstances.length} report${visibleInstances.length === 1 ? '' : 's'} for ${buildScopeDescription(activeScopeSummary, activeEvent?.name)}`
+                    : 'Showing all generated reports'}
+              </p>
+            </div>
+          </div>
+          {visibleInstances.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {instances.length === 0
+                ? 'No reports generated yet.'
+                : 'No reports match the current event and contest scope.'}
+            </p>
           ) : (
             <div className="space-y-3">
-              {instances.map((instance) => (
-                <div key={instance.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              {visibleInstances.map((instance) => (
+                <div key={instance.id} data-testid="reports-generated-item" className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -425,6 +745,9 @@ const ReportsPage: React.FC = () => {
                         <span className="flex items-center"><CalendarIcon className="h-4 w-4 mr-1" />{safeLocaleString(instance.generatedAt)}</span>
                         <span className="flex items-center"><TrophyIcon className="h-4 w-4 mr-1" />{instance.type}</span>
                         <span className="flex items-center"><CheckCircleIcon className="h-4 w-4 mr-1" />{instance.format || 'N/A'}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {buildScopeDescription(normalizeScopeSummary(instance.scopeSummary))}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -608,6 +931,11 @@ const ReportsPage: React.FC = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {viewingReport.type} • {safeLocaleString(viewingReport.generatedAt)}
                   </p>
+                  {viewingScopeSummary && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {buildScopeDescription(viewingScopeSummary)}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => {

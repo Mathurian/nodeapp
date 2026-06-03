@@ -718,9 +718,10 @@ export const emailAPI = {
 }
 
 export const reportsAPI = {
-  generate: (data: { type: 'event' | 'contest' | 'system'; eventId?: string; contestId?: string }) =>
+  generate: (data: { type: 'event' | 'contest' | 'system'; eventId?: string; contestId?: string; contestIds?: string[] }) =>
     api.post('/reports/generate', data),
-  getAll: () => api.get('/reports'),
+  getAll: (params?: { type?: string; format?: string; startDate?: string; endDate?: string; eventId?: string; contestId?: string | string[] }) =>
+    api.get('/reports', { params }),
   getById: (id: string) => api.get(`/reports/${id}/download`),
   delete: (id: string) => api.delete(`/reports/instances/${id}`),
   exportPdf: (id: string) => api.post(`/reports/${id}/export/pdf`, {}, { responseType: 'blob' }),

@@ -168,7 +168,7 @@ describe('AuthService', () => {
     };
 
     it('should successfully login with valid credentials', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
       mockBcryptCompare.mockResolvedValue(true);
@@ -176,9 +176,12 @@ describe('AuthService', () => {
 
       const result = await service.login(credentials, tenantId, '127.0.0.1', 'Mozilla/5.0');
 
-      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith(
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { email: credentials.email, tenantId }
+          where: {
+            email: { equals: credentials.email, mode: 'insensitive' },
+            tenantId,
+          }
         })
       );
       expect(mockBcryptCompare).toHaveBeenCalledWith(credentials.password, mockUser.password);
@@ -188,6 +191,30 @@ describe('AuthService', () => {
       });
       expect(result.token).toBe('mock-jwt-token');
       expect(result.user.id).toBe(mockUser.id);
+      expect(result.user.email).toBe(mockUser.email);
+    });
+
+    it('should successfully login with mixed-case email input', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
+      mockPrisma.user.update.mockResolvedValue(mockUser as any);
+      mockPrisma.activityLog.create.mockResolvedValue({} as any);
+      mockBcryptCompare.mockResolvedValue(true);
+      mockJwtSign.mockReturnValue('mixed-case-token');
+
+      const result = await service.login(
+        { ...credentials, email: 'TeSt@Example.com' },
+        tenantId,
+      );
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            email: { equals: 'TeSt@Example.com', mode: 'insensitive' },
+            tenantId,
+          }
+        })
+      );
+      expect(result.token).toBe('mixed-case-token');
       expect(result.user.email).toBe(mockUser.email);
     });
 
@@ -210,31 +237,31 @@ describe('AuthService', () => {
     });
 
     it('should throw error when user not found', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.findMany.mockResolvedValue([] as any);
       mockBcryptCompare.mockResolvedValue(false);
 
       await expect(service.login(credentials, tenantId)).rejects.toThrow('Invalid credentials');
     });
 
     it('should throw error when password is incorrect', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
       mockBcryptCompare.mockResolvedValue(false);
 
       await expect(service.login(credentials, tenantId)).rejects.toThrow('Invalid credentials');
     });
 
     it('should throw error when account is inactive', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({
+      mockPrisma.user.findMany.mockResolvedValue([{
         ...mockUser,
         isActive: false
-      } as any);
+      } as any]);
       mockBcryptCompare.mockResolvedValue(true);
 
       await expect(service.login(credentials, tenantId)).rejects.toThrow('Account is inactive');
     });
 
     it('should generate token with correct payload', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
       mockBcryptCompare.mockResolvedValue(true);
@@ -257,7 +284,7 @@ describe('AuthService', () => {
 
     it('should use longer expiration for admin users', async () => {
       const adminUser = { ...mockUser, role: 'ADMIN' };
-      mockPrisma.user.findFirst.mockResolvedValue(adminUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([adminUser] as any);
       mockPrisma.user.update.mockResolvedValue(adminUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
       mockBcryptCompare.mockResolvedValue(true);
@@ -273,7 +300,7 @@ describe('AuthService', () => {
     });
 
     it('should log login activity', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
       mockBcryptCompare.mockResolvedValue(true);
@@ -295,7 +322,7 @@ describe('AuthService', () => {
     });
 
     it('should not fail login if activity logging fails', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockRejectedValue(new Error('Logging failed'));
       mockBcryptCompare.mockResolvedValue(true);
@@ -313,9 +340,10 @@ describe('AuthService', () => {
         tenantId: 'default-tenant',
         tenant: { id: 'default-tenant', name: 'Default Tenant', slug: 'default' },
       };
-      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([] as any)
+        .mockResolvedValueOnce([superAdminUser] as any);
       mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'default-tenant', slug: 'default' } as any);
-      mockPrisma.user.findMany.mockResolvedValue([superAdminUser] as any);
       mockPrisma.user.update.mockResolvedValue(superAdminUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
       mockBcryptCompare.mockResolvedValue(true);
@@ -326,7 +354,7 @@ describe('AuthService', () => {
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            email: credentials.email,
+            email: { equals: credentials.email, mode: 'insensitive' },
             role: 'SUPER_ADMIN',
             isActive: true,
           }),
@@ -345,9 +373,10 @@ describe('AuthService', () => {
         tenantId: 'tenant-2',
         tenant: { id: 'tenant-2', name: 'Tenant Two', slug: 'tenant-two' },
       };
-      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([] as any)
+        .mockResolvedValueOnce([tenantOne, tenantTwo] as any);
       mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'default-tenant', slug: 'default' } as any);
-      mockPrisma.user.findMany.mockResolvedValue([tenantOne, tenantTwo] as any);
       mockBcryptCompare.mockResolvedValue(true);
 
       await expect(service.login(credentials, 'default-tenant')).rejects.toBeInstanceOf(
@@ -362,17 +391,33 @@ describe('AuthService', () => {
       );
     });
 
+    it('does not fall back to cross-tenant discovery when the requested tenant already has a case-insensitive email match', async () => {
+      const sameTenantUser = {
+        ...mockUser,
+        tenantId: 'default-tenant',
+        tenant: { id: 'default-tenant', name: 'Default Tenant', slug: 'default' },
+      };
+
+      mockPrisma.user.findMany.mockResolvedValueOnce([sameTenantUser] as any);
+      mockBcryptCompare.mockResolvedValue(false);
+
+      await expect(service.login(credentials, 'default-tenant')).rejects.toThrow('Invalid credentials');
+      expect(mockPrisma.user.findMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.tenant.findUnique).not.toHaveBeenCalled();
+    });
+
     it('does not allow non-super-admin users to bypass tenant scoping from a slug login', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([] as any)
+        .mockResolvedValueOnce([] as any);
       mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'default-tenant', slug: 'default' } as any);
-      mockPrisma.user.findMany.mockResolvedValue([] as any);
       mockBcryptCompare.mockResolvedValue(false);
 
       await expect(service.login(credentials, 'tenant-slug')).rejects.toThrow('Invalid credentials');
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            email: credentials.email,
+            email: { equals: credentials.email, mode: 'insensitive' },
             role: 'SUPER_ADMIN',
             isActive: true,
           }),
@@ -381,7 +426,7 @@ describe('AuthService', () => {
     });
 
     it('should include user profile data in response', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findMany.mockResolvedValue([mockUser] as any);
       mockPrisma.user.update.mockResolvedValue(mockUser as any);
       mockPrisma.activityLog.create.mockResolvedValue({} as any);
       mockBcryptCompare.mockResolvedValue(true);

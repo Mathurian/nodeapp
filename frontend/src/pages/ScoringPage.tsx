@@ -98,7 +98,7 @@ interface Score {
 
 interface ScoreFormData {
   criterionId: string
-  score: number | ''
+  score: string
   comment: string
 }
 
@@ -180,9 +180,15 @@ const normalizeScoreDraftFormData = (scoreFormData: Record<string, ScoreFormData
     .sort()
     .reduce<Record<string, ScoreFormData>>((acc, criterionId) => {
       const entry = scoreFormData[criterionId]
+      const normalizedScore =
+        typeof entry.score === 'number' && Number.isFinite(entry.score)
+          ? String(Math.trunc(entry.score))
+          : typeof entry.score === 'string'
+            ? entry.score
+            : ''
       acc[criterionId] = {
         criterionId: entry.criterionId,
-        score: entry.score,
+        score: normalizedScore,
         comment: entry.comment,
       }
       return acc
@@ -196,16 +202,19 @@ const buildScoreFormDataFromExistingScores = (
   const initialFormData: Record<string, ScoreFormData> = {}
 
   criteria.forEach((criterion) => {
-    const existingScore = criterion.id === '__category_total__'
-      ? scores.find((score) => !score.criterionId)
-      : scores.find((score) => score.criterionId === criterion.id)
+      const existingScore = criterion.id === '__category_total__'
+        ? scores.find((score) => !score.criterionId)
+        : scores.find((score) => score.criterionId === criterion.id)
 
-    initialFormData[criterion.id] = {
-      criterionId: criterion.id,
-      score: existingScore?.score ?? '',
-      comment: existingScore?.comment || '',
-    }
-  })
+      initialFormData[criterion.id] = {
+        criterionId: criterion.id,
+        score:
+          existingScore && Number.isFinite(Number(existingScore.score))
+            ? String(existingScore.score)
+            : '',
+        comment: existingScore?.comment || '',
+      }
+    })
 
   return initialFormData
 }
@@ -424,9 +433,23 @@ const ScoringPage: React.FC = () => {
     queueMetrics.syncingCount > 0 ||
     ['saving', 'retrying', 'queued', 'syncing', 'failed'].includes(saveStatus)
 
-  const hasExplicitScoreValue = (value: ScoreFormData['score']): value is number => (
-    value !== '' && Number.isFinite(Number(value))
+  const hasExplicitScoreValue = (value: ScoreFormData['score']): value is string => (
+    typeof value === 'string' && /^\d+$/.test(value.trim()) && Number.isFinite(Number(value))
   )
+
+  const normalizeScoreInputValue = (value: string, maxScore: number): string => {
+    const trimmed = String(value || '').trim()
+    if (!trimmed) {
+      return ''
+    }
+
+    const numericValue = Number(trimmed)
+    if (!Number.isFinite(numericValue)) {
+      return ''
+    }
+
+    return String(Math.max(0, Math.min(Math.trunc(numericValue), Math.trunc(Number(maxScore)))))
+  }
 
   const offlineOwner = useMemo(
     () => ({
@@ -493,7 +516,13 @@ const ScoringPage: React.FC = () => {
       if (cancelled) return
 
       const payload = draft?.data as ScoringWorkspaceDraft | undefined
-      setRestoredDraft(payload || null)
+      const normalizedPayload = payload
+        ? {
+            ...payload,
+            scoreFormData: normalizeScoreDraftFormData(payload.scoreFormData || {}),
+          }
+        : null
+      setRestoredDraft(normalizedPayload)
       setDraftLoaded(true)
     }
 
@@ -938,7 +967,16 @@ const ScoringPage: React.FC = () => {
     if (restoredDraftMatchesSelection && restoredDraft?.scoreFormData) {
       Object.entries(restoredDraft.scoreFormData).forEach(([criterionId, draftValue]) => {
         if (initialFormData[criterionId]) {
-          initialFormData[criterionId] = draftValue
+          initialFormData[criterionId] = {
+            criterionId,
+            score:
+              typeof draftValue.score === 'number' && Number.isFinite(draftValue.score)
+                ? String(Math.trunc(draftValue.score))
+                : typeof draftValue.score === 'string'
+                  ? draftValue.score
+                  : '',
+            comment: draftValue.comment || '',
+          }
         }
       })
     }
@@ -1172,7 +1210,7 @@ const ScoringPage: React.FC = () => {
     }
 
     const scrollToResumeTarget = () => {
-      const firstScoreInput = scoreSheetSectionRef.current?.querySelector('input[type="number"]') as HTMLInputElement | null
+      const firstScoreInput = scoreSheetSectionRef.current?.querySelector('[data-score-input="true"]') as HTMLInputElement | null
       if (firstScoreInput) {
         scrollSheetIntoView()
         firstScoreInput.focus({ preventScroll: true })
@@ -1516,12 +1554,11 @@ const ScoringPage: React.FC = () => {
     invalidateKeys: [['scoring-categories']],
   })
 
-  const handleScoreChange = (criterionId: string, field: keyof ScoreFormData, value: any) => {
+  const handleScoreChange = (criterionId: string, field: keyof ScoreFormData, value: string) => {
     if (activeSelectionKey) {
       localEditSelectionKeyRef.current = activeSelectionKey
     }
     const criterion = effectiveCriteria.find((c) => c.id === criterionId)
-    const maxScore = criterion?.maxScore ?? selectedCategory?.scoreCap ?? 100
 
     setScoreFormData((prev) => {
       const nextCurrent = prev[criterionId] || {
@@ -1531,7 +1568,9 @@ const ScoringPage: React.FC = () => {
       }
 
       if (field === 'score') {
-        if (value === '' || value === null || value === undefined) {
+        const nextValue = String(value ?? '')
+
+        if (nextValue === '') {
           return {
             ...prev,
             [criterionId]: {
@@ -1541,17 +1580,15 @@ const ScoringPage: React.FC = () => {
           }
         }
 
-        const numericValue = Number(value)
-        if (!Number.isFinite(numericValue)) {
+        if (!/^\d+$/.test(nextValue)) {
           return prev
         }
 
-        const normalizedValue = Math.max(0, Math.min(numericValue, Number(maxScore)))
         return {
           ...prev,
           [criterionId]: {
             ...nextCurrent,
-            score: normalizedValue,
+            score: nextValue,
           },
         }
       }
@@ -1564,6 +1601,73 @@ const ScoringPage: React.FC = () => {
         },
       }
     })
+  }
+
+  const handleScoreBlur = (criterionId: string) => {
+    const criterion = effectiveCriteria.find((c) => c.id === criterionId)
+    const maxScore = criterion?.maxScore ?? selectedCategory?.scoreCap ?? 100
+
+    setScoreFormData((prev) => {
+      const current = prev[criterionId]
+      if (!current || current.score === '') {
+        return prev
+      }
+
+      const normalizedScore = normalizeScoreInputValue(current.score, maxScore)
+      if (normalizedScore === current.score) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [criterionId]: {
+          ...current,
+          score: normalizedScore,
+        },
+      }
+    })
+  }
+
+  const handleScoreFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    if (!event.currentTarget.value) return
+    event.currentTarget.select()
+  }
+
+  const handleScoreClick = (event: React.MouseEvent<HTMLInputElement>) => {
+    if (!event.currentTarget.value) return
+    event.currentTarget.select()
+  }
+
+  const handleScoreKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return
+    }
+
+    const allowedNavigationKeys = new Set([
+      'Backspace',
+      'Delete',
+      'Tab',
+      'Escape',
+      'Enter',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Home',
+      'End',
+    ])
+
+    if (allowedNavigationKeys.has(event.key)) {
+      return
+    }
+
+    if (!/^\d$/.test(event.key)) {
+      event.preventDefault()
+    }
+  }
+
+  const handleScoreWheel = (event: React.WheelEvent<HTMLInputElement>) => {
+    event.preventDefault()
   }
 
   const clearPersistedWorkspaceDraft = async () => {
@@ -1590,6 +1694,14 @@ const ScoringPage: React.FC = () => {
       const scores = Object.values(scoreFormData)
       const explicitScores = scores.filter((entry) => hasExplicitScoreValue(entry.score))
       const missingScores = scores.filter((entry) => !hasExplicitScoreValue(entry.score))
+      const normalizedExplicitScores = explicitScores.map((entry) => {
+        const criterion = effectiveCriteria.find((c) => c.id === entry.criterionId)
+        const maxScore = criterion?.maxScore ?? selectedCategory.scoreCap ?? 100
+        return {
+          ...entry,
+          score: normalizeScoreInputValue(entry.score, maxScore),
+        }
+      })
 
       if (shouldLaunchCertificationFlow && missingScores.length > 0) {
         toast.error('Enter a score for every criterion before certifying')
@@ -1598,22 +1710,29 @@ const ScoringPage: React.FC = () => {
         return
       }
 
-      const overCap = explicitScores.find((entry) => {
-        const criterion = effectiveCriteria.find((c) => c.id === entry.criterionId)
-        const maxScore = criterion?.maxScore ?? selectedCategory.scoreCap ?? 100
-        return Number(entry.score) > Number(maxScore)
-      })
-      if (overCap) {
-        toast.error('One or more scores exceed the allowed cap')
-        setSaveStatus('error')
-        setIsSubmitting(false)
-        return
+      const normalizedScoresChanged = normalizedExplicitScores.some(
+        (entry, index) => entry.score !== explicitScores[index]?.score,
+      )
+
+      if (normalizedScoresChanged) {
+        setScoreFormData((prev) => {
+          const next = { ...prev }
+          normalizedExplicitScores.forEach((entry) => {
+            if (!next[entry.criterionId]) return
+            next[entry.criterionId] = {
+              ...next[entry.criterionId],
+              score: entry.score,
+            }
+          })
+          return next
+        })
       }
-      const submitResult = explicitScores.length > 0
+
+      const submitResult = normalizedExplicitScores.length > 0
         ? await submitScoreMutation.mutateAsync({
           categoryId: selectedCategory.id,
           contestantId: selectedContestant.id,
-          scores: explicitScores,
+          scores: normalizedExplicitScores,
         })
         : { success: true as const, hasQueuedWrites: false }
       const categoryCommentOutcome = await persistCategoryComment()
@@ -2102,6 +2221,7 @@ const ScoringPage: React.FC = () => {
                   {filteredCategories.map(category => (
                     <button
                       key={category.id}
+                      data-testid="scoring-category-button"
                       onClick={() => {
                         setSelectedCategory(category)
                         setSelectedContestant(null)
@@ -2187,6 +2307,7 @@ const ScoringPage: React.FC = () => {
                     {sortedContestants.map(contestant => (
                       <button
                         key={contestant.id}
+                        data-testid="scoring-contestant-button"
                         onClick={() => {
                           setSelectedContestant(contestant)
                         }}
@@ -2455,105 +2576,124 @@ const ScoringPage: React.FC = () => {
                     </div>
                   ) : effectiveCriteria.length > 0 ? (
                     <div ref={criteriaSectionRef} className="space-y-6">
-                      {effectiveCriteria.map(criterion => (
-                        <div key={criterion.id} className="border-b pb-4">
-                          <label htmlFor="pages-scoringpage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            {criterion.name}
-                            <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500 ml-1">
-                              (Max: {criterion.maxScore})
-                            </span>
-                          </label>
-                          {criterion.description && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">
-                              {criterion.description}
-                            </p>
-                          )}
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            max={criterion.maxScore}
-                            value={scoreFormData[criterion.id]?.score ?? ''}
-                            placeholder="0"
-                            onChange={(e) => handleScoreChange(criterion.id, 'score', e.target.value === '' ? '' : Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          {supportsCriterionCommentary && (
-                            <textarea
-                              placeholder="Comments (optional)"
-                              value={scoreFormData[criterion.id]?.comment || ''}
-                              onChange={(e) => handleScoreChange(criterion.id, 'comment', e.target.value)}
-                              rows={2}
-                              className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      {effectiveCriteria.map((criterion) => {
+                        const scoreInputId = `pages-scoringpage-score-${criterion.id}`
+                        const maxScoreLabel = `0-${criterion.maxScore}`
+                        const scoreInputMaxLength = String(
+                          Math.max(0, Math.trunc(Number(criterion.maxScore) || 0)),
+                        ).length
+
+                        return (
+                          <div key={criterion.id} className="border-b pb-4">
+                            <label htmlFor={scoreInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              {criterion.name}
+                              <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500 ml-1">
+                                (Range: {maxScoreLabel})
+                              </span>
+                            </label>
+                            {criterion.description && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">
+                                {criterion.description}
+                              </p>
+                            )}
+                            <input
+                              id={scoreInputId}
+                              data-testid="score-input"
+                              data-score-input="true"
+                              data-max-score={criterion.maxScore}
+                              type="text"
+                              name="score"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={scoreInputMaxLength}
+                              value={scoreFormData[criterion.id]?.score ?? ''}
+                              placeholder="0"
+                              autoComplete="off"
+                              onChange={(e) => handleScoreChange(criterion.id, 'score', e.target.value)}
+                              onBlur={() => handleScoreBlur(criterion.id)}
+                              onFocus={handleScoreFocus}
+                              onClick={handleScoreClick}
+                              onKeyDown={handleScoreKeyDown}
+                              onWheel={handleScoreWheel}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                          )}
-                          {supportsCriterionCommentary && criterion.id !== '__category_total__' && (
-                          <div className="mt-2">
-                            {canUploadScoreFiles && (
-                              <>
-                                <label htmlFor="pages-scoringpage-3" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                                  Criterion Attachment
-                                </label>
-                                <input id="pages-scoringpage-3"
-                                  type="file"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) void handleUploadAttachment(file, criterion.id)
-                                    e.currentTarget.value = ''
-                                  }}
-                                  className="block w-full text-xs text-gray-600 dark:text-gray-300"
-                                />
-                                {uploadingContext === `criterion-${criterion.id}` && (
-                                  <p className="mt-1 text-xs text-blue-600">Uploading...</p>
-                                )}
-                              </>
+                            {supportsCriterionCommentary && (
+                              <textarea
+                                placeholder="Comments (optional)"
+                                value={scoreFormData[criterion.id]?.comment || ''}
+                                onChange={(e) => handleScoreChange(criterion.id, 'comment', e.target.value)}
+                                rows={2}
+                                className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
                             )}
-                            {isCertifiedContext && pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).length > 0 && (
-                              <div className="mt-1 space-y-1">
-                                {pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).map((pending) => (
-                                  <div key={pending.id} className="flex items-center justify-between gap-2 text-xs text-amber-700">
-                                    <span>Queued: {pending.fileName}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => removePendingAttachment(pending.id)}
-                                      className="text-red-600 hover:text-red-700 underline"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {criterionAttachments(criterion.id).length > 0 && (
-                              <div className="mt-1 space-y-1">
-                                {criterionAttachments(criterion.id).map((file) => (
-                                  <div key={file.id} className="flex items-center justify-between gap-2">
-                                    <a
-                                      href={file.publicUrl || file.filePath}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 underline"
-                                    >
-                                      <PaperClipIcon className="h-3.5 w-3.5" />
-                                      {file.fileName}
-                                    </a>
-                                    {canDeleteScoreFiles && (
-                                      <button
-                                        type="button"
-                                        onClick={() => void removeUploadedAttachment(file.id)}
-                                        className="text-xs text-red-600 hover:text-red-700 underline"
-                                      >
-                                        Remove
-                                      </button>
+                            {supportsCriterionCommentary && criterion.id !== '__category_total__' && (
+                              <div className="mt-2">
+                                {canUploadScoreFiles && (
+                                  <>
+                                    <label htmlFor="pages-scoringpage-3" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                                      Criterion Attachment
+                                    </label>
+                                    <input id="pages-scoringpage-3"
+                                      type="file"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0]
+                                        if (file) void handleUploadAttachment(file, criterion.id)
+                                        e.currentTarget.value = ''
+                                      }}
+                                      className="block w-full text-xs text-gray-600 dark:text-gray-300"
+                                    />
+                                    {uploadingContext === `criterion-${criterion.id}` && (
+                                      <p className="mt-1 text-xs text-blue-600">Uploading...</p>
                                     )}
+                                  </>
+                                )}
+                                {isCertifiedContext && pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).length > 0 && (
+                                  <div className="mt-1 space-y-1">
+                                    {pendingCommentaryFiles.filter((f) => f.criterionId === criterion.id).map((pending) => (
+                                      <div key={pending.id} className="flex items-center justify-between gap-2 text-xs text-amber-700">
+                                        <span>Queued: {pending.fileName}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => removePendingAttachment(pending.id)}
+                                          className="text-red-600 hover:text-red-700 underline"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                )}
+                                {criterionAttachments(criterion.id).length > 0 && (
+                                  <div className="mt-1 space-y-1">
+                                    {criterionAttachments(criterion.id).map((file) => (
+                                      <div key={file.id} className="flex items-center justify-between gap-2">
+                                        <a
+                                          href={file.publicUrl || file.filePath}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 underline"
+                                        >
+                                          <PaperClipIcon className="h-3.5 w-3.5" />
+                                          {file.fileName}
+                                        </a>
+                                        {canDeleteScoreFiles && (
+                                          <button
+                                            type="button"
+                                            onClick={() => void removeUploadedAttachment(file.id)}
+                                            className="text-xs text-red-600 hover:text-red-700 underline"
+                                          >
+                                            Remove
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
-                          )}
-                        </div>
-                      ))}
+                        )
+                      })}
 
                       {/* Total Score */}
                       <div className="pt-4 border-t">
