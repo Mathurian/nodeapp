@@ -870,6 +870,133 @@ describe('ReportGenerationService', () => {
     });
   });
 
+  describe('getContestantReportOptions', () => {
+    it('should return certified contestant options for a contest', async () => {
+      mockPrisma.contestant.findMany.mockResolvedValue([
+        buildContestant({ id: 'contestant-1', name: 'John Doe', contestantNumber: 1 }),
+        buildContestant({ id: 'contestant-2', name: 'Jane Doe', contestantNumber: 2 }),
+      ] as any);
+
+      const options = await service.getContestantReportOptions('contest-1', TEST_TENANT_ID);
+
+      expect(mockPrisma.contestant.findMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: TEST_TENANT_ID,
+          scores: {
+            some: {
+              isCertified: true,
+              category: {
+                contestId: 'contest-1',
+                totalsCertified: true,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          contestantNumber: true,
+        },
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
+      });
+      expect(options).toEqual([
+        { id: 'contestant-1', name: 'John Doe', contestantNumber: 1 },
+        { id: 'contestant-2', name: 'Jane Doe', contestantNumber: 2 },
+      ]);
+    });
+  });
+
+  describe('generateContestantResultsData', () => {
+    it('should generate a certified contestant report with scoped and per-judge commentary', async () => {
+      const certifiedScore = buildScore({
+        id: 'score-certified',
+        contestantId: 'contestant-1',
+        judgeId: 'judge-1',
+        categoryId: 'category-1',
+        criterionId: 'criterion-1',
+        score: 92,
+        scoreComments: [
+          {
+            comment: 'Stage control held throughout.',
+            createdAt: BASE_TIME,
+            updatedAt: new Date(BASE_TIME.getTime() + 60_000),
+            isPrivate: false,
+          },
+        ],
+      });
+
+      mockPrisma.contest.findUnique.mockResolvedValue({
+        ...mockContest,
+        event: mockEvent,
+        categories: [
+          buildCategory({
+            id: 'category-1',
+            name: 'Dance',
+            commentaryMode: CommentaryMode.HYBRID,
+            commentaryScope: CommentaryScope.CONTEST,
+            totalsCertified: true,
+            criteria: [buildCriterion({ id: 'criterion-1', categoryId: 'category-1', name: 'Performance' })],
+            scores: [certifiedScore],
+          }),
+        ],
+      } as any);
+      mockPrisma.judgeComment.findMany.mockResolvedValue([
+        {
+          scope: CommentaryScope.CONTEST,
+          scopeKey: 'contest-1',
+          contestantId: 'contestant-1',
+          judgeId: 'judge-1',
+          comment: 'Excellent presentation.',
+          createdAt: new Date(BASE_TIME.getTime() + 120_000),
+        },
+      ] as any);
+
+      const report = await service.generateContestantResultsData('contest-1', 'contestant-1', 'user-1');
+
+      expect(report.contestantReport).toMatchObject({
+        certifiedOnly: true,
+        event: { id: 'event-1', name: 'Annual Gala' },
+        contest: { id: 'contest-1', name: 'Regional Competition' },
+        contestant: { id: 'contestant-1', name: 'John Doe', contestantNumber: 1 },
+        generalCommentary: [
+          expect.objectContaining({
+            scope: CommentaryScope.CONTEST,
+            judgeName: 'Judge Smith',
+            comment: 'Excellent presentation.',
+          }),
+        ],
+        categories: [
+          expect.objectContaining({
+            categoryId: 'category-1',
+            judges: [
+              expect.objectContaining({
+                judgeId: 'judge-1',
+                categories: [
+                  expect.objectContaining({
+                    commentary: 'Excellent presentation.',
+                    criteria: [
+                      expect.objectContaining({
+                        scoreId: 'score-certified',
+                        commentary: 'Stage control held throughout.',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      expect(report.metadata?.scope).toMatchObject({
+        eventId: 'event-1',
+        contestIds: ['contest-1'],
+        contestantId: 'contestant-1',
+        contestantName: 'John Doe',
+        filterMode: 'single_contestant',
+      });
+    });
+  });
+
   describe('generateJudgePerformanceData', () => {
     it('should generate judge performance report', async () => {
       mockPrisma.judge.findUnique.mockResolvedValue({

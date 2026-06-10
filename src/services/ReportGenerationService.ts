@@ -464,6 +464,7 @@ export interface EventWithContestsAndWinners {
 export interface ReportData {
   event?: EventWithContestsAndWinners;
   contest?: ContestWithEventAndCategories & { winners: ContestantScore[] };
+  contestantReport?: ContestantReport;
   categories?: CategoryWithScores[];
   scores?: JudgeScoreForReport[];
   winners?: ContestantScore[];
@@ -478,7 +479,9 @@ export interface ReportData {
       eventName?: string;
       contestIds?: string[];
       contestNames?: string[];
-      filterMode?: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system';
+      contestantId?: string;
+      contestantName?: string;
+      filterMode?: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'single_contestant' | 'system';
     };
   };
 }
@@ -543,6 +546,88 @@ export interface ReportContestDrilldown {
 export interface ReportDrilldown {
   certifiedOnly: boolean;
   contests: ReportContestDrilldown[];
+}
+
+export interface ContestantReportOption {
+  id: string;
+  name: string;
+  contestantNumber: number | null;
+}
+
+export interface ContestantReportGeneralCommentary {
+  scope: CommentaryScope;
+  scopeLabel: string;
+  judgeId: string;
+  judgeName: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  comment: string;
+  createdAt: string;
+}
+
+export interface ContestantReportCriterion {
+  scoreId: string;
+  criterionId: string | null;
+  criterionName: string;
+  score: number | null;
+  maxScore: number | null;
+  commentary: string | null;
+  commentaryUpdatedAt: string | null;
+}
+
+export interface ContestantReportJudgeCategory {
+  categoryId: string;
+  categoryName: string;
+  commentaryMode: CommentaryMode;
+  commentaryScope: CommentaryScope;
+  totalScore: number;
+  totalPossibleScore: number | null;
+  commentary: string | null;
+  commentaryCreatedAt: string | null;
+  criteria: ContestantReportCriterion[];
+}
+
+export interface ContestantReportJudge {
+  judgeId: string;
+  judgeName: string;
+  totalScore: number;
+  totalPossibleScore: number | null;
+  categories: ContestantReportJudgeCategory[];
+}
+
+export interface ContestantReportCategory {
+  categoryId: string;
+  categoryName: string;
+  commentaryMode: CommentaryMode;
+  commentaryScope: CommentaryScope;
+  totalScore: number;
+  totalPossibleScore: number | null;
+  generalCommentary: ContestantReportGeneralCommentary[];
+  judges: ContestantReportJudge[];
+}
+
+export interface ContestantReport {
+  certifiedOnly: boolean;
+  event: {
+    id: string;
+    name: string;
+  };
+  contest: {
+    id: string;
+    name: string;
+  };
+  contestant: {
+    id: string;
+    name: string;
+    contestantNumber: number | null;
+  };
+  totalScore: number;
+  totalPossibleScore: number | null;
+  categoryCount: number;
+  judgeCount: number;
+  scoredCriterionCount: number;
+  generalCommentary: ContestantReportGeneralCommentary[];
+  categories: ContestantReportCategory[];
 }
 
 export interface GenerateEventReportOptions {
@@ -788,6 +873,22 @@ export class ReportGenerationService extends BaseService {
       const rightTime = new Date(right.updatedAt || right.createdAt).getTime();
       return rightTime - leftTime;
     })[0] || null;
+  }
+
+  private getReadableCommentaryScopeLabel(
+    scope: CommentaryScope,
+    contest: Pick<ContestReportContext, 'name' | 'event'>,
+    category: Pick<ReportCategoryContext, 'name'>,
+  ): string {
+    switch (scope) {
+      case CommentaryScope.EVENT:
+        return `${contest.event.name} (event)`;
+      case CommentaryScope.CONTEST:
+        return `${contest.name} (contest)`;
+      case CommentaryScope.CATEGORY:
+      default:
+        return `${category.name} (category)`;
+    }
   }
 
   private async loadJudgeCommentsForDrilldown(
@@ -1084,6 +1185,358 @@ export class ReportGenerationService extends BaseService {
       certifiedOnly: true,
       contests: contestDrilldowns,
     };
+  }
+
+  async getContestantReportOptions(contestId: string, tenantId: string): Promise<ContestantReportOption[]> {
+    try {
+      const contestants = await this.prisma.contestant.findMany({
+        where: {
+          tenantId,
+          scores: {
+            some: {
+              isCertified: true,
+              category: {
+                contestId,
+                totalsCertified: true,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          contestantNumber: true,
+        },
+        orderBy: [{ contestantNumber: 'asc' }, { name: 'asc' }],
+      });
+
+      return contestants.map((contestant) => ({
+        id: contestant.id,
+        name: contestant.name,
+        contestantNumber: contestant.contestantNumber,
+      }));
+    } catch (error) {
+      this.handleError(error, {
+        method: 'getContestantReportOptions',
+        contestId,
+        tenantId,
+      });
+    }
+  }
+
+  async generateContestantResultsData(
+    contestId: string,
+    contestantId: string,
+    userId?: string,
+  ): Promise<ReportData> {
+    try {
+      const contest = await this.prisma.contest.findUnique({
+        where: { id: contestId },
+        select: {
+          id: true,
+          name: true,
+          eventId: true,
+          tenantId: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+              startDate: true,
+              endDate: true,
+            },
+          },
+          categories: {
+            select: {
+              id: true,
+              name: true,
+              scoreCap: true,
+              commentaryMode: true,
+              commentaryScope: true,
+              totalsCertified: true,
+              tenantId: true,
+              criteria: {
+                select: {
+                  id: true,
+                  name: true,
+                  maxScore: true,
+                },
+              },
+              scores: {
+                where: {
+                  contestantId,
+                  isCertified: true,
+                },
+                select: {
+                  id: true,
+                  contestantId: true,
+                  judgeId: true,
+                  categoryId: true,
+                  criterionId: true,
+                  score: true,
+                  isCertified: true,
+                  certifiedAt: true,
+                  certifiedBy: true,
+                  contestant: {
+                    select: {
+                      id: true,
+                      name: true,
+                      contestantNumber: true,
+                    },
+                  },
+                  judge: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                  criterion: {
+                    select: {
+                      id: true,
+                      name: true,
+                      maxScore: true,
+                      categoryId: true,
+                    },
+                  },
+                  scoreComments: {
+                    select: {
+                      comment: true,
+                      createdAt: true,
+                      updatedAt: true,
+                      isPrivate: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      this.assertExists(contest, 'Contest', contestId);
+
+      const typedContest = this.buildCertifiedContestContext(contest as unknown as ContestReportContext);
+      const contestWithScores = {
+        ...typedContest,
+        categories: typedContest.categories.filter((category) => category.scores.length > 0),
+      };
+
+      if (contestWithScores.categories.length === 0) {
+        throw new Error('No certified contestant report data found');
+      }
+
+      const judgeCommentsByKey = await this.loadJudgeCommentsForDrilldown([contestWithScores]);
+      const contestant = contestWithScores.categories[0]?.scores[0]?.contestant;
+
+      if (!contestant) {
+        throw new Error('Contestant not found in certified contest data');
+      }
+
+      const generalCommentaryMap = new Map<string, ContestantReportGeneralCommentary>();
+      const categoryReports = contestWithScores.categories
+        .map<ContestantReportCategory>((category) => {
+          const categoryTotalPossible = this.getCategoryTotalPossibleFromCriteria(category);
+          const judgeCategoryMap = new Map<string, ContestantReportJudgeCategory>();
+          const categoryGeneralMap = new Map<string, ContestantReportGeneralCommentary>();
+
+          category.scores.forEach((score) => {
+            const scopeContext = this.getJudgeCommentScopeKey(category, contestWithScores);
+            const judgeComment =
+              category.commentaryMode === CommentaryMode.PER_CRITERION
+                ? null
+                : judgeCommentsByKey.get(
+                    this.getJudgeCommentLookupKey(
+                      scopeContext.scope,
+                      scopeContext.scopeKey,
+                      score.contestantId,
+                      score.judgeId,
+                    ),
+                  ) || null;
+
+            if (judgeComment?.comment?.trim()) {
+              const commentaryEntry: ContestantReportGeneralCommentary = {
+                scope: scopeContext.scope,
+                scopeLabel: this.getReadableCommentaryScopeLabel(scopeContext.scope, contestWithScores, category),
+                judgeId: score.judge.id,
+                judgeName: score.judge.name,
+                categoryId: scopeContext.scope === CommentaryScope.CATEGORY ? category.id : null,
+                categoryName: scopeContext.scope === CommentaryScope.CATEGORY ? category.name : null,
+                comment: judgeComment.comment.trim(),
+                createdAt: judgeComment.createdAt.toISOString(),
+              };
+              const generalKey = `${scopeContext.scope}:${scopeContext.scopeKey}:${score.judgeId}`;
+              generalCommentaryMap.set(generalKey, commentaryEntry);
+              categoryGeneralMap.set(generalKey, commentaryEntry);
+            }
+
+            const judgeCategoryEntry = judgeCategoryMap.get(score.judgeId) || {
+              categoryId: category.id,
+              categoryName: category.name,
+              commentaryMode: category.commentaryMode,
+              commentaryScope: category.commentaryScope,
+              totalScore: 0,
+              totalPossibleScore: categoryTotalPossible,
+              commentary: judgeComment?.comment?.trim() || null,
+              commentaryCreatedAt: judgeComment?.createdAt ? judgeComment.createdAt.toISOString() : null,
+              criteria: [],
+            };
+
+            if (score.score !== null) {
+              judgeCategoryEntry.totalScore += score.score;
+            }
+
+            const latestScoreComment =
+              category.commentaryMode === CommentaryMode.PER_CATEGORY
+                ? null
+                : this.getLatestScoreComment(score.scoreComments);
+
+            judgeCategoryEntry.criteria.push({
+              scoreId: score.id,
+              criterionId: score.criterionId,
+              criterionName: score.criterion?.name || 'Criterion',
+              score: score.score,
+              maxScore: score.criterion?.maxScore || null,
+              commentary: latestScoreComment?.comment || null,
+              commentaryUpdatedAt: latestScoreComment?.updatedAt
+                ? latestScoreComment.updatedAt.toISOString()
+                : latestScoreComment?.createdAt
+                  ? latestScoreComment.createdAt.toISOString()
+                  : null,
+            });
+
+            judgeCategoryMap.set(score.judgeId, judgeCategoryEntry);
+          });
+
+          const judges = Array.from(judgeCategoryMap.entries())
+            .map<ContestantReportJudge>(([judgeId, categoryEntry]) => ({
+              judgeId,
+              judgeName:
+                category.scores.find((score) => score.judgeId === judgeId)?.judge.name || 'Judge',
+              totalScore: categoryEntry.totalScore,
+              totalPossibleScore: categoryEntry.totalPossibleScore,
+              categories: [
+                {
+                  ...categoryEntry,
+                  criteria: [...categoryEntry.criteria].sort((left, right) =>
+                    left.criterionName.localeCompare(right.criterionName, undefined, {
+                      sensitivity: 'base',
+                      numeric: true,
+                    }),
+                  ),
+                },
+              ],
+            }))
+            .sort((left, right) =>
+              left.judgeName.localeCompare(right.judgeName, undefined, {
+                sensitivity: 'base',
+                numeric: true,
+              }),
+            );
+
+          const totalScore = judges.reduce((sum, judge) => sum + judge.totalScore, 0);
+
+          return {
+            categoryId: category.id,
+            categoryName: category.name,
+            commentaryMode: category.commentaryMode,
+            commentaryScope: category.commentaryScope,
+            totalScore,
+            totalPossibleScore:
+              categoryTotalPossible !== null ? categoryTotalPossible * judges.length : null,
+            generalCommentary: Array.from(categoryGeneralMap.values()).sort((left, right) =>
+              left.judgeName.localeCompare(right.judgeName, undefined, {
+                sensitivity: 'base',
+                numeric: true,
+              }),
+            ),
+            judges,
+          };
+        })
+        .sort((left, right) =>
+          left.categoryName.localeCompare(right.categoryName, undefined, {
+            sensitivity: 'base',
+            numeric: true,
+          }),
+        );
+
+      const totalScore = categoryReports.reduce((sum, category) => sum + category.totalScore, 0);
+      const totalPossibleValues = categoryReports
+        .map((category) => category.totalPossibleScore)
+        .filter((value): value is number => typeof value === 'number' && value > 0);
+      const judgeIds = new Set(categoryReports.flatMap((category) => category.judges.map((judge) => judge.judgeId)));
+      const scoredCriterionCount = categoryReports.reduce(
+        (sum, category) =>
+          sum +
+          category.judges.reduce((judgeSum, judge) => judgeSum + judge.categories[0]!.criteria.length, 0),
+        0,
+      );
+
+      const contestantReport: ContestantReport = {
+        certifiedOnly: true,
+        event: {
+          id: contestWithScores.event.id,
+          name: contestWithScores.event.name,
+        },
+        contest: {
+          id: contestWithScores.id,
+          name: contestWithScores.name,
+        },
+        contestant: {
+          id: contestant.id,
+          name: contestant.name,
+          contestantNumber: contestant.contestantNumber,
+        },
+        totalScore,
+        totalPossibleScore:
+          totalPossibleValues.length > 0
+            ? totalPossibleValues.reduce((sum, value) => sum + value, 0)
+            : null,
+        categoryCount: categoryReports.length,
+        judgeCount: judgeIds.size,
+        scoredCriterionCount,
+        generalCommentary: Array.from(generalCommentaryMap.values()).sort((left, right) => {
+          if (left.scope !== right.scope) {
+            return left.scope.localeCompare(right.scope);
+          }
+          return left.judgeName.localeCompare(right.judgeName, undefined, {
+            sensitivity: 'base',
+            numeric: true,
+          });
+        }),
+        categories: categoryReports,
+      };
+
+      return {
+        contestantReport,
+        statistics: {
+          totalScore,
+          totalPossibleScore: contestantReport.totalPossibleScore ?? 'N/A',
+          categoryCount: contestantReport.categoryCount,
+          judgeCount: contestantReport.judgeCount,
+          scoredCriterionCount: contestantReport.scoredCriterionCount,
+          generalCommentaryCount: contestantReport.generalCommentary.length,
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          generatedBy: userId,
+          reportType: 'contestant_results',
+          scope: {
+            eventId: contestWithScores.event.id,
+            eventName: contestWithScores.event.name,
+            contestIds: [contestWithScores.id],
+            contestNames: [contestWithScores.name],
+            contestantId: contestant.id,
+            contestantName: contestant.name,
+            filterMode: 'single_contestant',
+          },
+        },
+      };
+    } catch (error) {
+      this.handleError(error, {
+        method: 'generateContestantResultsData',
+        contestId,
+        contestantId,
+      });
+    }
   }
 
   /**

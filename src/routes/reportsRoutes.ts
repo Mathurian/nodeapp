@@ -6,6 +6,7 @@ import {
   getTemplates,
   createTemplate,
   generateReport,
+  getContestantReportOptions,
   sendReportEmail,
   getReportInstances,
   deleteReportInstance,
@@ -67,6 +68,7 @@ router.post('/templates', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOA
  *         description: Report generated successfully
  */
 router.post('/generate', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requirePermission('reports:write'), logActivity('GENERATE_REPORT', 'REPORT'), generateReport);
+router.get('/contest/:contestId/contestants', requireRole(['SUPER_ADMIN', 'ADMIN', 'ORGANIZER', 'BOARD']), requirePermission('reports:read'), getContestantReportOptions);
 
 /**
  * @swagger

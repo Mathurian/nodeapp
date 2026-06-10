@@ -232,6 +232,101 @@ test.describe('Report Generation E2E Tests', () => {
     await expect(drilldownPreview).toContainText('Stage control held throughout.');
   });
 
+  test('should generate a contestant-scoped certified report', async () => {
+    const { page } = authContext;
+    const primaryCategory = testData.categories[0];
+    const primaryContest = testData.contests[0];
+    const firstCriterion = testData.criteria.category1[0];
+
+    await prisma.category.update({
+      where: { id: primaryCategory.id },
+      data: {
+        totalsCertified: true,
+        commentaryMode: 'HYBRID',
+        commentaryScope: 'CONTEST',
+      },
+    });
+
+    const seededScores = await prisma.score.findMany({
+      where: {
+        categoryId: primaryCategory.id,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    await prisma.score.updateMany({
+      where: {
+        id: { in: seededScores.map((score) => score.id) },
+      },
+      data: {
+        isCertified: true,
+        certifiedAt: new Date(),
+        certifiedBy: testData.users.admin.id,
+      },
+    });
+
+    await prisma.scoreComment.create({
+      data: {
+        scoreId: seededScores[0].id,
+        criterionId: firstCriterion.id,
+        contestantId: testData.contestant.id,
+        judgeId: testData.judge.id,
+        comment: 'Consistent technical execution.',
+        tenantId: testData.tenant.id,
+      },
+    });
+
+    await prisma.judgeComment.create({
+      data: {
+        scope: 'CONTEST',
+        scopeKey: primaryContest.id,
+        contestId: primaryContest.id,
+        contestantId: testData.contestant.id,
+        judgeId: testData.judge.id,
+        comment: 'Strong overall contestant package.',
+        tenantId: testData.tenant.id,
+      },
+    });
+
+    await navigateAndWait(page, '/reports');
+    await closeOpenModals(page);
+
+    const typeSelect = page.locator('[data-testid="reports-type-select"]');
+    await typeSelect.selectOption('contestant');
+
+    const eventSelect = page.locator('[data-testid="reports-event-select"]');
+    await expect(eventSelect.locator(`option[value="${testData.event.id}"]`)).toHaveCount(1, { timeout: 10000 });
+    await eventSelect.selectOption(testData.event.id);
+
+    const contestSelect = page.locator('[data-testid="reports-contest-select"]');
+    await expect(contestSelect).toBeVisible({ timeout: 5000 });
+    await expect(contestSelect.locator(`option[value="${primaryContest.id}"]`)).toHaveCount(1, { timeout: 10000 });
+    await contestSelect.selectOption(primaryContest.id);
+
+    const contestantSelect = page.locator('[data-testid="reports-contestant-select"]');
+    await expect(contestantSelect).toBeVisible({ timeout: 5000 });
+    await expect(contestantSelect.locator(`option[value="${testData.contestant.id}"]`)).toHaveCount(1, { timeout: 10000 });
+    await contestantSelect.selectOption(testData.contestant.id);
+
+    const generateResponsePromise = page.waitForResponse((response) =>
+      response.url().includes('/reports/generate') &&
+      response.request().method() === 'POST' &&
+      response.ok(),
+    );
+    await page.getByRole('button', { name: 'Generate Report' }).click();
+    await generateResponsePromise;
+
+    const generatedItem = page.locator('[data-testid="reports-generated-item"]').first();
+    await expect(generatedItem).toBeVisible({ timeout: 10000 });
+    await generatedItem.getByRole('button', { name: 'View' }).click();
+
+    const contestantPreview = page.locator('[data-testid="reports-contestant-preview"]');
+    await expect(contestantPreview).toBeVisible({ timeout: 10000 });
+    await expect(contestantPreview).toContainText(testData.contestant.name);
+    await expect(contestantPreview).toContainText('Strong overall contestant package.');
+    await expect(contestantPreview).toContainText('Consistent technical execution.');
+  });
+
   test('should export report to PDF', async () => {
     const { page } = authContext;
     await navigateAndWait(page, '/reports');

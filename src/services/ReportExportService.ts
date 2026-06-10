@@ -36,6 +36,12 @@ interface WinnerSummary {
   totalPossibleScore: number | null;
 }
 
+interface ContestantExportRow {
+  section: string;
+  label: string;
+  value: string | number;
+}
+
 @injectable()
 export class ReportExportService extends BaseService {
   /**
@@ -77,7 +83,7 @@ export class ReportExportService extends BaseService {
         doc.on('error', reject);
 
         // Header
-        doc.fontSize(20).text('Event Report', { align: 'center' });
+        doc.fontSize(20).text(reportData.contestantReport ? 'Contestant Report' : 'Event Report', { align: 'center' });
         doc.moveDown();
 
         // Metadata
@@ -124,6 +130,73 @@ export class ReportExportService extends BaseService {
             doc.text(`Description: ${String(reportData.contest.description)}`);
           }
           doc.moveDown();
+        }
+
+        if (reportData.contestantReport) {
+          const contestantReport = reportData.contestantReport;
+          doc.fontSize(16).text('Contestant Information', { underline: true });
+          doc.fontSize(12);
+          doc.text(`Contestant: ${contestantReport.contestant.name}`);
+          if (contestantReport.contestant.contestantNumber !== null) {
+            doc.text(`Contestant Number: ${contestantReport.contestant.contestantNumber}`);
+          }
+          doc.text(`Event: ${contestantReport.event.name}`);
+          doc.text(`Contest: ${contestantReport.contest.name}`);
+          doc.text(
+            `Total Score: ${contestantReport.totalScore}` +
+              (contestantReport.totalPossibleScore !== null
+                ? ` / ${contestantReport.totalPossibleScore}`
+                : ''),
+          );
+          doc.moveDown();
+
+          if (contestantReport.generalCommentary.length > 0) {
+            doc.fontSize(14).text('General Commentary', { underline: true });
+            doc.fontSize(11);
+            contestantReport.generalCommentary.forEach((commentary) => {
+              doc.text(`${commentary.scopeLabel} - ${commentary.judgeName}`);
+              doc.text(commentary.comment, { indent: 12 });
+              doc.moveDown(0.5);
+            });
+            doc.moveDown();
+          }
+
+          contestantReport.categories.forEach((category) => {
+            doc.fontSize(14).text(category.categoryName, { underline: true });
+            doc.fontSize(11);
+            doc.text(
+              `Score: ${category.totalScore}` +
+                (category.totalPossibleScore !== null ? ` / ${category.totalPossibleScore}` : ''),
+            );
+            if (category.generalCommentary.length > 0) {
+              category.generalCommentary.forEach((commentary) => {
+                doc.text(`Scoped Commentary - ${commentary.judgeName}: ${commentary.comment}`);
+              });
+            }
+            category.judges.forEach((judge) => {
+              doc.moveDown(0.5);
+              doc.text(
+                `${judge.judgeName}: ${judge.totalScore}` +
+                  (judge.totalPossibleScore !== null ? ` / ${judge.totalPossibleScore}` : ''),
+              );
+              judge.categories.forEach((judgeCategory) => {
+                if (judgeCategory.commentary) {
+                  doc.text(`Judge Commentary: ${judgeCategory.commentary}`, { indent: 12 });
+                }
+                judgeCategory.criteria.forEach((criterion) => {
+                  const criterionScore =
+                    criterion.score === null
+                      ? 'No score'
+                      : `${criterion.score}${criterion.maxScore !== null ? ` / ${criterion.maxScore}` : ''}`;
+                  doc.text(`${criterion.criterionName}: ${criterionScore}`, { indent: 12 });
+                  if (criterion.commentary) {
+                    doc.text(`Comment: ${criterion.commentary}`, { indent: 24 });
+                  }
+                });
+              });
+            });
+            doc.moveDown();
+          });
         }
 
         // Winners/Results
@@ -207,6 +280,56 @@ export class ReportExportService extends BaseService {
             ]);
           });
         }
+        worksheet.addRow([]);
+      }
+
+      if (reportData.contestantReport) {
+        const contestantReport = reportData.contestantReport;
+        worksheet.addRow(['Contestant Information']);
+        worksheet.addRow(['Contestant', contestantReport.contestant.name]);
+        if (contestantReport.contestant.contestantNumber !== null) {
+          worksheet.addRow(['Contestant Number', contestantReport.contestant.contestantNumber]);
+        }
+        worksheet.addRow(['Event', contestantReport.event.name]);
+        worksheet.addRow(['Contest', contestantReport.contest.name]);
+        worksheet.addRow([
+          'Total Score',
+          contestantReport.totalPossibleScore !== null
+            ? `${contestantReport.totalScore} / ${contestantReport.totalPossibleScore}`
+            : `${contestantReport.totalScore}`,
+        ]);
+        worksheet.addRow([]);
+
+        if (contestantReport.generalCommentary.length > 0) {
+          worksheet.addRow(['General Commentary']);
+          worksheet.addRow(['Scope', 'Judge', 'Comment']);
+          contestantReport.generalCommentary.forEach((commentary) => {
+            worksheet.addRow([commentary.scopeLabel, commentary.judgeName, commentary.comment]);
+          });
+          worksheet.addRow([]);
+        }
+
+        worksheet.addRow(['Category', 'Judge', 'Criterion', 'Score', 'Scoped Commentary', 'Criterion Commentary']);
+        contestantReport.categories.forEach((category) => {
+          category.judges.forEach((judge) => {
+            judge.categories.forEach((judgeCategory) => {
+              judgeCategory.criteria.forEach((criterion) => {
+                worksheet.addRow([
+                  category.categoryName,
+                  judge.judgeName,
+                  criterion.criterionName,
+                  criterion.score === null
+                    ? 'No score'
+                    : criterion.maxScore !== null
+                      ? `${criterion.score} / ${criterion.maxScore}`
+                      : criterion.score,
+                  judgeCategory.commentary || '',
+                  criterion.commentary || '',
+                ]);
+              });
+            });
+          });
+        });
         worksheet.addRow([]);
       }
 
@@ -297,6 +420,13 @@ export class ReportExportService extends BaseService {
         rows.push({ field: '', value: '' });
       }
 
+      if (reportData.contestantReport) {
+        this.getContestantExportRows(reportData).forEach((row) => {
+          rows.push({ field: `${row.section} ${row.label}`.trim(), value: row.value });
+        });
+        rows.push({ field: '', value: '' });
+      }
+
       // Winners
       const winnerRows = this.getWinnerSummaries(reportData);
       if (winnerRows.length > 0) {
@@ -340,6 +470,14 @@ export class ReportExportService extends BaseService {
         return 'System-wide';
       }
 
+      if (scope.filterMode === 'single_contestant' && scope.contestantName) {
+        const eventLabel = scope.eventName || 'Event scope';
+        const contestLabel = Array.isArray(scope.contestNames) && scope.contestNames.length > 0
+          ? scope.contestNames[0]
+          : 'Contest';
+        return `${eventLabel} • ${contestLabel} • ${scope.contestantName}`;
+      }
+
       const eventLabel = scope.eventName || (scope.eventId ? 'Event scope' : '');
       if (Array.isArray(scope.contestNames) && scope.contestNames.length > 0) {
         return `${eventLabel || 'Event scope'} • ${scope.contestNames.join(', ')}`;
@@ -360,6 +498,76 @@ export class ReportExportService extends BaseService {
     }
 
     return null;
+  }
+
+  private getContestantExportRows(reportData: ReportData): ContestantExportRow[] {
+    const contestantReport = reportData.contestantReport;
+    if (!contestantReport) {
+      return [];
+    }
+
+    const rows: ContestantExportRow[] = [
+      { section: 'Contestant', label: 'Name', value: contestantReport.contestant.name },
+      {
+        section: 'Contestant',
+        label: 'Number',
+        value: contestantReport.contestant.contestantNumber ?? 'N/A',
+      },
+      { section: 'Contestant', label: 'Event', value: contestantReport.event.name },
+      { section: 'Contestant', label: 'Contest', value: contestantReport.contest.name },
+      {
+        section: 'Contestant',
+        label: 'Total Score',
+        value:
+          contestantReport.totalPossibleScore !== null
+            ? `${contestantReport.totalScore} / ${contestantReport.totalPossibleScore}`
+            : `${contestantReport.totalScore}`,
+      },
+    ];
+
+    contestantReport.generalCommentary.forEach((commentary) => {
+      rows.push({
+        section: 'General Commentary',
+        label: `${commentary.scopeLabel} - ${commentary.judgeName}`,
+        value: commentary.comment,
+      });
+    });
+
+    contestantReport.categories.forEach((category) => {
+      category.judges.forEach((judge) => {
+        judge.categories.forEach((judgeCategory) => {
+          if (judgeCategory.commentary) {
+            rows.push({
+              section: category.categoryName,
+              label: `${judge.judgeName} Commentary`,
+              value: judgeCategory.commentary,
+            });
+          }
+
+          judgeCategory.criteria.forEach((criterion) => {
+            rows.push({
+              section: category.categoryName,
+              label: `${judge.judgeName} - ${criterion.criterionName}`,
+              value:
+                criterion.score === null
+                  ? 'No score'
+                  : criterion.maxScore !== null
+                    ? `${criterion.score} / ${criterion.maxScore}`
+                    : criterion.score,
+            });
+            if (criterion.commentary) {
+              rows.push({
+                section: category.categoryName,
+                label: `${judge.judgeName} - ${criterion.criterionName} Commentary`,
+                value: criterion.commentary,
+              });
+            }
+          });
+        });
+      });
+    });
+
+    return rows;
   }
 
   private getContestSummaries(reportData: ReportData): ContestSummary[] {

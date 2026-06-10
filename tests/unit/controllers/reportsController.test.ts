@@ -58,6 +58,8 @@ describe('ReportsController', () => {
     mockGenerationService = {
       generateEventReportData: jest.fn(),
       generateContestResultsData: jest.fn(),
+      generateContestantResultsData: jest.fn(),
+      getContestantReportOptions: jest.fn(),
       generateSystemAnalyticsData: jest.fn(),
     } as any;
 
@@ -338,6 +340,65 @@ describe('ReportsController', () => {
       });
     });
 
+    it('should generate contestant report', async () => {
+      const mockReportData = {
+        contestantReport: {
+          contestant: { id: 'contestant-1', name: 'John Doe' },
+        },
+      };
+
+      mockReq.body = {
+        type: 'contestant',
+        eventId: 'event-1',
+        contestId: 'contest-1',
+        contestantId: 'contestant-1',
+      };
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1', tenantId: 'tenant-1', eventId: 'event-1' });
+      mockGenerationService.getContestantReportOptions.mockResolvedValue([
+        { id: 'contestant-1', name: 'John Doe', contestantNumber: 1 },
+      ] as any);
+      mockGenerationService.generateContestantResultsData.mockResolvedValue(mockReportData as any);
+      mockInstanceService.createInstance.mockResolvedValue({ id: 'inst-contestant' } as any);
+
+      await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockGenerationService.getContestantReportOptions).toHaveBeenCalledWith('contest-1', 'tenant-1');
+      expect(mockGenerationService.generateContestantResultsData).toHaveBeenCalledWith(
+        'contest-1',
+        'contestant-1',
+        'user-1',
+      );
+      expect(mockInstanceService.createInstance).toHaveBeenCalledWith({
+        type: 'contestant',
+        name: 'Contestant Results Report',
+        generatedById: 'user-1',
+        format: 'PDF',
+        tenantId: 'tenant-1',
+        data: JSON.stringify(mockReportData),
+      });
+    });
+
+    it('should reject invalid contestant scope for contestant report generation', async () => {
+      mockReq.body = {
+        type: 'contestant',
+        eventId: 'event-1',
+        contestId: 'contest-1',
+        contestantId: 'contestant-9',
+      };
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1', tenantId: 'tenant-1', eventId: 'event-1' });
+      mockGenerationService.getContestantReportOptions.mockResolvedValue([
+        { id: 'contestant-1', name: 'John Doe', contestantNumber: 1 },
+      ] as any);
+
+      await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: 'Invalid contestant scope',
+        message: 'The selected contestant does not have certified report data in this contest',
+      });
+    });
+
     it('should generate an event report scoped to selected contests', async () => {
       const mockReportData = { eventId: 'event-1', data: { participants: 20 } };
 
@@ -440,6 +501,34 @@ describe('ReportsController', () => {
       await controller.generateReport(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('getContestantReportOptions', () => {
+    it('should return contestant options for a contest', async () => {
+      mockReq.params = { contestId: 'contest-1' };
+      mockReq.query = { eventId: 'event-1' };
+      mockPrisma.contest.findFirst.mockResolvedValue({ id: 'contest-1' });
+      mockGenerationService.getContestantReportOptions.mockResolvedValue([
+        { id: 'contestant-1', name: 'John Doe', contestantNumber: 1 },
+      ] as any);
+
+      await controller.getContestantReportOptions(mockReq as Request, mockRes as Response, mockNext);
+
+      expect(mockPrisma.contest.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'contest-1',
+          tenantId: 'tenant-1',
+          eventId: 'event-1',
+        },
+        select: {
+          id: true,
+        },
+      });
+      expect(mockGenerationService.getContestantReportOptions).toHaveBeenCalledWith('contest-1', 'tenant-1');
+      expect(mockRes.json).toHaveBeenCalledWith({
+        data: [{ id: 'contestant-1', name: 'John Doe', contestantNumber: 1 }],
+      });
     });
   });
 

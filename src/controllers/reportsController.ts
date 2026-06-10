@@ -20,7 +20,9 @@ type ReportScopeSummary = {
   eventName: string | null;
   contestIds: string[];
   contestNames: string[];
-  filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system' | null;
+  contestantId?: string | null;
+  contestantName?: string | null;
+  filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'single_contestant' | 'system' | null;
 };
 
 const SUPPORTED_REPORT_EXPORT_FORMATS: ExportFormat[] = ['pdf', 'excel', 'csv'];
@@ -160,7 +162,36 @@ export class ReportsController {
         contestNames: Array.isArray(scope['contestNames'])
           ? scope['contestNames'].map((contestName: unknown) => String(contestName || '')).filter(Boolean)
           : [],
+        contestantId: scope['contestantId'] ? String(scope['contestantId']) : null,
+        contestantName: scope['contestantName'] ? String(scope['contestantName']) : null,
         filterMode: (scope['filterMode'] as ReportScopeSummary['filterMode']) || null,
+      };
+    }
+
+    const contestantReport = reportData['contestantReport'];
+    if (contestantReport && typeof contestantReport === 'object') {
+      const contestantRecord = contestantReport as Record<string, unknown>;
+      const contestRecord =
+        contestantRecord['contest'] && typeof contestantRecord['contest'] === 'object'
+          ? (contestantRecord['contest'] as Record<string, unknown>)
+          : null;
+      const eventRecord =
+        contestantRecord['event'] && typeof contestantRecord['event'] === 'object'
+          ? (contestantRecord['event'] as Record<string, unknown>)
+          : null;
+      const selectedContestant =
+        contestantRecord['contestant'] && typeof contestantRecord['contestant'] === 'object'
+          ? (contestantRecord['contestant'] as Record<string, unknown>)
+          : null;
+
+      return {
+        eventId: eventRecord?.['id'] ? String(eventRecord['id']) : null,
+        eventName: eventRecord?.['name'] ? String(eventRecord['name']) : null,
+        contestIds: contestRecord?.['id'] ? [String(contestRecord['id'])] : [],
+        contestNames: contestRecord?.['name'] ? [String(contestRecord['name'])] : [],
+        contestantId: selectedContestant?.['id'] ? String(selectedContestant['id']) : null,
+        contestantName: selectedContestant?.['name'] ? String(selectedContestant['name']) : null,
+        filterMode: 'single_contestant',
       };
     }
 
@@ -217,11 +248,13 @@ export class ReportsController {
     scopeSummary: ReportScopeSummary | null,
     eventId?: string | null,
     contestIds?: string[],
+    contestantId?: string | null,
   ): boolean {
     const normalizedEventId = eventId ? String(eventId) : '';
     const normalizedContestIds = Array.from(new Set((contestIds || []).map((contestId) => String(contestId || '')).filter(Boolean)));
+    const normalizedContestantId = contestantId ? String(contestantId) : '';
 
-    if (!normalizedEventId && normalizedContestIds.length === 0) {
+    if (!normalizedEventId && normalizedContestIds.length === 0 && !normalizedContestantId) {
       return true;
     }
 
@@ -234,10 +267,22 @@ export class ReportsController {
     }
 
     if (normalizedContestIds.length === 0) {
+      if (!normalizedContestantId) {
+        return true;
+      }
+      return scopeSummary.contestantId === normalizedContestantId;
+    }
+
+    const contestMatches = normalizedContestIds.some((contestId) => scopeSummary.contestIds.includes(contestId));
+    if (!contestMatches) {
+      return false;
+    }
+
+    if (!normalizedContestantId) {
       return true;
     }
 
-    return normalizedContestIds.some((contestId) => scopeSummary.contestIds.includes(contestId));
+    return scopeSummary.contestantId === normalizedContestantId;
   }
 
   private async getReportInstance(prisma: PrismaClient, instanceId: string, tenantId: string) {
@@ -355,7 +400,7 @@ export class ReportsController {
       const access = await this.requireTenantScopedReportAccess(req, res, 'write');
       if (!access) return;
 
-      const { type, eventId, contestId } = req.body;
+      const { type, eventId, contestId, contestantId } = req.body;
       const contestIds = this.normalizeContestIds(req.body?.contestIds);
       const userId = access.userId;
       const tenantId = access.tenantId;
@@ -425,6 +470,35 @@ export class ReportsController {
 
         reportData = await this.generationService.generateContestResultsData(contestId, userId);
         reportName = 'Contest Results Report';
+      } else if (type === 'contestant' && contestId && contestantId) {
+        const contest = await requestPrisma.contest.findFirst({
+          where: {
+            id: contestId,
+            tenantId,
+            ...(eventId ? { eventId } : {}),
+          },
+        });
+
+        if (!contest) {
+          res.status(403).json({
+            error: 'Access denied',
+            message: 'You do not have permission to generate reports for this contest',
+          });
+          return;
+        }
+
+        const availableContestants = await this.generationService.getContestantReportOptions(contestId, tenantId);
+        const scopedContestant = availableContestants.find((contestant) => contestant.id === String(contestantId));
+        if (!scopedContestant) {
+          res.status(400).json({
+            error: 'Invalid contestant scope',
+            message: 'The selected contestant does not have certified report data in this contest',
+          });
+          return;
+        }
+
+        reportData = await this.generationService.generateContestantResultsData(contestId, String(contestantId), userId);
+        reportName = 'Contestant Results Report';
       } else if (type === 'system') {
         reportData = await this.generationService.generateSystemAnalyticsData(userId, tenantId, access.userRole);
         reportName = 'System Analytics Report';
@@ -448,6 +522,41 @@ export class ReportsController {
           preview: reportData,
         }
       });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  getContestantReportOptions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const access = await this.requireTenantScopedReportAccess(req, res, 'read');
+      if (!access) return;
+
+      const { contestId } = req.params;
+      const eventId = typeof req.query['eventId'] === 'string' ? req.query['eventId'] : null;
+      if (!contestId) {
+        res.status(400).json({ error: 'Contest ID is required' });
+        return;
+      }
+
+      const contest = await access.requestPrisma.contest.findFirst({
+        where: {
+          id: contestId,
+          tenantId: access.tenantId,
+          ...(eventId ? { eventId } : {}),
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!contest) {
+        res.status(404).json({ error: 'Contest not found' });
+        return;
+      }
+
+      const contestants = await this.generationService.getContestantReportOptions(contestId, access.tenantId);
+      res.json({ data: contestants });
     } catch (error) {
       return next(error);
     }
@@ -506,6 +615,7 @@ export class ReportsController {
 
       const { type, format, startDate, endDate } = req.query;
       const eventId = typeof req.query['eventId'] === 'string' ? req.query['eventId'] : null;
+      const contestantId = typeof req.query['contestantId'] === 'string' ? req.query['contestantId'] : null;
       const contestIds = Array.from(
         new Set(
           (Array.isArray(req.query['contestId']) ? req.query['contestId'] : [req.query['contestId']])
@@ -541,7 +651,7 @@ export class ReportsController {
             scopeSummary,
           };
         })
-        .filter((instance) => this.matchesRequestedScope(instance.scopeSummary, eventId, contestIds));
+        .filter((instance) => this.matchesRequestedScope(instance.scopeSummary, eventId, contestIds, contestantId));
 
       res.json({ data: normalizedInstances });
     } catch (error) {
@@ -824,6 +934,7 @@ export const updateTemplate = controller.updateTemplate;
 export const deleteTemplate = controller.deleteTemplate;
 export const generateReport = controller.generateReport;
 export const generateContestantReports = controller.generateContestantReports;
+export const getContestantReportOptions = controller.getContestantReportOptions;
 export const getReportInstances = controller.getReportInstances;
 export const deleteReportInstance = controller.deleteReportInstance;
 export const exportToPDF = controller.exportToPDF;

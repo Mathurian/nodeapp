@@ -22,7 +22,7 @@ import {
 import { Button, Card, PageHeader, ResponsiveTable } from '../components/ui'
 import { safeLocaleString } from '../utils/dateUtils'
 
-type ReportType = 'event' | 'contest' | 'system'
+type ReportType = 'event' | 'contest' | 'contestant' | 'system'
 type ExportFormat = 'pdf' | 'excel' | 'csv'
 
 interface BasicOption {
@@ -34,12 +34,18 @@ interface ContestOption extends BasicOption {
   eventId: string
 }
 
+interface ContestantOption extends BasicOption {
+  contestantNumber: number | null
+}
+
 interface ReportScopeSummary {
   eventId: string | null
   eventName: string | null
   contestIds: string[]
   contestNames: string[]
-  filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'system' | null
+  contestantId?: string | null
+  contestantName?: string | null
+  filterMode: 'all_contests_in_event' | 'selected_contests' | 'single_contest' | 'single_contestant' | 'system' | null
 }
 
 interface ReportInstance {
@@ -118,6 +124,82 @@ interface ReportDrilldown {
   contests: ReportContestDrilldown[]
 }
 
+interface ContestantReportGeneralCommentary {
+  scope: CommentaryScope
+  scopeLabel: string
+  judgeId: string
+  judgeName: string
+  categoryId: string | null
+  categoryName: string | null
+  comment: string
+  createdAt: string
+}
+
+interface ContestantReportCriterion {
+  scoreId: string
+  criterionId: string | null
+  criterionName: string
+  score: number | null
+  maxScore: number | null
+  commentary: string | null
+  commentaryUpdatedAt: string | null
+}
+
+interface ContestantReportJudgeCategory {
+  categoryId: string
+  categoryName: string
+  commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
+  totalScore: number
+  totalPossibleScore: number | null
+  commentary: string | null
+  commentaryCreatedAt: string | null
+  criteria: ContestantReportCriterion[]
+}
+
+interface ContestantReportJudge {
+  judgeId: string
+  judgeName: string
+  totalScore: number
+  totalPossibleScore: number | null
+  categories: ContestantReportJudgeCategory[]
+}
+
+interface ContestantReportCategory {
+  categoryId: string
+  categoryName: string
+  commentaryMode: CommentaryMode
+  commentaryScope: CommentaryScope
+  totalScore: number
+  totalPossibleScore: number | null
+  generalCommentary: ContestantReportGeneralCommentary[]
+  judges: ContestantReportJudge[]
+}
+
+interface ContestantReport {
+  certifiedOnly: boolean
+  event: {
+    id: string
+    name: string
+  }
+  contest: {
+    id: string
+    name: string
+  }
+  contestant: {
+    id: string
+    name: string
+    contestantNumber: number | null
+  }
+  totalScore: number
+  totalPossibleScore: number | null
+  categoryCount: number
+  judgeCount: number
+  scoredCriterionCount: number
+  generalCommentary: ContestantReportGeneralCommentary[]
+  categories: ContestantReportCategory[]
+}
+
 const looksLikeHtml = (value: unknown): value is string =>
   typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)
 
@@ -145,10 +227,13 @@ const normalizeScopeSummary = (value: unknown): ReportScopeSummary | null => {
     contestNames: Array.isArray(scope.contestNames)
       ? scope.contestNames.map((contestName) => String(contestName || '')).filter(Boolean)
       : [],
+    contestantId: scope.contestantId ? String(scope.contestantId) : null,
+    contestantName: scope.contestantName ? String(scope.contestantName) : null,
     filterMode:
       scope.filterMode === 'all_contests_in_event' ||
       scope.filterMode === 'selected_contests' ||
       scope.filterMode === 'single_contest' ||
+      scope.filterMode === 'single_contestant' ||
       scope.filterMode === 'system'
         ? scope.filterMode
         : null,
@@ -159,6 +244,22 @@ const extractScopeSummaryFromReportData = (reportData?: Record<string, any> | nu
   const metadataScope = normalizeScopeSummary(reportData?.metadata?.scope)
   if (metadataScope) {
     return metadataScope
+  }
+
+  if (reportData?.contestantReport?.contest?.id) {
+    return {
+      eventId: reportData?.contestantReport?.event?.id ? String(reportData.contestantReport.event.id) : null,
+      eventName: reportData?.contestantReport?.event?.name ? String(reportData.contestantReport.event.name) : null,
+      contestIds: [String(reportData.contestantReport.contest.id)],
+      contestNames: reportData?.contestantReport?.contest?.name ? [String(reportData.contestantReport.contest.name)] : [],
+      contestantId: reportData?.contestantReport?.contestant?.id
+        ? String(reportData.contestantReport.contestant.id)
+        : null,
+      contestantName: reportData?.contestantReport?.contestant?.name
+        ? String(reportData.contestantReport.contestant.name)
+        : null,
+      filterMode: 'single_contestant',
+    }
   }
 
   if (reportData?.contest?.id) {
@@ -209,6 +310,10 @@ const buildScopeDescription = (scopeSummary: ReportScopeSummary | null, fallback
   }
 
   const eventLabel = scopeSummary.eventName || fallbackEventName || 'Event scope'
+  if (scopeSummary.filterMode === 'single_contestant' && scopeSummary.contestantName) {
+    const contestLabel = scopeSummary.contestNames[0] || 'Contest'
+    return `${eventLabel} • ${contestLabel} • ${scopeSummary.contestantName}`
+  }
   if (scopeSummary.contestNames.length === 0) {
     return `${eventLabel} • all contests`
   }
@@ -348,6 +453,25 @@ const extractReportDrilldown = (reportData?: Record<string, any> | null): Report
 const formatScoreTotal = (score: number, totalPossibleScore: number | null): string =>
   totalPossibleScore === null ? `${score}` : `${score} / ${totalPossibleScore}`
 
+const formatContestantOptionLabel = (contestant: ContestantOption | null | undefined): string => {
+  if (!contestant) {
+    return 'Contestant'
+  }
+
+  return contestant.contestantNumber !== null
+    ? `#${contestant.contestantNumber} ${contestant.name}`
+    : contestant.name
+}
+
+const extractContestantReport = (reportData?: Record<string, any> | null): ContestantReport | null => {
+  const source = reportData?.contestantReport
+  if (!source || typeof source !== 'object') {
+    return null
+  }
+
+  return source as ContestantReport
+}
+
 const ReportsPage: React.FC = () => {
   const hasCompletedInitialHistoryLoad = useRef(false)
   const latestInstancesRequestId = useRef(0)
@@ -355,9 +479,12 @@ const ReportsPage: React.FC = () => {
   const [type, setType] = useState<ReportType>('event')
   const [eventId, setEventId] = useState('')
   const [selectedContestIds, setSelectedContestIds] = useState<string[]>([])
+  const [selectedContestantId, setSelectedContestantId] = useState('')
   const [events, setEvents] = useState<BasicOption[]>([])
   const [contests, setContests] = useState<ContestOption[]>([])
+  const [contestants, setContestants] = useState<ContestantOption[]>([])
   const [isLoadingContests, setIsLoadingContests] = useState(false)
+  const [isLoadingContestants, setIsLoadingContestants] = useState(false)
   const [instances, setInstances] = useState<ReportInstance[]>([])
   const [historyStartDate, setHistoryStartDate] = useState('')
   const [historyEndDate, setHistoryEndDate] = useState('')
@@ -399,6 +526,10 @@ const ReportsPage: React.FC = () => {
     () => eventScopedContests.filter((contest) => selectedContestIds.includes(contest.id)),
     [eventScopedContests, selectedContestIds],
   )
+  const selectedContestant = useMemo(
+    () => contestants.find((contestant) => contestant.id === selectedContestantId) || null,
+    [contestants, selectedContestantId],
+  )
   const activeScopeSummary = useMemo<ReportScopeSummary | null>(() => {
     if (type === 'system') {
       return {
@@ -419,14 +550,20 @@ const ReportsPage: React.FC = () => {
       eventName: activeEvent.name,
       contestIds: selectedContests.map((contest) => contest.id),
       contestNames: selectedContests.map((contest) => contest.name),
+      contestantId: type === 'contestant' ? selectedContestant?.id || null : null,
+      contestantName: type === 'contestant' ? selectedContestant?.name || null : null,
       filterMode:
         selectedContests.length > 0
-          ? type === 'contest'
-            ? 'single_contest'
-            : 'selected_contests'
+          ? type === 'contestant'
+            ? selectedContestant
+              ? 'single_contestant'
+              : 'single_contest'
+            : type === 'contest'
+              ? 'single_contest'
+              : 'selected_contests'
           : 'all_contests_in_event',
     }
-  }, [activeEvent, selectedContests, type])
+  }, [activeEvent, selectedContestant, selectedContests, type])
   const visibleInstances = useMemo(
     () =>
       instances.map((instance) => ({
@@ -441,6 +578,10 @@ const ReportsPage: React.FC = () => {
   )
   const viewingDrilldown = useMemo(
     () => extractReportDrilldown(viewingReport?.data),
+    [viewingReport],
+  )
+  const viewingContestantReport = useMemo(
+    () => extractContestantReport(viewingReport?.data),
     [viewingReport],
   )
   const selectedEmailReport = useMemo(
@@ -460,6 +601,14 @@ const ReportsPage: React.FC = () => {
       return 'Select an event to scope report generation and report history'
     }
 
+    if (type === 'contestant' && selectedContests.length > 0) {
+      const contestLabel = selectedContests[0]?.name || 'Contest'
+      if (!selectedContestant) {
+        return `${activeEvent.name} • ${contestLabel} • select contestant`
+      }
+      return `${activeEvent.name} • ${contestLabel} • ${formatContestantOptionLabel(selectedContestant)}`
+    }
+
     if (selectedContests.length === 0) {
       return `${activeEvent.name} • all contests`
     }
@@ -471,6 +620,7 @@ const ReportsPage: React.FC = () => {
       type: ReportType
       eventId?: string
       contestId?: string | string[]
+      contestantId?: string
       startDate?: string
       endDate?: string
     } = {
@@ -487,8 +637,13 @@ const ReportsPage: React.FC = () => {
       params.contestId = type === 'contest' ? selectedContestIds[0] : selectedContestIds
     }
 
+    if (type === 'contestant' && selectedContestantId) {
+      params.contestId = selectedContestIds[0]
+      params.contestantId = selectedContestantId
+    }
+
     return params
-  }, [eventId, historyEndDate, historyStartDate, selectedContestIds, type])
+  }, [eventId, historyEndDate, historyStartDate, selectedContestIds, selectedContestantId, type])
 
   const loadOptions = async () => {
     const eventResponse = await eventsAPI.getAll().catch(() => ({ data: { data: [] } }))
@@ -530,6 +685,53 @@ const ReportsPage: React.FC = () => {
       )
     } finally {
       setIsLoadingContests(false)
+    }
+  }
+
+  const loadContestantsForContest = async (selectedContestId: string, selectedEventId: string) => {
+    if (!selectedContestId) {
+      setContestants([])
+      setIsLoadingContestants(false)
+      return
+    }
+
+    setIsLoadingContestants(true)
+    try {
+      const contestantResponse = await reportsAPI
+        .getContestantOptions(selectedContestId, selectedEventId || undefined)
+        .catch(() => ({ data: { data: [] } }))
+      const contestantData = contestantResponse.data?.data || contestantResponse.data || []
+      const normalizedContestants = Array.isArray(contestantData)
+        ? contestantData
+            .map((contestant: any) => ({
+              id: contestant.id,
+              name: contestant.name,
+              contestantNumber:
+                typeof contestant.contestantNumber === 'number'
+                  ? contestant.contestantNumber
+                  : contestant.contestantNumber == null || contestant.contestantNumber === ''
+                    ? null
+                    : Number(contestant.contestantNumber),
+            }))
+            .filter((contestant: ContestantOption) => Boolean(contestant.id && contestant.name))
+        : []
+
+      setContestants(
+        normalizedContestants.sort((left, right) => {
+          if (left.contestantNumber !== null && right.contestantNumber !== null) {
+            return left.contestantNumber - right.contestantNumber
+          }
+          if (left.contestantNumber !== null) {
+            return -1
+          }
+          if (right.contestantNumber !== null) {
+            return 1
+          }
+          return left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true })
+        }),
+      )
+    } finally {
+      setIsLoadingContestants(false)
     }
   }
 
@@ -579,15 +781,37 @@ const ReportsPage: React.FC = () => {
   useEffect(() => {
     if (!eventId) {
       setContests([])
+      setContestants([])
       setIsLoadingContests(false)
       return
     }
 
     void loadContestsForEvent(eventId).catch(() => {
       setContests([])
+      setContestants([])
       setIsLoadingContests(false)
     })
   }, [eventId])
+
+  useEffect(() => {
+    if (type !== 'contestant') {
+      setContestants([])
+      setIsLoadingContestants(false)
+      return
+    }
+
+    const selectedContestId = selectedContestIds[0]
+    if (!selectedContestId || !eventId) {
+      setContestants([])
+      setIsLoadingContestants(false)
+      return
+    }
+
+    void loadContestantsForContest(selectedContestId, eventId).catch(() => {
+      setContestants([])
+      setIsLoadingContestants(false)
+    })
+  }, [eventId, selectedContestIds, type])
 
   useEffect(() => {
     setSelectedContestIds((previous) => {
@@ -605,21 +829,43 @@ const ReportsPage: React.FC = () => {
   }, [eventId, eventScopedContests])
 
   useEffect(() => {
-    if (type !== 'contest' || selectedContestIds.length <= 1) {
+    if ((type !== 'contest' && type !== 'contestant') || selectedContestIds.length <= 1) {
       return
     }
 
     setSelectedContestIds((previous) => previous.slice(0, 1))
   }, [selectedContestIds, type])
 
+  useEffect(() => {
+    if (type !== 'contestant') {
+      if (selectedContestantId) {
+        setSelectedContestantId('')
+      }
+      return
+    }
+
+    const allowedContestantIds = new Set(contestants.map((contestant) => contestant.id))
+    if (selectedContestantId && !allowedContestantIds.has(selectedContestantId)) {
+      setSelectedContestantId('')
+    }
+  }, [contestants, selectedContestantId, type])
+
   const handleGenerateReport = async () => {
     try {
       if (type !== 'system' && !eventId) {
-        setError('Select an event before generating an event or contest report')
+        setError('Select an event before generating a report')
         return
       }
       if (type === 'contest' && selectedContestIds.length !== 1) {
         setError('Select exactly one contest within the active event for contest report generation')
+        return
+      }
+      if (type === 'contestant' && selectedContestIds.length !== 1) {
+        setError('Select exactly one contest within the active event for contestant report generation')
+        return
+      }
+      if (type === 'contestant' && !selectedContestantId) {
+        setError('Select a contestant for contestant report generation')
         return
       }
 
@@ -631,6 +877,13 @@ const ReportsPage: React.FC = () => {
         ...(type === 'event' ? { eventId } : {}),
         ...(type === 'event' && selectedContestIds.length > 0 ? { contestIds: selectedContestIds } : {}),
         ...(type === 'contest' ? { eventId, contestId: selectedContestIds[0] } : {}),
+        ...(type === 'contestant'
+          ? {
+              eventId,
+              contestId: selectedContestIds[0],
+              contestantId: selectedContestantId,
+            }
+          : {}),
       })
       setMessage('Report generated successfully')
       await loadInstances(reportHistoryQuery)
@@ -779,6 +1032,9 @@ const ReportsPage: React.FC = () => {
       const response = await reportsAPI.getById(id)
       const payload = response.data?.data || response.data || null
       setViewingReport(payload)
+      if (extractContestantReport(payload?.data)) {
+        return
+      }
       if (extractReportDrilldown(payload?.data)) {
         return
       }
@@ -861,6 +1117,7 @@ const ReportsPage: React.FC = () => {
               >
                 <option value="event">Event</option>
                 <option value="contest">Contest</option>
+                <option value="contestant">Contestant</option>
                 <option value="system">System</option>
               </select>
             </div>
@@ -934,7 +1191,7 @@ const ReportsPage: React.FC = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   No contests are available for the selected event.
                 </p>
-              ) : type === 'contest' ? (
+              ) : type === 'contest' || type === 'contestant' ? (
                 <div>
                   <label htmlFor="pages-reportspage-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Contest
@@ -983,6 +1240,40 @@ const ReportsPage: React.FC = () => {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {type === 'contestant' && eventId && selectedContestIds.length === 1 && (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="pages-reportspage-13" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Contestant
+                </label>
+                {isLoadingContestants ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Loading contestants with certified scores in the selected contest...
+                  </p>
+                ) : contestants.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No contestants with certified report data are available for the selected contest.
+                  </p>
+                ) : (
+                  <select
+                    id="pages-reportspage-13"
+                    data-testid="reports-contestant-select"
+                    value={selectedContestantId}
+                    onChange={(e) => setSelectedContestantId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                  >
+                    <option value="">Select contestant...</option>
+                    {contestants.map((contestant) => (
+                      <option key={contestant.id} value={contestant.id}>
+                        {formatContestantOptionLabel(contestant)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
           )}
 
@@ -1346,6 +1637,177 @@ const ReportsPage: React.FC = () => {
                         {previewText}
                       </pre>
                     )
+                  ) : viewingContestantReport ? (
+                    <div className="space-y-4" data-testid="reports-contestant-preview">
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                        Certified contestant report. Commentary includes applicable scoped notes and judge-specific detail for this contest.
+                      </div>
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {viewingContestantReport.contestant.contestantNumber !== null
+                                ? `#${viewingContestantReport.contestant.contestantNumber} ${viewingContestantReport.contestant.name}`
+                                : viewingContestantReport.contestant.name}
+                            </div>
+                            <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                              {viewingContestantReport.event.name} • {viewingContestantReport.contest.name}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {formatScoreTotal(viewingContestantReport.totalScore, viewingContestantReport.totalPossibleScore)}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              {viewingContestantReport.categoryCount} categories • {viewingContestantReport.judgeCount} judges • {viewingContestantReport.scoredCriterionCount} scored criteria
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                          General Commentary
+                        </div>
+                        {viewingContestantReport.generalCommentary.length === 0 ? (
+                          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            No scoped commentary is available for this contestant report.
+                          </div>
+                        ) : (
+                          <div className="mt-3 space-y-3">
+                            {viewingContestantReport.generalCommentary.map((commentary) => (
+                              <div
+                                key={`${commentary.scope}-${commentary.judgeId}-${commentary.categoryId || 'global'}`}
+                                className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
+                              >
+                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {commentary.scopeLabel}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {commentary.judgeName} • {safeLocaleString(commentary.createdAt)}
+                                  </div>
+                                </div>
+                                <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                  {commentary.comment}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-4">
+                        {viewingContestantReport.categories.map((category) => (
+                          <details
+                            key={category.categoryId}
+                            className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <summary className="cursor-pointer list-none px-4 py-3">
+                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {category.categoryName}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {category.commentaryMode.replace(/_/g, ' ')} • {category.commentaryScope.toLowerCase()} scoped
+                                  </div>
+                                </div>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {formatScoreTotal(category.totalScore, category.totalPossibleScore)}
+                                </div>
+                              </div>
+                            </summary>
+                            <div className="space-y-3 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+                              {category.generalCommentary.length > 0 && (
+                                <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-3">
+                                  <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                    Category Commentary
+                                  </div>
+                                  <div className="mt-2 space-y-2">
+                                    {category.generalCommentary.map((commentary) => (
+                                      <div key={`${category.categoryId}-${commentary.judgeId}-${commentary.scope}`}>
+                                        <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                                          {commentary.judgeName} • {safeLocaleString(commentary.createdAt)}
+                                        </div>
+                                        <div className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                          {commentary.comment}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {category.judges.map((judge) => (
+                                <details
+                                  key={judge.judgeId}
+                                  className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+                                >
+                                  <summary className="cursor-pointer list-none px-3 py-3">
+                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {judge.judgeName}
+                                      </div>
+                                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        {formatScoreTotal(judge.totalScore, judge.totalPossibleScore)}
+                                      </div>
+                                    </div>
+                                  </summary>
+                                  <div className="space-y-3 border-t border-gray-200 dark:border-gray-700 px-3 py-3">
+                                    {judge.categories.map((judgeCategory) => (
+                                      <div key={`${judge.judgeId}-${judgeCategory.categoryId}`} className="space-y-3">
+                                        {judgeCategory.commentary && (
+                                          <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2">
+                                            <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                              Judge Commentary
+                                            </div>
+                                            <div className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                              {judgeCategory.commentary}
+                                            </div>
+                                            {judgeCategory.commentaryCreatedAt && (
+                                              <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                Saved {safeLocaleString(judgeCategory.commentaryCreatedAt)}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        <div className="space-y-2">
+                                          {judgeCategory.criteria.map((criterion) => (
+                                            <div
+                                              key={criterion.scoreId}
+                                              className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2"
+                                            >
+                                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                <div className="text-sm text-gray-900 dark:text-white">
+                                                  {criterion.criterionName}
+                                                </div>
+                                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                  {criterion.score === null
+                                                    ? 'No score'
+                                                    : formatScoreTotal(criterion.score, criterion.maxScore)}
+                                                </div>
+                                              </div>
+                                              {criterion.commentary && (
+                                                <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                                  {criterion.commentary}
+                                                </div>
+                                              )}
+                                              {criterion.commentaryUpdatedAt && (
+                                                <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                                  Saved {safeLocaleString(criterion.commentaryUpdatedAt)}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </details>
+                              ))}
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </div>
                   ) : looksLikeHtml(viewingReport.data?.['html']) ? (
                     <iframe
                       title="Report Preview"
