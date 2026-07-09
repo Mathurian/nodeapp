@@ -3,7 +3,7 @@
  * Provides explicit, high-risk data wiping operations with strict safeguards.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { injectable, inject } from 'tsyringe';
 import { BaseService } from './BaseService';
 import { isDefaultTenant } from '../utils/tenantSegregationPolicy';
@@ -125,6 +125,130 @@ export class DataWipeService extends BaseService {
   private mergeCounts(target: Record<string, number>, source: Record<string, number>): void {
     for (const [key, value] of Object.entries(source)) {
       target[key] = (target[key] || 0) + value;
+    }
+  }
+
+  private async purgeUsers(
+    tx: Prisma.TransactionClient,
+    where: Prisma.UserWhereInput,
+    tenantId?: string
+  ): Promise<void> {
+    const users = await tx.user.findMany({
+      where,
+      select: {
+        id: true,
+        judgeId: true,
+        contestantId: true,
+      },
+    });
+
+    const userIds = users.map((user) => user.id);
+    if (userIds.length === 0) {
+      return;
+    }
+
+    const judgeIds = Array.from(
+      new Set(users.map((user) => user.judgeId).filter((id): id is string => Boolean(id)))
+    );
+    const contestantIds = Array.from(
+      new Set(users.map((user) => user.contestantId).filter((id): id is string => Boolean(id)))
+    );
+
+    await tx.scoreDelegationGrant.deleteMany({
+      where: {
+        OR: [
+          { delegateUserId: { in: userIds } },
+          { grantedById: { in: userIds } },
+          { revokedById: { in: userIds } },
+        ],
+      },
+    });
+
+    await tx.notification.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.notificationDigest.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.notificationPreference.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.pushSubscription.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.savedSearch.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.searchHistory.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.rateLimitConfig.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.roleAssignment.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.reportInstance.deleteMany({ where: { generatedById: { in: userIds } } });
+    await tx.categoryCertification.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.contestCertification.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.certification.deleteMany({ where: { userId: { in: userIds } } });
+    await tx.deductionApproval.deleteMany({ where: { approvedById: { in: userIds } } });
+
+    await tx.activityLog.updateMany({
+      where: { userId: { in: userIds } },
+      data: { userId: null },
+    });
+    await tx.performanceLog.updateMany({
+      where: { userId: { in: userIds } },
+      data: { userId: null },
+    });
+    await tx.systemSetting.updateMany({
+      where: { updatedBy: { in: userIds } },
+      data: { updatedBy: null },
+    });
+    await tx.categoryType.updateMany({
+      where: { createdById: { in: userIds } },
+      data: { createdById: null },
+    });
+    await tx.eventTemplate.updateMany({
+      where: { createdBy: { in: userIds } },
+      data: { createdBy: null },
+    });
+    await tx.judgeUncertificationRequest.updateMany({
+      where: { requestedBy: { in: userIds } },
+      data: { requestedBy: null },
+    });
+    await tx.judgeUncertificationRequest.updateMany({
+      where: { approvedBy: { in: userIds } },
+      data: { approvedBy: null },
+    });
+    await tx.judgeUncertificationRequest.updateMany({
+      where: { rejectedBy: { in: userIds } },
+      data: { rejectedBy: null },
+    });
+    await tx.scoreRemovalRequest.updateMany({
+      where: { requestedBy: { in: userIds } },
+      data: { requestedBy: null },
+    });
+    await tx.scoreRemovalRequest.updateMany({
+      where: { tallySignedBy: { in: userIds } },
+      data: { tallySignedBy: null },
+    });
+    await tx.scoreRemovalRequest.updateMany({
+      where: { auditorSignedBy: { in: userIds } },
+      data: { auditorSignedBy: null },
+    });
+    await tx.scoreRemovalRequest.updateMany({
+      where: { boardSignedBy: { in: userIds } },
+      data: { boardSignedBy: null },
+    });
+
+    if (contestantIds.length > 0) {
+      await tx.contestant.deleteMany({ where: { id: { in: contestantIds } } });
+    }
+    if (judgeIds.length > 0) {
+      await tx.judge.deleteMany({ where: { id: { in: judgeIds } } });
+    }
+
+    await tx.user.deleteMany({ where: { id: { in: userIds } } });
+
+    if (tenantId) {
+      await tx.contestant.deleteMany({
+        where: {
+          tenantId,
+          users: { none: {} },
+        },
+      });
+      await tx.judge.deleteMany({
+        where: {
+          tenantId,
+          users: { none: {} },
+        },
+      });
     }
   }
 
@@ -314,18 +438,10 @@ export class DataWipeService extends BaseService {
       await tx.contestant.deleteMany({});
       await tx.judge.deleteMany({});
 
-      // Preserve admin/super-admin identity, invalidate others.
-      await tx.user.updateMany({
-        where: {
-          role: {
-            notIn: ['SUPER_ADMIN', 'ADMIN']
-          }
+      await this.purgeUsers(tx, {
+        role: {
+          notIn: ['SUPER_ADMIN', 'ADMIN'],
         },
-        data: {
-          isActive: false,
-          judgeId: null,
-          contestantId: null
-        }
       });
     });
 
@@ -492,34 +608,10 @@ export class DataWipeService extends BaseService {
 
     if (normalizedScope === 'USERS') {
       await this.prisma.$transaction(async (tx) => {
-        const users = await tx.user.findMany({
-          where: {
-            tenantId,
-            role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }
-          },
-          select: { id: true }
-        });
-        const userIds = users.map((user) => user.id);
-
-        if (userIds.length === 0) {
-          return;
-        }
-
-        await tx.notification.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.notificationDigest.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.notificationPreference.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.pushSubscription.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.savedSearch.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.searchHistory.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.roleAssignment.deleteMany({ where: { tenantId, userId: { in: userIds } } });
-        await tx.user.updateMany({
-          where: { id: { in: userIds } },
-          data: {
-            isActive: false,
-            judgeId: null,
-            contestantId: null,
-          }
-        });
+        await this.purgeUsers(tx, {
+          tenantId,
+          role: { notIn: ['SUPER_ADMIN', 'ADMIN'] },
+        }, tenantId);
       });
     }
 
@@ -537,21 +629,10 @@ export class DataWipeService extends BaseService {
         await tx.pushSubscription.deleteMany({ where: { tenantId } });
         await tx.savedSearch.deleteMany({ where: { tenantId } });
         await tx.searchHistory.deleteMany({ where: { tenantId } });
-
-        await tx.user.updateMany({
-          where: {
-            tenantId,
-            role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }
-          },
-          data: {
-            isActive: false,
-            judgeId: null,
-            contestantId: null,
-          }
-        });
-
-        await tx.judge.deleteMany({ where: { tenantId } });
-        await tx.contestant.deleteMany({ where: { tenantId } });
+        await this.purgeUsers(tx, {
+          tenantId,
+          role: { notIn: ['SUPER_ADMIN', 'ADMIN'] },
+        }, tenantId);
       });
     }
 

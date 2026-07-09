@@ -28,6 +28,16 @@ describe('DataWipeService', () => {
     return service.wipeEventData('event-123', 'user-456', userRole, tenantId, isSuperAdmin, dryRun);
   };
 
+  const invokeTenantWipe = (
+    scope: 'ALL' | 'EVENTS' | 'USERS' | 'SCORES' = 'ALL',
+    userRole: string = 'ADMIN',
+    tenantId: string | undefined = adminTenantId,
+    isSuperAdmin: boolean = false,
+    dryRun: boolean = false
+  ) => {
+    return service.wipeTenantScopedData(scope, 'user-789', userRole, tenantId, isSuperAdmin, dryRun);
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -47,7 +57,10 @@ describe('DataWipeService', () => {
       reviewContestantCertification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       reviewJudgeScoreCertification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       judgeScoreRemovalRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      judgeUncertificationRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      judgeUncertificationRequest: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       deductionRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       deductionApproval: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       overallDeduction: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -63,7 +76,34 @@ describe('DataWipeService', () => {
       event: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), findFirst: jest.fn() },
       contestant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       judge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      user: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'user-1', judgeId: 'judge-1', contestantId: null },
+          { id: 'user-2', judgeId: null, contestantId: 'contestant-1' },
+        ]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+      scoreRemovalRequest: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      scoreDelegationGrant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      scoreFile: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      scoreComment: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      notification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      notificationDigest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      notificationPreference: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      pushSubscription: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      savedSearch: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      searchHistory: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      rateLimitConfig: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      reportInstance: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      activityLog: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      performanceLog: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      systemSetting: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      categoryType: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      eventTemplate: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       $executeRawUnsafe: jest.fn().mockResolvedValue(0),
     };
 
@@ -76,7 +116,14 @@ describe('DataWipeService', () => {
     mockPrisma.deductionRequest.count.mockResolvedValue(0);
     mockPrisma.judgeComment.count.mockResolvedValue(0);
     mockPrisma.categoryCertification.count.mockResolvedValue(0);
+    mockPrisma.user.count.mockResolvedValue(2);
+    mockPrisma.judge.count.mockResolvedValue(1);
+    mockPrisma.contestant.count.mockResolvedValue(1);
+    mockPrisma.notification.count.mockResolvedValue(0);
+    mockPrisma.roleAssignment.count.mockResolvedValue(0);
+    mockPrisma.scoreFile.count.mockResolvedValue(0);
     mockPrisma.event.findFirst.mockResolvedValue({ id: 'event-123', tenantId: adminTenantId } as any);
+    mockPrisma.event.findMany.mockResolvedValue([{ id: 'event-123' }] as any);
     mockPrisma.contest.findMany.mockResolvedValue([
       { id: 'contest-1' },
       { id: 'contest-2' },
@@ -201,19 +248,12 @@ describe('DataWipeService', () => {
       expect(mockTransaction.event.deleteMany).toHaveBeenCalled();
     });
 
-    it('should deactivate non-admin users', async () => {
+    it('should delete non-admin users', async () => {
       await invokeGlobalWipe();
 
-      expect(mockTransaction.user.updateMany).toHaveBeenCalledWith({
+      expect(mockTransaction.user.deleteMany).toHaveBeenCalledWith({
         where: {
-          role: {
-            notIn: ['SUPER_ADMIN', 'ADMIN'],
-          },
-        },
-        data: {
-          isActive: false,
-          judgeId: null,
-          contestantId: null,
+          id: { in: ['user-1', 'user-2'] },
         },
       });
     });
@@ -457,6 +497,34 @@ describe('DataWipeService', () => {
           tenantId: adminTenantId,
           categoryId: { in: ['category-1', 'category-2', 'category-3'] },
         },
+      });
+    });
+  });
+
+  describe('wipeTenantScopedData', () => {
+    it('should delete non-admin tenant users for USERS scope', async () => {
+      await invokeTenantWipe('USERS');
+
+      expect(mockTransaction.scoreDelegationGrant.deleteMany).toHaveBeenCalled();
+      expect(mockTransaction.judge.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['judge-1'] } },
+      });
+      expect(mockTransaction.contestant.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['contestant-1'] } },
+      });
+      expect(mockTransaction.user.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['user-1', 'user-2'] } },
+      });
+    });
+
+    it('should delete non-admin tenant users for ALL scope after event cleanup', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([] as any);
+
+      await invokeTenantWipe('ALL');
+
+      expect(mockTransaction.file.deleteMany).toHaveBeenCalledWith({ where: { tenantId: adminTenantId } });
+      expect(mockTransaction.user.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['user-1', 'user-2'] } },
       });
     });
   });

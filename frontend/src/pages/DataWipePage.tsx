@@ -59,10 +59,11 @@ const SCOPE_CONTENT: Record<
     included: [
       'Non-admin tenant users',
       'Judge and contestant profile records tied to those users',
+      'User-linked assignments, scores, certifications, and related contest activity that cascades from those profiles',
     ],
     preserved: [
       'Admins and super admins',
-      'Event structure and scoring records',
+      'Event, contest, and category structure',
       'Tenant settings and templates',
     ],
     accentClass: 'border-gray-300 dark:border-gray-600',
