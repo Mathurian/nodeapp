@@ -225,7 +225,7 @@ const EventsPage: React.FC = () => {
 
   // Fetch events
   const { data: events = [], isLoading, error } = useQuery<Event[]>(
-    ['events', dateFilters, selectedTenantId, isSuperAdmin],
+    ['events', dateFilters, selectedTenantId, isSuperAdmin, showArchived],
     async () => {
       const params: any = {}
 
@@ -246,11 +246,25 @@ const EventsPage: React.FC = () => {
         params.tenantId = selectedTenantId
       }
 
-      const response = await eventsAPI.getAll(params)
-      // Backend returns { success: true, data: [...] }
-      // Need to unwrap the data property
-      const unwrapped = response.data?.data || response.data
-      return Array.isArray(unwrapped) ? unwrapped : []
+      const unwrapEvents = (response: any): Event[] => {
+        const unwrapped = response.data?.data || response.data
+        return Array.isArray(unwrapped) ? unwrapped : []
+      }
+
+      const activeResponse = await eventsAPI.getAll({ ...params, archived: false })
+      const activeEvents = unwrapEvents(activeResponse)
+
+      if (!showArchived) {
+        return activeEvents
+      }
+
+      const archivedResponse = await eventsAPI.getAll({ ...params, archived: true })
+      const archivedEvents = unwrapEvents(archivedResponse)
+      const mergedEvents = [...activeEvents, ...archivedEvents]
+
+      return mergedEvents.filter((event, index, array) =>
+        array.findIndex((candidate) => candidate.id === event.id) === index
+      )
     },
     {
       refetchInterval: 30000,
