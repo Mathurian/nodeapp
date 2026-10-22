@@ -191,6 +191,7 @@ Do not assume the production database can be modified safely just because a new 
 Release activation normalizes nginx for the current runtime layout and injects cache rules for:
 
 - `/sw.js`
+- `/push-sw.js`
 - `/service-worker.js`
 - `/registerSW.js`
 - `/manifest.webmanifest`
@@ -198,8 +199,8 @@ Release activation normalizes nginx for the current runtime layout and injects c
 This prevents stale service-worker entry files from being long-term cached across releases.
 
 The development nginx site needs the same exact-match, no-store locations before its
-immutable `*.js` asset rule. Include `/push-sw.js` alongside the URLs above because
-`sw.js` imports it. After correcting a rule that previously cached these files,
+immutable `*.js` asset rule. `/sw.js` imports `/push-sw.js`, so it needs the same
+cache policy. After correcting a rule that previously cached these files,
 purge those specific URLs from the CDN and verify the public `/sw.js` matches the
 origin and no longer has a long cache lifetime. Reloading a PWA alone cannot
 replace a service worker that the CDN keeps serving from stale cache.

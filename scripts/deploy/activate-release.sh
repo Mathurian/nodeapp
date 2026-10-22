@@ -181,6 +181,42 @@ normalize_nginx_pwa_cache_headers() {
   sudo mv "$tmp" "$file"
 }
 
+normalize_nginx_push_sw_cache_headers() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  # Older normalized configs already have the PWA marker, but did not exempt
+  # the imported push worker from the immutable JavaScript asset rule.
+  if sudo grep -qF 'location = /push-sw.js {' "$file"; then
+    return 0
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+  sudo awk '
+    /location = \/sw\.js \{/ && inserted == 0 {
+      print "    location = /push-sw.js {"
+      print "        try_files $uri =404;"
+      print "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+      print "        add_header Pragma \"no-cache\" always;"
+      print "        add_header Expires \"0\" always;"
+      print "    }"
+      print ""
+      inserted = 1
+    }
+    { print }
+  ' "$file" > "$tmp"
+
+  if ! grep -qF 'location = /push-sw.js {' "$tmp"; then
+    rm -f "$tmp"
+    echo "Cannot add /push-sw.js cache rule: /sw.js location missing in $file" >&2
+    return 1
+  fi
+
+  sudo install -m 644 -o root -g root "$tmp" "$file"
+  rm -f "$tmp"
+}
+
 normalize_nginx_api_docs_location() {
   local file="$1"
   [ -f "$file" ] || return 0
@@ -235,6 +271,8 @@ normalize_nginx_roots "$NGINX_ENABLED"
 normalize_nginx_roots "$NGINX_AVAILABLE"
 normalize_nginx_pwa_cache_headers "$NGINX_ENABLED"
 normalize_nginx_pwa_cache_headers "$NGINX_AVAILABLE"
+normalize_nginx_push_sw_cache_headers "$NGINX_ENABLED"
+normalize_nginx_push_sw_cache_headers "$NGINX_AVAILABLE"
 normalize_nginx_api_docs_location "$NGINX_ENABLED"
 normalize_nginx_api_docs_location "$NGINX_AVAILABLE"
 normalize_nginx_monitoring_locations "$NGINX_ENABLED"
