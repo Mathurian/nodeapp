@@ -2,7 +2,7 @@ import { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { LockClosedIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../contexts/AuthContext'
-import { AccessGuidanceState } from './ui'
+import { AccessGuidanceState, ErrorState } from './ui'
 import { useAuthPermissions } from '../hooks/useAuthPermissions'
 import { canAccessPageByPolicy, getPagePolicyByPath, permissionSetFromList } from '../utils/pageAccess'
 import { buildTenantAwareLoginPath } from '../utils/authRedirect'
@@ -15,7 +15,12 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const location = useLocation()
   const { user, isLoading, isAuthenticated } = useAuth()
-  const { data: permissionsPayload, isLoading: isPermissionsLoading } = useAuthPermissions()
+  const {
+    data: permissionsPayload,
+    isLoading: isPermissionsLoading,
+    isError: isPermissionsError,
+    refetch: refetchPermissions,
+  } = useAuthPermissions({ enabled: Boolean(user) })
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -37,6 +42,17 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {
     return <Navigate to={buildTenantAwareLoginPath(location.pathname)} replace />
+  }
+
+  if (isPermissionsError && !permissionsPayload) {
+    return (
+      <ErrorState
+        className="min-h-screen"
+        title="Unable to verify access"
+        error="We couldn't load your permissions. Please try again."
+        onRetry={() => { void refetchPermissions() }}
+      />
+    )
   }
 
   const permissionSet = permissionsPayload
