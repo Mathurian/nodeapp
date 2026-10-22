@@ -248,8 +248,14 @@ const JudgeSchedulesPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-end gap-3">
           {isStaff && (
             <div className="w-full lg:max-w-sm">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Judge</label>
+              <label
+                htmlFor="judge-schedule-filter"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Judge
+              </label>
               <select
+                id="judge-schedule-filter"
                 value={selectedJudgeId}
                 onChange={(e) => setSelectedJudgeId(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

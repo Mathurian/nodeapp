@@ -104,12 +104,20 @@ Rollback to a specific release:
 sudo scripts/deploy/rollback-release.sh <release_timestamp>
 ```
 
+Rollback keeps the current systemd Node executable. Before relying on an older
+release, verify that it runs on Node v24.22.1; otherwise restore the previous
+`override.conf` from `/etc/systemd/system/event-manager-backups/<activation-timestamp>/`
+and reload systemd before invoking the rollback script, which restarts the service.
+
 ## Notes
 
 - Production runs independently from the dev workspace.
 - Dev service is separate (`event-manager-dev.service`, port `3002`).
 - Production service is `event-manager.service` (port `3000` behind nginx).
+- Staging verifies Node v24.22.1 for its checks and `npm ci` before writing a release.
+- Activation checks `/usr/local/bin/node` for v24.22.1 before changing the active release.
 - Deploy scripts do not copy `/srv/event-manager/dev/.env` into prod. Manage `/etc/event-manager/event-manager.env` directly.
+- Staging preserves production uploads, backups, logs, and backup credentials; it does not import development runtime data by default.
 - Release staging carries forward prior hashed frontend assets referenced by the previous `sw.js` precache manifest. This prevents stale-client `bad-precaching-response` failures during rolling upgrades.
 - Release retention is automatic in `activate-release.sh`.
   Set `RETAIN_RELEASES` (default `10`) to keep only the most recent release directories:

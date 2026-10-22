@@ -17,7 +17,7 @@ Multi-tenant event management system built with Node.js, TypeScript, React, and 
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ (20.x) or 22.12+; deployment uses 24.22.1
 - PostgreSQL 14+
 - Redis (optional, for caching)
 - npm or yarn

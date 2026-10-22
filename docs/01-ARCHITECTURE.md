@@ -36,7 +36,7 @@ Event Manager follows a modern three-tier architecture with clear separation of 
 ┌─────────────────────────────────────────────────────────────┐
 │                  APPLICATION LAYER                           │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │  Node.js 18+ / Express (TypeScript)                │    │
+│  │  Node.js 24 / Express (TypeScript)                 │    │
 │  │  ┌──────────────────────────────────────────────┐  │    │
 │  │  │  API Layer (77+ Routes)                      │  │    │
 │  │  │  - RESTful endpoints                         │  │    │

@@ -19,7 +19,7 @@ Developer workflow guide for contributing to Event Manager.
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ (20.x) or 22.12+; deployment uses 24.22.1
 - PostgreSQL 12+
 - Redis (optional)
 - Git

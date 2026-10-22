@@ -40,7 +40,7 @@ Tenant segregation rollout env keys (in `event-manager.env`):
 The `event-manager.service` unit runs from:
 
 - `WorkingDirectory=/opt/event-manager/current`
-- `ExecStart=/usr/bin/node dist/server.js`
+- `ExecStart=/usr/local/bin/node dist/server.js` (Node v24.22.1)
 - `EnvironmentFile=/etc/event-manager/event-manager.env`
 
 ### Initial env setup (one-time)
@@ -80,6 +80,14 @@ Use these scripts from repo root:
    - `sudo scripts/deploy/rollback-release.sh`
 4. Roll back to explicit release:
    - `sudo scripts/deploy/rollback-release.sh <release_timestamp>`
+
+The activation script verifies Node v24.22.1 before switching releases; set
+`NODE_BIN` and `EXPECTED_NODE_VERSION` together only for a deliberately tested
+runtime change. Rollback changes the release symlink, not the Node executable in
+the systemd override, so validate the previous release on Node v24.22.1 or
+restore the earlier `override.conf` from
+`/etc/systemd/system/event-manager-backups/<activation-timestamp>/` and reload
+systemd before invoking the rollback script, which restarts the service.
 
 For a concise operator runbook, see:
 

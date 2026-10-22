@@ -139,7 +139,7 @@ export const offlineWriteOwnershipManifest: OfflineWriteOwnershipManifest = {
       "idempotencyPhase": "enforced",
       "timeoutProfile": "upload",
       "backgroundSync": {
-        "queueName": "score-file-write-queue",
+        "queueName": "score-file-update-queue",
         "maxRetentionMinutes": 1440
       },
       "matchExpression": "^/score-files/[^/]+$"

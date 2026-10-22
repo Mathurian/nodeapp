@@ -7,9 +7,30 @@ CURRENT_LINK="${CURRENT_LINK:-/opt/event-manager/current}"
 SHARED_DIR="${SHARED_DIR:-/var/lib/event-manager}"
 LOG_DIR="${LOG_DIR:-/var/log/event-manager}"
 ENV_DIR="${ENV_DIR:-/etc/event-manager}"
+NODE_BIN="${NODE_BIN:-/usr/local/bin/node}"
+EXPECTED_NODE_VERSION="${EXPECTED_NODE_VERSION:-v24.22.1}"
 
 if ! command -v sudo >/dev/null 2>&1; then
   echo "sudo is required"
+  exit 1
+fi
+
+# Use the same Node runtime for PWA checks, release parsing, and npm install.
+if [[ "$NODE_BIN" != /* || "$NODE_BIN" =~ [[:space:]] ]] || [ ! -x "$NODE_BIN" ]; then
+  echo "Node executable must be an absolute executable path without whitespace: $NODE_BIN" >&2
+  exit 1
+fi
+
+ACTUAL_NODE_VERSION="$("$NODE_BIN" --version)"
+if [ "$ACTUAL_NODE_VERSION" != "$EXPECTED_NODE_VERSION" ]; then
+  echo "Node version mismatch: $NODE_BIN is $ACTUAL_NODE_VERSION; expected $EXPECTED_NODE_VERSION" >&2
+  exit 1
+fi
+
+export PATH="${NODE_BIN%/*}:$PATH"
+SUDO_NODE_VERSION="$(sudo env PATH="$PATH" node --version)"
+if [ "$SUDO_NODE_VERSION" != "$EXPECTED_NODE_VERSION" ]; then
+  echo "Elevated Node version mismatch: $SUDO_NODE_VERSION; expected $EXPECTED_NODE_VERSION" >&2
   exit 1
 fi
 
@@ -51,22 +72,31 @@ copy_pwa_compat_assets_from_previous_release() {
   [ -f "$previous_dist/sw.js" ] || return 0
 
   local compat_paths
-  compat_paths="$(node - "$previous_dist/sw.js" <<'NODE'
+  compat_paths="$("$NODE_BIN" - "$previous_dist/sw.js" <<'NODE'
 const fs = require('fs');
 const swPath = process.argv[2];
 if (!swPath || !fs.existsSync(swPath)) process.exit(0);
 
 const content = fs.readFileSync(swPath, 'utf8');
 const matches = new Set();
-const pattern = /"url":"([^"]+)"/g;
+// Workbox output can use either {url:"..."} or {"url":"..."} entries.
+const pattern = /(?:^|[{,])\s*"?url"?\s*:\s*"([^"]+)"/g;
+const runtimeImportPattern = /["'](?:\.\/)?(workbox-[A-Za-z0-9_-]+)(?:\.js)?["']/g;
+const safeAssetPath = /^(?:assets\/[A-Za-z0-9._/-]+|workbox-[A-Za-z0-9_-]+\.js)$/;
 let match;
 
 while ((match = pattern.exec(content)) !== null) {
   const normalized = String(match[1] || '').replace(/^\/+/, '');
-  if (!normalized) continue;
-  if (normalized.startsWith('assets/') || normalized.startsWith('workbox-')) {
-    matches.add(normalized);
-  }
+  if (!safeAssetPath.test(normalized)) continue;
+  if (normalized.split('/').some((segment) => !segment || segment === '.' || segment === '..')) continue;
+  matches.add(normalized);
+}
+
+// Workbox's generated SW can load its runtime via define(["./workbox-HASH"]),
+// without a manifest URL entry or .js extension. Preserve that previous file
+// so an existing worker can restart while clients migrate to the new release.
+while ((match = runtimeImportPattern.exec(content)) !== null) {
+  matches.add(`${match[1]}.js`);
 }
 
 for (const filePath of Array.from(matches).sort()) {
@@ -118,7 +148,7 @@ sudo find "$REL/grafana" -type f -exec chmod 644 {} +
 echo "Installing runtime dependencies..."
 (
   cd "$REL"
-  sudo npm ci --omit=dev --legacy-peer-deps
+  sudo env PATH="$PATH" npm ci --omit=dev --legacy-peer-deps
 )
 
 sudo install -d -m 755 \
@@ -130,12 +160,18 @@ sudo install -d -m 755 \
   "$SHARED_DIR/exports" \
   "$LOG_DIR"
 
-sudo rsync -a "$APP_ROOT/uploads/" "$SHARED_DIR/uploads/"
-sudo rsync -a "$APP_ROOT/backups/" "$SHARED_DIR/backups/"
-sudo rsync -a "$APP_ROOT/logs/" "$LOG_DIR/"
+# Runtime data and credentials belong to the target environment. Only import
+# development copies during an explicitly requested one-time bootstrap.
+if [ "${COPY_DEV_RUNTIME_DATA:-false}" = "true" ]; then
+  sudo rsync -a "$APP_ROOT/uploads/" "$SHARED_DIR/uploads/"
+  sudo rsync -a "$APP_ROOT/backups/" "$SHARED_DIR/backups/"
+  sudo rsync -a "$APP_ROOT/logs/" "$LOG_DIR/"
 
-if [ -f "$APP_ROOT/config/backup.runtime.env" ]; then
-  sudo cp "$APP_ROOT/config/backup.runtime.env" "$SHARED_DIR/config/backup.runtime.env"
+  if [ -f "$APP_ROOT/config/backup.runtime.env" ]; then
+    sudo cp "$APP_ROOT/config/backup.runtime.env" "$SHARED_DIR/config/backup.runtime.env"
+  fi
+else
+  echo "Preserving target runtime uploads, backups, logs, and backup credentials."
 fi
 
 sudo chown -R www-data:www-data "$SHARED_DIR" "$LOG_DIR"

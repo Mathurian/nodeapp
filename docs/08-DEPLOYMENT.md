@@ -31,7 +31,7 @@ Production does not run from `/srv/event-manager/dev`, and production does not r
 
 - Systemd unit: `event-manager.service`
 - Working directory: `/opt/event-manager/current`
-- Start command: `/usr/bin/node dist/server.js`
+- Start command: `/usr/local/bin/node dist/server.js` (Node v24.22.1)
 - API port behind nginx: `3000`
 
 ### Development
@@ -118,10 +118,11 @@ sudo scripts/deploy/stage-release.sh
 
 This script:
 
+- verifies Node v24.22.1 for PWA checks and production dependency installation
 - creates `/opt/event-manager/releases/<timestamp>`
 - copies built backend, frontend, docs, Prisma schema, config, and scripts
 - installs production dependencies with `npm ci --omit=dev --legacy-peer-deps`
-- syncs shared uploads, backups, and logs
+- preserves the production uploads, backups, logs, and backup credentials by default
 - preserves prior hashed PWA assets required for rollout compatibility
 - records the staged release id in `/opt/event-manager/.last_release_ts`
 
@@ -133,6 +134,7 @@ sudo scripts/deploy/activate-release.sh "$(cat /opt/event-manager/.last_release_
 
 This script:
 
+- verifies that `/usr/local/bin/node` is v24.22.1 before changing the active release
 - repoints `/opt/event-manager/current`
 - writes the systemd override for the active release and env file
 - normalizes nginx roots to the current runtime layout
@@ -162,6 +164,13 @@ Rollback to a specific release:
 ```bash
 sudo scripts/deploy/rollback-release.sh <release_timestamp>
 ```
+
+Rollback switches the release symlink but leaves the systemd Node executable at
+`/usr/local/bin/node`. Verify that the rollback release starts on Node v24.22.1.
+If it requires the previous runtime, restore the earlier `override.conf` from
+`/etc/systemd/system/event-manager-backups/<activation-timestamp>/` and run
+`sudo systemctl daemon-reload` **before** invoking the rollback script, which
+restarts the service.
 
 ## Database and Prisma
 

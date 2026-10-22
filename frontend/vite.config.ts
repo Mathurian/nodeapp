@@ -156,18 +156,34 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // Code splitting and chunk optimization
-    rollupOptions: {
+    // Keep the browser support baseline used by Vite 5 for the installed PWA.
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    // Preserve the existing vendor groups with Rolldown's supported chunking API.
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunk for React core
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // UI vendor chunk
-          'ui-vendor': ['@headlessui/react', '@heroicons/react', 'framer-motion'],
-          // Data fetching vendor
-          'data-vendor': ['react-query', 'axios'],
-          // Form/validation vendor
-          'form-vendor': ['react-hook-form']
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /node_modules[\\/](?:react|react-dom|react-router-dom)[\\/]/,
+              priority: 40
+            },
+            {
+              name: 'ui-vendor',
+              test: /node_modules[\\/](?:@headlessui[\\/]react|@heroicons[\\/]react|framer-motion)[\\/]/,
+              priority: 30
+            },
+            {
+              name: 'data-vendor',
+              test: /node_modules[\\/](?:react-query|axios)[\\/]/,
+              priority: 20
+            },
+            {
+              name: 'form-vendor',
+              test: /node_modules[\\/]react-hook-form[\\/]/,
+              priority: 10
+            }
+          ]
         },
         // Optimize chunk file names with content hash for cache busting
         chunkFileNames: 'assets/js/[name]-[hash:8].js',

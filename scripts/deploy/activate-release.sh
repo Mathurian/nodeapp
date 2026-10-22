@@ -12,6 +12,8 @@ ENV_FILE="${ENV_FILE:-/etc/event-manager/event-manager.env}"
 RETAIN_RELEASES="${RETAIN_RELEASES:-10}"
 GRAFANA_PROVISIONING_DIR="${GRAFANA_PROVISIONING_DIR:-/etc/grafana/provisioning}"
 GRAFANA_SERVICE_NAME="${GRAFANA_SERVICE_NAME:-grafana-server}"
+NODE_BIN="${NODE_BIN:-/usr/local/bin/node}"
+EXPECTED_NODE_VERSION="${EXPECTED_NODE_VERSION:-v24.22.1}"
 
 if [ "${1:-}" = "" ]; then
   echo "Usage: sudo $0 <release-timestamp>"
@@ -26,6 +28,19 @@ if [ ! -d "$REL" ]; then
   exit 1
 fi
 
+# Check the executable before changing the active symlink or service override.
+# Reject whitespace because systemd ExecStart parses the executable path as a word.
+if [[ "$NODE_BIN" != /* || "$NODE_BIN" =~ [[:space:]] ]] || [ ! -x "$NODE_BIN" ]; then
+  echo "Node executable must be an absolute executable path without whitespace: $NODE_BIN" >&2
+  exit 1
+fi
+
+ACTUAL_NODE_VERSION="$("$NODE_BIN" --version)"
+if [ "$ACTUAL_NODE_VERSION" != "$EXPECTED_NODE_VERSION" ]; then
+  echo "Node version mismatch: $NODE_BIN is $ACTUAL_NODE_VERSION; expected $EXPECTED_NODE_VERSION" >&2
+  exit 1
+fi
+
 NOW="$(date +%Y%m%d%H%M%S)"
 
 backup_runtime_config() {
@@ -36,6 +51,11 @@ backup_runtime_config() {
   if [ -f /etc/systemd/system/event-manager.service ]; then
     sudo install -d -m 755 "$systemd_target"
     sudo cp -a /etc/systemd/system/event-manager.service "$systemd_target/event-manager.service"
+  fi
+
+  if [ -f /etc/systemd/system/event-manager.service.d/override.conf ]; then
+    sudo install -d -m 755 "$systemd_target"
+    sudo cp -a /etc/systemd/system/event-manager.service.d/override.conf "$systemd_target/override.conf"
   fi
 
   sudo install -d -m 755 "$nginx_target"
@@ -97,7 +117,7 @@ sudo tee /etc/systemd/system/event-manager.service.d/override.conf >/dev/null <<
 WorkingDirectory=$CURRENT_LINK
 EnvironmentFile=$ENV_FILE
 ExecStart=
-ExecStart=/usr/bin/node dist/server.js
+ExecStart=$NODE_BIN dist/server.js
 EOF
 
 normalize_nginx_roots() {

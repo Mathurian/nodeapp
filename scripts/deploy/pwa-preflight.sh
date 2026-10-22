@@ -76,4 +76,23 @@ assert_contains "$FRONTEND_DIST/sw.js" "\\^\\\\/api\\\\/" "sw.js missing /api de
 assert_contains "$FRONTEND_DIST/sw.js" "\\^\\\\/uploads\\\\/" "sw.js missing /uploads denylist"
 assert_contains "$FRONTEND_DIST/sw.js" "\\^\\\\/socket\\\\\\.io\\\\/" "sw.js missing /socket.io denylist"
 
+node - "$FRONTEND_DIST/sw.js" <<'NODE'
+const fs = require('fs');
+const swPath = process.argv[2];
+const content = fs.readFileSync(swPath, 'utf8');
+const queueNames = Array.from(content.matchAll(/\bBackgroundSyncPlugin\(\s*["']([^"']+)["']/g), (match) => match[1]);
+if (queueNames.length === 0) {
+  console.error(`PWA preflight failed: sw.js has no background sync queues (${swPath})`);
+  process.exit(1);
+}
+const seen = new Set();
+for (const name of queueNames) {
+  if (seen.has(name)) {
+    console.error(`PWA preflight failed: duplicate background sync queue ${name} (${swPath})`);
+    process.exit(1);
+  }
+  seen.add(name);
+}
+NODE
+
 echo "PWA preflight passed for $FRONTEND_DIST"
