@@ -258,6 +258,65 @@ reconcile_grafana_permissions() {
 
 sudo systemctl daemon-reload
 sudo systemctl restart "$SERVICE_NAME"
+RESTART_COUNT_BEFORE="$(systemctl show "$SERVICE_NAME" --property=NRestarts --value)"
+
+wait_for_healthy_service() {
+  local deadline=$((SECONDS + 90))
+  local healthy_pid=""
+  local healthy_since=0
+  local state pid restart_count health_response
+
+  while ((SECONDS < deadline)); do
+    state="$(systemctl show "$SERVICE_NAME" --property=ActiveState --value)"
+    pid="$(systemctl show "$SERVICE_NAME" --property=MainPID --value)"
+    restart_count="$(systemctl show "$SERVICE_NAME" --property=NRestarts --value)"
+
+    if [[ "$restart_count" =~ ^[0-9]+$ && "$RESTART_COUNT_BEFORE" =~ ^[0-9]+$ ]] &&
+      ((restart_count > RESTART_COUNT_BEFORE)); then
+      echo "Activation failed: $SERVICE_NAME restarted during its health check." >&2
+      return 1
+    fi
+
+    if [ "$state" = "failed" ]; then
+      echo "Activation failed: $SERVICE_NAME entered the failed state." >&2
+      return 1
+    fi
+
+    if [ "$state" = "active" ] && [[ "$pid" =~ ^[1-9][0-9]*$ ]]; then
+      health_response="$(curl -fsS --max-time 3 http://127.0.0.1:3000/health 2>/dev/null)" || health_response=""
+      if [ -n "$health_response" ] && "$NODE_BIN" -e '
+        try {
+          const health = JSON.parse(require("fs").readFileSync(0, "utf8"));
+          if (health.status !== "OK" || health.database !== "connected" ||
+              health.offlineWriteManifest?.valid !== true ||
+              health.offlineWriteManifest?.usingFallback !== false ||
+              health.offlineReliabilityInvariants?.valid !== true) process.exit(1);
+        } catch { process.exit(1); }
+      ' <<<"$health_response"; then
+        if [ "$healthy_pid" = "$pid" ] && ((SECONDS - healthy_since >= 4)); then
+          echo "$SERVICE_NAME passed the health check with stable PID $pid."
+          return 0
+        fi
+        if [ "$healthy_pid" != "$pid" ]; then
+          healthy_pid="$pid"
+          healthy_since=$SECONDS
+        fi
+      else
+        healthy_pid=""
+      fi
+    else
+      healthy_pid=""
+    fi
+
+    sleep 2
+  done
+
+  echo "Activation failed: $SERVICE_NAME did not pass /health within 90 seconds." >&2
+  echo "Check: sudo journalctl -u $SERVICE_NAME -n 100 --no-pager" >&2
+  return 1
+}
+
+wait_for_healthy_service
 sync_grafana_provisioning
 if systemctl list-unit-files "$GRAFANA_SERVICE_NAME" >/dev/null 2>&1; then
   sudo systemctl restart "$GRAFANA_SERVICE_NAME"

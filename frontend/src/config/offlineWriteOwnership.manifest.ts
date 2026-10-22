@@ -24,7 +24,7 @@ export interface OfflineWriteOwnershipManifest {
 }
 
 export const offlineWriteOwnershipManifest: OfflineWriteOwnershipManifest = {
-  "version": 3,
+  "version": 4,
   "routes": [
     {
       "id": "scoring-submit",

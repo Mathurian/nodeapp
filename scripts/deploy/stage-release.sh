@@ -131,7 +131,9 @@ sudo rsync -a --delete "$APP_ROOT/frontend/dist/" "$REL/frontend/dist/"
 copy_pwa_compat_assets_from_previous_release "$PREVIOUS_FRONTEND_DIST" "$REL/frontend/dist"
 sudo rsync -a --delete "$APP_ROOT/prisma/" "$REL/prisma/"
 sudo rsync -a --delete "$APP_ROOT/docs/" "$REL/docs/"
-sudo rsync -a --delete "$APP_ROOT/config/" "$REL/config/"
+# The target's runtime backup credentials are linked from SHARED_DIR below.
+# Never copy the development credential file into a staged release.
+sudo rsync -a --delete --exclude=backup.runtime.env "$APP_ROOT/config/" "$REL/config/"
 sudo rsync -a --delete "$APP_ROOT/grafana/" "$REL/grafana/"
 sudo rsync -a --delete "$APP_ROOT/scripts/" "$REL/scripts/"
 sudo rsync -a --delete "$APP_ROOT/src/templates/email/" "$REL/src/templates/email/"
