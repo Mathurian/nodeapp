@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
+import { setPwaUpdater } from './utils/pwaUpdate'
 import './index.css'
 
 const SW_MIGRATION_KEY = 'event-manager-sw-migration-version'
@@ -120,13 +121,12 @@ const registerPwa = () => {
     },
     onRegisterError(error) {
       if (import.meta.env.DEV) {
-         
         console.error('PWA service worker registration failed', error)
       }
     }
   })
 
-  void updateSW
+  setPwaUpdater(updateSW)
 }
 
 void recoverFromStaleServiceWorker().finally(() => {

@@ -293,6 +293,21 @@ staticAssetsMiddleware(app);
 
 **Path:** Caching > Configuration
 
+For a dev PWA update, use **Purge by URL** on these exact URLs after the
+origin's no-store nginx rules are active:
+
+- `https://dev.conmgr.com/sw.js`
+- `https://dev.conmgr.com/service-worker.js`
+- `https://dev.conmgr.com/registerSW.js`
+- `https://dev.conmgr.com/push-sw.js`
+- `https://dev.conmgr.com/manifest.webmanifest`
+
+Then check that the public `/sw.js` matches the current origin file and returns
+`Cache-Control: no-cache, no-store, must-revalidate`. A `CF-Cache-Status: HIT`
+with a year-long cache lifetime means an old edge copy or an overriding cache
+rule is still active. Keep service-worker entry files out of immutable asset
+rules; those rules should apply only to content-hashed assets.
+
 **Options:**
 - **Purge Everything:** Clears entire cache (use carefully)
 - **Purge by URL:** Clear specific files

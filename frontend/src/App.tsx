@@ -11,7 +11,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 import CommandPaletteOnboardingWrapper from './components/CommandPaletteOnboardingWrapper'
 import TenantRouter from './components/TenantRouter'
 import { lazyWithRetry } from './utils/lazyWithRetry'
-import { PWA_HARD_REFRESH_NOTICE_KEY, performPwaHardRefresh } from './utils/pwaRefresh'
+import { PWA_HARD_REFRESH_NOTICE_KEY } from './utils/pwaRefresh'
+import { applyPwaUpdate } from './utils/pwaUpdate'
 import './index.css'
 
 // Lazy load command palette
@@ -161,7 +162,17 @@ function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            void performPwaHardRefresh()
+                            setUpdateNotice('Installing update…')
+                            setShowUpdateAction(false)
+                            const timeoutId = window.setTimeout(() => {
+                              setUpdateNotice('Update did not finish. Please try again.')
+                              setShowUpdateAction(true)
+                            }, 30_000)
+                            void applyPwaUpdate().catch(() => {
+                              window.clearTimeout(timeoutId)
+                              setUpdateNotice('Update could not be installed. Please try again.')
+                              setShowUpdateAction(true)
+                            })
                           }}
                           className="ml-3 inline-flex items-center rounded-full border border-white/40 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
                         >

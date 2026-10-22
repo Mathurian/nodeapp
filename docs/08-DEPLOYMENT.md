@@ -197,6 +197,13 @@ Release activation normalizes nginx for the current runtime layout and injects c
 
 This prevents stale service-worker entry files from being long-term cached across releases.
 
+The development nginx site needs the same exact-match, no-store locations before its
+immutable `*.js` asset rule. Include `/push-sw.js` alongside the URLs above because
+`sw.js` imports it. After correcting a rule that previously cached these files,
+purge those specific URLs from the CDN and verify the public `/sw.js` matches the
+origin and no longer has a long cache lifetime. Reloading a PWA alone cannot
+replace a service worker that the CDN keeps serving from stale cache.
+
 The staging script also carries forward prior hashed frontend assets referenced by the previous `sw.js` precache manifest to prevent stale-client precache failures during rollout.
 
 ## Things That Are No Longer Correct
